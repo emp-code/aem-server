@@ -56,10 +56,10 @@ static int receiveConnections(const int port) {
 		if (sockNew < 0) {puts("ERROR: Failed to create socket for accepting connection"); return -1;}
 
 		switch(port) {
-//			case AEM_PORT_SMTP: respond_smtp(sockNew); break; 
+//			case AEM_PORT_AEF: respond_aef(); break;
 			case AEM_PORT_HTTP: respond_http(sockNew); break;
 //			case AEM_PORT_HTTPS: respond_https(sockNew); break;
-//			case AEM_PORT_AEF: respond_aef(); break;
+//			case AEM_PORT_SMTP: respond_smtp(sockNew); break; 
 		}
 
 		close(sockNew);
@@ -79,10 +79,9 @@ static int forkReceiver(const int port) {
 int main() {
 	puts(">>> ae-mail: All-Ears Mail");
 
-//	if (forkReceiver(AEM_PORT_HTTPS) < 0)  return 1;
+//	if (forkReceiver(AEM_PORT_AEF) < 0)  return 1;
 //	if (forkReceiver(AEM_PORT_HTTPS) < 0)  return 1;
 //	if (forkReceiver(AEM_PORT_SMTP) < 0)  return 1;
-//	if (forkReceiver(AEM_PORT_AEF) < 0)  return 1;
 
 	receiveConnections(AEM_PORT_HTTP);
 
