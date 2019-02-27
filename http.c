@@ -15,7 +15,8 @@ void respond_http(const int sock) {
 	"Location: https://"AEM_DOMAIN"\r\n"
 	"Content-Length: 0\r\n"
 	"Connection: close\r\n"
+	"Strict-Transport-Security: max-age=99999999\r\n" // 3+ years
 	"\r\n";
-	
-	send(sock, data, 86 + AEM_LEN_DOMAIN, 0);
+
+	send(sock, data, 131 + AEM_LEN_DOMAIN, 0);
 }
