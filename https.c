@@ -1,0 +1,195 @@
+#include <string.h>
+#include <stdio.h>
+
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/certs.h"
+#include "mbedtls/x509.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/error.h"
+#include "mbedtls/debug.h"
+
+#include "https.h"
+
+#define AEM_HTTPS_BUFLEN 1000
+#define AEM_NETINT_BUFLEN 1000
+
+static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
+	size_t sent = 0;
+
+	while (sent < lenData) {
+		int ret;
+		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), (lenData - sent > AEM_NETINT_BUFLEN) ? AEM_NETINT_BUFLEN : lenData - sent);}
+		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+		if (ret < 0) {
+			printf("ERROR: Failed transfer: %d\n", ret);
+			return;
+		}
+
+		sent += ret;
+	}
+}
+
+static void respond_https_home(mbedtls_ssl_context *ssl) {
+	const char* data =
+	"HTTP/1.1 200 aem\r\n"
+	"TSV: N\r\n"
+	"Content-Type: text/plain; charset=utf-8\r\n"
+	"Content-Length: 13\r\n"
+	"\r\n"
+	"All-Ears Mail";
+
+//	sendData(ssl, data, 102);
+	mbedtls_ssl_write(ssl, (unsigned char*)(data), 102);
+}
+
+// Tracking Status Resource for DNT
+static void respond_https_tsr(mbedtls_ssl_context *ssl) {
+	const char* data =
+	"HTTP/1.1 200 aem\r\n"
+	"TSV: N\r\n"
+	"Content-Type: application/tracking-status+json\r\n"
+	"Content-Length: 16\r\n"
+	"\r\n"
+	"{\"tracking\":\"N\"}";
+	
+	sendData(ssl, data, 112);
+}
+
+// robots.txt
+static void respond_https_robots(mbedtls_ssl_context *ssl) {
+	const char* data =
+	"HTTP/1.1 200 aem\r\n"
+	"TSV: N\r\n"
+	"Content-Type: text/plain; charset=utf-8\r\n"
+	"Content-Length: 26\r\n"
+	"\r\n"
+	"User-agent: *\r\n"
+	"Disallow: /";
+
+	sendData(ssl, data, 115);
+}
+
+static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, size_t chLen) {
+	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
+
+	char* end = strpbrk(clientHeaders + 5, "\r\n");
+	if (end == NULL) return;
+
+	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
+
+	chLen = end - clientHeaders - 14; // 5 + 9
+
+	if (chLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
+
+	if (chLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+	if (chLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+}
+
+void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey) {
+	// Load the certificates and private RSA key
+	mbedtls_x509_crt srvcert;
+	mbedtls_x509_crt_init(&srvcert);
+	int ret = mbedtls_x509_crt_parse(&srvcert, httpsCert, lenHttpsCert);
+
+	if (ret != 0) {
+		char error_buf[100];
+		mbedtls_strerror(ret, error_buf, 100);
+		printf("ERROR: Loading server cert failed - mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		return;
+	}
+
+	mbedtls_pk_context pkey;
+	mbedtls_pk_init(&pkey);
+	ret = mbedtls_pk_parse_key(&pkey, httpsKey, lenHttpsKey + 1, NULL, 0);
+	if (ret != 0) {
+		printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret);
+		return;
+	}
+
+	// Seed the RNG
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	mbedtls_entropy_context entropy;
+	mbedtls_entropy_init(&entropy);
+
+	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"All-Ears Mail", 13)) != 0) {
+		printf("ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
+		return;
+	}
+		
+	// Setting up the SSL
+	mbedtls_ssl_config conf;
+	mbedtls_ssl_config_init(&conf);
+
+	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
+		printf("Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
+	}
+
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
+	if ((ret = mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey)) != 0) {
+		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		return;
+	}
+
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_init(&ssl);
+
+	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
+		printf("ERROR: mbedtls_ssl_setup returned %d\n", ret);
+		return;
+	}
+
+	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+	// Handshake
+	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			/*if (ret == -80) {
+				mbedtls_ssl_session_reset(&ssl);
+				continue;
+			}*/
+
+			char error_buf[100];
+			mbedtls_strerror(ret, error_buf, 100);
+			printf("ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
+			mbedtls_ssl_session_reset(&ssl);
+			mbedtls_ssl_free(&ssl);
+			return;
+		}
+	}
+
+	unsigned char req[AEM_HTTPS_BUFLEN + 1];
+	memset(req, 0, AEM_HTTPS_BUFLEN);
+
+	do {
+		ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);
+	} while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+	if (ret <= 0) {
+		if (ret == 0 || ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY || ret == MBEDTLS_ERR_NET_CONN_RESET || ret == -29312) { // 29312=eof
+			// MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY = connection was closed gracefully
+			// MBEDTLS_ERR_NET_CONN_RESET = connection was reset by peer
+//				puts("DEBUG: Client closed the connection");
+		} else {
+			char error_buf[100];
+			mbedtls_strerror(ret, error_buf, 100);
+			printf( "ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
+		}
+	} else {
+		handleRequest(&ssl, (char*)req, ret);
+	}
+
+	mbedtls_ssl_session_reset(&ssl);
+	mbedtls_ssl_free(&ssl);
+	mbedtls_x509_crt_free(&srvcert);
+	mbedtls_pk_free(&pkey);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_entropy_free(&entropy);
+}

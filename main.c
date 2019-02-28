@@ -73,10 +73,39 @@ static int receiveConnections_https(const int port) {
 	if (initSocket(&sock, port) != 0) return 1;
 
 	// Load certs
+	FILE *f = fopen("aem-https.crt", "r");
+	fseek(f, 0L, SEEK_END);
+	long lenHttpsCert = ftell(f);
+	rewind(f);
+
+	unsigned char *httpsCert = calloc(lenHttpsCert + 2, 1);
+	size_t readBytes = fread(httpsCert, 1, lenHttpsCert, f);
+	fclose(f);
+
+	if (readBytes != lenHttpsCert) {
+		free(httpsCert);
+		return 2;
+	}
+
+	// Load key
+	f = fopen("aem-https.key", "r");
+	fseek(f, 0L, SEEK_END);
+	long lenHttpsKey = ftell(f);
+	rewind(f);
+	
+	unsigned char *httpsKey = calloc(lenHttpsKey + 2, 1);
+	readBytes = fread(httpsKey, 1, lenHttpsKey, f);
+	fclose(f);
+
+	if (readBytes != lenHttpsKey) {
+		free(httpsCert);
+		free(httpsKey);
+		return 3;
+	}
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL); 
-		respond_https(sockNew);
+		respond_https(sockNew, httpsCert, lenHttpsCert + 1, httpsKey, lenHttpsKey + 1);
 		close(sockNew);
 	}
 
