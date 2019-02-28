@@ -4,9 +4,6 @@
 #include "http.h"
 
 void respond_http(const int sock) {
-	char buf[1000];
-	int recvLen = recv(sock, buf, 999, 0);
-
 	const char* data =
 	"HTTP/1.1 301 aem\r\n"
 	"TSV: N\r\n"
