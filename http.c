@@ -11,6 +11,6 @@ void respond_http(const int sock) {
 		"Content-Length: 0\r\n"
 		"Connection: close\r\n"
 		"Strict-Transport-Security: max-age=99999999\r\n" // 3+ years
-		"\r\n";
+		"\r\n"
 	, 131 + AEM_LEN_DOMAIN, 0);
 }
