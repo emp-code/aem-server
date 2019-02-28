@@ -10,7 +10,7 @@
 
 //#include "aef.h"
 #include "http.h"
-//#include "https.h"
+#include "https.h"
 //#include "smtp.h"
 
 // Allow restarting the server immediately after kill
@@ -19,71 +19,100 @@ static void allowQuickRestart(const int* sock) {
 	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 }
 
-static int initSocket(const int sock, const int port) {
+static int initSocket(int *sock, const int port) {
+	*sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (*sock < 0) {
+		puts("ERROR: Opening socket failed");
+		return 1;
+	}
+
+	allowQuickRestart(sock);
+
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port = htons(port);
 
-	const int ret = bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
+	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
 	if (ret < 0) return ret;
 
-	listen(sock, 10); // socket, backlog (# of connections to keep in queue)
+	listen(*sock, 10); // socket, backlog (# of connections to keep in queue)
 	return 0;
 }
 
-static int receiveConnections(const int port) {
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {
-		puts("ERROR: Opening socket failed");
-		return 1;
-	}
+/*static int receiveConnections_aef() {
+	int sock;
+	if (initSocket(&sock, AEM_PORT_AEF) != 0) return -1;
 
-	allowQuickRestart(&sock);
-
-	if (initSocket(sock, port) != 0) {
-		puts("ERROR: Binding socket failed");
-		return 1;
-	}
-
-	struct sockaddr_in cliAddr;
-	socklen_t cliLen = sizeof(cliAddr);
-
-	// Loop to accept connections on the socket
 	while(1) {
-		const int sockNew = accept(sock, (struct sockaddr*)&cliAddr, &cliLen);
-		if (sockNew < 0) {puts("ERROR: Failed to create socket for accepting connection"); return -1;}
-
-		switch(port) {
-//			case AEM_PORT_AEF: respond_aef(); break;
-			case AEM_PORT_HTTP: respond_http(sockNew); break;
-//			case AEM_PORT_HTTPS: respond_https(sockNew); break;
-//			case AEM_PORT_SMTP: respond_smtp(sockNew); break; 
-		}
-
+		const int sockNew = accept(sock, NULL, NULL);
+		respond_aef(sockNew);
 		close(sockNew);
 	}
 
-	close(sock);
+	return 0;
+}*/
+
+static int receiveConnections_http() {
+	int sock;
+	if (initSocket(&sock, AEM_PORT_HTTP) != 0) return -1;
+
+	while(1) {
+		const int sockNew = accept(sock, NULL, NULL);
+		respond_http(sockNew);
+		close(sockNew);
+	}
+
 	return 0;
 }
 
-static int forkReceiver(const int port) {
-	const int pid = fork();
-	if (pid < 0) return pid;
-	if (pid == 0) receiveConnections(port);
+static int receiveConnections_https(const int port) {
+	int sock;
+	if (initSocket(&sock, port) != 0) return -1;
+
+	// Load certs
+
+	while(1) {
+		const int sockNew = accept(sock, NULL, NULL); 
+		respond_https(sockNew);
+		close(sockNew);
+	}
+
 	return 0;
 }
+
+/*static int receiveConnections_smtp() {
+	int sock;
+	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return -1;
+
+	while(1) {
+		const int sockNew = accept(sock, NULL, NULL);
+		respond_smtp(sockNew);
+		close(sockNew);
+	}
+
+	return 0;
+}*/
 
 int main() {
 	puts(">>> ae-mail: All-Ears Mail");
 
-//	if (forkReceiver(AEM_PORT_AEF) < 0)  return 1;
-//	if (forkReceiver(AEM_PORT_HTTPS) < 0)  return 1;
-//	if (forkReceiver(AEM_PORT_SMTP) < 0)  return 1;
+	int pid;
+	
+	pid = fork();
+	if (pid < 0) return -1;
+//	if (pid > 0) return receiveConnections(AEM_PORT_AEF);
 
-	receiveConnections(AEM_PORT_HTTP);
+	pid = fork();
+	if (pid < 0) return -1;
+	if (pid > 0) return receiveConnections_https(AEM_PORT_HTTPS);
+
+	pid = fork();
+	if (pid < 0) return -1;
+//	if (pid > 0) return receiveConnections(AEM_PORT_SMTP);
+
+	receiveConnections_http(AEM_PORT_HTTP);
 
 	return 0;
 }
