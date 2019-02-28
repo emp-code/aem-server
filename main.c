@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -43,7 +44,7 @@ static int initSocket(int *sock, const int port) {
 
 /*static int receiveConnections_aef() {
 	int sock;
-	if (initSocket(&sock, AEM_PORT_AEF) != 0) return -1;
+	if (initSocket(&sock, AEM_PORT_AEF) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
@@ -56,7 +57,7 @@ static int initSocket(int *sock, const int port) {
 
 static int receiveConnections_http() {
 	int sock;
-	if (initSocket(&sock, AEM_PORT_HTTP) != 0) return -1;
+	if (initSocket(&sock, AEM_PORT_HTTP) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
@@ -69,7 +70,7 @@ static int receiveConnections_http() {
 
 static int receiveConnections_https(const int port) {
 	int sock;
-	if (initSocket(&sock, port) != 0) return -1;
+	if (initSocket(&sock, port) != 0) return 1;
 
 	// Load certs
 
@@ -84,7 +85,7 @@ static int receiveConnections_https(const int port) {
 
 /*static int receiveConnections_smtp() {
 	int sock;
-	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return -1;
+	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
@@ -96,21 +97,23 @@ static int receiveConnections_https(const int port) {
 }*/
 
 int main() {
+	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent zombie processes
+
 	puts(">>> ae-mail: All-Ears Mail");
 
 	int pid;
 	
 	pid = fork();
-	if (pid < 0) return -1;
-//	if (pid > 0) return receiveConnections(AEM_PORT_AEF);
+	if (pid < 0) return 1;
+//	if (pid == 0) return receiveConnections(AEM_PORT_AEF);
 
 	pid = fork();
-	if (pid < 0) return -1;
-	if (pid > 0) return receiveConnections_https(AEM_PORT_HTTPS);
+	if (pid < 0) return 1;
+	if (pid == 0) return receiveConnections_https(AEM_PORT_HTTPS);
 
 	pid = fork();
-	if (pid < 0) return -1;
-//	if (pid > 0) return receiveConnections(AEM_PORT_SMTP);
+	if (pid < 0) return 1;
+//	if (pid == 0) return receiveConnections(AEM_PORT_SMTP);
 
 	receiveConnections_http(AEM_PORT_HTTP);
 
