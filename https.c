@@ -32,6 +32,7 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 	}
 }
 
+// Home (GET / HTTP/1.1)
 static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const char* data =
 	"HTTP/1.1 200 aem\r\n"
@@ -41,8 +42,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	"\r\n"
 	"All-Ears Mail";
 
-//	sendData(ssl, data, 102);
-	mbedtls_ssl_write(ssl, (unsigned char*)(data), 102);
+	sendData(ssl, data, 102);
 }
 
 // Tracking Status Resource for DNT
@@ -54,7 +54,7 @@ static void respond_https_tsr(mbedtls_ssl_context *ssl) {
 	"Content-Length: 16\r\n"
 	"\r\n"
 	"{\"tracking\":\"N\"}";
-	
+
 	sendData(ssl, data, 112);
 }
 
@@ -120,7 +120,7 @@ void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHtt
 		printf("ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
 		return;
 	}
-		
+
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -171,18 +171,12 @@ void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHtt
 		ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);
 	} while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
-	if (ret <= 0) {
-		if (ret == 0 || ret == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY || ret == MBEDTLS_ERR_NET_CONN_RESET || ret == -29312) { // 29312=eof
-			// MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY = connection was closed gracefully
-			// MBEDTLS_ERR_NET_CONN_RESET = connection was reset by peer
-//				puts("DEBUG: Client closed the connection");
-		} else {
-			char error_buf[100];
-			mbedtls_strerror(ret, error_buf, 100);
-			printf( "ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
-		}
-	} else {
+	if (ret > 0) {
 		handleRequest(&ssl, (char*)req, ret);
+	} else if (ret != 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
+		char error_buf[100];
+		mbedtls_strerror(ret, error_buf, 100);
+		printf( "ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
 	}
 
 	mbedtls_ssl_session_reset(&ssl);
