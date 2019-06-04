@@ -1,5 +1,8 @@
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -34,15 +37,33 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 
 // Home (GET / HTTP/1.1)
 static void respond_https_home(mbedtls_ssl_context *ssl) {
-	const char* data =
-	"HTTP/1.1 200 aem\r\n"
-	"TSV: N\r\n"
-	"Content-Type: text/plain; charset=utf-8\r\n"
-	"Content-Length: 13\r\n"
-	"\r\n"
-	"All-Ears Mail";
+	int fd = open("aem-web.html", O_RDONLY);
+	if (fd < 0) return;
 
-	sendData(ssl, data, 102);
+	const size_t lenHtml = lseek(fd, 0, SEEK_END);
+	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
+	lseek(fd, 0, SEEK_SET);
+
+	char headers[92];
+	sprintf(headers,
+		"HTTP/1.1 200 aem\r\n"
+		"TSV: N\r\n"
+		"Content-Type: text/html; charset=utf-8\r\n"
+		"Content-Length: %zd\r\n"
+		"\r\n"
+	, lenHtml);
+
+	const size_t lenHeaders = strlen(headers);
+
+	char data[lenHeaders + lenHtml];
+	const int bytesRead = read(fd, data + lenHeaders, lenHtml);
+	close(fd);
+
+	if (bytesRead != lenHtml) return;
+
+	memcpy(data, headers, lenHeaders);
+
+	sendData(ssl, data, lenHeaders + lenHtml);
 }
 
 // Tracking Status Resource for DNT
