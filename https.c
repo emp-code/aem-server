@@ -72,7 +72,7 @@ static void respond_https_robots(mbedtls_ssl_context *ssl) {
 	sendData(ssl, data, 115);
 }
 
-static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, size_t chLen) {
+static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen) {
 	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
 
 	char* end = strpbrk(clientHeaders + 5, "\r\n");
@@ -80,12 +80,12 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, s
 
 	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
 
-	chLen = end - clientHeaders - 14; // 5 + 9
+	const size_t urlLen = end - clientHeaders - 14; // 5 + 9
 
 	if (memcmp(clientHeaders, "GET /", 5) == 0) {
-		if (chLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
-		if (chLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-		if (chLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+		if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
+		if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+		if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
 
 	}
