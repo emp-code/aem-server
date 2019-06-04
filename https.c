@@ -66,6 +66,42 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	sendData(ssl, data, lenHeaders + lenHtml);
 }
 
+// Javascript
+static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const size_t jsLen) {
+	char path[jsLen + 1];
+	memcpy(path, jsPath, jsLen);
+	path[jsLen] = 0x00;
+	puts(path);
+
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) return;
+
+	const size_t lenJs = lseek(fd, 0, SEEK_END);
+	if (lenJs < 10 || lenJs > 99999) {close(fd); return;}
+	lseek(fd, 0, SEEK_SET);
+
+	char headers[100];
+	sprintf(headers,
+		"HTTP/1.1 200 aem\r\n"
+		"TSV: N\r\n"
+		"Content-Type: application/javascript; charset=utf-8\r\n"
+		"Content-Length: %zd\r\n"
+		"\r\n"
+	, lenJs);
+
+	const size_t lenHeaders = strlen(headers);
+
+	char data[lenHeaders + lenJs];
+	const int bytesRead = read(fd, data + lenHeaders, lenJs);
+	close(fd);
+
+	if (bytesRead != lenJs) return;
+
+	memcpy(data, headers, lenHeaders);
+
+	sendData(ssl, data, lenHeaders + lenJs);
+}
+
 // Tracking Status Resource for DNT
 static void respond_https_tsr(mbedtls_ssl_context *ssl) {
 	const char* data =
@@ -107,6 +143,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
 		if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 		if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+		if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_js(ssl, clientHeaders + 5, urlLen);
 	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
 
 	}
