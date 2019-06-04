@@ -82,10 +82,13 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, s
 
 	chLen = end - clientHeaders - 14; // 5 + 9
 
-	if (chLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
+	if (memcmp(clientHeaders, "GET /", 5) == 0) {
+		if (chLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
+		if (chLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+		if (chLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
 
-	if (chLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-	if (chLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+	}
 }
 
 void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey) {
