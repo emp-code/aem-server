@@ -13,6 +13,10 @@
 #include "mbedtls/error.h"
 #include "mbedtls/debug.h"
 
+#include "crypto_box.h"
+
+#include "Includes/b64dec.h"
+
 #include "https.h"
 
 #define AEM_HTTPS_BUFLEN 1000
