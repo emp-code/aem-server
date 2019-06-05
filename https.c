@@ -150,6 +150,13 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	unsigned char *userPk = b64Decode(b64_upk, b64_upk_len, &userPkLen);
 	unsigned char *boxData = b64Decode(b64_bd, b64_bd_len, &boxDataLen);
 
+	if (nonce == NULL || userPk == NULL || boxData == NULL || nonceLen != 24 || userPkLen != 32 || boxDataLen != 33) {
+		if (nonce != NULL) free(nonce);
+		if (userPk != NULL) free(userPk);
+		if (boxData != NULL) free(boxData);
+		return;
+	}
+
 	// First crypto_box_BOXZEROBYTES of boxData need to be 0x00
 	unsigned char box[crypto_box_BOXZEROBYTES + boxDataLen];
 	bzero(box, crypto_box_BOXZEROBYTES);
@@ -157,6 +164,13 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	size_t skeyLen;
 	unsigned char *skey = b64Decode(AEM_SERVER_SECRETKEY_TEMP_B64, strlen(AEM_SERVER_SECRETKEY_TEMP_B64), &skeyLen);
+	if (skey == NULL || skeyLen != 32) {
+		if (skey != NULL) free(skey);
+		if (nonce != NULL) free(nonce);
+		if (userPk != NULL) free(userPk);
+		if (boxData != NULL) free(boxData);
+		return;
+	}
 
 	unsigned char decrypted[boxDataLen + crypto_box_BOXZEROBYTES];
 	const int ret = crypto_box_open(decrypted, box, boxDataLen + crypto_box_BOXZEROBYTES, nonce, userPk, skey);
