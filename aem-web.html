@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+	<head>
+		<title>All-Ears Mail</title>
+
+		<style>
+			* {
+				text-align: center;
+			}
+
+			#div_login1 {
+				display: inline
+			}
+		</style>
+
+		<noscript>
+			<style>#div_login1 {display: none !important}</style>
+		</noscript>
+
+		<!-- cat FILENAME.js | openssl dgst -sha384 -binary | openssl enc -base64 -A -->
+		<script src="js/nacl-fast.min.js" integrity="sha384-00jobBEKD0IWhpIMbJBlsFoJGCuuPvPDzW0MaYTT2LwkAh4hZRtwnwurtAtV0ick"></script>
+		<script src="js/b64bin.js"></script>
+		<script src="js/all-ears.js"></script>
+	</head>
+	<body>
+		<header>
+			<h1>All-Ears Mail</h1>
+		</header>
+
+		<main>
+			<noscript><strong>Javascript required</strong></noscript>
+
+			<!--
+				User keypair for testing (base64 encoded):
+				Public: ldGI0q4Mqnp/aiOhkZSoUi8g2I5DA9E3laQjZ37PPy8=
+				Secret: QC4Hpw0JIZIyJBeLRnfF7I/AApKNaaVC/xtxRg3d4T4=
+			-->
+
+			<p>
+				Secret key (base64):<br><input value="QC4Hpw0JIZIyJBeLRnfF7I/AApKNaaVC/xtxRg3d4T4=" id="txt_skey" size="44" maxlength="44" pattern="[0-9A-Za-z+/=]{44}" required="required" type="text">
+			</p>
+
+			<p>
+				<button onclick="AllEars_SetKeys(document.getElementById('txt_skey').value); AllEars_Login();">Sign in</button>
+			</p>
+
+			<p>
+				<button onclick="genKeys()">Generate keys (console)</button>
+			</p>
+		</main>
+
+		<footer>
+			<p>Powered by All-Ears Mail</p>
+		</footer>
+
+		<script>
+			function genKeys() {
+				console.log("Generating keys");
+				var keys = AllEars_NewKeys();
+
+				// Generate Base64 from keys
+				var b64_key_public = btoa(String.fromCharCode.apply(null, keys.publicKey));
+				var b64_key_secret = btoa(String.fromCharCode.apply(null, keys.secretKey));
+
+				console.log("Public: " + b64_key_public);
+				console.log("Secret: " + b64_key_secret);
+			}
+		</script>
+	</body>
+</html>
