@@ -139,14 +139,10 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 	const size_t urlLen = end - clientHeaders - 14; // 5 + 9
 
-	if (memcmp(clientHeaders, "GET /", 5) == 0) {
-		if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
-		if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-		if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
-		if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_js(ssl, clientHeaders + 5, urlLen);
-	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
-
-	}
+	if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
+	if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+	if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+	if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_js(ssl, clientHeaders + 5, urlLen);
 }
 
 void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey) {
