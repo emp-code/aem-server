@@ -151,7 +151,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	unsigned char *boxData = b64Decode(b64_bd, b64_bd_len, &boxDataLen);
 
 	// First crypto_box_BOXZEROBYTES of boxData need to be 0x00
-	unsigned char box[100];
+	unsigned char box[crypto_box_BOXZEROBYTES + boxDataLen];
 	bzero(box, crypto_box_BOXZEROBYTES);
 	memcpy(box + crypto_box_BOXZEROBYTES, boxData, boxDataLen);
 
