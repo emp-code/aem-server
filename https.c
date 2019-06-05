@@ -22,6 +22,8 @@
 #define AEM_HTTPS_BUFLEN 1000
 #define AEM_NETINT_BUFLEN 1000
 
+#define AEM_SERVER_SECRETKEY_TEMP_B64 "WEPFgMoessUEVWiXJ0RUX0EjpKVmN9nNBvWIKLO2+/4="
+
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
 
@@ -133,6 +135,52 @@ static void respond_https_robots(mbedtls_ssl_context *ssl) {
 	sendData(ssl, data, 115);
 }
 
+// Web login
+static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl) {
+	const char *b64_upk = url + 10;
+	char* end = strchr(b64_upk, '.');
+	if (end == NULL) return;
+	const size_t b64_upk_len = end - b64_upk;
+
+	const char *b64_bd = end + 1;
+	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
+
+	size_t nonceLen = 0, userPkLen = 0, boxDataLen = 0;
+	unsigned char *nonce = b64Decode("1rE+qiwudzOo5HWHyff+0S6QgbjqekCP", 32, &nonceLen); // TODO: Dynamic nonce
+	unsigned char *userPk = b64Decode(b64_upk, b64_upk_len, &userPkLen);
+	unsigned char *boxData = b64Decode(b64_bd, b64_bd_len, &boxDataLen);
+
+	// First crypto_box_BOXZEROBYTES of boxData need to be 0x00
+	unsigned char box[100];
+	bzero(box, crypto_box_BOXZEROBYTES);
+	memcpy(box + crypto_box_BOXZEROBYTES, boxData, boxDataLen);
+
+	size_t skeyLen;
+	unsigned char *skey = b64Decode(AEM_SERVER_SECRETKEY_TEMP_B64, strlen(AEM_SERVER_SECRETKEY_TEMP_B64), &skeyLen);
+
+	unsigned char decrypted[boxDataLen + crypto_box_BOXZEROBYTES];
+	const int ret = crypto_box_open(decrypted, box, boxDataLen + crypto_box_BOXZEROBYTES, nonce, userPk, skey);
+
+	free(skey);
+	free(nonce);
+	free(userPk);
+	free(boxData);
+
+	if (ret != 0 || strncmp((char*)(decrypted + crypto_box_ZEROBYTES), "AllEars:Web.Login", 17) != 0) return;
+
+	// Login successful
+
+	const char* data =
+	"HTTP/1.1 200 aem\r\n"
+	"TSV: N\r\n"
+	"Content-Type: text/plain; charset=utf-8\r\n"
+	"Content-Length: 4\r\n"
+	"\r\n"
+	"TODO";
+
+	sendData(ssl, data, strlen(data));
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen) {
 	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
 
@@ -147,6 +195,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 	if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 	if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_js(ssl, clientHeaders + 5, urlLen);
+	if (urlLen > 10 && memcmp(clientHeaders + 5, "web/login/", 10) == 0) return respond_https_login(ssl, clientHeaders + 5, urlLen);
 }
 
 void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey) {
