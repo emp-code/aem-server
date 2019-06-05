@@ -275,7 +275,7 @@ void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHtt
 	}
 
 	unsigned char req[AEM_HTTPS_BUFLEN + 1];
-	memset(req, 0, AEM_HTTPS_BUFLEN);
+	bzero(req, AEM_HTTPS_BUFLEN);
 
 	do {
 		ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);
