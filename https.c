@@ -51,7 +51,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1041];
+	char headers[1074];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -105,8 +105,9 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 			"vr"                   " 'none';"
 			"\r\n"
 
-		"X-XSS-Protection: 1; mode=block\r\n"
 		"Referrer-Policy: no-referrer\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
+		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
 	, lenHtml);
 	const size_t lenHeaders = strlen(headers);
@@ -135,13 +136,14 @@ static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const
 	if (lenJs < 10 || lenJs > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[163];
+	char headers[196];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
 		"Content-Type: application/javascript; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
 	, lenJs);
 
@@ -324,8 +326,8 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
 	if (b64_nonceLen != 32) return;
 
-//	char data[152 + 32];
-	char data[152 + 32 + 32];
+//	char data[185 + 32];
+	char data[185 + 32 + 32];
 
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -334,12 +336,13 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n%.*s"
 	, b64_nonceLen, 32, b64_nonce);
 	free(b64_nonce);
 
-	sendData(ssl, data, 152 + 32 + 32);
-//	sendData(ssl, data, 152 + 32);
+	sendData(ssl, data, 185 + 32 + 32);
+//	sendData(ssl, data, 185 + 32);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
