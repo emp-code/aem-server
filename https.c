@@ -51,7 +51,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1074];
+	char headers[1094];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -63,6 +63,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 			"connect-src"     " 'self' https://allears.test:60443/web/;"
 			"img-src"         " 'self';"
 			"navigate-to"     " 'self';"
+			"prefetch-src"    " 'self';"
 			"script-src"      " 'self' 'unsafe-inline' https://allears.test:60443/js/;"
 			"style-src"       " 'unsafe-inline';"
 
