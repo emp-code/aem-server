@@ -52,12 +52,13 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[913];
+	char headers[946];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"TSV: N\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
+		"X-XSS-Protection: 1; mode=block\r\n"
 		"Content-Security-Policy:"
 			"base-uri 'none';"
 			"block-all-mixed-content;"
