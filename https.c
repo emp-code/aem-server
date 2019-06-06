@@ -3,7 +3,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <math.h>
 
 #include "mbedtls/certs.h"
 #include "mbedtls/ctr_drbg.h"
@@ -148,6 +147,19 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 	memcpy(nonce, nonce_encrypted, 24);
 }
 
+static void noncePath(char path[60], const char *b64_upk) {
+	memcpy(path, "UserData/", 9);
+
+	for (int i = 0; i < 44; i++) {
+		if (b64_upk[i] == '/')
+			path[9 + i] = '-';
+		else
+			path[9 + i] = b64_upk[i];
+	}
+
+	memcpy(path + 53, "/nonce\0", 7);
+}
+
 // Web login
 static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const uint32_t clientIp, const unsigned char seed[16]) {
 	const char *b64_upk = url + 10;
@@ -160,14 +172,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	unsigned char nonce[24];
 
 	char path[60];
-	memcpy(path, "UserData/", 9);
-	for (int i = 0; i < 44; i++) {
-		if (b64_upk[i] == '/')
-			path[9 + i] = '-';
-		else
-			path[9 + i] = b64_upk[i];
-	}
-	memcpy(path + 53, "/nonce\0", 7);
+	noncePath(path, b64_upk);
 
 	int fd = open(path, O_RDONLY);
 	ssize_t bytesDone = read(fd, nonce, 24);
@@ -183,6 +188,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	encryptNonce(nonce, seed);
 
+	// Prepare to open Box
 	const char *b64_bd = end + 1;
 	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
 
@@ -210,6 +216,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 		return;
 	}
 
+	// Open the Box
 	unsigned char decrypted[boxDataLen + crypto_box_BOXZEROBYTES];
 	const int ret = crypto_box_open(decrypted, box, boxDataLen + crypto_box_BOXZEROBYTES, nonce, userPk, skey);
 
@@ -249,14 +256,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 
 // Store nonce in user folder
 	char path[60];
-	memcpy(path, "UserData/", 9);
-	for (int i = 0; i < 44; i++) {
-		if (b64_upk[i] == '/')
-			path[9 + i] = '-';
-		else
-			path[9 + i] = b64_upk[i];
-	}
-	memcpy(path + 53, "/nonce\0", 7);
+	noncePath(path, b64_upk);
 
 	fd = open(path, O_WRONLY | O_TRUNC);
 	bytesDone = write(fd, nonce, 24);
