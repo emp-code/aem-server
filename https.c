@@ -5,14 +5,14 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/certs.h"
-#include "mbedtls/x509.h"
-#include "mbedtls/ssl.h"
-#include "mbedtls/net_sockets.h"
-#include "mbedtls/error.h"
+#include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/error.h"
+#include "mbedtls/net_sockets.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/x509.h"
 #include "mbedtls/xtea.h"
 
 #include "crypto_box.h"
@@ -45,7 +45,6 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 	}
 }
 
-// Home (GET / HTTP/1.1)
 static void respond_https_home(mbedtls_ssl_context *ssl) {
 	int fd = open("aem-web.html", O_RDONLY);
 	if (fd < 0) return;
@@ -68,7 +67,6 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	char data[lenHeaders + lenHtml];
 	const int bytesRead = read(fd, data + lenHeaders, lenHtml);
 	close(fd);
-
 	if (bytesRead != lenHtml) return;
 
 	memcpy(data, headers, lenHeaders);
@@ -81,7 +79,6 @@ static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const
 	char path[jsLen + 1];
 	memcpy(path, jsPath, jsLen);
 	path[jsLen] = 0x00;
-	puts(path);
 
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) return;
@@ -104,7 +101,6 @@ static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const
 	char data[lenHeaders + lenJs];
 	const int bytesRead = read(fd, data + lenHeaders, lenJs);
 	close(fd);
-
 	if (bytesRead != lenJs) return;
 
 	memcpy(data, headers, lenHeaders);
@@ -158,11 +154,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	char* end = strchr(b64_upk, '.');
 	if (end == NULL) return;
 	const size_t b64_upk_len = end - b64_upk;
-
-	const char *b64_bd = end + 1;
-	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
-
-	size_t userPkLen = 0, boxDataLen = 0;
+	if (b64_upk_len != 44) return;
 
 	// Get nonce
 	unsigned char nonce[24];
@@ -189,8 +181,12 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	int timeDiff = (int)time(NULL) - ts;
 	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
 
-	encryptNonce(nonce, seed); // To protect against leaking server time etc
+	encryptNonce(nonce, seed);
 
+	const char *b64_bd = end + 1;
+	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
+
+	size_t userPkLen = 0, boxDataLen = 0;
 	unsigned char *userPk = b64Decode((unsigned char*)b64_upk, b64_upk_len, &userPkLen);
 	unsigned char *boxData = b64Decode((unsigned char*)b64_bd, b64_bd_len, &boxDataLen);
 
@@ -267,7 +263,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	close(fd);
 	if (bytesDone != 24) return;
 
-	encryptNonce(nonce, seed);  // To protect against leaking server time etc
+	encryptNonce(nonce, seed);
 
 	// Send Base64-ecnoded nonce to client
 	size_t b64_nonceLen;
