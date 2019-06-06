@@ -52,15 +52,56 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[92];
+	char headers[913];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"TSV: N\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
+		"Content-Security-Policy:"
+			"base-uri 'none';"
+			"block-all-mixed-content;"
+			"connect-src 'self' https://allears.test:60443/web/;"
+			"default-src 'none';"
+			"font-src 'none';"
+			"form-action 'none';"
+			"frame-ancestors 'none';"
+			"frame-src 'none';"
+			"img-src 'self';"
+			"manifest-src 'none';"
+			"media-src 'none';"
+			"navigate-to 'self';"
+			"object-src 'none';"
+			"sandbox allow-scripts;"
+			"script-src 'self' 'unsafe-inline' https://allears.test:60443/js/;"
+			"style-src 'unsafe-inline';"
+			"worker-src 'none';"
+			"\r\n"
+		"Feature-Policy:"
+			"autoplay 'none';"
+			"accelerometer 'none';"
+			"ambient-light-sensor 'none';"
+			"camera 'none';"
+			"cookie 'none';"
+			"display-capture 'none';"
+			"document-domain 'none';"
+			"docwrite 'none';"
+			"encrypted-media 'none';"
+			"fullscreen 'none';"
+			"geolocation 'none';"
+			"gyroscope 'none';"
+			"magnetometer 'none';"
+			"microphone 'none';"
+			"midi 'none';"
+			"payment 'none';"
+			"picture-in-picture 'none';"
+			"speaker 'none';"
+			"sync-xhr 'none';"
+			"usb 'none';"
+			"vr 'none';"
+			"\r\n"
 		"\r\n"
 	, lenHtml);
-
 	const size_t lenHeaders = strlen(headers);
 
 	char data[lenHeaders + lenHtml];
@@ -233,6 +274,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	"TSV: N\r\n"
 	"Content-Type: text/plain; charset=utf-8\r\n"
 	"Content-Length: 4\r\n"
+	"Access-Control-Allow-Origin: *\r\n"
 	"\r\n"
 	"TODO";
 
@@ -270,17 +312,20 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
 	if (b64_nonceLen < 10 || b64_nonceLen > 99) return;
 
-	char data[89 + b64_nonceLen];
+//	char data[89 + b64_nonceLen];
+	char data[89 + 32 + b64_nonceLen];
 
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"TSV: N\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n%.*s"
 	, b64_nonceLen, (int)b64_nonceLen, b64_nonce);
 
-	sendData(ssl, data, 89 + b64_nonceLen);
+	sendData(ssl, data, 89 + 32 + b64_nonceLen);
+//	sendData(ssl, data, 89 + b64_nonceLen);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
