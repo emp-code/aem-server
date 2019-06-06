@@ -34,7 +34,7 @@
 			</p>
 
 			<p>
-				<button onclick="AllEars_SetKeys(document.getElementById('txt_skey').value); AllEars_Login();">Sign in</button>
+				<button onclick="ae.SetKeys(document.getElementById('txt_skey').value); ae.Login();">Sign in</button>
 			</p>
 
 			<p>
@@ -47,9 +47,11 @@
 		</footer>
 
 		<script>
+			ae=new AllEars();
+
 			function genKeys() {
 				console.log("Generating keys");
-				var keys = AllEars_NewKeys();
+				var keys = ae.NewKeys();
 
 				// Generate Base64 from keys
 				var b64_key_public = btoa(String.fromCharCode.apply(null, keys.publicKey));

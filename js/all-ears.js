@@ -2,55 +2,58 @@
 // Public: zUv7tx3dQU8vSq93dGOl6RSDv0N+6PDZbhOesYkx2zo=
 // Secret: WEPFgMoessUEVWiXJ0RUX0EjpKVmN9nNBvWIKLO2+/4=
 
-// Base64 encoded server public key for NaCl Box
-const AllEars_serverPublicKey = b64ToBin("zUv7tx3dQU8vSq93dGOl6RSDv0N+6PDZbhOesYkx2zo=");
+function AllEars() {
+// Private
+	// Base64 encoded server public key for NaCl Box
+	const _serverPublicKey = b64ToBin("zUv7tx3dQU8vSq93dGOl6RSDv0N+6PDZbhOesYkx2zo=");
+	const _test = "heko"
 
-var AllEars_userKeys;
+	var _userKeys;
 
-function AEM_fetch(url, cb) {
-	var r=new XMLHttpRequest();
+	var _Fetch = function(url, cb) {
+		var r=new XMLHttpRequest();
 
-	r.onreadystatechange=function(){
-		if (r.readyState == 4 && typeof(cb) === "function") {
-			cb(r.status, r.responseText);
+		r.onreadystatechange=function(){
+			if (r.readyState == 4 && typeof(cb) === "function") {
+				cb(r.status, r.responseText);
+			}
 		}
+
+		r.open("GET", url);
+		r.send();
 	}
 
-	r.open("GET", url);
-	r.send();
-}
+// Public
+	this.SetKeys = function(skey_b64) {
+		_userKeys=nacl.box.keyPair.fromSecretKey(b64ToBin(skey_b64));
+	}
 
-// Set user's keys from a Base64-encoded secret key
-function AllEars_SetKeys(skey_b64) {
-	AllEars_userKeys=nacl.box.keyPair.fromSecretKey(b64ToBin(skey_b64));
-}
+	this.NewKeys = function() {
+		_userKeys=nacl.box.keyPair();
+		return _userKeys;
+	}
 
-// Generates a new set of keys to use
-function AllEars_NewKeys() {
-	AllEars_userKeys=nacl.box.keyPair();
-	return AllEars_userKeys;
-}
+	this.Login = function() {
+		var b64_key_public = btoa(String.fromCharCode.apply(null, _userKeys.publicKey));
 
-function AllEars_Login() {
-	var b64_key_public = btoa(String.fromCharCode.apply(null, AllEars_userKeys.publicKey));
-
-	AEM_fetch("/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
-		if (httpStatus != 200) {
-			console.log("Failed to get nonce from server");
-			return;
-		}
-
-		var login_nonce = b64ToBin(b64_login_nonce);
-		const plaintext = new TextEncoder().encode("AllEars:Web.Login");
-		var box_login = nacl.box(plaintext, login_nonce, AllEars_serverPublicKey, AllEars_userKeys.secretKey);
-		var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
-
-		AEM_fetch("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, response) {
-			if (httpStatus == 200) {
-				console.log("Login: Success");
-			} else {
-				console.log("Login: Failure");
+		_Fetch("/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
+			if (httpStatus != 200) {
+				console.log("Failed to get nonce from server");
+				return;
 			}
+
+			var login_nonce = b64ToBin(b64_login_nonce);
+			const plaintext = new TextEncoder().encode("AllEars:Web.Login");
+			var box_login = nacl.box(plaintext, login_nonce, _serverPublicKey, _userKeys.secretKey);
+			var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
+
+			_Fetch("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, response) {
+				if (httpStatus == 200) {
+					console.log("Login: Success");
+				} else {
+					console.log("Login: Failure");
+				}
+			});
 		});
-	});
+	}
 }
