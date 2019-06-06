@@ -186,6 +186,7 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 	mbedtls_xtea_context tea;
 	mbedtls_xtea_init(&tea);
 	mbedtls_xtea_setup(&tea, seed);
+
 	unsigned char nonce_encrypted[24];
 	mbedtls_xtea_crypt_ecb(&tea, MBEDTLS_XTEA_ENCRYPT, nonce, nonce_encrypted); // Bytes 1-8
 	mbedtls_xtea_crypt_ecb(&tea, MBEDTLS_XTEA_ENCRYPT, nonce + 8, nonce_encrypted + 8); // Bytes 9-16
@@ -215,12 +216,11 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	if (b64_upk_len != 44) return;
 
 	// Get nonce
-	unsigned char nonce[24];
-
 	char path[60];
 	noncePath(path, b64_upk);
 
 	int fd = open(path, O_RDONLY);
+	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
 	close(fd);
 	if (bytesDone != 24) return;
@@ -289,17 +289,17 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 // Request for a nonce to be used with a NaCl Box. URL format: name.tld/web/nonce/public-key-in-base64
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, const uint32_t clientIp, const unsigned char seed[16]) {
-	unsigned char nonce[24];
-
 	int fd = open("/dev/urandom", O_RDONLY);
 	unsigned char nonce_random[16];
 	ssize_t bytesDone = read(fd, nonce_random, 16);
 	close(fd);
 	if (bytesDone != 16) return;
 
+	unsigned char nonce[24];
+
 	const uint32_t ts = (uint32_t)time(NULL);
 	memcpy(nonce, &clientIp, 4); // Client IP. Protection against third parties intercepting the Box.
-	memcpy(nonce + 4, random, 16);
+	memcpy(nonce + 4, nonce_random, 16);
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
 // Store nonce in user folder
@@ -316,10 +316,10 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	// Send Base64-ecnoded nonce to client
 	size_t b64_nonceLen;
 	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
-	if (b64_nonceLen < 10 || b64_nonceLen > 99) return;
+	if (b64_nonceLen != 32) return;
 
-//	char data[152 + b64_nonceLen];
-	char data[152 + 32 + b64_nonceLen];
+//	char data[152 + 32];
+	char data[152 + 32 + 32];
 
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -329,11 +329,11 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n%.*s"
-	, b64_nonceLen, (int)b64_nonceLen, b64_nonce);
+	, b64_nonceLen, 32, b64_nonce);
 	free(b64_nonce);
 
-	sendData(ssl, data, 152 + 32 + b64_nonceLen);
-//	sendData(ssl, data, 152 + b64_nonceLen);
+	sendData(ssl, data, 152 + 32 + 32);
+//	sendData(ssl, data, 152 + 32);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
