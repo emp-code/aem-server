@@ -34,7 +34,7 @@ function AllEars_NewKeys() {
 function AllEars_Login() {
 	var b64_key_public = btoa(String.fromCharCode.apply(null, AllEars_userKeys.publicKey));
 
-	AEM_fetch("https://allears.test:60443/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
+	AEM_fetch("/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
 		if (httpStatus != 200) {
 			console.log("Failed to get nonce from server");
 			return;
@@ -45,7 +45,7 @@ function AllEars_Login() {
 		var box_login = nacl.box(plaintext, login_nonce, AllEars_serverPublicKey, AllEars_userKeys.secretKey);
 		var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
 
-		AEM_fetch("https://allears.test:60443/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, response) {
+		AEM_fetch("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, response) {
 			if (httpStatus == 200) {
 				console.log("Login: Success");
 			} else {
