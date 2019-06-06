@@ -50,68 +50,73 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
-	lseek(fd, 0, SEEK_SET);
 
-	char headers[1009];
+	char headers[1011];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
-		"X-XSS-Protection: 1; mode=block\r\n"
+
 		"Content-Security-Policy:"
-			"base-uri 'none';"
+			"connect-src"     " 'self' https://allears.test:60443/web/;"
+			"img-src"         " 'self';"
+			"navigate-to"     " 'self';"
+			"script-src"      " 'self' 'unsafe-inline' https://allears.test:60443/js/;"
+			"style-src"       " 'unsafe-inline';"
+
+			"base-uri"        " 'none';"
+			"default-src"     " 'none';"
+			"font-src"        " 'none';"
+			"form-action"     " 'none';"
+			"frame-ancestors" " 'none';"
+			"frame-src"       " 'none';"
+			"manifest-src"    " 'none';"
+			"media-src"       " 'none';"
+			"object-src"      " 'none';"
+			"worker-src"      " 'none';"
+
 			"block-all-mixed-content;"
-			"connect-src 'self' https://allears.test:60443/web/;"
-			"default-src 'none';"
-			"font-src 'none';"
-			"form-action 'none';"
-			"frame-ancestors 'none';"
-			"frame-src 'none';"
-			"img-src 'self';"
-			"manifest-src 'none';"
-			"media-src 'none';"
-			"navigate-to 'self';"
-			"object-src 'none';"
 			"sandbox allow-scripts;"
-			"script-src 'self' 'unsafe-inline' https://allears.test:60443/js/;"
-			"style-src 'unsafe-inline';"
-			"worker-src 'none';"
 			"\r\n"
+
 		"Feature-Policy:"
-			"autoplay 'none';"
-			"accelerometer 'none';"
-			"ambient-light-sensor 'none';"
-			"camera 'none';"
-			"cookie 'none';"
-			"display-capture 'none';"
-			"document-domain 'none';"
-			"docwrite 'none';"
-			"encrypted-media 'none';"
-			"fullscreen 'none';"
-			"geolocation 'none';"
-			"gyroscope 'none';"
-			"magnetometer 'none';"
-			"microphone 'none';"
-			"midi 'none';"
-			"payment 'none';"
-			"picture-in-picture 'none';"
-			"speaker 'none';"
-			"sync-xhr 'none';"
-			"usb 'none';"
-			"vr 'none';"
+			"autoplay"             " 'none';"
+			"accelerometer"        " 'none';"
+			"ambient-light-sensor" " 'none';"
+			"camera"               " 'none';"
+			"cookie"               " 'none';"
+			"display-capture"      " 'none';"
+			"document-domain"      " 'none';"
+			"docwrite"             " 'none';"
+			"encrypted-media"      " 'none';"
+			"fullscreen"           " 'none';"
+			"geolocation"          " 'none';"
+			"gyroscope"            " 'none';"
+			"magnetometer"         " 'none';"
+			"microphone"           " 'none';"
+			"midi"                 " 'none';"
+			"payment"              " 'none';"
+			"picture-in-picture"   " 'none';"
+			"speaker"              " 'none';"
+			"sync-xhr"             " 'none';"
+			"usb"                  " 'none';"
+			"vr"                   " 'none';"
 			"\r\n"
+
+		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
 	, lenHtml);
 	const size_t lenHeaders = strlen(headers);
 
 	char data[lenHeaders + lenHtml];
-	const int bytesRead = read(fd, data + lenHeaders, lenHtml);
-	close(fd);
-	if (bytesRead != lenHtml) return;
-
 	memcpy(data, headers, lenHeaders);
+
+	const int bytesRead = pread(fd, data + lenHeaders, lenHtml, 0);
+	close(fd);
+
+	if (bytesRead != lenHtml) return;
 
 	sendData(ssl, data, lenHeaders + lenHtml);
 }
