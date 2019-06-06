@@ -51,7 +51,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1011];
+	char headers[1041];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -106,6 +106,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 			"\r\n"
 
 		"X-XSS-Protection: 1; mode=block\r\n"
+		"Referrer-Policy: no-referrer\r\n"
 		"\r\n"
 	, lenHtml);
 	const size_t lenHeaders = strlen(headers);
