@@ -15,7 +15,7 @@
 
 #include "crypto_box.h"
 
-#include "Includes/b64dec.h"
+#include "Includes/Base64.h"
 
 #include "https.h"
 
