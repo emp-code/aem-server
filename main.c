@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -103,9 +107,18 @@ static int receiveConnections_https(const int port) {
 		return 3;
 	}
 
+	int r = open("/dev/urandom", O_RDONLY);
+	if (r < 0) return 3;
+	unsigned char seed[16];
+	ssize_t bytesRead = read(r, seed, 16);
+	if (bytesRead != 16) return 3;
+	close(r);
+
 	while(1) {
-		const int sockNew = accept(sock, NULL, NULL); 
-		respond_https(sockNew, httpsCert, lenHttpsCert + 1, httpsKey, lenHttpsKey + 1);
+		struct sockaddr_in clientAddr;
+		unsigned int clen = sizeof(clientAddr);
+		const int sockNew = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+		respond_https(sockNew, httpsCert, lenHttpsCert + 1, httpsKey, lenHttpsKey + 1, clientAddr.sin_addr.s_addr, seed);
 		close(sockNew);
 	}
 
