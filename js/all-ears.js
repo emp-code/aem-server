@@ -32,7 +32,6 @@ function AllEars_NewKeys() {
 }
 
 function AllEars_Login() {
-	const plaintext = new TextEncoder().encode("AllEars:Web.Login");
 	var b64_key_public = btoa(String.fromCharCode.apply(null, AllEars_userKeys.publicKey));
 
 	AEM_fetch("https://allears.test:60443/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
@@ -42,6 +41,7 @@ function AllEars_Login() {
 		}
 
 		var login_nonce = b64ToBin(b64_login_nonce);
+		const plaintext = new TextEncoder().encode("AllEars:Web.Login");
 		var box_login = nacl.box(plaintext, login_nonce, AllEars_serverPublicKey, AllEars_userKeys.secretKey);
 		var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
 
