@@ -147,7 +147,7 @@ int main() {
 	
 	pid = fork();
 	if (pid < 0) return 1;
-//	if (pid == 0) return receiveConnections(AEM_PORT_AEF);
+	if (pid == 0) return 0; //receiveConnections(AEM_PORT_AEF);
 
 	pid = fork();
 	if (pid < 0) return 1;
