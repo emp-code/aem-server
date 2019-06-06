@@ -330,6 +330,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n%.*s"
 	, b64_nonceLen, (int)b64_nonceLen, b64_nonce);
+	free(b64_nonce);
 
 	sendData(ssl, data, 152 + 32 + b64_nonceLen);
 //	sendData(ssl, data, 152 + b64_nonceLen);
