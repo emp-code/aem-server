@@ -52,10 +52,10 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[946];
+	char headers[945];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
-		"TSV: N\r\n"
+		"Tk: N\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
@@ -128,10 +128,10 @@ static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const
 	if (lenJs < 10 || lenJs > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[100];
+	char headers[99];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
-		"TSV: N\r\n"
+		"Tk: N\r\n"
 		"Content-Type: application/javascript; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 		"\r\n"
@@ -153,27 +153,27 @@ static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const
 static void respond_https_tsr(mbedtls_ssl_context *ssl) {
 	const char* data =
 	"HTTP/1.1 200 aem\r\n"
-	"TSV: N\r\n"
+	"Tk: N\r\n"
 	"Content-Type: application/tracking-status+json\r\n"
 	"Content-Length: 16\r\n"
 	"\r\n"
 	"{\"tracking\":\"N\"}";
 
-	sendData(ssl, data, 112);
+	sendData(ssl, data, 111);
 }
 
 // robots.txt
 static void respond_https_robots(mbedtls_ssl_context *ssl) {
 	const char* data =
 	"HTTP/1.1 200 aem\r\n"
-	"TSV: N\r\n"
+	"Tk: N\r\n"
 	"Content-Type: text/plain; charset=utf-8\r\n"
 	"Content-Length: 26\r\n"
 	"\r\n"
 	"User-agent: *\r\n"
 	"Disallow: /";
 
-	sendData(ssl, data, 115);
+	sendData(ssl, data, 114);
 }
 
 static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) {
@@ -272,7 +272,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	const char* data =
 	"HTTP/1.1 200 aem\r\n"
-	"TSV: N\r\n"
+	"Tk: N\r\n"
 	"Content-Type: text/plain; charset=utf-8\r\n"
 	"Content-Length: 4\r\n"
 	"Access-Control-Allow-Origin: *\r\n"
@@ -313,20 +313,20 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
 	if (b64_nonceLen < 10 || b64_nonceLen > 99) return;
 
-//	char data[89 + b64_nonceLen];
-	char data[89 + 32 + b64_nonceLen];
+//	char data[88 + b64_nonceLen];
+	char data[88 + 32 + b64_nonceLen];
 
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
-		"TSV: N\r\n"
+		"Tk: N\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n%.*s"
 	, b64_nonceLen, (int)b64_nonceLen, b64_nonce);
 
-	sendData(ssl, data, 89 + 32 + b64_nonceLen);
-//	sendData(ssl, data, 89 + b64_nonceLen);
+	sendData(ssl, data, 88 + 32 + b64_nonceLen);
+//	sendData(ssl, data, 88 + b64_nonceLen);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
