@@ -120,6 +120,7 @@ static int receiveConnections_https(const int port) {
 	mbedtls_pk_context pkey;
 	mbedtls_pk_init(&pkey);
 	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
+	free(key);
 	if (ret != 0) {printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
 
 	fd = open("/dev/urandom", O_RDONLY);
