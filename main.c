@@ -189,7 +189,6 @@ static int receiveConnections_https(const int port) {
 
 		respond_https(&ssl, clientAddr.sin_addr.s_addr, seed);
 
-		mbedtls_ssl_session_reset(&ssl);
 		mbedtls_ssl_free(&ssl);
 		close(sockNew);
 	}
