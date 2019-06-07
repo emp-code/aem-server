@@ -16,9 +16,13 @@
 
 #include "crypto_box.h"
 
+#include "defines.h"
 #include "Includes/Base64.h"
 
 #include "https.h"
+
+#define AEM_FILETYPE_JS 1
+#define AEM_FILETYPE_CSS 2
 
 #define AEM_HTTPS_BUFLEN 1000
 #define AEM_NETINT_BUFLEN 1000
@@ -51,7 +55,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1094];
+	char headers[1018 + AEM_LEN_DOMAIN * 4];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -60,14 +64,13 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy:"
-			"connect-src"     " 'self' https://allears.test:60443/web/;"
-			"img-src"         " 'self';"
-			"navigate-to"     " 'self';"
-			"prefetch-src"    " 'self';"
-			"script-src"      " 'self' 'unsafe-inline' https://allears.test:60443/js/;"
-			"style-src"       " 'unsafe-inline';"
+			"connect-src"     " "AEM_DOMAIN"/web/;"
+			"img-src"         " "AEM_DOMAIN"/img/;"
+			"script-src"      " "AEM_DOMAIN"/js/;"
+			"style-src"       " "AEM_DOMAIN"/css/;"
 
 			"base-uri"        " 'none';"
+			"child-src"       " 'none';"
 			"default-src"     " 'none';"
 			"font-src"        " 'none';"
 			"form-action"     " 'none';"
@@ -75,7 +78,9 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 			"frame-src"       " 'none';"
 			"manifest-src"    " 'none';"
 			"media-src"       " 'none';"
+			"navigate-to"     " 'none';" // Use * to allow links
 			"object-src"      " 'none';"
+			"prefetch-src"    " 'none';"
 			"worker-src"      " 'none';"
 
 			"block-all-mixed-content;"
@@ -112,6 +117,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 		"\r\n"
 	, lenHtml);
 	const size_t lenHeaders = strlen(headers);
+//	printf("LenHeaders=%zd\n", lenHeaders);
 
 	char data[lenHeaders + lenHtml];
 	memcpy(data, headers, lenHeaders);
@@ -124,40 +130,48 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	sendData(ssl, data, lenHeaders + lenHtml);
 }
 
-// Javascript
-static void respond_https_js(mbedtls_ssl_context *ssl, const char *jsPath, const size_t jsLen) {
-	char path[jsLen + 1];
-	memcpy(path, jsPath, jsLen);
-	path[jsLen] = 0x00;
-
+// Javascript, CSS, images etc
+static void respond_https_file(mbedtls_ssl_context *ssl, const char *path, const int fileType) {
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) return;
 
-	const size_t lenJs = lseek(fd, 0, SEEK_END);
-	if (lenJs < 10 || lenJs > 99999) {close(fd); return;}
+	const size_t lenFile = lseek(fd, 0, SEEK_END);
+	if (lenFile < 10 || lenFile > 99999) {close(fd); return;}
 	lseek(fd, 0, SEEK_SET);
 
-	char headers[196];
+	char *mediatype;
+	int mtLen;
+	switch (fileType) {
+		case AEM_FILETYPE_JS:
+			mediatype = "application/javascript; charset=utf-8";
+			mtLen = 37;
+			break;
+		case AEM_FILETYPE_CSS:
+			mediatype = "text/css; charset=utf-8";
+			mtLen = 23;
+			break;
+	}
+
+	char headers[164 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Type: application/javascript; charset=utf-8\r\n"
+		"Content-Type: %.*s\r\n"
 		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
-	, lenJs);
+	, mtLen, mediatype, lenFile);
 
 	const size_t lenHeaders = strlen(headers);
 
-	char data[lenHeaders + lenJs];
-	const int bytesRead = read(fd, data + lenHeaders, lenJs);
-	close(fd);
-	if (bytesRead != lenJs) return;
-
+	char data[lenHeaders + lenFile];
 	memcpy(data, headers, lenHeaders);
+	const int bytesRead = read(fd, data + lenHeaders, lenFile);
+	close(fd);
+	if (bytesRead != lenFile) return;
 
-	sendData(ssl, data, lenHeaders + lenJs);
+	sendData(ssl, data, lenHeaders + lenFile);
 }
 
 // Tracking Status Resource for DNT
@@ -234,7 +248,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	close(fd);
 	if (bytesDone != 24) return;
 
-	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the none
+	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
 
 	int32_t ts;
 	memcpy(&ts, nonce + 20, 4);
@@ -353,15 +367,18 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (end == NULL) return;
 
 	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
+	*(end - 9) = '\0';
 
 	const size_t urlLen = end - clientHeaders - 14; // 5 + 9
+	const char *url = clientHeaders + 5;
 
 	if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
 	if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 	if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
-	if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_js(ssl, clientHeaders + 5, urlLen);
-	if (urlLen > 10 && memcmp(clientHeaders + 5, "web/login/", 10) == 0) return respond_https_login(ssl, clientHeaders + 5, urlLen, clientIp, seed);
-	if (urlLen == 54 && memcmp(clientHeaders + 5, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, clientHeaders + 15, clientIp, seed);
+	if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_file(ssl, url, AEM_FILETYPE_JS);
+	if (urlLen > 4 && memcmp(clientHeaders + 5, "css/", 4) == 0) return respond_https_file(ssl, url, AEM_FILETYPE_CSS);
+	if (urlLen > 10 && memcmp(clientHeaders + 5, "web/login/", 10) == 0) return respond_https_login(ssl, url, urlLen, clientIp, seed);
+	if (urlLen == 54 && memcmp(clientHeaders + 5, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
 }
 
 void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey, const uint32_t clientIp, const unsigned char seed[16]) {
