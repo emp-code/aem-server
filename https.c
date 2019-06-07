@@ -55,7 +55,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1018 + AEM_LEN_DOMAIN * 4];
+	char headers[1050 + AEM_LEN_DOMAIN * 4];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -64,10 +64,10 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy:"
-			"connect-src"     " "AEM_DOMAIN"/web/;"
-			"img-src"         " "AEM_DOMAIN"/img/;"
-			"script-src"      " "AEM_DOMAIN"/js/;"
-			"style-src"       " "AEM_DOMAIN"/css/;"
+			"connect-src"     " https://"AEM_DOMAIN"/web/;"
+			"img-src"         " https://"AEM_DOMAIN"/img/;"
+			"script-src"      " https://"AEM_DOMAIN"/js/;"
+			"style-src"       " https://"AEM_DOMAIN"/css/;"
 
 			"base-uri"        " 'none';"
 			"child-src"       " 'none';"
@@ -117,7 +117,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 		"\r\n"
 	, lenHtml);
 	const size_t lenHeaders = strlen(headers);
-//	printf("LenHeaders=%zd\n", lenHeaders);
+//	printf("LenHeaders=%zd\n", lenHeaders - AEM_LEN_DOMAIN * 4);
 
 	char data[lenHeaders + lenHtml];
 	memcpy(data, headers, lenHeaders);
