@@ -4,14 +4,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "mbedtls/certs.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/debug.h"
-#include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/x509.h"
 #include "mbedtls/xtea.h"
 
 #include "crypto_box.h"
@@ -85,7 +80,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 
 			"block-all-mixed-content;"
 			"sandbox allow-scripts;"
-			"\r\n"
+		"\r\n"
 
 		"Feature-Policy:"
 			"autoplay"             " 'none';"
@@ -109,7 +104,7 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 			"sync-xhr"             " 'none';"
 			"usb"                  " 'none';"
 			"vr"                   " 'none';"
-			"\r\n"
+		"\r\n"
 
 		"Referrer-Policy: no-referrer\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
@@ -381,102 +376,20 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (urlLen == 54 && memcmp(clientHeaders + 5, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
 }
 
-void respond_https(int sock, const unsigned char *httpsCert, const size_t lenHttpsCert, const unsigned char *httpsKey, const size_t lenHttpsKey, const uint32_t clientIp, const unsigned char seed[16]) {
-	// Load the certificates and private RSA key
-	mbedtls_x509_crt srvcert;
-	mbedtls_x509_crt_init(&srvcert);
-	int ret = mbedtls_x509_crt_parse(&srvcert, httpsCert, lenHttpsCert);
-
-	if (ret != 0) {
-		char error_buf[100];
-		mbedtls_strerror(ret, error_buf, 100);
-		printf("ERROR: Loading server cert failed - mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
-		return;
-	}
-
-	mbedtls_pk_context pkey;
-	mbedtls_pk_init(&pkey);
-	ret = mbedtls_pk_parse_key(&pkey, httpsKey, lenHttpsKey + 1, NULL, 0);
-	if (ret != 0) {
-		printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret);
-		return;
-	}
-
-	// Seed the RNG
-	mbedtls_ctr_drbg_context ctr_drbg;
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-
-	mbedtls_entropy_context entropy;
-	mbedtls_entropy_init(&entropy);
-
-	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
-		printf("ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
-		return;
-	}
-
-	// Setting up the SSL
-	mbedtls_ssl_config conf;
-	mbedtls_ssl_config_init(&conf);
-
-	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-		printf("Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
-	}
-
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
-	mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
-	if ((ret = mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey)) != 0) {
-		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
-		return;
-	}
-
-	mbedtls_ssl_context ssl;
-	mbedtls_ssl_init(&ssl);
-
-	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
-		printf("ERROR: mbedtls_ssl_setup returned %d\n", ret);
-		return;
-	}
-
-	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-	// Handshake
-	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			/*if (ret == -80) {
-				mbedtls_ssl_session_reset(&ssl);
-				continue;
-			}*/
-
-			char error_buf[100];
-			mbedtls_strerror(ret, error_buf, 100);
-			printf("ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
-			mbedtls_ssl_session_reset(&ssl);
-			mbedtls_ssl_free(&ssl);
-			return;
-		}
-	}
-
+void respond_https(mbedtls_ssl_context *ssl, const uint32_t clientIp, const unsigned char seed[16]) {
 	unsigned char req[AEM_HTTPS_BUFLEN + 1];
 	bzero(req, AEM_HTTPS_BUFLEN);
 
-	do {
-		ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);
-	} while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+	int ret;
+	do {ret = mbedtls_ssl_read(ssl, req, AEM_HTTPS_BUFLEN);}
+		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
-	if (ret > 0) {
-		handleRequest(&ssl, (char*)req, ret, clientIp, seed);
-	} else if (ret != 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
+	if (ret > 0) return handleRequest(ssl, (char*)req, ret, clientIp, seed);
+
+	// Failed to read request
+	if (ret != 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
 		char error_buf[100];
 		mbedtls_strerror(ret, error_buf, 100);
 		printf( "ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
 	}
-
-	mbedtls_ssl_session_reset(&ssl);
-	mbedtls_ssl_free(&ssl);
-	mbedtls_x509_crt_free(&srvcert);
-	mbedtls_pk_free(&pkey);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_entropy_free(&entropy);
 }
