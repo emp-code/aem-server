@@ -212,6 +212,7 @@ static int receiveConnections_https(const int port) {
 
 int main() {
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent zombie processes
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent writing to closed/invalid sockets from ending the thread
 
 	puts(">>> ae-mail: All-Ears Mail");
 
