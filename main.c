@@ -173,15 +173,9 @@ static int receiveConnections_https(const int port) {
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				/*if (ret == -80) {
-					mbedtls_ssl_session_reset(ssl);
-					continue;
-				}*/
-
 				char error_buf[100];
 				mbedtls_strerror(ret, error_buf, 100);
 				printf("ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
-				mbedtls_ssl_session_reset(&ssl);
 				mbedtls_ssl_free(&ssl);
 				break;
 			}
@@ -189,6 +183,7 @@ static int receiveConnections_https(const int port) {
 
 		respond_https(&ssl, clientAddr.sin_addr.s_addr, seed);
 
+		mbedtls_ssl_close_notify(&ssl);
 		mbedtls_ssl_free(&ssl);
 		close(sockNew);
 	}

@@ -50,11 +50,12 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 	const size_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
 
-	char headers[1050 + AEM_LEN_DOMAIN * 4];
+	char headers[1069 + AEM_LEN_DOMAIN * 4];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 
@@ -147,11 +148,12 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *path, const
 			break;
 	}
 
-	char headers[164 + mtLen];
+	char headers[183 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Type: %.*s\r\n"
 		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
@@ -171,16 +173,17 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *path, const
 
 // Tracking Status Resource for DNT
 static void respond_https_tsr(mbedtls_ssl_context *ssl) {
-	const char* data =
+	const char data[] =
 	"HTTP/1.1 200 aem\r\n"
 	"Tk: N\r\n"
 	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+	"Connection: close\r\n"
 	"Content-Type: application/tracking-status+json\r\n"
 	"Content-Length: 16\r\n"
 	"\r\n"
-	"{\"tracking\":\"N\"}";
+	"{\"tracking\": \"N\"}";
 
-	sendData(ssl, data, 175);
+	sendData(ssl, data, 195);
 }
 
 // robots.txt
@@ -189,13 +192,14 @@ static void respond_https_robots(mbedtls_ssl_context *ssl) {
 	"HTTP/1.1 200 aem\r\n"
 	"Tk: N\r\n"
 	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+	"Connection: close\r\n"
 	"Content-Type: text/plain; charset=utf-8\r\n"
 	"Content-Length: 26\r\n"
 	"\r\n"
 	"User-agent: *\r\n"
 	"Disallow: /";
 
-	sendData(ssl, data, 178);
+	sendData(ssl, data, 197);
 }
 
 static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) {
@@ -292,10 +296,11 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	// Login successful
 
-	const char* data =
+	const char data[] =
 	"HTTP/1.1 200 aem\r\n"
 	"Tk: N\r\n"
 	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+	"Connection: close\r\n"
 	"Content-Type: text/plain; charset=utf-8\r\n"
 	"Content-Length: 4\r\n"
 	"Access-Control-Allow-Origin: *\r\n"
@@ -336,44 +341,49 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
 	if (b64_nonceLen != 32) return;
 
-//	char data[185 + 32];
-	char data[185 + 32 + 32];
+	char data[269];
 
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: %zd\r\n"
+		"Content-Length: 32\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
-		"\r\n%.*s"
-	, b64_nonceLen, 32, b64_nonce);
+		"\r\n"
+		"%.32s"
+	, b64_nonce);
 	free(b64_nonce);
 
-	sendData(ssl, data, 185 + 32 + 32);
-//	sendData(ssl, data, 185 + 32);
+	sendData(ssl, data, 268);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
 
-	char* end = strpbrk(clientHeaders + 5, "\r\n");
+	const char *url = clientHeaders + 5;
+
+	char* end = strstr(url, "\r\n\r\n");
+	if (end == NULL) return;
+	*(end + 2) = '\0';
+
+	end = strpbrk(url, "\r\n");
 	if (end == NULL) return;
 
 	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
 	*(end - 9) = '\0';
 
-	const size_t urlLen = end - clientHeaders - 14; // 5 + 9
-	const char *url = clientHeaders + 5;
+	const size_t urlLen = (end - 9) - url;
 
-	if (urlLen == 0) return respond_https_home(ssl); // GET / HTTP/1.1
-	if (urlLen == 15 && memcmp(clientHeaders + 5, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-	if (urlLen == 10 && memcmp(clientHeaders + 5, "robots.txt",      10) == 0) return respond_https_robots(ssl);
-	if (urlLen > 3 && memcmp(clientHeaders + 5, "js/", 3) == 0) return respond_https_file(ssl, url, AEM_FILETYPE_JS);
-	if (urlLen > 4 && memcmp(clientHeaders + 5, "css/", 4) == 0) return respond_https_file(ssl, url, AEM_FILETYPE_CSS);
-	if (urlLen > 10 && memcmp(clientHeaders + 5, "web/login/", 10) == 0) return respond_https_login(ssl, url, urlLen, clientIp, seed);
-	if (urlLen == 54 && memcmp(clientHeaders + 5, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
+	if (urlLen == 0) return respond_https_home(ssl);
+	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr   (ssl);
+	if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+	if (urlLen  >  4 && memcmp(url, "css/",             4) == 0) return respond_https_file  (ssl, url, AEM_FILETYPE_CSS);
+	if (urlLen  >  3 && memcmp(url, "js/",              3) == 0) return respond_https_file  (ssl, url, AEM_FILETYPE_JS);
+	if (urlLen  > 10 && memcmp(url, "web/login/",      10) == 0) return respond_https_login (ssl, url, urlLen, clientIp, seed);
+	if (urlLen == 54 && memcmp(url, "web/nonce/",      10) == 0) return respond_https_nonce (ssl, url + 10, clientIp, seed);
 }
 
 void respond_https(mbedtls_ssl_context *ssl, const uint32_t clientIp, const unsigned char seed[16]) {
@@ -386,10 +396,10 @@ void respond_https(mbedtls_ssl_context *ssl, const uint32_t clientIp, const unsi
 
 	if (ret > 0) return handleRequest(ssl, (char*)req, ret, clientIp, seed);
 
-	// Failed to read request
-	if (ret != 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
+	if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
+		// Failed to read request
 		char error_buf[100];
 		mbedtls_strerror(ret, error_buf, 100);
-		printf( "ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
+		printf("ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
 	}
 }
