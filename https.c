@@ -369,6 +369,8 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (end == NULL) return;
 	*(end + 2) = '\0';
 
+	if (strstr(url, "\r\nHost: "AEM_DOMAIN"\r\n") == NULL) return;
+
 	end = strpbrk(url, "\r\n");
 	if (end == NULL) return;
 
