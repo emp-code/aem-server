@@ -33,20 +33,14 @@ static void allowQuickRestart(const int* sock) {
 	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 }
 
-static int initSocket(int *sock, const int port) {
-	*sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (*sock < 0) {
-		puts("ERROR: Opening socket failed");
-		return 1;
-	}
-
-	allowQuickRestart(sock);
-
+static int initSocket(const int *sock, const int port) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port = htons(port);
+
+	allowQuickRestart(sock);
 
 	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
 	if (ret < 0) return ret;
@@ -69,7 +63,7 @@ static int initSocket(int *sock, const int port) {
 }*/
 
 static int receiveConnections_http() {
-	int sock;
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (initSocket(&sock, AEM_PORT_HTTP) != 0) return 1;
 
 	while(1) {
@@ -81,11 +75,68 @@ static int receiveConnections_http() {
 	return 0;
 }
 
-static int receiveConnections_https(const int port) {
-	int sock;
-	if (initSocket(&sock, port) != 0) return 1;
+static int receiveConnections_https_process(int sock, mbedtls_x509_crt* srvcert, mbedtls_pk_context* pkey, const uint32_t clientIp, const unsigned char seed[16]) {
+	// Setting up the SSL
+	mbedtls_ssl_config conf;
+	mbedtls_ssl_config_init(&conf);
 
-	// Load certs
+	int ret;
+	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
+		printf( "Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
+	}
+
+	// Seed the RNG
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	mbedtls_entropy_context entropy;
+	mbedtls_entropy_init(&entropy);
+
+	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
+		printf( "ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
+	if ((ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey)) != 0) {
+		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_init(&ssl);
+
+	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
+		printf( "ERROR: mbedtls_ssl_setup returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+	// Handshake
+	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			char error_buf[100];
+			mbedtls_strerror(ret, error_buf, 100);
+			printf( "ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
+			mbedtls_ssl_free(&ssl);
+			return -1;
+		}
+	}
+
+	respond_https(&ssl, clientIp, seed);
+
+	mbedtls_entropy_free(&entropy);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_ssl_free(&ssl);
+	return 0;
+}
+
+int receiveConnections_https(const int port) {
+	// Load the certificate
 	int fd = open("aem-https.crt", O_RDONLY);
 	if (fd < 0) return 1;
 	off_t lenFile = lseek(fd, 0, SEEK_END);
@@ -107,11 +158,11 @@ static int receiveConnections_https(const int port) {
 		return 1;
 	}
 
-	// Load key
+	// Load the private key
 	fd = open("aem-https.key", O_RDONLY);
 	if (fd < 0) return 1;
 	lenFile = lseek(fd, 0, SEEK_END);
-	
+
 	unsigned char *key = calloc(lenFile + 2, 1);
 	readBytes = pread(fd, key, lenFile, 0);
 	close(fd);
@@ -130,70 +181,29 @@ static int receiveConnections_https(const int port) {
 	if (readBytes != 16) return 3;
 	close(fd);
 
-	// Seed the RNG
-	mbedtls_ctr_drbg_context ctr_drbg;
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-
-	mbedtls_entropy_context entropy;
-	mbedtls_entropy_init(&entropy);
-
-	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
-		printf("ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
-		return 1;
-	}
-
-	// Setting up the SSL
-	mbedtls_ssl_config conf;
-	mbedtls_ssl_config_init(&conf);
-
-	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-		printf("Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
-	}
-
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
-	mbedtls_ssl_conf_ca_chain(&conf, srvcert.next, NULL);
-	if ((ret = mbedtls_ssl_conf_own_cert(&conf, &srvcert, &pkey)) != 0) {
-		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
-		return 1;
-	}
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {puts("ERROR: Opening socket failed"); return 2;}
+	if (initSocket(&sock, port) != 0) {puts("ERROR: Binding socket failed"); return 3;}
 
 	while(1) {
 		struct sockaddr_in clientAddr;
 		unsigned int clen = sizeof(clientAddr);
-		int sockNew = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+		if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); return -10;}
 
-		mbedtls_ssl_context ssl;
-		mbedtls_ssl_init(&ssl);
-		if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {printf("ERROR: mbedtls_ssl_setup returned %d\n", ret); continue;}
-
-		mbedtls_ssl_set_bio(&ssl, &sockNew, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-		// Handshake
-		int ret;
-		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				char error_buf[100];
-				mbedtls_strerror(ret, error_buf, 100);
-				printf("ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
-				mbedtls_ssl_free(&ssl);
-				break;
-			}
-		} if (ret != 0) continue;
-
-		respond_https(&ssl, clientAddr.sin_addr.s_addr, seed);
-
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_free(&ssl);
-		close(sockNew);
+		const int pid = fork();
+		if (pid < 0) {puts("ERROR: Failed fork"); return -11;}
+		else if (pid == 0) {
+			// Child goes on to communicate with the client
+			close(sock);
+			receiveConnections_https_process(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed);
+			return -1;
+		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
 
 	mbedtls_x509_crt_free(&srvcert);
 	mbedtls_pk_free(&pkey);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_entropy_free(&entropy);
-
+	close(sock);
 	return 0;
 }
 
@@ -212,7 +222,7 @@ static int receiveConnections_https(const int port) {
 
 int main() {
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent zombie processes
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent writing to closed/invalid sockets from ending the thread
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent writing to closed/invalid sockets from ending the process
 
 	puts(">>> ae-mail: All-Ears Mail");
 
