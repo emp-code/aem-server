@@ -1,5 +1,5 @@
-#ifndef AEM_FILE_H
-#define AEM_FILE_H
+#ifndef AEM_INCLUDES_FILE_H
+#define AEM_INCLUDES_FILE_H
 
 struct aem_file {
 	char *filename;

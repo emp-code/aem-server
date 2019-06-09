@@ -18,6 +18,8 @@
 #include "aem_file.h"
 #include "defines.h"
 
+#include "Includes/Brotli.h"
+
 //#include "aef.h"
 #include "http.h"
 #include "https.h"
