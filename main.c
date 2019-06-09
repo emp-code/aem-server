@@ -110,8 +110,15 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 
 			if (readBytes == bytes) {
 				f[counter].filename = strdup(de->d_name);
-				printf("Loaded %s\n", f[counter].filename);
 				f[counter].lenData = bytes;
+
+				if (strcmp(ext, ".js") == 0 || strcmp(ext, ".css") == 0) {
+					brotliCompress(&(f[counter].data), &(f[counter].lenData));
+					printf("Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
+				} else {
+					printf("Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
+				}
+
 			} else {
 				printf("ERROR: Failed to load %s\n", de->d_name);
 				free(f[counter].data);

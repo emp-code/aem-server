@@ -154,17 +154,18 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, co
 			break;
 	}
 
-	char headers[183 + mtLen];
+	char headers[205 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
 		"Connection: close\r\n"
+		"%s"
 		"Content-Type: %.*s\r\n"
 		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
-	, mtLen, mediatype, files[reqNum].lenData);
+	, (fileType == AEM_FILETYPE_CSS || fileType == AEM_FILETYPE_JS) ? "Content-Encoding: br\r\n" : "", mtLen, mediatype, files[reqNum].lenData);
 
 	const size_t lenHeaders = strlen(headers);
 
