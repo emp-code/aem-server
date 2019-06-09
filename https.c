@@ -4,6 +4,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
@@ -11,13 +13,16 @@
 
 #include "crypto_box.h"
 
+#include "aem_file.h"
 #include "defines.h"
+
 #include "Includes/Base64.h"
 
 #include "https.h"
 
-#define AEM_FILETYPE_JS 1
-#define AEM_FILETYPE_CSS 2
+#define AEM_FILETYPE_CSS 1
+#define AEM_FILETYPE_IMG 2
+#define AEM_FILETYPE_JS  3
 
 #define AEM_HTTPS_BUFLEN 1000
 #define AEM_NETINT_BUFLEN 1000
@@ -127,13 +132,14 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 }
 
 // Javascript, CSS, images etc
-static void respond_https_file(mbedtls_ssl_context *ssl, const char *path, const int fileType) {
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) return;
+static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, const int fileType, struct aem_file files[], const int fileCount) {
+	int reqNum = -1;
 
-	const size_t lenFile = lseek(fd, 0, SEEK_END);
-	if (lenFile < 10 || lenFile > 99999) {close(fd); return;}
-	lseek(fd, 0, SEEK_SET);
+	for (int i = 0; i < fileCount; i++) {
+		if (strcmp(files[i].filename, reqName) == 0) reqNum = i;
+	}
+
+	if (reqNum < 0) return;
 
 	char *mediatype;
 	int mtLen;
@@ -158,17 +164,15 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *path, const
 		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
-	, mtLen, mediatype, lenFile);
+	, mtLen, mediatype, files[reqNum].lenData);
 
 	const size_t lenHeaders = strlen(headers);
 
-	char data[lenHeaders + lenFile];
+	char data[lenHeaders + files[reqNum].lenData];
 	memcpy(data, headers, lenHeaders);
-	const int bytesRead = read(fd, data + lenHeaders, lenFile);
-	close(fd);
-	if (bytesRead != lenFile) return;
+	memcpy(data + lenHeaders, files[reqNum].data, files[reqNum].lenData);
 
-	sendData(ssl, data, lenHeaders + lenFile);
+	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
 // Tracking Status Resource for DNT
@@ -360,7 +364,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	sendData(ssl, data, 268);
 }
 
-static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16]) {
+static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
 	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
 
 	const char *url = clientHeaders + 5;
@@ -379,29 +383,91 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 	const size_t urlLen = (end - 9) - url;
 
+	// Static
 	if (urlLen == 0) return respond_https_home(ssl);
 	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr   (ssl);
 	if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
-	if (urlLen  >  4 && memcmp(url, "css/",             4) == 0) return respond_https_file  (ssl, url, AEM_FILETYPE_CSS);
-	if (urlLen  >  3 && memcmp(url, "js/",              3) == 0) return respond_https_file  (ssl, url, AEM_FILETYPE_JS);
-	if (urlLen  > 10 && memcmp(url, "web/login/",      10) == 0) return respond_https_login (ssl, url, urlLen, clientIp, seed);
-	if (urlLen == 54 && memcmp(url, "web/nonce/",      10) == 0) return respond_https_nonce (ssl, url + 10, clientIp, seed);
+
+	// Files
+	if (urlLen  >  4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+	if (urlLen  >  4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+	if (urlLen  >  3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+
+	// Ajax
+	if (urlLen  > 10 && memcmp(url, "web/login/", 10) == 0) return respond_https_login (ssl, url, urlLen, clientIp, seed);
+	if (urlLen == 54 && memcmp(url, "web/nonce/", 10) == 0) return respond_https_nonce (ssl, url + 10, clientIp, seed);
 }
 
-void respond_https(mbedtls_ssl_context *ssl, const uint32_t clientIp, const unsigned char seed[16]) {
+int respond_https(int sock, mbedtls_x509_crt* srvcert, mbedtls_pk_context* pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
+	// Setting up the SSL
+	mbedtls_ssl_config conf;
+	mbedtls_ssl_config_init(&conf);
+
+	int ret;
+	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
+		printf( "Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
+	}
+
+	// Seed the RNG
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	mbedtls_entropy_context entropy;
+	mbedtls_entropy_init(&entropy);
+
+	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
+		printf( "ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
+	if ((ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey)) != 0) {
+		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_init(&ssl);
+
+	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
+		printf( "ERROR: mbedtls_ssl_setup returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+	// Handshake
+	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			char error_buf[100];
+			mbedtls_strerror(ret, error_buf, 100);
+			printf( "ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
+			mbedtls_ssl_free(&ssl);
+			return -1;
+		}
+	}
+
 	unsigned char req[AEM_HTTPS_BUFLEN + 1];
 	bzero(req, AEM_HTTPS_BUFLEN);
 
-	int ret;
-	do {ret = mbedtls_ssl_read(ssl, req, AEM_HTTPS_BUFLEN);}
+	// Read request
+	do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);}
 		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
-	if (ret > 0) return handleRequest(ssl, (char*)req, ret, clientIp, seed);
-
-	if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
+	if (ret > 0) {
+		handleRequest(&ssl, (char*)req, ret, clientIp, seed, fileSet);
+	} else if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
 		// Failed to read request
 		char error_buf[100];
 		mbedtls_strerror(ret, error_buf, 100);
 		printf("ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
 	}
+
+	mbedtls_entropy_free(&entropy);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_ssl_free(&ssl);
+	return 0;
 }

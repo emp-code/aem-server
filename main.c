@@ -6,20 +6,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 
-#include "mbedtls/certs.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/debug.h"
-#include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
-#include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/x509.h"
 
+#include "aem_file.h"
 #include "defines.h"
 
 //#include "aef.h"
@@ -75,67 +71,58 @@ static int receiveConnections_http() {
 	return 0;
 }
 
-static int receiveConnections_https_process(int sock, mbedtls_x509_crt* srvcert, mbedtls_pk_context* pkey, const uint32_t clientIp, const unsigned char seed[16]) {
-	// Setting up the SSL
-	mbedtls_ssl_config conf;
-	mbedtls_ssl_config_init(&conf);
+static int aem_countFiles(const char *path, const char *ext, const size_t extLen) {
+	DIR* dir = opendir(path);
+	if (dir == NULL) return 0;
 
-	int ret;
-	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-		printf( "Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
+	int counter = 0;
+
+	while(1) {
+		struct dirent *de = readdir(dir);
+		if (de == NULL) break;
+		if (memcmp(de->d_name + strlen(de->d_name) - extLen, ext, extLen) == 0) counter++;
 	}
 
-	// Seed the RNG
-	mbedtls_ctr_drbg_context ctr_drbg;
-	mbedtls_ctr_drbg_init(&ctr_drbg);
+	closedir(dir);
+	return counter;
+}
 
-	mbedtls_entropy_context entropy;
-	mbedtls_entropy_init(&entropy);
+static void aem_loadFiles(const char *path, const char *ext, const size_t extLen, struct aem_file f[], const int fileCount) {
+	DIR* dir = opendir(path);
+	if (dir == NULL) return;
 
-	if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
-		printf( "ERROR: mbedtls_ctr_drbg_seed returned %d\n", ret);
-		return -1;
-	}
+	for (int counter = 0; counter < fileCount;) {
+		struct dirent *de = readdir(dir);
+		if (de == NULL) {f[counter].lenData = 0; break;}
 
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+		if (memcmp(de->d_name + strlen(de->d_name) - extLen, ext, extLen) == 0) {
+			char filePath[strlen(path) + strlen(de->d_name) + 1];
+			sprintf(filePath, "%s/%s", path, de->d_name);
 
-	mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
-	if ((ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey)) != 0) {
-		printf("ERROR: mbedtls_ssl_conf_own_cert returned %d\n", ret);
-		return -1;
-	}
+			int fd = open(filePath, O_RDONLY);
+			if (fd < 0) {f[counter].lenData = 0; continue;}
+			const off_t bytes = lseek(fd, 0, SEEK_END);
+			f[counter].data = malloc(bytes);
+			const ssize_t readBytes = pread(fd, f[counter].data,  bytes, 0);
+			close(fd);
 
-	mbedtls_ssl_context ssl;
-	mbedtls_ssl_init(&ssl);
+			if (readBytes == bytes) {
+				f[counter].filename = strdup(de->d_name);
+				printf("Loaded %s\n", f[counter].filename);
+				f[counter].lenData = bytes;
+			} else {
+				printf("ERROR: Failed to load %s\n", de->d_name);
+				free(f[counter].data);
+			}
 
-	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
-		printf( "ERROR: mbedtls_ssl_setup returned %d\n", ret);
-		return -1;
-	}
-
-	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-	// Handshake
-	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			char error_buf[100];
-			mbedtls_strerror(ret, error_buf, 100);
-			printf( "ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
-			mbedtls_ssl_free(&ssl);
-			return -1;
+			counter++;
 		}
 	}
 
-	respond_https(&ssl, clientIp, seed);
-
-	mbedtls_entropy_free(&entropy);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ssl_free(&ssl);
-	return 0;
+	closedir(dir);
 }
 
-int receiveConnections_https(const int port) {
+static int receiveConnections_https(const int port) {
 	// Load the certificate
 	int fd = open("aem-https.crt", O_RDONLY);
 	if (fd < 0) return 1;
@@ -181,6 +168,28 @@ int receiveConnections_https(const int port) {
 	if (readBytes != 16) return 3;
 	close(fd);
 
+	int numCss = aem_countFiles("css", ".css",  4);
+	int numImg = aem_countFiles("img", ".webp", 5);
+	int numJs = aem_countFiles ("js",  ".js",   3);
+
+	printf("Loading %d CSS files, %d images and %d Javascript files\n", numCss, numImg, numJs);
+
+	struct aem_file fileCss[numCss + 1];
+	struct aem_file fileImg[numImg + 1];
+	struct aem_file fileJs[numJs + 1];
+
+	if (numCss > 0) aem_loadFiles("css", ".css",  4, fileCss, numCss);
+	if (numImg > 0) aem_loadFiles("img", ".webp", 5, fileImg, numImg);
+	if (numJs  > 0) aem_loadFiles("js",  ".js",   3, fileJs,  numJs);
+
+	struct aem_fileSet fileSet;
+	fileSet.cssFiles = fileCss;
+	fileSet.imgFiles = fileImg;
+	fileSet.jsFiles  = fileJs;
+	fileSet.cssCount = numCss;
+	fileSet.imgCount = numImg;
+	fileSet.jsCount  = numJs;
+
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {puts("ERROR: Opening socket failed"); return 2;}
 	if (initSocket(&sock, port) != 0) {puts("ERROR: Binding socket failed"); return 3;}
@@ -189,17 +198,20 @@ int receiveConnections_https(const int port) {
 		struct sockaddr_in clientAddr;
 		unsigned int clen = sizeof(clientAddr);
 		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-		if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); return -10;}
+		if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
 
 		const int pid = fork();
-		if (pid < 0) {puts("ERROR: Failed fork"); return -11;}
+		if (pid < 0) {puts("ERROR: Failed fork"); break;}
 		else if (pid == 0) {
 			// Child goes on to communicate with the client
-			close(sock);
-			receiveConnections_https_process(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed);
-			return -1;
+			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, &fileSet);
+			break;
 		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
+
+	for (int i = 0; i < numCss; i++) {free(fileCss[i].filename); free(fileCss[i].data);}
+	for (int i = 0; i < numImg; i++) {free(fileImg[i].filename); free(fileImg[i].data);}
+	for (int i = 0; i < numJs;  i++) {free(fileJs[i].filename);  free(fileJs[i].data);}
 
 	mbedtls_x509_crt_free(&srvcert);
 	mbedtls_pk_free(&pkey);
@@ -227,7 +239,7 @@ int main() {
 	puts(">>> ae-mail: All-Ears Mail");
 
 	int pid;
-	
+
 	pid = fork();
 	if (pid < 0) return 1;
 	if (pid == 0) return 0; //receiveConnections(AEM_PORT_AEF);
