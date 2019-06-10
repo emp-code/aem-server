@@ -225,7 +225,7 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 static char *userPath(const char *b64_upk, const char *filename) {
 	if (filename == NULL) return NULL;
 
-	char *path = malloc(54 + strlen(filename));
+	char *path = malloc(55 + strlen(filename));
 	memcpy(path, "UserData/", 9);
 
 	for (int i = 0; i < 44; i++) {
@@ -239,6 +239,24 @@ static char *userPath(const char *b64_upk, const char *filename) {
 	strcpy(path + 54, filename);
 
 	return path;
+}
+
+char *loadUserAddressList(const char *b64_upk, const char *filename, int *count) {
+	char *path = userPath(b64_upk, filename);
+	const int fd = open(path, O_RDONLY);
+
+	const off_t sz = lseek(fd, 0, SEEK_END);
+	if (sz % 16 != 0) {close(fd); return NULL;}
+
+	char *data = malloc(sz);
+	const ssize_t bytesDone = pread(fd, data, sz, 0);
+	close(fd);
+	free(path);
+
+	if (bytesDone != sz) {free(data); return NULL;}
+
+	*count = sz / 16;
+	return data;
 }
 
 // Web login
@@ -306,27 +324,11 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	if (ret != 0 || strncmp((char*)(decrypted + crypto_box_ZEROBYTES), "AllEars:Web.Login", 17) != 0) return;
 
 	// Login successful
-
-	// TODO: Load addresses from file
-	const char *userAddr_normal[] = {
-		"first-tester|||||||||",
-		"another-tester|||||||",
-		"one.more.tester||||||"
-	};
-
-	const char *userAddr_shield[] = {
-		"zdsks5w5i4izxqg3kbtn8",
-		"9ixneuc7dfv7nmvfrwr7g",
-		"qszc6p3m47pbm44ofzcad"
-	};
-
-	char *uan_sb1 = textToSixBit(userAddr_normal[0], 21);
-	char *uan_sb2 = textToSixBit(userAddr_normal[1], 21);
-	char *uan_sb3 = textToSixBit(userAddr_normal[2], 21);
-
-	char *uas_sb1 = textToSixBit(userAddr_shield[0], 21);
-	char *uas_sb2 = textToSixBit(userAddr_shield[1], 21);
-	char *uas_sb3 = textToSixBit(userAddr_shield[2], 21);
+	int addrCountNormal, addrCountShield;
+	char *addrNormal = loadUserAddressList(b64_upk, "address_normal.aea", &addrCountNormal);
+	if (addrNormal == NULL) return;
+	char *addrShield = loadUserAddressList(b64_upk, "address_shield.aea", &addrCountShield);
+	if (addrShield == NULL) {free(addrNormal); return;}
 
 /*
 	Login Response Format:
@@ -340,7 +342,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 		(Message Boxes)
 */
 
-	const size_t responseLen = 187 + 16*3 + 16*3;
+	const size_t responseLen = 187 + (16 * addrCountNormal) + (16 * addrCountShield);
 	char data[responseLen + 1];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -351,21 +353,13 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 		"%c%c%c"
-		"%.16s" // Normal Address 1
-		"%.16s" // Normal Address 2
-		"%.16s" // Normal Address 3
-		"%.16s" // Shield Address 1
-		"%.16s" // Shield Address 2
-		"%.16s" // Shield Address 3
+		"%.*s" // Normal Address List
+		"%.*s" // Shield Address List
 		"" // Message Boxes (todo)
-	, 3, 3, 0, uan_sb1, uan_sb2, uan_sb3, uas_sb1, uas_sb2, uas_sb3);
+	, addrCountNormal, addrCountShield, 0, addrCountNormal * 16, addrNormal, addrCountShield * 16, addrShield);
 
-	free(uan_sb1);
-	free(uan_sb2);
-	free(uan_sb3);
-	free(uas_sb1);
-	free(uas_sb2);
-	free(uas_sb3);
+	free(addrNormal);
+	free(addrShield);
 
 	sendData(ssl, data, responseLen);
 }
