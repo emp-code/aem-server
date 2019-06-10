@@ -50,7 +50,7 @@ static int charToUint6(const char character) {
 			39..61 open
 		*/
 
-		// Terminating character. Should be '\0' in C, '|' when server to JS.
+		// Terminating characters
 		case '\0':
 		case '|':
 			return 62;
@@ -69,7 +69,6 @@ static void setBit(char *c, const int bitNum) {
 char *textToSixBit(const char *source, const size_t lenSource) {
 	char *out = calloc(ceil(lenSource * 0.75), 1);
 
-	// Set all to zero beforehand
 	for (int i = 0; i < lenSource; i++) {
 		int num = charToUint6(source[i]);
 
@@ -100,12 +99,12 @@ char *sixBitToText(const char* source, const size_t lenSource) {
 	for (int i = 0; i < lenOut; i++) {
 		int num = 0;
 
-		if (getBit(source, i * 6 + 5)) num += 32;
-		if (getBit(source, i * 6 + 4)) num += 16;
-		if (getBit(source, i * 6 + 3)) num +=  8;
-		if (getBit(source, i * 6 + 2)) num +=  4;
-		if (getBit(source, i * 6 + 1)) num +=  2;
-		if (getBit(source, i * 6 + 0)) num +=  1;
+		if (getBit(source, (i * 6) + 5)) num += 32;
+		if (getBit(source, (i * 6) + 4)) num += 16;
+		if (getBit(source, (i * 6) + 3)) num +=  8;
+		if (getBit(source, (i * 6) + 2)) num +=  4;
+		if (getBit(source, (i * 6) + 1)) num +=  2;
+		if (getBit(source, (i * 6) + 0)) num +=  1;
 
 		out[i] = charTable[num];
 	}
