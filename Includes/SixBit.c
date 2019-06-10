@@ -46,6 +46,7 @@ static int charToUint6(const char character) {
 		case '.': return 36;
 		case '-': return 37;
 		case '@': return 38;
+
 		/*
 			39..61 open
 		*/
@@ -90,7 +91,7 @@ static int getBit(const char *c, const int bitNum) {
 	return BIT_CHECK(c[skipBytes], skipBits);
 }
 
-char *sixBitToText(const char* source, const size_t lenSource) {
+char *sixBitToText(const char *source, const size_t lenSource) {
 	const size_t lenOut = lenSource * ((double)8 / 6);
 	char *out = malloc(lenOut + 1);
 
