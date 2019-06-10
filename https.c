@@ -17,6 +17,7 @@
 #include "defines.h"
 
 #include "Includes/Base64.h"
+#include "Includes/SixBit.h"
 
 #include "https.h"
 
@@ -301,18 +302,67 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	// Login successful
 
-	const char data[] =
-	"HTTP/1.1 200 aem\r\n"
-	"Tk: N\r\n"
-	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-	"Connection: close\r\n"
-	"Content-Type: text/plain; charset=utf-8\r\n"
-	"Content-Length: 4\r\n"
-	"Access-Control-Allow-Origin: *\r\n"
-	"\r\n"
-	"TODO";
+	// TODO: Load addresses from file
+	const char *userAddr_normal[] = {
+		"first-tester|||||||||",
+		"another-tester|||||||",
+		"one.more.tester||||||"
+	};
 
-	sendData(ssl, data, strlen(data));
+	const char *userAddr_shield[] = {
+		"zdsks5w5i4izxqg3kbtn8",
+		"9ixneuc7dfv7nmvfrwr7g",
+		"qszc6p3m47pbm44ofzcad"
+	};
+
+	char *uan_sb1 = textToSixBit(userAddr_normal[0], 21);
+	char *uan_sb2 = textToSixBit(userAddr_normal[1], 21);
+	char *uan_sb3 = textToSixBit(userAddr_normal[2], 21);
+
+	char *uas_sb1 = textToSixBit(userAddr_shield[0], 21);
+	char *uas_sb2 = textToSixBit(userAddr_shield[1], 21);
+	char *uas_sb3 = textToSixBit(userAddr_shield[2], 21);
+
+/*
+	Login Response Format:
+		[1B] Number of Normal Addresses
+		[1B] Number of Shield Addresses
+		[1B] Number of Message Boxes
+		[16B] Normal Address (21B SixBit-Encoded)
+		...
+		[16B] Shield Address (21B SixBit-Encoded)
+		...
+		(Message Boxes)
+*/
+
+	const size_t responseLen = 187 + 16*3 + 16*3;
+	char data[responseLen + 1];
+	sprintf(data,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Type: text/plain; charset=utf-8\r\n"
+		"Content-Length: 99\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+		"%c%c%c"
+		"%.16s" // Normal Address 1
+		"%.16s" // Normal Address 2
+		"%.16s" // Normal Address 3
+		"%.16s" // Shield Address 1
+		"%.16s" // Shield Address 2
+		"%.16s" // Shield Address 3
+		"" // Message Boxes (todo)
+	, 3, 3, 0, uan_sb1, uan_sb2, uan_sb3, uas_sb1, uas_sb2, uas_sb3);
+
+	free(uan_sb1);
+	free(uan_sb2);
+	free(uan_sb3);
+	free(uas_sb1);
+	free(uas_sb2);
+	free(uas_sb3);
+
+	sendData(ssl, data, responseLen);
 }
 
 // Request for a nonce to be used with a NaCl Box. URL format: name.tld/web/nonce/public-key-in-base64
