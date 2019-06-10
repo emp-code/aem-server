@@ -87,14 +87,12 @@ function AllEars() {
 	this.Login = function() {
 		var b64_key_public = btoa(String.fromCharCode.apply(null, _userKeys.publicKey));
 
-		// TODO make this use binary directly instead of base64
-		_Fetch("/web/nonce/" + b64_key_public, function(httpStatus, b64_login_nonce) {
+		_FetchBinary("/web/nonce/" + b64_key_public, function(httpStatus, login_nonce) {
 			if (httpStatus != 200) {
 				console.log("Failed to get nonce from server");
 				return;
 			}
 
-			var login_nonce = b64ToBin(b64_login_nonce);
 			const plaintext = new TextEncoder().encode("AllEars:Web.Login");
 			var box_login = nacl.box(plaintext, login_nonce, _serverPublicKey, _userKeys.secretKey);
 

@@ -389,28 +389,20 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 
 	encryptNonce(nonce, seed);
 
-	// Send Base64-ecnoded nonce to client
-	size_t b64_nonceLen;
-	unsigned char *b64_nonce = b64Encode(nonce, 24, &b64_nonceLen);
-	if (b64_nonceLen != 32) return;
-
-	char data[269];
-
+	char data[220];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
 		"Connection: close\r\n"
-		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: 32\r\n"
+		"Content-Length: 24\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
-		"%.32s"
-	, b64_nonce);
-	free(b64_nonce);
+		"%.24s"
+	, nonce);
 
-	sendData(ssl, data, 268);
+	sendData(ssl, data, 219);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
