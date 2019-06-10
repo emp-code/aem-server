@@ -222,7 +222,10 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 	memcpy(nonce, nonce_encrypted, 24);
 }
 
-static void noncePath(char path[60], const char *b64_upk) {
+static char *userPath(const char *b64_upk, const char *filename) {
+	if (filename == NULL) return NULL;
+
+	char *path = malloc(54 + strlen(filename));
 	memcpy(path, "UserData/", 9);
 
 	for (int i = 0; i < 44; i++) {
@@ -232,7 +235,10 @@ static void noncePath(char path[60], const char *b64_upk) {
 			path[9 + i] = b64_upk[i];
 	}
 
-	memcpy(path + 53, "/nonce\0", 7);
+	path[53] = '/';
+	strcpy(path + 54, filename);
+
+	return path;
 }
 
 // Web login
@@ -244,13 +250,12 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	if (b64_upk_len != 44) return;
 
 	// Get nonce
-	char path[60];
-	noncePath(path, b64_upk);
-
+	char *path = userPath(b64_upk, "nonce");
 	int fd = open(path, O_RDONLY);
 	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
 	close(fd);
+	free(path);
 	if (bytesDone != 24) return;
 
 	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
@@ -381,12 +386,11 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
 // Store nonce in user folder
-	char path[60];
-	noncePath(path, b64_upk);
-
+	char *path = userPath(b64_upk, "nonce");
 	fd = open(path, O_WRONLY | O_TRUNC);
 	bytesDone = write(fd, nonce, 24);
 	close(fd);
+	free(path);
 	if (bytesDone != 24) return;
 
 	encryptNonce(nonce, seed);
