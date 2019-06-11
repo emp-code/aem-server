@@ -5,42 +5,6 @@
 
 static const unsigned char b64Table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-unsigned char *b64Encode(const unsigned char *src, size_t srcLen, size_t *outLen) {
-	size_t olen = ((srcLen * 4) / 3) + 5;
-	if (olen < srcLen) return NULL; // Source too large
-
-	unsigned char *out = malloc(olen);
-	if (out == NULL) return NULL;
-
-	const unsigned char *end = src + srcLen;
-	const unsigned char *in = src;
-	unsigned char* pos = out;
-
-	while (end - in >= 3) {
-		*pos++ = b64Table[in[0] >> 2];
-		*pos++ = b64Table[((in[0] & 0x03) << 4) | (in[1] >> 4)];
-		*pos++ = b64Table[((in[1] & 0x0f) << 2) | (in[2] >> 6)];
-		*pos++ = b64Table[in[2] & 0x3f];
-		in += 3;
-	}
-
-	if (end - in) {
-		*pos++ = b64Table[in[0] >> 2];
-		if (end - in == 1) {
-			*pos++ = b64Table[(in[0] & 0x03) << 4];
-			*pos++ = '=';
-		} else {
-			*pos++ = b64Table[((in[0] & 0x03) << 4) | (in[1] >> 4)];
-			*pos++ = b64Table[(in[1] & 0x0f) << 2];
-		}
-		*pos++ = '=';
-	}
-
-	*pos = '\0';
-	if (outLen != NULL) *outLen = pos - out;
-	return out;
-}
-
 unsigned char *b64Decode(const unsigned char *src, size_t srcLen, size_t *outLen) {
 	unsigned char dtable[256];
 	memset(dtable, 0x80, 256);
