@@ -3,9 +3,9 @@
 
 #include "Base64.h"
 
-static const unsigned char b64Table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const unsigned char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-unsigned char *b64Decode(const unsigned char *src, size_t srcLen, size_t *outLen) {
+unsigned char *b64Decode(const unsigned char *src, const size_t srcLen, size_t *outLen) {
 	unsigned char dtable[256];
 	memset(dtable, 0x80, 256);
 	for (int i = 0; i < 66; i++) dtable[b64Table[i]] = (unsigned char)i;
@@ -18,7 +18,7 @@ unsigned char *b64Decode(const unsigned char *src, size_t srcLen, size_t *outLen
 
 	if (count == 0 || count % 4) return NULL;
 
-	size_t olen = count / 4 * 3;
+	const size_t olen = count / 4 * 3;
 	unsigned char *out = malloc(olen);
 	if (out == NULL) return NULL;
 	unsigned char *pos = out;
@@ -27,7 +27,7 @@ unsigned char *b64Decode(const unsigned char *src, size_t srcLen, size_t *outLen
 	count = 0;
 	for (int i = 0; i < srcLen; i++) {
 		unsigned char block[4];
-		unsigned char tmp = dtable[src[i]];
+		const unsigned char tmp = dtable[src[i]];
 		if (tmp == 0x80) continue;
 
 		if (src[i] == '=') pad++;
@@ -40,16 +40,8 @@ unsigned char *b64Decode(const unsigned char *src, size_t srcLen, size_t *outLen
 			*pos++ = (block[2] << 6) | block[3];
 			count = 0;
 
-			if (pad) {
-				if (pad != 1 && pad != 2) {
-					/* Invalid padding */
-					free(out);
-					return NULL;
-				}
-
-				pos -= pad;
-				break;
-			}
+			if (pad > 2) {free(out); return NULL;}
+			if (pad > 0) {pos -= pad; break;}
 		}
 	}
 
