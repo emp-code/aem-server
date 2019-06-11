@@ -9,6 +9,9 @@ function AllEars() {
 
 	var _userKeys;
 
+	var _userAddrNormal = [];
+	var _userAddrShield = [];
+
 	var _Fetch = function(url, cb) {
 		var r=new XMLHttpRequest();
 
@@ -75,6 +78,11 @@ function AllEars() {
 	}
 
 // Public
+	this.GetAddressNormal = function(num) {return _userAddrNormal[num];}
+	this.GetAddressShield = function(num) {return _userAddrShield[num];}
+	this.GetAddressCountNormal = function() {return _userAddrNormal.length;}
+	this.GetAddressCountShield = function() {return _userAddrShield.length;}
+
 	this.SetKeys = function(skey_b64) {
 		_userKeys=nacl.box.keyPair.fromSecretKey(b64ToBin(skey_b64));
 	}
@@ -88,10 +96,7 @@ function AllEars() {
 		var b64_key_public = btoa(String.fromCharCode.apply(null, _userKeys.publicKey));
 
 		_FetchBinary("/web/nonce/" + b64_key_public, function(httpStatus, login_nonce) {
-			if (httpStatus != 200) {
-				console.log("Failed to get nonce from server");
-				return;
-			}
+			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 			const plaintext = new TextEncoder().encode("AllEars:Web.Login");
 			var box_login = nacl.box(plaintext, login_nonce, _serverPublicKey, _userKeys.secretKey);
@@ -99,31 +104,26 @@ function AllEars() {
 			var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
 
 			_FetchBinary("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, byteArray) {
-				if (httpStatus == 200) {
-					console.log("Login: Success");
+				if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
-					var addressCountNormal = byteArray[0];
-					var addressCountShield = byteArray[1];
-					var msgBoxCount = byteArray[2];
+				var addressCountNormal = byteArray[0];
+				var addressCountShield = byteArray[1];
+				var msgBoxCount = byteArray[2];
 
-					console.log("Received " + addressCountNormal + " normal addresses and " + addressCountShield + " Shield addresses; and " + msgBoxCount + " Message Boxes");
+				// Empty the arrays
+				while (_userAddrNormal.length > 0) _userAddrNormal.pop();
+				while (_userAddrShield.length > 0) _userAddrShield.pop();
 
-					console.log("Our normal addresses:");
-					for (var i = 0; i < addressCountNormal; i++) {
-						var addr = _DecodeAddress(byteArray, 3 + (i * 16));
-						console.log(addr + "@allears.test");
-					}
-
-					console.log("Our Shield addresses:");
-					for (var i = 0; i < addressCountShield; i++) {
-						var addr = _DecodeAddress(byteArray, 3 + (addressCountNormal * 16) + (i * 16));
-						console.log(addr + "@allears.test");
-					}
-
-					// TODO: Message Boxes
-				} else {
-					console.log("Login: Failure");
+				for (var i = 0; i < addressCountNormal; i++) {
+					_userAddrNormal[i] = _DecodeAddress(byteArray, 3 + (i * 16));
 				}
+
+				for (var i = 0; i < addressCountShield; i++) {
+					_userAddrShield[i] = _DecodeAddress(byteArray, 3 + (addressCountNormal * 16) + (i * 16));
+				}
+
+				// TODO: Message Boxes
+				allears_onLoginSuccess();
 			});
 		});
 	}
