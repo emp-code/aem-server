@@ -12,6 +12,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include <sodium.h>
+
 #include "mbedtls/error.h"
 #include "mbedtls/ssl.h"
 
@@ -246,6 +248,10 @@ int main() {
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent writing to closed/invalid sockets from ending the process
 
 	puts(">>> ae-mail: All-Ears Mail");
+
+	if (sodium_init() < 0) {
+		puts("Failed to initialize libsodium. Quitting.");
+	}
 
 	int pid;
 
