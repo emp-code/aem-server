@@ -4,10 +4,9 @@
 
 function AllEars() {
 // Private
-	// Base64 encoded server public key for NaCl Box
-	const _serverPublicKey = b64ToBin("zUv7tx3dQU8vSq93dGOl6RSDv0N+6PDZbhOesYkx2zo=");
+	const _serverPublicKey = b64ToBin("D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo="); // Seed: TestServer0123456789012345678901
 
-	var _userKeys;
+	var _userSeed;
 
 	var _userAddrNormal = [];
 	var _userAddrShield = [];
@@ -83,32 +82,35 @@ function AllEars() {
 	this.GetAddressCountNormal = function() {return _userAddrNormal.length;}
 	this.GetAddressCountShield = function() {return _userAddrShield.length;}
 
-	this.SetKeys = function(skey_b64) {
-		_userKeys=nacl.box.keyPair.fromSecretKey(b64ToBin(skey_b64));
+	this.SetKeys = function(seed_b64) {
+		_userSeed=b64ToBin(seed_b64);
 	}
 
-	this.NewKeys = function() {
-		_userKeys=nacl.box.keyPair();
-		return _userKeys;
+	this.RandomSeed = function() {
+		// TODO
+//		_userKeys=nacl.box.keyPair();
+//		return _userKeys;
 	}
 
-	this.Login = function() {
-		var b64_key_public = btoa(String.fromCharCode.apply(null, _userKeys.publicKey));
+	this.Login = function() { nacl_factory.instantiate(function (nacl) {
+		const userKeys = nacl.crypto_box_seed_keypair(_userSeed);
+
+		const b64_key_public = btoa(String.fromCharCode.apply(null, userKeys.boxPk));
 
 		_FetchBinary("/web/nonce/" + b64_key_public, function(httpStatus, login_nonce) {
 			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
-			const plaintext = new TextEncoder().encode("AllEars:Web.Login");
-			var box_login = nacl.box(plaintext, login_nonce, _serverPublicKey, _userKeys.secretKey);
+			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
+			var box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, userKeys.boxSk);
 
-			var b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
+			const b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
 
 			_FetchBinary("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, byteArray) {
 				if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
-				var addressCountNormal = byteArray[0];
-				var addressCountShield = byteArray[1];
-				var msgBoxCount = byteArray[2];
+				const addressCountNormal = byteArray[0];
+				const addressCountShield = byteArray[1];
+				const msgBoxCount = byteArray[2];
 
 				// Empty the arrays
 				while (_userAddrNormal.length > 0) _userAddrNormal.pop();
@@ -126,5 +128,5 @@ function AllEars() {
 				allears_onLoginSuccess();
 			});
 		});
-	}
+	}); }
 }

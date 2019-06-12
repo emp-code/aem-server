@@ -15,16 +15,12 @@
 			</noscript>
 
 			<p>
-				Secret key (base64):<br>
-				<input id="txt_skey" type="text" size="44" maxlength="44" pattern="[0-9A-Za-z+/=]{44}" value="QC4Hpw0JIZIyJBeLRnfF7I/AApKNaaVC/xtxRg3d4T4=">
+				Seed (32 bytes in Base64):<br>
+				<input id="txt_skey" type="text" size="44" maxlength="44" pattern="[0-9A-Za-z+/=]{44}" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=">
 			</p>
 
 			<p>
 				<button id="btn_signin">Sign in</button>
-			</p>
-
-			<p>
-				<button id="btn_genkeys">Generate keys (console)</button>
 			</p>
 		</main>
 
@@ -32,7 +28,7 @@
 			<p>Powered by All-Ears Mail</p>
 		</footer>
 
-		<script src="/js/nacl-fast.min.js"></script>
+		<script src="/js/nacl.js"></script>
 		<script src="/js/b64bin.js"></script>
 		<script src="/js/all-ears.js"></script>
 		<script src="/js/main.js"></script>

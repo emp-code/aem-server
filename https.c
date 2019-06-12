@@ -4,14 +4,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <sodium.h>
+
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/xtea.h"
-
-#include "crypto_box.h"
 
 #include "aem_file.h"
 #include "defines.h"
@@ -30,7 +30,7 @@
 
 #define AEM_NONCE_TIMEDIFF_MAX 30
 
-#define AEM_SERVER_SECRETKEY_TEMP_B64 "WEPFgMoessUEVWiXJ0RUX0EjpKVmN9nNBvWIKLO2+/4="
+#define AEM_SERVER_KEY_SEED "TestServer0123456789012345678901"
 
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
@@ -289,39 +289,29 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	const char *b64_bd = end + 1;
 	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
 
-	size_t userPkLen = 0, boxDataLen = 0;
-	unsigned char *userPk = b64Decode((unsigned char*)b64_upk, b64_upk_len, &userPkLen);
+	size_t pkUserLen = 0, boxDataLen = 0;
+	unsigned char *pkUser = b64Decode((unsigned char*)b64_upk, b64_upk_len, &pkUserLen);
 	unsigned char *boxData = b64Decode((unsigned char*)b64_bd, b64_bd_len, &boxDataLen);
 
-	if (userPk == NULL || boxData == NULL || userPkLen != 32 || boxDataLen != 33) {
-		if (userPk != NULL) free(userPk);
+	if (pkUser == NULL || boxData == NULL || pkUserLen != 32 || boxDataLen != 33) {
+		if (pkUser != NULL) free(pkUser);
 		if (boxData != NULL) free(boxData);
 		return;
 	}
 
-	// First crypto_box_BOXZEROBYTES of boxData need to be 0x00
-	unsigned char box[crypto_box_BOXZEROBYTES + boxDataLen];
-	bzero(box, crypto_box_BOXZEROBYTES);
-	memcpy(box + crypto_box_BOXZEROBYTES, boxData, boxDataLen);
-
-	size_t skeyLen;
-	unsigned char *skey = b64Decode((unsigned char*)AEM_SERVER_SECRETKEY_TEMP_B64, strlen(AEM_SERVER_SECRETKEY_TEMP_B64), &skeyLen);
-	if (skey == NULL || skeyLen != 32) {
-		if (skey != NULL) free(skey);
-		if (userPk != NULL) free(userPk);
-		if (boxData != NULL) free(boxData);
-		return;
-	}
+	unsigned char *pkServer = malloc(32);
+	unsigned char *skServer = malloc(32);
+	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
+	free(pkServer);
 
 	// Open the Box
-	unsigned char decrypted[boxDataLen + crypto_box_BOXZEROBYTES];
-	const int ret = crypto_box_open(decrypted, box, boxDataLen + crypto_box_BOXZEROBYTES, nonce, userPk, skey);
-
-	free(skey);
-	free(userPk);
+	unsigned char decrypted[18];
+	const int ret = crypto_box_open_easy(decrypted, boxData, 33, nonce, pkUser, skServer);
+	free(skServer);
+	free(pkUser);
 	free(boxData);
 
-	if (ret != 0 || strncmp((char*)(decrypted + crypto_box_ZEROBYTES), "AllEars:Web.Login", 17) != 0) return;
+	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login Fail"); return;}
 
 	// Login successful
 	int addrCountNormal, addrCountShield;
