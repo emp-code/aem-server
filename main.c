@@ -172,12 +172,8 @@ static int receiveConnections_https(const int port) {
 	free(key);
 	if (ret != 0) {printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
 
-	fd = open("/dev/urandom", O_RDONLY);
-	if (fd < 0) return 1;
 	unsigned char seed[16];
-	readBytes = read(fd, seed, 16);
-	if (readBytes != 16) return 3;
-	close(fd);
+	randombytes_buf(seed, 16);
 
 	int numCss = aem_countFiles("css", ".css",  4);
 	int numImg = aem_countFiles("img", ".webp", 5);
