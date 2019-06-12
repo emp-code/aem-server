@@ -124,7 +124,40 @@ function AllEars() {
 					_userAddrShield[i] = _DecodeAddress(byteArray, 3 + (addressCountNormal * 16) + (i * 16));
 				}
 
-				// TODO: Message Boxes
+				// Messages
+				// TODO: Support multiple messages; make them accessible to outside this function
+				console.log("Message:")
+				const msgStart = 3 + (addressCountNormal * 16) + (addressCountShield * 16);
+				const msgKilos = byteArray[msgStart] + 1;
+
+				// HeadBox
+				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
+				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, userKeys.boxPk, userKeys.boxSk);
+
+				const senderMemberLevel = msgHead[0];
+
+				const u32bytes = msgHead.slice(1, 5).buffer;
+				const msgTs = new Uint32Array(u32bytes)[0];
+
+				const msgFrom = _DecodeAddress(msgHead, 5);
+				const msgTo = _DecodeAddress(msgHead, 21); // 5 + 16
+
+				console.log("SenderMemberLevel=" + senderMemberLevel);
+				console.log("Timestamp=" + msgTs);
+				console.log("From=" + msgFrom);
+				console.log("To=" + msgTo);
+
+				// BodyBox
+				const msgBodyBox = byteArray.slice(msgStart + 86);
+				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, userKeys.boxPk, userKeys.boxSk);
+
+				const u16bytes = msgBodyFull.slice(0, 2).buffer;
+				const padAmount = new Uint16Array(u16bytes)[0];
+				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
+				console.log("Body:");
+				console.log(nacl.decode_utf8(msgBody));
+
 				allears_onLoginSuccess();
 			});
 		});

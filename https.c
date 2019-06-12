@@ -32,6 +32,8 @@
 
 #define AEM_SERVER_KEY_SEED "TestServer0123456789012345678901"
 
+#define AEM_MSG_HEADSIZE 37
+
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
 
@@ -259,6 +261,37 @@ char *loadUserAddressList(const char *b64_upk, const char *filename, int *count)
 	return data;
 }
 
+static unsigned char *loadUserMessages(const char *b64_upk, size_t *totalSize) {
+	// TODO: Load all messages in the directory
+	char *path = userPath(b64_upk, "msg/test.aem");
+	const int fd = open(path, O_RDONLY);
+
+	const off_t sz = lseek(fd, 0, SEEK_END);
+	const size_t msgLen = sz - AEM_MSG_HEADSIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
+
+	if ((msgLen - 2) % 1024 != 0) {close(fd); return NULL;}
+	int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
+	if (sizeFactor > 255) {close(fd); return NULL;}
+
+	unsigned char *data = malloc(sz + 1);
+	const unsigned char sf = sizeFactor;
+	data[0] = sf;
+	const ssize_t bytesDone = pread(fd, data + 1, sz, 0);
+	close(fd);
+	free(path);
+
+	if (bytesDone != sz) {free(data); return NULL;}
+
+	*totalSize = sz + 1;
+	return data;
+}
+
+static int numDigits(double number) {
+	int digits = 0;
+	while (number > 1) {number /= 10; digits++;}
+	return digits;
+}
+
 // Web login
 static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const uint32_t clientIp, const unsigned char seed[16]) {
 	const char *b64_upk = url + 10;
@@ -320,6 +353,10 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	char *addrShield = loadUserAddressList(b64_upk, "address_shield.aea", &addrCountShield);
 	if (addrShield == NULL) {free(addrNormal); return;}
 
+	size_t lenMbSet;;
+	unsigned char *mbSet = loadUserMessages(b64_upk, &lenMbSet);
+	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
+
 /*
 	Login Response Format:
 		[1B] Number of Normal Addresses
@@ -329,29 +366,35 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 		...
 		[16B] Shield Address (21B SixBit-Encoded)
 		...
-		(Message Boxes)
+		MessageBoxes
 */
 
-	const size_t responseLen = 187 + (16 * addrCountNormal) + (16 * addrCountShield);
-	char data[responseLen + 1];
+	const size_t szBody = 3 + (16 * addrCountNormal) + (16 * addrCountShield) + lenMbSet;
+	const size_t szHead = 141 + numDigits(szBody);
+	const size_t szResponse = szHead + szBody;
+
+	char data[szResponse + 1];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: 99\r\n"
+		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-		"%c%c%c"
-		"%.*s" // Normal Address List
-		"%.*s" // Shield Address List
-		"" // Message Boxes (todo)
-	, addrCountNormal, addrCountShield, 0, addrCountNormal * 16, addrNormal, addrCountShield * 16, addrShield);
+	, szBody);
+
+	data[szHead + 0] = (unsigned char)addrCountNormal;
+	data[szHead + 1] = (unsigned char)addrCountShield;
+	data[szHead + 2] = (unsigned char)1; // MsgCount
+	memcpy(data + szHead + 3, addrNormal, addrCountNormal * 16);
+	memcpy(data + szHead + 3 + (16 * addrCountNormal), addrShield, addrCountShield * 16);
+	memcpy(data + szHead + 3 + (16 * addrCountNormal) + (16 * addrCountShield), mbSet, lenMbSet);
 
 	free(addrNormal);
 	free(addrShield);
+	free(mbSet);
 
-	sendData(ssl, data, responseLen);
+	sendData(ssl, data, szResponse);
 }
 
 // Request for a nonce to be used with a NaCl Box. URL format: name.tld/web/nonce/public-key-in-base64
