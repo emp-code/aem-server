@@ -344,7 +344,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	free(pkUser);
 	free(boxData);
 
-	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login Fail"); return;}
+	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
 
 	// Login successful
 	int addrCountNormal, addrCountShield;
@@ -362,9 +362,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 		[1B] Number of Normal Addresses
 		[1B] Number of Shield Addresses
 		[1B] Number of Message Boxes
-		[16B] Normal Address (21B SixBit-Encoded)
+		[16B] Normal Address (21c SixBit-Encoded)
 		...
-		[16B] Shield Address (21B SixBit-Encoded)
+		[16B] Shield Address (21c SixBit-Encoded)
 		...
 		MessageBoxes
 */
@@ -399,23 +399,17 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 // Request for a nonce to be used with a NaCl Box. URL format: name.tld/web/nonce/public-key-in-base64
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, const uint32_t clientIp, const unsigned char seed[16]) {
-	int fd = open("/dev/urandom", O_RDONLY);
-	unsigned char nonce_random[16];
-	ssize_t bytesDone = read(fd, nonce_random, 16);
-	close(fd);
-	if (bytesDone != 16) return;
-
+	// Generate nonce
 	unsigned char nonce[24];
-
 	const uint32_t ts = (uint32_t)time(NULL);
 	memcpy(nonce, &clientIp, 4); // Client IP. Protection against third parties intercepting the Box.
-	memcpy(nonce + 4, nonce_random, 16);
+	randombytes_buf(nonce + 4, 16);
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
-// Store nonce in user folder
+	// Store nonce in user folder
 	char *path = userPath(b64_upk, "nonce");
-	fd = open(path, O_WRONLY | O_TRUNC);
-	bytesDone = write(fd, nonce, 24);
+	const int fd = open(path, O_WRONLY | O_TRUNC);
+	const ssize_t bytesDone = write(fd, nonce, 24);
 	close(fd);
 	free(path);
 	if (bytesDone != 24) return;
@@ -459,7 +453,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 	// Static
 	if (urlLen == 0) return respond_https_home(ssl);
-	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr   (ssl);
+	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 	if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 
 	// Files
@@ -468,8 +462,8 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (urlLen  >  3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 
 	// Ajax
-	if (urlLen  > 10 && memcmp(url, "web/login/", 10) == 0) return respond_https_login (ssl, url, urlLen, clientIp, seed);
-	if (urlLen == 54 && memcmp(url, "web/nonce/", 10) == 0) return respond_https_nonce (ssl, url + 10, clientIp, seed);
+	if (urlLen  > 10 && memcmp(url, "web/login/", 10) == 0) return respond_https_login(ssl, url, urlLen, clientIp, seed);
+	if (urlLen == 54 && memcmp(url, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
 }
 
 int respond_https(int sock, mbedtls_x509_crt* srvcert, mbedtls_pk_context* pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
