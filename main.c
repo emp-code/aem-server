@@ -251,6 +251,7 @@ int main() {
 
 	if (sodium_init() < 0) {
 		puts("Failed to initialize libsodium. Quitting.");
+		return 1;
 	}
 
 	int pid;
