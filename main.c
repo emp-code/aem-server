@@ -106,23 +106,50 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 			int fd = open(filePath, O_RDONLY);
 			if (fd < 0) {f[counter].lenData = 0; continue;}
 			const off_t bytes = lseek(fd, 0, SEEK_END);
-			f[counter].data = malloc(bytes);
-			const ssize_t readBytes = pread(fd, f[counter].data,  bytes, 0);
-			close(fd);
 
-			if (readBytes == bytes) {
-				f[counter].filename = strdup(de->d_name);
-				f[counter].lenData = bytes;
+			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
+				// Files to be compressed
+				char *tempData = malloc(bytes);
+				if (tempData == NULL) {printf("Failed to allocate memory for loading %s. Quitting.\n", de->d_name); return;}
 
-				if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
-					brotliCompress(&(f[counter].data), &(f[counter].lenData));
+				const ssize_t readBytes = pread(fd, tempData, bytes, 0);
+				close(fd);
+
+				if (readBytes == bytes) {
+					f[counter].lenData = bytes;
+					f[counter].filename = strdup(de->d_name);
+					brotliCompress(&tempData, &(f[counter].lenData));
+
+					f[counter].data = sodium_malloc(bytes);
+					if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); return;}
+					memcpy(f[counter].data, tempData, bytes);
+					sodium_mprotect_readonly(f[counter].data);
+					free(tempData);
+
 					printf("Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
 				} else {
-					printf("Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
+					printf("Failed to load %s\n", de->d_name);
+					free(tempData);
 				}
 			} else {
-				printf("ERROR: Failed to load %s\n", de->d_name);
-				free(f[counter].data);
+				// Files not to be compressed
+				f[counter].data = sodium_malloc(bytes);
+				if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); return;}
+
+				const ssize_t readBytes = pread(fd, f[counter].data, bytes, 0);
+				close(fd);
+
+				if (readBytes == bytes) {
+					sodium_mprotect_readonly(f[counter].data);
+
+					f[counter].lenData = bytes;
+					f[counter].filename = strdup(de->d_name);
+
+					printf("Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
+				} else {
+					printf("Failed to load %s\n", de->d_name);
+					sodium_free(f[counter].data);
+				}
 			}
 
 			counter++;
@@ -225,10 +252,10 @@ static int receiveConnections_https(const int port) {
 		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
 
-	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  free(fileCss[i].data);}
-	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); free(fileHtml[i].data);}
-	for (int i = 0; i < numImg;  i++) {free(fileImg[i].filename);  free(fileImg[i].data);}
-	for (int i = 0; i < numJs;   i++) {free(fileJs[i].filename);   free(fileJs[i].data);}
+	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  sodium_free(fileCss[i].data);}
+	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); sodium_free(fileHtml[i].data);}
+	for (int i = 0; i < numImg;  i++) {free(fileImg[i].filename);  sodium_free(fileImg[i].data);}
+	for (int i = 0; i < numJs;   i++) {free(fileJs[i].filename);   sodium_free(fileJs[i].data);}
 
 	mbedtls_x509_crt_free(&srvcert);
 	mbedtls_pk_free(&pkey);
