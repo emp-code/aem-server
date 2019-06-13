@@ -11,6 +11,17 @@ function AllEars() {
 	var _userAddrNormal = [];
 	var _userAddrShield = [];
 
+	var _intMsg = [];
+
+	function _NewIntMsg(sml, ts, from, to, title, body) {
+		this.senderMemberLevel = sml;
+		this.timestamp = ts;
+		this.from = from;
+		this.to = to;
+		this.title = title;
+		this.body = body;
+	}
+
 	var _Fetch = function(url, cb) {
 		var r=new XMLHttpRequest();
 
@@ -82,6 +93,14 @@ function AllEars() {
 	this.GetAddressCountNormal = function() {return _userAddrNormal.length;}
 	this.GetAddressCountShield = function() {return _userAddrShield.length;}
 
+	this.GetIntMsgCount = function() {return _intMsg.length;}
+	this.GetIntMsgLevel = function(num) {return _intMsg[num].senderMemberLevel;}
+	this.GetIntMsgTime  = function(num) {return _intMsg[num].timestamp;}
+	this.GetIntMsgFrom  = function(num) {return _intMsg[num].from;}
+	this.GetIntMsgTo    = function(num) {return _intMsg[num].to;}
+	this.GetIntMsgTitle = function(num) {return _intMsg[num].title;}
+	this.GetIntMsgBody  = function(num) {return _intMsg[num].body;}
+
 	this.SetKeys = function(seed_b64) {
 		_userSeed=b64ToBin(seed_b64);
 	}
@@ -125,8 +144,7 @@ function AllEars() {
 				}
 
 				// Messages
-				// TODO: Support multiple messages; make them accessible to outside this function
-				console.log("Message:")
+				// TODO: Support multiple messages; detect type and support extMsg
 				const msgStart = 3 + (addressCountNormal * 16) + (addressCountShield * 16);
 				const msgKilos = byteArray[msgStart] + 1;
 
@@ -134,18 +152,13 @@ function AllEars() {
 				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, userKeys.boxPk, userKeys.boxSk);
 
-				const senderMemberLevel = msgHead[0];
+				const im_sml = msgHead[0];
 
 				const u32bytes = msgHead.slice(1, 5).buffer;
-				const msgTs = new Uint32Array(u32bytes)[0];
+				const im_ts = new Uint32Array(u32bytes)[0];
 
-				const msgFrom = _DecodeAddress(msgHead, 5);
-				const msgTo = _DecodeAddress(msgHead, 21); // 5 + 16
-
-				console.log("SenderMemberLevel=" + senderMemberLevel);
-				console.log("Timestamp=" + msgTs);
-				console.log("From=" + msgFrom);
-				console.log("To=" + msgTo);
+				const im_from = _DecodeAddress(msgHead, 5);
+				const im_to   = _DecodeAddress(msgHead, 21); // 5 + 16
 
 				// BodyBox
 				const msgBodyBox = byteArray.slice(msgStart + 86);
@@ -155,8 +168,12 @@ function AllEars() {
 				const padAmount = new Uint16Array(u16bytes)[0];
 				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-				console.log("Body:");
-				console.log(nacl.decode_utf8(msgBody));
+				const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+				const firstLf = msgBodyUtf8.indexOf('\n');
+				const im_title=msgBodyUtf8.slice(0, firstLf);
+				const im_body=msgBodyUtf8.slice(firstLf + 1);
+
+				_intMsg[0] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
 
 				allears_onLoginSuccess();
 			});

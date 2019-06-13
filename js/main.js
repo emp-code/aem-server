@@ -24,6 +24,18 @@ function allears_onLoginSuccess() {
 	for (var i = 0; i < ae.GetAddressCountNormal(); i++) {
 		console.log(ae.GetAddressShield(i) + "@allears.test");
 	}
+
+	console.log("Internal Messages:");
+	for (var i = 0; i < ae.GetIntMsgCount(); i++) {
+		console.log("Message #" + i + ":");
+		console.log("SenderMemberLevel=" + ae.GetIntMsgLevel(i));
+		console.log("Time=" + ae.GetIntMsgTime(i));
+		console.log("To=" + ae.GetIntMsgFrom(i));
+		console.log("From=" + ae.GetIntMsgTo(i));
+		console.log("Title=" + ae.GetIntMsgTitle(i));
+		console.log("Body:");
+		console.log(ae.GetIntMsgBody(i));
+	}
 }
 
 // Called on a failed login
