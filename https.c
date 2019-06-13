@@ -149,6 +149,10 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, co
 	char *mediatype;
 	int mtLen;
 	switch (fileType) {
+		case AEM_FILETYPE_IMG:
+			mediatype = "image/webp";
+			mtLen = 10;
+			break;
 		case AEM_FILETYPE_JS:
 			mediatype = "application/javascript; charset=utf-8";
 			mtLen = 37;
@@ -157,6 +161,8 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, co
 			mediatype = "text/css; charset=utf-8";
 			mtLen = 23;
 			break;
+		default:
+			return;
 	}
 
 	char headers[205 + mtLen];
