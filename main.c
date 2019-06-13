@@ -91,9 +91,13 @@ static int aem_countFiles(const char *path, const char *ext, const size_t extLen
 	return counter;
 }
 
-static void aem_loadFiles(const char *path, const char *ext, const size_t extLen, struct aem_file f[], const int fileCount) {
+static struct aem_file *aem_loadFiles(const char *path, const char *ext, const size_t extLen, const int fileCount) {
+	if (fileCount < 1) return NULL;
+
 	DIR* dir = opendir(path);
-	if (dir == NULL) return;
+	if (dir == NULL) return NULL;
+
+	struct aem_file *f = sodium_allocarray(fileCount, sizeof(struct aem_file));
 
 	for (int counter = 0; counter < fileCount;) {
 		struct dirent *de = readdir(dir);
@@ -105,23 +109,24 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 
 			int fd = open(filePath, O_RDONLY);
 			if (fd < 0) {f[counter].lenData = 0; continue;}
-			const off_t bytes = lseek(fd, 0, SEEK_END);
+			size_t bytes = lseek(fd, 0, SEEK_END);
 
 			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 				// Files to be compressed
 				char *tempData = malloc(bytes);
-				if (tempData == NULL) {printf("Failed to allocate memory for loading %s. Quitting.\n", de->d_name); return;}
+				if (tempData == NULL) {printf("Failed to allocate memory for loading %s. Quitting.\n", de->d_name); break;}
 
 				const ssize_t readBytes = pread(fd, tempData, bytes, 0);
 				close(fd);
 
 				if (readBytes == bytes) {
-					f[counter].lenData = bytes;
+					brotliCompress(&tempData, &bytes);
+
 					f[counter].filename = strdup(de->d_name);
-					brotliCompress(&tempData, &(f[counter].lenData));
+					f[counter].lenData = bytes;
 
 					f[counter].data = sodium_malloc(bytes);
-					if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); return;}
+					if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
 					memcpy(f[counter].data, tempData, bytes);
 					sodium_mprotect_readonly(f[counter].data);
 					free(tempData);
@@ -134,7 +139,7 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 			} else {
 				// Files not to be compressed
 				f[counter].data = sodium_malloc(bytes);
-				if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); return;}
+				if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
 
 				const ssize_t readBytes = pread(fd, f[counter].data, bytes, 0);
 				close(fd);
@@ -156,7 +161,9 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 		}
 	}
 
+	sodium_mprotect_readonly(f);
 	closedir(dir);
+	return f;
 }
 
 static int receiveConnections_https(const int port) {
@@ -213,25 +220,21 @@ static int receiveConnections_https(const int port) {
 
 	printf("Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
-	struct aem_file fileCss[numCss + 1];
-	struct aem_file fileHtml[numCss + 1];
-	struct aem_file fileImg[numImg + 1];
-	struct aem_file fileJs[numJs + 1];
+	struct aem_file *fileCss  = aem_loadFiles("css",  ".css",  4, numCss);
+	struct aem_file *fileHtml = aem_loadFiles("html", ".html", 5, numHtml);
+	struct aem_file *fileImg  = aem_loadFiles("img",  ".webp", 5, numImg);
+	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs);
 
-	if (numCss > 0) aem_loadFiles("css", ".css",  4, fileCss, numCss);
-	if (numImg > 0) aem_loadFiles("img", ".webp", 5, fileImg, numImg);
-	if (numJs  > 0) aem_loadFiles("js",  ".js",   3, fileJs,  numJs);
-	aem_loadFiles("html", ".html",  5, fileHtml, numHtml);
-
-	struct aem_fileSet fileSet;
-	fileSet.cssFiles  = fileCss;
-	fileSet.htmlFiles = fileHtml;
-	fileSet.imgFiles  = fileImg;
-	fileSet.jsFiles   = fileJs;
-	fileSet.cssCount  = numCss;
-	fileSet.htmlCount = numHtml;
-	fileSet.imgCount  = numImg;
-	fileSet.jsCount   = numJs;
+	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
+	fileSet->cssFiles  = fileCss;
+	fileSet->htmlFiles = fileHtml;
+	fileSet->imgFiles  = fileImg;
+	fileSet->jsFiles   = fileJs;
+	fileSet->cssCount  = numCss;
+	fileSet->htmlCount = numHtml;
+	fileSet->imgCount  = numImg;
+	fileSet->jsCount   = numJs;
+	sodium_mprotect_readonly(fileSet);
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {puts("ERROR: Opening socket failed"); return 2;}
@@ -247,7 +250,7 @@ static int receiveConnections_https(const int port) {
 		if (pid < 0) {puts("ERROR: Failed fork"); break;}
 		else if (pid == 0) {
 			// Child goes on to communicate with the client
-			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, &fileSet);
+			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet);
 			break;
 		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
@@ -256,6 +259,12 @@ static int receiveConnections_https(const int port) {
 	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); sodium_free(fileHtml[i].data);}
 	for (int i = 0; i < numImg;  i++) {free(fileImg[i].filename);  sodium_free(fileImg[i].data);}
 	for (int i = 0; i < numJs;   i++) {free(fileJs[i].filename);   sodium_free(fileJs[i].data);}
+
+	sodium_free(fileCss);
+	sodium_free(fileHtml);
+	sodium_free(fileImg);
+	sodium_free(fileJs);
+	sodium_free(fileSet);
 
 	mbedtls_x509_crt_free(&srvcert);
 	mbedtls_pk_free(&pkey);
