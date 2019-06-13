@@ -14,18 +14,65 @@
 				<p>Javascript required</p>
 			</noscript>
 
-			<p>
-				Seed (32 bytes in Base64):<br>
-				<input id="txt_skey" type="text" size="44" maxlength="44" pattern="[0-9A-Za-z+/=]{44}" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=">
-			</p>
+			<div id="div_login">
+				<p>
+					Seed (32 bytes in Base64):<br>
+					<input id="txt_skey" type="text" size="44" maxlength="44" pattern="[0-9A-Za-z+/=]{44}" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=">
+				</p>
 
-			<p>
-				<button id="btn_signin">Sign in</button>
-			</p>
+				<p>
+					<button id="btn_signin">Sign in</button>
+				</p>
+			</div>
+
+			<div id="div_loggedin">
+				<nav>
+					<button id="btn_toinbox" disabled="disabled">Inbox</button> <button id="btn_towrite">Write</button> <button id="btn_tosettings">Settings</button>
+				</nav>
+
+				<div id="div_inbox">
+					<table id="table_inbox">
+						<thead>
+							<tr>
+								<th>Time</th>
+								<th>Title</th>
+								<th>From</th>
+								<th>To</th>
+							</tr>
+						</thead>
+						<tbody>
+						</tbody>
+					</table>
+				</div>
+
+				<div id="div_write">
+					<p>
+						<input type="text" placeholder="Subject"></input>
+					</p>
+
+					<p>
+						<input type="text" placeholder="address@example.com"></input>
+					</p>
+
+					<p>
+						<textarea placeholder="Message"></textarea>
+					</p>
+
+					<p>
+						<button>Send</button>
+					</p>
+				</div>
+
+				<div id="div_settings">
+					<p>
+						TODO: Settings
+					</p>
+				</div>
+			</div>
 		</main>
 
 		<footer>
-			<p>Powered by All-Ears Mail</p>
+			<p>Powered by All-Ears Mail (License: <abbr title="GNU Affero General Public License">AGPL</abbr>; <a href="https://github.com/emp-code/ae-mail">Source)</a></p>
 		</footer>
 
 		<script src="/js/nacl.js"></script>

@@ -13,6 +13,9 @@ document.getElementById("btn_signin").addEventListener("click", function(){
 function allears_onLoginSuccess() {
 	console.log("Logged in successfully");
 
+	document.getElementById("div_login").style.display="none";
+	document.getElementById("div_loggedin").style.display="inline";
+
 	console.log("User has " + ae.GetAddressCountNormal() + " normal addresses and " + ae.GetAddressCountShield() + " Shield addresses");
 
 	console.log("Normal addresses:");
@@ -25,16 +28,26 @@ function allears_onLoginSuccess() {
 		console.log(ae.GetAddressShield(i) + "@allears.test");
 	}
 
-	console.log("Internal Messages:");
 	for (var i = 0; i < ae.GetIntMsgCount(); i++) {
-		console.log("Message #" + i + ":");
-		console.log("SenderMemberLevel=" + ae.GetIntMsgLevel(i));
-		console.log("Time=" + ae.GetIntMsgTime(i));
-		console.log("To=" + ae.GetIntMsgFrom(i));
-		console.log("From=" + ae.GetIntMsgTo(i));
-		console.log("Title=" + ae.GetIntMsgTitle(i));
-		console.log("Body:");
-		console.log(ae.GetIntMsgBody(i));
+		const table = document.getElementById("table_inbox");
+
+		let row = table.insertRow(i + 1);
+
+		// Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
+		let cellTime  = row.insertCell(0);
+		let cellTitle = row.insertCell(1);
+		let cellFrom  = row.insertCell(2);
+		let cellTo    = row.insertCell(3);
+
+		// Add some text to the new cells:
+		cellTime.innerHTML = ae.GetIntMsgTime(i);
+		cellTitle.innerHTML = ae.GetIntMsgTitle(i);
+		cellFrom.innerHTML = ae.GetIntMsgFrom(i);
+		cellTo.innerHTML = ae.GetIntMsgTo(i);
+
+		// Unused elements
+//		ae.GetIntMsgLevel(i);
+//		ae.GetIntMsgBody(i);
 	}
 }
 
@@ -42,3 +55,34 @@ function allears_onLoginSuccess() {
 function allears_onLoginFailure() {
 	console.log("Failed to log in");
 }
+
+// Menu
+document.getElementById("btn_toinbox").addEventListener("click", function(){
+	document.getElementById("btn_toinbox").disabled="disabled";
+	document.getElementById("btn_towrite").disabled="";
+	document.getElementById("btn_tosettings").disabled="";
+
+	document.getElementById("div_settings").style.display="none";
+	document.getElementById("div_write").style.display="none";
+	document.getElementById("div_inbox").style.display="inline";
+});
+
+document.getElementById("btn_towrite").addEventListener("click", function(){
+	document.getElementById("btn_toinbox").disabled="";
+	document.getElementById("btn_towrite").disabled="disabled";
+	document.getElementById("btn_tosettings").disabled="";
+
+	document.getElementById("div_inbox").style.display="none";
+	document.getElementById("div_settings").style.display="none";
+	document.getElementById("div_write").style.display="inline";
+});
+
+document.getElementById("btn_tosettings").addEventListener("click", function(){
+	document.getElementById("btn_toinbox").disabled="";
+	document.getElementById("btn_towrite").disabled="";
+	document.getElementById("btn_tosettings").disabled="disabled";
+
+	document.getElementById("div_inbox").style.display="none";
+	document.getElementById("div_write").style.display="none";
+	document.getElementById("div_settings").style.display="inline";
+});
