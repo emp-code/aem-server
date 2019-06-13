@@ -9,10 +9,12 @@ struct aem_file {
 
 struct aem_fileSet {
 	struct aem_file *cssFiles;
+	struct aem_file *htmlFiles;
 	struct aem_file *imgFiles;
 	struct aem_file *jsFiles;
 
 	int cssCount;
+	int htmlCount;
 	int imgCount;
 	int jsCount;
 };

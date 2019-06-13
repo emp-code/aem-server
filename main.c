@@ -114,13 +114,12 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 				f[counter].filename = strdup(de->d_name);
 				f[counter].lenData = bytes;
 
-				if (strcmp(ext, ".js") == 0 || strcmp(ext, ".css") == 0) {
+				if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 					brotliCompress(&(f[counter].data), &(f[counter].lenData));
 					printf("Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
 				} else {
 					printf("Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
 				}
-
 			} else {
 				printf("ERROR: Failed to load %s\n", de->d_name);
 				free(f[counter].data);
@@ -134,6 +133,11 @@ static void aem_loadFiles(const char *path, const char *ext, const size_t extLen
 }
 
 static int receiveConnections_https(const int port) {
+	if (access("html/index.html", R_OK) == -1 ) {
+		puts("Missing html/index.html - not loading web interface");
+		return -1;
+	}
+
 	// Load the certificate
 	int fd = open("aem-https.crt", O_RDONLY);
 	if (fd < 0) return 1;
@@ -175,27 +179,32 @@ static int receiveConnections_https(const int port) {
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
 
-	int numCss = aem_countFiles("css", ".css",  4);
-	int numImg = aem_countFiles("img", ".webp", 5);
-	int numJs = aem_countFiles ("js",  ".js",   3);
+	int numCss  = aem_countFiles("css",  ".css",  4);
+	int numHtml = aem_countFiles("html", ".html", 5);
+	int numImg  = aem_countFiles("img",  ".webp", 5);
+	int numJs   = aem_countFiles("js",   ".js",   3);
 
-	printf("Loading %d CSS files, %d images and %d Javascript files\n", numCss, numImg, numJs);
+	printf("Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
 	struct aem_file fileCss[numCss + 1];
+	struct aem_file fileHtml[numCss + 1];
 	struct aem_file fileImg[numImg + 1];
 	struct aem_file fileJs[numJs + 1];
 
 	if (numCss > 0) aem_loadFiles("css", ".css",  4, fileCss, numCss);
 	if (numImg > 0) aem_loadFiles("img", ".webp", 5, fileImg, numImg);
 	if (numJs  > 0) aem_loadFiles("js",  ".js",   3, fileJs,  numJs);
+	aem_loadFiles("html", ".html",  5, fileHtml, numHtml);
 
 	struct aem_fileSet fileSet;
-	fileSet.cssFiles = fileCss;
-	fileSet.imgFiles = fileImg;
-	fileSet.jsFiles  = fileJs;
-	fileSet.cssCount = numCss;
-	fileSet.imgCount = numImg;
-	fileSet.jsCount  = numJs;
+	fileSet.cssFiles  = fileCss;
+	fileSet.htmlFiles = fileHtml;
+	fileSet.imgFiles  = fileImg;
+	fileSet.jsFiles   = fileJs;
+	fileSet.cssCount  = numCss;
+	fileSet.htmlCount = numHtml;
+	fileSet.imgCount  = numImg;
+	fileSet.jsCount   = numJs;
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {puts("ERROR: Opening socket failed"); return 2;}
@@ -216,9 +225,10 @@ static int receiveConnections_https(const int port) {
 		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
 
-	for (int i = 0; i < numCss; i++) {free(fileCss[i].filename); free(fileCss[i].data);}
-	for (int i = 0; i < numImg; i++) {free(fileImg[i].filename); free(fileImg[i].data);}
-	for (int i = 0; i < numJs;  i++) {free(fileJs[i].filename);  free(fileJs[i].data);}
+	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  free(fileCss[i].data);}
+	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); free(fileHtml[i].data);}
+	for (int i = 0; i < numImg;  i++) {free(fileImg[i].filename);  free(fileImg[i].data);}
+	for (int i = 0; i < numJs;   i++) {free(fileJs[i].filename);   free(fileJs[i].data);}
 
 	mbedtls_x509_crt_free(&srvcert);
 	mbedtls_pk_free(&pkey);

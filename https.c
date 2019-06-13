@@ -51,19 +51,24 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 	}
 }
 
-static void respond_https_home(mbedtls_ssl_context *ssl) {
-	int fd = open("aem-web.html", O_RDONLY);
-	if (fd < 0) return;
+static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, struct aem_file files[], const int fileCount) {
+	int reqNum = -1;
 
-	const size_t lenHtml = lseek(fd, 0, SEEK_END);
-	if (lenHtml < 10 || lenHtml > 99999) {close(fd); return;}
+	for (int i = 0; i < fileCount; i++) {
+		if (strcmp(files[i].filename, reqName) == 0) reqNum = i;
+	}
 
-	char headers[1069 + AEM_LEN_DOMAIN * 4];
-	sprintf(headers,
+	if (reqNum < 0) return;
+
+	if (files[reqNum].lenData > 99999) return;
+
+	char data[1091 + AEM_LEN_DOMAIN * 4 + files[reqNum].lenData];
+	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
 		"Connection: close\r\n"
+		"Content-Encoding: br\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 
@@ -119,19 +124,16 @@ static void respond_https_home(mbedtls_ssl_context *ssl) {
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenHtml);
-	const size_t lenHeaders = strlen(headers);
-//	printf("LenHeaders=%zd\n", lenHeaders - AEM_LEN_DOMAIN * 4);
+	, files[reqNum].lenData);
 
-	char data[lenHeaders + lenHtml];
-	memcpy(data, headers, lenHeaders);
+	size_t lenData = strlen(data);
+//	printf("LenHeaders=%zd\n", lenData - AEM_LEN_DOMAIN * 4);
 
-	const int bytesRead = pread(fd, data + lenHeaders, lenHtml, 0);
-	close(fd);
+	memcpy(data + lenData, files[reqNum].data, files[reqNum].lenData);
+	lenData += files[reqNum].lenData;
+	data[lenData] = '\0';
 
-	if (bytesRead != lenHtml) return;
-
-	sendData(ssl, data, lenHeaders + lenHtml);
+	sendData(ssl, data, lenData);
 }
 
 // Javascript, CSS, images etc
@@ -452,7 +454,9 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	const size_t urlLen = (end - 9) - url;
 
 	// Static
-	if (urlLen == 0) return respond_https_home(ssl);
+	if (urlLen == 0) return respond_https_html(ssl, "index.html", fileSet->htmlFiles, fileSet->htmlCount);
+	if (urlLen > 5 && memcmp(url + urlLen - 5, ".html", 5) == 0) return respond_https_html(ssl, url, fileSet->htmlFiles, fileSet->htmlCount);
+
 	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 	if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 
@@ -466,7 +470,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	if (urlLen == 54 && memcmp(url, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
 }
 
-int respond_https(int sock, mbedtls_x509_crt* srvcert, mbedtls_pk_context* pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
+int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
