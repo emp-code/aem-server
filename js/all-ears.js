@@ -23,7 +23,7 @@ function AllEars() {
 	}
 
 	var _Fetch = function(url, cb) {
-		var r=new XMLHttpRequest();
+		let r=new XMLHttpRequest();
 
 		r.onreadystatechange=function(){
 			if (r.readyState == 4 && typeof(cb) === "function") {
@@ -36,14 +36,14 @@ function AllEars() {
 	}
 
 	var _FetchBinary = function(url, cb) {
-		var r=new XMLHttpRequest();
+		let r=new XMLHttpRequest();
 		r.responseType = "arraybuffer";
 
 		r.onreadystatechange=function(){
 			if (r.readyState == 4 && typeof(cb) === "function") {
-				var arrayBuffer = r.response;
+				const arrayBuffer = r.response;
 				if (arrayBuffer) {
-					var byteArray = new Uint8Array(arrayBuffer);
+					const byteArray = new Uint8Array(arrayBuffer);
 					cb(r.status, byteArray);
 				}
 			}
@@ -69,10 +69,10 @@ function AllEars() {
 		const sixBitTable = "0123456789abcdefghijklmnopqrstuvwxyz.-@???????????????????????|!";
 		const skip = start * 8;
 
-		var decoded = "";
+		let decoded = "";
 
-		for (var i = 0; i < 21; i++) {
-			var num = 0;
+		for (let i = 0; i < 21; i++) {
+			let num = 0;
 
 			if (_GetBit(byteArray, skip + i*6 + 0)) num +=  1;
 			if (_GetBit(byteArray, skip + i*6 + 1)) num +=  2;
@@ -120,7 +120,7 @@ function AllEars() {
 			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
-			var box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, userKeys.boxSk);
+			const box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, userKeys.boxSk);
 
 			const b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
 
@@ -135,11 +135,11 @@ function AllEars() {
 				while (_userAddrNormal.length > 0) _userAddrNormal.pop();
 				while (_userAddrShield.length > 0) _userAddrShield.pop();
 
-				for (var i = 0; i < addressCountNormal; i++) {
+				for (let i = 0; i < addressCountNormal; i++) {
 					_userAddrNormal[i] = _DecodeAddress(byteArray, 3 + (i * 16));
 				}
 
-				for (var i = 0; i < addressCountShield; i++) {
+				for (let i = 0; i < addressCountShield; i++) {
 					_userAddrShield[i] = _DecodeAddress(byteArray, 3 + (addressCountNormal * 16) + (i * 16));
 				}
 
