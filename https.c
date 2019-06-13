@@ -232,22 +232,11 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 	memcpy(nonce, nonce_encrypted, 24);
 }
 
-static char *userPath(const char *b64_upk, const char *filename) {
+static char *userPath(const char *upk_hex, const char *filename) {
 	if (filename == NULL) return NULL;
 
-	char *path = malloc(55 + strlen(filename));
-	memcpy(path, "UserData/", 9);
-
-	for (int i = 0; i < 44; i++) {
-		if (b64_upk[i] == '/')
-			path[9 + i] = '-';
-		else
-			path[9 + i] = b64_upk[i];
-	}
-
-	path[53] = '/';
-	strcpy(path + 54, filename);
-
+	char *path = malloc(76 + strlen(filename));
+	sprintf(path, "UserData/%.64s/%s", upk_hex, filename);
 	return path;
 }
 
@@ -301,15 +290,14 @@ static int numDigits(double number) {
 }
 
 // Web login
-static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const uint32_t clientIp, const unsigned char seed[16]) {
-	const char *b64_upk = url + 10;
-	char* end = strchr(b64_upk, '.');
-	if (end == NULL) return;
-	const size_t b64_upk_len = end - b64_upk;
-	if (b64_upk_len != 44) return;
+static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
+	if (postLen != 65) return; // 32 + 33
+
+	char upk_hex[65];
+	sodium_bin2hex(upk_hex, 65, post, 32);
 
 	// Get nonce
-	char *path = userPath(b64_upk, "nonce");
+	char *path = userPath(upk_hex, "nonce");
 	int fd = open(path, O_RDONLY);
 	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
@@ -326,20 +314,6 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	encryptNonce(nonce, seed);
 
-	// Prepare to open Box
-	const char *b64_bd = end + 1;
-	const size_t b64_bd_len = (url + lenUrl) - b64_bd;
-
-	size_t pkUserLen = 0, boxDataLen = 0;
-	unsigned char *pkUser = b64Decode((unsigned char*)b64_upk, b64_upk_len, &pkUserLen);
-	unsigned char *boxData = b64Decode((unsigned char*)b64_bd, b64_bd_len, &boxDataLen);
-
-	if (pkUser == NULL || boxData == NULL || pkUserLen != 32 || boxDataLen != 33) {
-		if (pkUser != NULL) free(pkUser);
-		if (boxData != NULL) free(boxData);
-		return;
-	}
-
 	unsigned char *pkServer = malloc(32);
 	unsigned char *skServer = malloc(32);
 	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
@@ -347,22 +321,20 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 
 	// Open the Box
 	unsigned char decrypted[18];
-	const int ret = crypto_box_open_easy(decrypted, boxData, 33, nonce, pkUser, skServer);
+	const int ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, skServer);
 	free(skServer);
-	free(pkUser);
-	free(boxData);
 
 	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
 
 	// Login successful
 	int addrCountNormal, addrCountShield;
-	char *addrNormal = loadUserAddressList(b64_upk, "address_normal.aea", &addrCountNormal);
+	char *addrNormal = loadUserAddressList(upk_hex, "address_normal.aea", &addrCountNormal);
 	if (addrNormal == NULL) return;
-	char *addrShield = loadUserAddressList(b64_upk, "address_shield.aea", &addrCountShield);
+	char *addrShield = loadUserAddressList(upk_hex, "address_shield.aea", &addrCountShield);
 	if (addrShield == NULL) {free(addrNormal); return;}
 
-	size_t lenMbSet;;
-	unsigned char *mbSet = loadUserMessages(b64_upk, &lenMbSet);
+	size_t lenMbSet;
+	unsigned char *mbSet = loadUserMessages(upk_hex, &lenMbSet);
 	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
 
 /*
@@ -405,8 +377,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const char *url, const
 	sendData(ssl, data, szResponse);
 }
 
-// Request for a nonce to be used with a NaCl Box. URL format: name.tld/web/nonce/public-key-in-base64
-static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, const uint32_t clientIp, const unsigned char seed[16]) {
+static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
+	if (postLen != 32) return;
+
 	// Generate nonce
 	unsigned char nonce[24];
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -415,7 +388,10 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
 	// Store nonce in user folder
-	char *path = userPath(b64_upk, "nonce");
+	char upk_hex[65];
+	sodium_bin2hex(upk_hex, 65, post, 32);
+
+	char *path = userPath(upk_hex, "nonce");
 	const int fd = open(path, O_WRONLY | O_TRUNC);
 	const ssize_t bytesDone = write(fd, nonce, 24);
 	close(fd);
@@ -441,39 +417,39 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const char *b64_upk, c
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
-	if (chLen < 14 || memcmp(clientHeaders, "GET /", 5) != 0) return;
+	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
+	if (endHeaders == NULL) return;
+	*(endHeaders + 2) = '\0';
 
-	const char *url = clientHeaders + 5;
+	if (strstr(clientHeaders, "\r\nHost: "AEM_DOMAIN"\r\n") == NULL) return;
 
-	char* end = strstr(url, "\r\n\r\n");
-	if (end == NULL) return;
-	*(end + 2) = '\0';
-
-	if (strstr(url, "\r\nHost: "AEM_DOMAIN"\r\n") == NULL) return;
-
-	end = strpbrk(url, "\r\n");
-	if (end == NULL) return;
-
+	char *end = strpbrk(clientHeaders, "\r\n");
 	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
 	*(end - 9) = '\0';
 
-	const size_t urlLen = (end - 9) - url;
+	if (memcmp(clientHeaders, "GET /", 5) == 0) {
+		const char *url = clientHeaders + 5;
+		const size_t urlLen = (end - 9) - url;
 
-	// Static
-	if (urlLen == 0) return respond_https_html(ssl, "index.html", fileSet->htmlFiles, fileSet->htmlCount);
-	if (urlLen > 5 && memcmp(url + urlLen - 5, ".html", 5) == 0) return respond_https_html(ssl, url, fileSet->htmlFiles, fileSet->htmlCount);
+		if (urlLen == 0) return respond_https_html(ssl, "index.html", fileSet->htmlFiles, fileSet->htmlCount);
+		if (urlLen > 5 && memcmp(url + urlLen - 5, ".html", 5) == 0) return respond_https_html(ssl, url, fileSet->htmlFiles, fileSet->htmlCount);
 
-	if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-	if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+		if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+		if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 
-	// Files
-	if (urlLen  >  4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
-	if (urlLen  >  4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
-	if (urlLen  >  3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+		if (urlLen  >  4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+		if (urlLen  >  4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+		if (urlLen  >  3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
+		const char *url = clientHeaders + 6;
+		const size_t urlLen = (end - 9) - url;
 
-	// Ajax
-	if (urlLen  > 10 && memcmp(url, "web/login/", 10) == 0) return respond_https_login(ssl, url, urlLen, clientIp, seed);
-	if (urlLen == 54 && memcmp(url, "web/nonce/", 10) == 0) return respond_https_nonce(ssl, url + 10, clientIp, seed);
+		const char *post = endHeaders + 4;
+		const size_t postLen = chLen - (post - clientHeaders);
+
+		if (urlLen == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, (unsigned char*)post, postLen, clientIp, seed);
+		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, (unsigned char*)post, postLen, clientIp, seed);
+	}
 }
 
 int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {

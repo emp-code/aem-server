@@ -22,20 +22,7 @@ function AllEars() {
 		this.body = body;
 	}
 
-	var _Fetch = function(url, cb) {
-		let r=new XMLHttpRequest();
-
-		r.onreadystatechange=function(){
-			if (r.readyState == 4 && typeof(cb) === "function") {
-				cb(r.status, r.responseText);
-			}
-		}
-
-		r.open("GET", url);
-		r.send();
-	}
-
-	var _FetchBinary = function(url, cb) {
+	var _FetchBinary = function(url, postData, cb) {
 		let r=new XMLHttpRequest();
 		r.responseType = "arraybuffer";
 
@@ -49,8 +36,8 @@ function AllEars() {
 			}
 		}
 
-		r.open("GET", url);
-		r.send();
+		r.open("POST", url);
+		r.send(postData);
 	}
 
 	var _BitTest = function(num, bit) {
@@ -114,17 +101,17 @@ function AllEars() {
 	this.Login = function() { nacl_factory.instantiate(function (nacl) {
 		const userKeys = nacl.crypto_box_seed_keypair(_userSeed);
 
-		const b64_key_public = btoa(String.fromCharCode.apply(null, userKeys.boxPk));
-
-		_FetchBinary("/web/nonce/" + b64_key_public, function(httpStatus, login_nonce) {
+		_FetchBinary("/web/nonce", userKeys.boxPk, function(httpStatus, login_nonce) {
 			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
 			const box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, userKeys.boxSk);
 
-			const b64_box_login = btoa(String.fromCharCode.apply(null, box_login));
+			let postMsg = new Uint8Array(userKeys.boxPk.length + box_login.length);
+			postMsg.set(userKeys.boxPk);
+			postMsg.set(box_login, userKeys.boxPk.length);
 
-			_FetchBinary("/web/login/" + b64_key_public + "." + b64_box_login, function(httpStatus, byteArray) {
+			_FetchBinary("/web/login", postMsg, function(httpStatus, byteArray) {
 				if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 				const addressCountNormal = byteArray[0];
