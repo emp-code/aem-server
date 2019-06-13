@@ -32,14 +32,11 @@ function allears_onLoginSuccess() {
 		const table = document.getElementById("table_inbox");
 
 		let row = table.insertRow(i + 1);
-
-		// Insert new cells (<td> elements) at the 1st and 2nd position of the "new" <tr> element:
 		let cellTime  = row.insertCell(0);
 		let cellTitle = row.insertCell(1);
 		let cellFrom  = row.insertCell(2);
 		let cellTo    = row.insertCell(3);
 
-		// Add some text to the new cells:
 		cellTime.innerHTML = ae.GetIntMsgTime(i);
 		cellTitle.innerHTML = ae.GetIntMsgTitle(i);
 		cellFrom.innerHTML = ae.GetIntMsgFrom(i);
