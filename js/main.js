@@ -9,6 +9,17 @@ document.getElementById("btn_signin").addEventListener("click", function(){
 	// Continue in functions named allears_onLoginSuccess() and allears_onLoginFailure()
 });
 
+function tsToISO8601(ts){
+	const dt = new Date(ts * 1000);
+	const dt_Y = dt.getFullYear();
+	const dt_m = dt.getMonth()   < 10 ? '0' + dt.getMonth()   : dt.getMonth();
+	const dt_d = dt.getDate()    < 10 ? '0' + dt.getDate()    : dt.getDate();
+	const dt_H = dt.getHours()   < 10 ? '0' + dt.getHours()   : dt.getHours();
+	const dt_M = dt.getMinutes() < 10 ? '0' + dt.getMinutes() : dt.getMinutes();
+	const dt_S = dt.getSeconds() < 10 ? '0' + dt.getSeconds() : dt.getSeconds();
+	return dt_Y + '-' + dt_m + '-' + dt_d + 'T' + dt_H + ':' + dt_M + ':' + dt_S + 'Z';
+}
+
 // Called on a successful login
 function allears_onLoginSuccess() {
 	console.log("Logged in successfully");
@@ -37,7 +48,7 @@ function allears_onLoginSuccess() {
 		let cellFrom  = row.insertCell(2);
 		let cellTo    = row.insertCell(3);
 
-		cellTime.innerHTML = ae.GetIntMsgTime(i);
+		cellTime.innerHTML = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.innerHTML = ae.GetIntMsgTitle(i);
 		cellFrom.innerHTML = ae.GetIntMsgFrom(i);
 		cellTo.innerHTML = ae.GetIntMsgTo(i);
