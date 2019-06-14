@@ -171,9 +171,11 @@ function AllEars() {
 			postMsg.set(boxSend, _userKeys.boxPk.length);
 
 			_FetchBinary("/web/send", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus != 204) {allears_onSendFailure(); return;}
+				if (httpStatus == 204)
+					allears_onSendSuccess();
+				else
+					allears_onSendFailure();
 
-				allears_onSendSuccess();
 				return;
 			});
 		});
