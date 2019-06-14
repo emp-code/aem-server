@@ -2,6 +2,15 @@ header, nav, footer, p, th, input {
 	text-align: center;
 }
 
+select {
+	text-align-last: center;
+}
+
+textarea {
+	width: 50em;
+	height: 10em;
+}
+
 table {
 	margin-left:auto;
 	margin-right:auto;

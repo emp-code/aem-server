@@ -47,15 +47,23 @@
 
 				<div id="div_write">
 					<p>
-						<input id="txt_title" type="text" placeholder="Subject"></input>
+						<input id="send_title" type="text" placeholder="Subject"></input>
 					</p>
 
 					<p>
-						<input id="txt_to" type="text" placeholder="address@example.com"></input>
+						<select id="send_from">
+							<option value="bob">bob@allears.test</option>
+							<option value="tester123">tester123@allears.test</option>
+							<option value="long-address.01234567">long-address.01234567@allears.test</option>
+						</select>
 					</p>
 
 					<p>
-						<textarea id="txt_body" placeholder="Message"></textarea>
+						<input id="send_to" type="text" placeholder="receiver@example.com"></input>
+					</p>
+
+					<p>
+						<textarea id="send_body" placeholder="Message"></textarea>
 					</p>
 
 					<p>

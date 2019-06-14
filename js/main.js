@@ -65,7 +65,7 @@ function allears_onLoginFailure() {
 }
 
 document.getElementById("btn_send").addEventListener("click", function(){
-	ae.Send("tester@allears.test||", document.getElementById("txt_to").value, document.getElementById("txt_title").value, document.getElementById("txt_body").value);
+	ae.Send(document.getElementById("send_from").value, document.getElementById("send_to").value, document.getElementById("send_title").value, document.getElementById("send_body").value);
 
 	// Continue in functions named allears_onSendSuccess() and allears_onSendFailure()
 });
