@@ -30,16 +30,22 @@ function allears_onLoginSuccess() {
 	console.log("User has " + ae.GetAddressCountNormal() + " normal addresses and " + ae.GetAddressCountShield() + " Shield addresses");
 
 	console.log("Normal addresses:");
-	for (var i = 0; i < ae.GetAddressCountNormal(); i++) {
+	let select=document.getElementById("send_from");
+	for (let i = 0; i < ae.GetAddressCountNormal(); i++) {
 		console.log(ae.GetAddressNormal(i) + "@allears.test");
+
+		let opt = document.createElement("option");
+		opt.value = ae.GetAddressNormal(i);
+		opt.innerHTML = ae.GetAddressNormal(i) + "@allears.test";
+		select.appendChild(opt);
 	}
 
 	console.log("Shield addresses:");
-	for (var i = 0; i < ae.GetAddressCountNormal(); i++) {
+	for (let i = 0; i < ae.GetAddressCountNormal(); i++) {
 		console.log(ae.GetAddressShield(i) + "@allears.test");
 	}
 
-	for (var i = 0; i < ae.GetIntMsgCount(); i++) {
+	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const table = document.getElementById("table_inbox");
 
 		let row = table.insertRow(i + 1);
