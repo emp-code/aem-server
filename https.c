@@ -18,6 +18,8 @@
 
 #include "Includes/Base64.h"
 #include "Includes/SixBit.h"
+#include "Database.h"
+#include "IntMsg.h"
 
 #include "https.h"
 
@@ -31,8 +33,6 @@
 #define AEM_NONCE_TIMEDIFF_MAX 30
 
 #define AEM_SERVER_KEY_SEED "TestServer0123456789012345678901"
-
-#define AEM_MSG_HEADSIZE 37
 
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
@@ -258,31 +258,6 @@ char *loadUserAddressList(const char *b64_upk, const char *filename, int *count)
 	return data;
 }
 
-static unsigned char *loadUserMessages(const char *b64_upk, size_t *totalSize) {
-	// TODO: Load all messages in the directory
-	char *path = userPath(b64_upk, "msg/test.aem");
-	const int fd = open(path, O_RDONLY);
-
-	const off_t sz = lseek(fd, 0, SEEK_END);
-	const size_t msgLen = sz - AEM_MSG_HEADSIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
-
-	if ((msgLen - 2) % 1024 != 0) {close(fd); return NULL;}
-	int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
-	if (sizeFactor > 255) {close(fd); return NULL;}
-
-	unsigned char *data = malloc(sz + 1);
-	const unsigned char sf = sizeFactor;
-	data[0] = sf;
-	const ssize_t bytesDone = pread(fd, data + 1, sz, 0);
-	close(fd);
-	free(path);
-
-	if (bytesDone != sz) {free(data); return NULL;}
-
-	*totalSize = sz + 1;
-	return data;
-}
-
 static int numDigits(double number) {
 	int digits = 0;
 	while (number > 1) {number /= 10; digits++;}
@@ -334,7 +309,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	if (addrShield == NULL) {free(addrNormal); return;}
 
 	size_t lenMbSet;
-	unsigned char *mbSet = loadUserMessages(upk_hex, &lenMbSet);
+	unsigned char *mbSet = getUserMessages(post, &lenMbSet);
 	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
 
 /*
@@ -375,6 +350,86 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	free(mbSet);
 
 	sendData(ssl, data, szResponse);
+}
+
+// Message sending
+static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
+	if (postLen < 33) return;
+
+	char upk_hex[65];
+	sodium_bin2hex(upk_hex, 65, post, 32);
+
+	// Get nonce
+	char *path = userPath(upk_hex, "nonce");
+	int fd = open(path, O_RDONLY);
+	unsigned char nonce[24];
+	ssize_t bytesDone = read(fd, nonce, 24);
+	close(fd);
+	free(path);
+	if (bytesDone != 24) return;
+
+	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
+
+	int32_t ts;
+	memcpy(&ts, nonce + 20, 4);
+	int timeDiff = (int)time(NULL) - ts;
+	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
+
+	encryptNonce(nonce, seed);
+
+	unsigned char *pkServer = malloc(32);
+	unsigned char *skServer = malloc(32);
+	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
+	free(pkServer);
+
+	// Open the Box
+	char decrypted[postLen];
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, skServer);
+	free(skServer);
+	if (ret != 0) return;
+
+/* Format:
+	(From)\n
+	(To)\n
+	(Title)\n
+	(Body)
+*/
+
+	const char *endFrom = strchr(decrypted, '\n');
+	if (endFrom == NULL) return;
+	const char *endTo = strchr(endFrom + 1, '\n');
+	if (endTo == NULL) return;
+
+	char *sbFrom = textToSixBit(decrypted, endFrom - decrypted);
+	char *sbTo = textToSixBit(endFrom + 1, (endTo) - (endFrom + 1));
+
+	unsigned char pk[32];
+	addressToPublicKey(sbTo, pk, (unsigned char*)"TestTestTestTest");
+
+	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, 0, sbFrom, sbTo);
+	free(sbFrom);
+	free(sbTo);
+
+	size_t bodyLen = postLen - crypto_box_MACBYTES - 32 - ((endTo + 1) - decrypted);
+	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);
+
+	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	unsigned char *boxSet = malloc(bsLen);
+	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
+	memcpy(boxSet + 37 + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
+	free(headBox);
+	free(bodyBox);
+
+	addUserMessage(pk, boxSet, bsLen);
+
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
 }
 
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
@@ -449,6 +504,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 		if (urlLen == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, (unsigned char*)post, postLen, clientIp, seed);
 		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, (unsigned char*)post, postLen, clientIp, seed);
+		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send (ssl, (unsigned char*)post, postLen, clientIp, seed);
 	}
 }
 

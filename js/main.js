@@ -64,6 +64,20 @@ function allears_onLoginFailure() {
 	console.log("Failed to log in");
 }
 
+document.getElementById("btn_send").addEventListener("click", function(){
+	ae.Send("tester@allears.test||", document.getElementById("txt_to").value, document.getElementById("txt_title").value, document.getElementById("txt_body").value);
+
+	// Continue in functions named allears_onSendSuccess() and allears_onSendFailure()
+});
+
+function allears_onSendSuccess() {
+	console.log("Message sent");
+}
+
+function allears_onSendFailure() {
+	console.log("Failed to send message");
+}
+
 // Menu
 document.getElementById("btn_toinbox").addEventListener("click", function(){
 	document.getElementById("btn_toinbox").disabled="disabled";

@@ -158,4 +158,24 @@ function AllEars() {
 			});
 		});
 	}); }
+
+	this.Send = function(msgFrom, msgTo, msgTitle, msgBody) { nacl_factory.instantiate(function (nacl) {
+		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+			if (httpStatus != 200) {allears_onSendFailure(); return;}
+
+			const plaintext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
+			const boxSend = nacl.crypto_box(plaintext, nonce, _serverPublicKey, _userKeys.boxSk);
+
+			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxSend.length);
+			postMsg.set(_userKeys.boxPk);
+			postMsg.set(boxSend, _userKeys.boxPk.length);
+
+			_FetchBinary("/web/send", postMsg, function(httpStatus, byteArray) {
+				if (httpStatus != 204) {allears_onSendFailure(); return;}
+
+				allears_onSendSuccess();
+				return;
+			});
+		});
+	}); }
 }
