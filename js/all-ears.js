@@ -6,7 +6,7 @@ function AllEars() {
 // Private
 	const _serverPublicKey = b64ToBin("D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo="); // Seed: TestServer0123456789012345678901
 
-	var _userSeed;
+	var _userKeys;
 
 	var _userAddrNormal = [];
 	var _userAddrShield = [];
@@ -88,28 +88,20 @@ function AllEars() {
 	this.GetIntMsgTitle = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody  = function(num) {return _intMsg[num].body;}
 
-	this.SetKeys = function(seed_b64) {
-		_userSeed=b64ToBin(seed_b64);
-	}
-
-	this.RandomSeed = function() {
-		// TODO
-//		_userKeys=nacl.box.keyPair();
-//		return _userKeys;
-	}
+	this.SetKeys = function(skey_b64) { nacl_factory.instantiate(function (nacl) {
+		_userKeys=nacl.crypto_box_keypair_from_raw_sk(b64ToBin(skey_b64));
+	}); }
 
 	this.Login = function() { nacl_factory.instantiate(function (nacl) {
-		const userKeys = nacl.crypto_box_seed_keypair(_userSeed);
-
-		_FetchBinary("/web/nonce", userKeys.boxPk, function(httpStatus, login_nonce) {
+		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, login_nonce) {
 			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
-			const box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, userKeys.boxSk);
+			const box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, _userKeys.boxSk);
 
-			let postMsg = new Uint8Array(userKeys.boxPk.length + box_login.length);
-			postMsg.set(userKeys.boxPk);
-			postMsg.set(box_login, userKeys.boxPk.length);
+			let postMsg = new Uint8Array(_userKeys.boxPk.length + box_login.length);
+			postMsg.set(_userKeys.boxPk);
+			postMsg.set(box_login, _userKeys.boxPk.length);
 
 			_FetchBinary("/web/login", postMsg, function(httpStatus, byteArray) {
 				if (httpStatus != 200) {allears_onLoginFailure(); return;}
@@ -137,7 +129,7 @@ function AllEars() {
 
 				// HeadBox
 				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
-				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, userKeys.boxPk, userKeys.boxSk);
+				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				const im_sml = msgHead[0];
 
@@ -149,7 +141,7 @@ function AllEars() {
 
 				// BodyBox
 				const msgBodyBox = byteArray.slice(msgStart + 86);
-				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, userKeys.boxPk, userKeys.boxSk);
+				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				const u16bytes = msgBodyFull.slice(0, 2).buffer;
 				const padAmount = new Uint16Array(u16bytes)[0];
