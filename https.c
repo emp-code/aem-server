@@ -51,7 +51,7 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 	}
 }
 
-static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, struct aem_file files[], const int fileCount) {
+static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, const struct aem_file files[], const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -137,7 +137,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, st
 }
 
 // Javascript, CSS, images etc
-static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, const int fileType, struct aem_file files[], const int fileCount) {
+static void respond_https_file(mbedtls_ssl_context *ssl, const char *reqName, const int fileType, const struct aem_file files[], const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -471,7 +471,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, 219);
 }
 
-static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
+static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
 	*(endHeaders + 2) = '\0';
@@ -508,7 +508,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	}
 }
 
-int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], struct aem_fileSet *fileSet) {
+int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
