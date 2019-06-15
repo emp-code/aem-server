@@ -48,9 +48,9 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-static int receiveConnections_aep() {
+static int receiveConnections_aep(const int port) {
 /*	int sock;
-	if (initSocket(&sock, AEM_PORT_AEF) != 0) return 1;
+	if (initSocket(&sock, port) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
@@ -272,9 +272,9 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	return 0;
 }
 
-static int receiveConnections_smtp() {
+static int receiveConnections_smtp(const int port) {
 /*	int sock;
-	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return 1;
+	if (initSocket(&sock, port) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
