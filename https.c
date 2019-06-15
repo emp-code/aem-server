@@ -17,7 +17,6 @@
 
 #include "aem_file.h"
 
-#include "Includes/Base64.h"
 #include "Includes/SixBit.h"
 #include "Database.h"
 #include "IntMsg.h"
@@ -246,8 +245,8 @@ static char *userPath(const char *upk_hex, const char *filename) {
 	return path;
 }
 
-char *loadUserAddressList(const char *b64_upk, const char *filename, int *count) {
-	char *path = userPath(b64_upk, filename);
+char *loadUserAddressList(const char *upk_hex, const char *filename, int *count) {
+	char *path = userPath(upk_hex, filename);
 	if (path == NULL) return NULL;
 	const int fd = open(path, O_RDONLY);
 	if (fd < 0) {free(path); return NULL;}
