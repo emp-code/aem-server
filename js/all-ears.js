@@ -4,7 +4,7 @@
 
 function AllEars() {
 // Private
-	const _serverPublicKey = b64ToBin("D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo="); // Seed: TestServer0123456789012345678901
+	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
 
 	var _userKeys;
 
@@ -88,8 +88,8 @@ function AllEars() {
 	this.GetIntMsgTitle = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody  = function(num) {return _intMsg[num].body;}
 
-	this.SetKeys = function(skey_b64) { nacl_factory.instantiate(function (nacl) {
-		_userKeys=nacl.crypto_box_keypair_from_raw_sk(b64ToBin(skey_b64));
+	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
+		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 	}); }
 
 	this.Login = function() { nacl_factory.instantiate(function (nacl) {
@@ -97,7 +97,7 @@ function AllEars() {
 			if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
 			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
-			const box_login = nacl.crypto_box(plaintext, login_nonce, _serverPublicKey, _userKeys.boxSk);
+			const box_login = nacl.crypto_box(plaintext, login_nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
 
 			let postMsg = new Uint8Array(_userKeys.boxPk.length + box_login.length);
 			postMsg.set(_userKeys.boxPk);
@@ -164,7 +164,7 @@ function AllEars() {
 			if (httpStatus != 200) {allears_onSendFailure(); return;}
 
 			const plaintext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
-			const boxSend = nacl.crypto_box(plaintext, nonce, _serverPublicKey, _userKeys.boxSk);
+			const boxSend = nacl.crypto_box(plaintext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
 
 			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxSend.length);
 			postMsg.set(_userKeys.boxPk);
