@@ -238,12 +238,15 @@ static char *userPath(const char *upk_hex, const char *filename) {
 	if (filename == NULL) return NULL;
 
 	char *path = malloc(76 + strlen(filename));
+	if (path == NULL) return NULL;
+
 	sprintf(path, "UserData/%.64s/%s", upk_hex, filename);
 	return path;
 }
 
 char *loadUserAddressList(const char *b64_upk, const char *filename, int *count) {
 	char *path = userPath(b64_upk, filename);
+	if (path == NULL) return NULL;
 	const int fd = open(path, O_RDONLY);
 	if (fd < 0) {free(path); return NULL;}
 
@@ -251,6 +254,7 @@ char *loadUserAddressList(const char *b64_upk, const char *filename, int *count)
 	if (sz % 16 != 0) {close(fd); free(path); return NULL;}
 
 	char *data = malloc(sz);
+	if (data == NULL) {close(fd); free(path); return NULL;}
 	const ssize_t bytesDone = pread(fd, data, sz, 0);
 	close(fd);
 	free(path);
@@ -276,6 +280,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	// Get nonce
 	char *path = userPath(upk_hex, "nonce");
+	if (path == NULL) return;
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) {free(path); return;}
 	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
@@ -297,8 +302,8 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	encryptNonce(nonce, seed);
 
-	unsigned char *pkServer = malloc(32);
-	unsigned char *skServer = malloc(32);
+	unsigned char *pkServer = malloc(32); if (pkServer == NULL) return;
+	unsigned char *skServer = malloc(32); if (skServer == NULL) return;
 	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
 	free(pkServer);
 
@@ -369,6 +374,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	// Get nonce
 	char *path = userPath(upk_hex, "nonce");
+	if (path == NULL) return;
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) {free(path); return;}
 	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
@@ -389,8 +395,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	encryptNonce(nonce, seed);
 
-	unsigned char *pkServer = malloc(32);
-	unsigned char *skServer = malloc(32);
+	unsigned char *pkServer = malloc(32); if (pkServer == NULL) return;
+	unsigned char *skServer = malloc(32); if (skServer == NULL) return;
 	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
 	free(pkServer);
 
@@ -431,6 +437,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
+	if (boxSet == NULL) {free(headBox); free(bodyBox); return;}
+
 	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
 	free(headBox);
 	memcpy(boxSet + 37 + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
@@ -456,6 +464,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sodium_bin2hex(upk_hex, 65, post, 32);
 
 	char *path = userPath(upk_hex, "nonce");
+	if (path == NULL) return;
 	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 
 	if (fd < 0) {
