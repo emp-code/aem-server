@@ -301,7 +301,8 @@ static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], co
 	return 0;
 }
 
-// Web login
+// Web login (get settings and messages)
+// TODO: Support multiple pages
 static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (postLen != 65) return; // 32 + 33
 
@@ -323,8 +324,8 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	char *addrShield = loadUserAddressList(upk_hex, "address_shield.aea", &addrCountShield);
 	if (addrShield == NULL) {free(addrNormal); return;}
 
-	size_t lenMbSet;
-	unsigned char *mbSet = getUserMessages(post, &lenMbSet);
+	size_t lenMbSet; int msgCount;
+	unsigned char *mbSet = getUserMessages(post, &lenMbSet, &msgCount);
 	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
 
 /*
@@ -343,6 +344,8 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
+	// TODO: Amount of message data is leaked here. Pad to nearest 100 KiB or so?
+
 	char data[szResponse + 1];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -355,7 +358,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	data[szHead + 0] = (unsigned char)addrCountNormal;
 	data[szHead + 1] = (unsigned char)addrCountShield;
-	data[szHead + 2] = (unsigned char)1; // MsgCount
+	data[szHead + 2] = (unsigned char)msgCount;
 	memcpy(data + szHead + 3, addrNormal, addrCountNormal * 16);
 	memcpy(data + szHead + 3 + (16 * addrCountNormal), addrShield, addrCountShield * 16);
 	memcpy(data + szHead + 3 + (16 * addrCountNormal) + (16 * addrCountShield), mbSet, lenMbSet);

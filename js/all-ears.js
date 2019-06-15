@@ -1,7 +1,3 @@
-// Server keypair for testing (base64 encoded):
-// Public: zUv7tx3dQU8vSq93dGOl6RSDv0N+6PDZbhOesYkx2zo=
-// Secret: WEPFgMoessUEVWiXJ0RUX0EjpKVmN9nNBvWIKLO2+/4=
-
 function AllEars() {
 // Private
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
@@ -123,36 +119,42 @@ function AllEars() {
 				}
 
 				// Messages
-				// TODO: Support multiple messages; detect type and support extMsg
-				const msgStart = 3 + (addressCountNormal * 16) + (addressCountShield * 16);
-				const msgKilos = byteArray[msgStart] + 1;
+				let msgStart = 3 + (addressCountNormal * 16) + (addressCountShield * 16);
+				for (let i = 0; i < msgBoxCount; i++) {
+					// TODO: Detect message type and support extMsg
+					const msgKilos = byteArray[msgStart] + 1;
 
-				// HeadBox
-				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
-				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
+					// HeadBox
+					const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
+					const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-				const im_sml = msgHead[0];
+					const im_sml = msgHead[0];
 
-				const u32bytes = msgHead.slice(1, 5).buffer;
-				const im_ts = new Uint32Array(u32bytes)[0];
+					const u32bytes = msgHead.slice(1, 5).buffer;
+					const im_ts = new Uint32Array(u32bytes)[0];
 
-				const im_from = _DecodeAddress(msgHead, 5);
-				const im_to   = _DecodeAddress(msgHead, 21); // 5 + 16
+					const im_from = _DecodeAddress(msgHead, 5);
+					const im_to   = _DecodeAddress(msgHead, 21); // 5 + 16
 
-				// BodyBox
-				const msgBodyBox = byteArray.slice(msgStart + 86);
-				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+					// BodyBox
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 86;
 
-				const u16bytes = msgBodyFull.slice(0, 2).buffer;
-				const padAmount = new Uint16Array(u16bytes)[0];
-				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
-				const msgBodyUtf8 = nacl.decode_utf8(msgBody);
-				const firstLf = msgBodyUtf8.indexOf('\n');
-				const im_title=msgBodyUtf8.slice(0, firstLf);
-				const im_body=msgBodyUtf8.slice(firstLf + 1);
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-				_intMsg[0] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
+					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+					const firstLf = msgBodyUtf8.indexOf('\n');
+					const im_title=msgBodyUtf8.slice(0, firstLf);
+					const im_body=msgBodyUtf8.slice(firstLf + 1);
+
+					_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
+					msgStart += (msgKilos * 1024) + 136; // 48*2+37+2+1=136
+				}
 
 				allears_onLoginSuccess();
 			});

@@ -6,6 +6,8 @@
 
 #include "Database.h"
 
+#define AEM_MAXMSGTOTALSIZE 100000 // Max total size of messages to send. TODO: Move this to config
+
 #define AEM_PATH_DB_MESSAGES "Data/Messages.aed"
 #define AEM_PATH_DB_USERS  "Data/Users.aed"
 
@@ -43,7 +45,7 @@ int getPublicKeyFromAddress(const char sixBit[16], unsigned char pk[32], const u
 	return 0;
 }
 
-unsigned char *getUserMessages(const unsigned char pk[32], size_t *totalSize) {
+unsigned char *getUserMessages(const unsigned char pk[32], size_t *totalSize, int *msgCount) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return NULL;
 
@@ -52,8 +54,10 @@ unsigned char *getUserMessages(const unsigned char pk[32], size_t *totalSize) {
 	sqlite3_bind_blob(query, 1, pk, 32, SQLITE_STATIC);
 
 	unsigned char* data = NULL;
-	ret = sqlite3_step(query);
-	if (ret == SQLITE_ROW) {
+	*totalSize = 0;
+	*msgCount = 0;
+
+	while (sqlite3_step(query) == SQLITE_ROW && *totalSize < AEM_MAXMSGTOTALSIZE) {
 		const size_t sz = sqlite3_column_bytes(query, 0);
 		if (sz < 5) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
@@ -63,10 +67,15 @@ unsigned char *getUserMessages(const unsigned char pk[32], size_t *totalSize) {
 		int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
 		if (sizeFactor > 255) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
-		data = malloc(sz + 1);
-		data[0] = sizeFactor;
-		memcpy(data + 1, sqlite3_column_blob(query, 0), sz);
-		*totalSize = sz + 1;
+		const size_t newTotalSize = *totalSize + sz + 1;
+		unsigned char *newData = realloc(data, newTotalSize);
+		if (newData == NULL) break;
+		data = newData;
+
+		data[*totalSize] = sizeFactor;
+		memcpy(data + *totalSize + 1, sqlite3_column_blob(query, 0), sz);
+		*totalSize = newTotalSize;
+		(*msgCount)++;
 	}
 
 	sqlite3_finalize(query);
