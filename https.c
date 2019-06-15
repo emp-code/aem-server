@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <sodium.h>
 
@@ -277,14 +278,15 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
 	close(fd);
+	int ret = unlink(path);
 	free(path);
-	if (bytesDone != 24) return;
+	if (bytesDone != 24 || ret != 0) return;
 
 	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
 
 	int32_t ts;
 	memcpy(&ts, nonce + 20, 4);
-	int timeDiff = (int)time(NULL) - ts;
+	const int timeDiff = (int)time(NULL) - ts;
 	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
 
 	encryptNonce(nonce, seed);
@@ -296,7 +298,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	// Open the Box
 	unsigned char decrypted[18];
-	const int ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, skServer);
+	ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, skServer);
 	free(skServer);
 
 	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
@@ -372,7 +374,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	int32_t ts;
 	memcpy(&ts, nonce + 20, 4);
-	int timeDiff = (int)time(NULL) - ts;
+	const int timeDiff = (int)time(NULL) - ts;
 	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
 
 	encryptNonce(nonce, seed);
@@ -440,6 +442,28 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (postLen != 32) return;
 
+	char upk_hex[65];
+	sodium_bin2hex(upk_hex, 65, post, 32);
+
+	char *path = userPath(upk_hex, "nonce");
+	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+
+	if (fd < 0) {
+		if (errno != EEXIST) return;
+
+		fd = open(path, O_RDWR);
+		char ts_c[4];
+		pread(fd, ts_c, 4, 20);
+		int32_t ts;
+		memcpy(&ts, ts_c, 4);
+
+		const int timeDiff = (int)time(NULL) - ts;
+		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {
+			close(fd);
+			return;
+		}
+	}
+
 	// Generate nonce
 	unsigned char nonce[24];
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -447,12 +471,6 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	randombytes_buf(nonce + 4, 16);
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
-	// Store nonce in user folder
-	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, post, 32);
-
-	char *path = userPath(upk_hex, "nonce");
-	const int fd = open(path, O_WRONLY | O_TRUNC);
 	const ssize_t bytesDone = write(fd, nonce, 24);
 	close(fd);
 	free(path);
