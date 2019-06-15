@@ -406,7 +406,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	char *sbTo = textToSixBit(endFrom + 1, (endTo) - (endFrom + 1));
 
 	unsigned char pk[32];
-	addressToPublicKey(sbTo, pk, (unsigned char*)"TestTestTestTest");
+	getPublicKeyFromAddress(sbTo, pk, (unsigned char*)"TestTestTestTest");
 
 	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, 0, sbFrom, sbTo);
 	free(sbFrom);
