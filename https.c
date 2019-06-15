@@ -383,8 +383,10 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	free(pkServer);
 
 	// Open the Box
-	char decrypted[postLen];
+	char *decrypted = sodium_malloc(postLen);
+	if (decrypted == NULL) {free(skServer); return;}
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, skServer);
+	sodium_mprotect_readonly(decrypted);
 	free(skServer);
 	if (ret != 0) return;
 
@@ -413,14 +415,17 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	size_t bodyLen = postLen - crypto_box_MACBYTES - 32 - ((endTo + 1) - decrypted);
 	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);
 
+	sodium_free(decrypted);
+
 	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
 	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
-	memcpy(boxSet + 37 + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
 	free(headBox);
+	memcpy(boxSet + 37 + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
 	free(bodyBox);
 
 	addUserMessage(pk, boxSet, bsLen);
+	free(boxSet);
 
 	sendData(ssl,
 		"HTTP/1.1 204 aem\r\n"
