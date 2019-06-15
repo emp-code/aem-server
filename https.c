@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -244,9 +245,10 @@ static char *userPath(const char *upk_hex, const char *filename) {
 char *loadUserAddressList(const char *b64_upk, const char *filename, int *count) {
 	char *path = userPath(b64_upk, filename);
 	const int fd = open(path, O_RDONLY);
+	if (fd < 0) {free(path); return NULL;}
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
-	if (sz % 16 != 0) {close(fd); return NULL;}
+	if (sz % 16 != 0) {close(fd); free(path); return NULL;}
 
 	char *data = malloc(sz);
 	const ssize_t bytesDone = pread(fd, data, sz, 0);
@@ -275,8 +277,12 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	// Get nonce
 	char *path = userPath(upk_hex, "nonce");
 	int fd = open(path, O_RDONLY);
+	if (fd < 0) {free(path); return;}
+	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
+
 	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
+	flock(fd, LOCK_UN);
 	close(fd);
 	int ret = unlink(path);
 	free(path);
@@ -364,8 +370,12 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	// Get nonce
 	char *path = userPath(upk_hex, "nonce");
 	int fd = open(path, O_RDONLY);
+	if (fd < 0) {free(path); return;}
+	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
+
 	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
+	flock(fd, LOCK_UN);
 	close(fd);
 	free(path);
 	if (bytesDone != 24) return;
@@ -449,7 +459,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 
 	if (fd < 0) {
-		if (errno != EEXIST) return;
+		if (errno != EEXIST) {free(path); return;}
 
 		fd = open(path, O_RDWR);
 		char ts_c[4];
@@ -460,9 +470,12 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 		const int timeDiff = (int)time(NULL) - ts;
 		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {
 			close(fd);
+			free(path);
 			return;
 		}
 	}
+
+	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
 
 	// Generate nonce
 	unsigned char nonce[24];
@@ -472,6 +485,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
 
 	const ssize_t bytesDone = write(fd, nonce, 24);
+	flock(fd, LOCK_UN);
 	close(fd);
 	free(path);
 	if (bytesDone != 24) return;
