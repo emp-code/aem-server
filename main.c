@@ -226,6 +226,7 @@ static int receiveConnections_https(const int port) {
 	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs);
 
 	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
+	if (fileSet == NULL) {puts("Failed to allocate memory for fileSet"); return 1;}
 	fileSet->cssFiles  = fileCss;
 	fileSet->htmlFiles = fileHtml;
 	fileSet->imgFiles  = fileImg;
