@@ -18,14 +18,13 @@
 #include "mbedtls/ssl.h"
 
 #include "aem_file.h"
-#include "defines.h"
 
 #include "Includes/Brotli.h"
 
-//#include "aef.h"
+#include "aep.h"
 #include "http.h"
 #include "https.h"
-//#include "smtp.h"
+#include "smtp.h"
 
 // Allow restarting the server immediately after kill
 static void allowQuickRestart(const int* sock) {
@@ -49,8 +48,8 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-/*static int receiveConnections_aef() {
-	int sock;
+static int receiveConnections_aep() {
+/*	int sock;
 	if (initSocket(&sock, AEM_PORT_AEF) != 0) return 1;
 
 	while(1) {
@@ -58,17 +57,17 @@ static int initSocket(const int *sock, const int port) {
 		respond_aef(sockNew);
 		close(sockNew);
 	}
-
+*/
 	return 0;
-}*/
+}
 
-static int receiveConnections_http() {
+static int receiveConnections_http(const int port, const char *domain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, AEM_PORT_HTTP) != 0) return 1;
+	if (initSocket(&sock, port) != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept(sock, NULL, NULL);
-		respond_http(sockNew);
+		respond_http(sockNew, domain);
 		close(sockNew);
 	}
 
@@ -166,7 +165,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 	return f;
 }
 
-static int receiveConnections_https(const int port) {
+static int receiveConnections_https(const int port, const char *domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("Missing html/index.html - not loading web interface");
 		return -1;
@@ -251,7 +250,7 @@ static int receiveConnections_https(const int port) {
 		if (pid < 0) {puts("ERROR: Failed fork"); break;}
 		else if (pid == 0) {
 			// Child goes on to communicate with the client
-			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet);
+			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain);
 			break;
 		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 	}
@@ -273,8 +272,8 @@ static int receiveConnections_https(const int port) {
 	return 0;
 }
 
-/*static int receiveConnections_smtp() {
-	int sock;
+static int receiveConnections_smtp() {
+/*	int sock;
 	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return 1;
 
 	while(1) {
@@ -282,9 +281,9 @@ static int receiveConnections_https(const int port) {
 		respond_smtp(sockNew);
 		close(sockNew);
 	}
-
+*/
 	return 0;
-}*/
+}
 
 int main() {
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent zombie processes
@@ -297,21 +296,29 @@ int main() {
 		return 1;
 	}
 
+	// TODO config from file
+	const char *domain = "allears.test:60443";
+	const size_t lenDomain = strlen(domain);
+	const int portAep = 64343;
+	const int portHttp = 60080;
+	const int portHttps = 60443;
+	const int portSmtp = 60025;
+
 	int pid;
 
 	pid = fork();
 	if (pid < 0) return 1;
-	if (pid == 0) return 0; //receiveConnections(AEM_PORT_AEF);
+	if (pid == 0) return receiveConnections_aep(portAep);
 
 	pid = fork();
 	if (pid < 0) return 1;
-	if (pid == 0) return receiveConnections_https(AEM_PORT_HTTPS);
+	if (pid == 0) return receiveConnections_https(portHttps, domain, lenDomain);
 
 	pid = fork();
 	if (pid < 0) return 1;
-//	if (pid == 0) return receiveConnections(AEM_PORT_SMTP);
+	if (pid == 0) return receiveConnections_smtp(portSmtp);
 
-	receiveConnections_http(AEM_PORT_HTTP);
+	receiveConnections_http(portHttp, domain);
 
 	return 0;
 }

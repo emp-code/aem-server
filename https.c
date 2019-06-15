@@ -16,7 +16,6 @@
 #include "mbedtls/xtea.h"
 
 #include "aem_file.h"
-#include "defines.h"
 
 #include "Includes/Base64.h"
 #include "Includes/SixBit.h"
@@ -56,7 +55,7 @@ static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t le
 	}
 }
 
-static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, const struct aem_file files[], const int fileCount) {
+static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -67,7 +66,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1091 + AEM_LEN_DOMAIN * 4 + files[reqNum].lenData];
+	char data[1091 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -78,10 +77,10 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy:"
-			"connect-src"     " https://"AEM_DOMAIN"/web/;"
-			"img-src"         " https://"AEM_DOMAIN"/img/;"
-			"script-src"      " https://"AEM_DOMAIN"/js/;"
-			"style-src"       " https://"AEM_DOMAIN"/css/;"
+			"connect-src"     " https://%s/web/;"
+			"img-src"         " https://%s/img/;"
+			"script-src"      " https://%s/js/;"
+			"style-src"       " https://%s/css/;"
 
 			"base-uri"        " 'none';"
 			"child-src"       " 'none';"
@@ -129,7 +128,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, files[reqNum].lenData);
+	, files[reqNum].lenData, domain, domain, domain, domain);
 
 	size_t lenData = strlen(data);
 //	printf("LenHeaders=%zd\n", lenData - AEM_LEN_DOMAIN * 4);
@@ -491,12 +490,14 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, 219);
 }
 
-static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet) {
+static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
 	*(endHeaders + 2) = '\0';
 
-	if (strstr(clientHeaders, "\r\nHost: "AEM_DOMAIN"\r\n") == NULL) return;
+	char hostHeader[11 + lenDomain];
+	sprintf(hostHeader, "\r\nHost: %s\r\n", domain);
+	if (strstr(clientHeaders, hostHeader) == NULL) return;
 
 	char *end = strpbrk(clientHeaders, "\r\n");
 	if (memcmp(end - 9, " HTTP/1.1", 9) != 0) return;
@@ -506,8 +507,8 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		const char *url = clientHeaders + 5;
 		const size_t urlLen = (end - 9) - url;
 
-		if (urlLen == 0) return respond_https_html(ssl, "index.html", fileSet->htmlFiles, fileSet->htmlCount);
-		if (urlLen > 5 && memcmp(url + urlLen - 5, ".html", 5) == 0) return respond_https_html(ssl, url, fileSet->htmlFiles, fileSet->htmlCount);
+		if (urlLen == 0) return respond_https_html(ssl, "index.html", fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
+		if (urlLen > 5 && memcmp(url + urlLen - 5, ".html", 5) == 0) return respond_https_html(ssl, url, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
 		if (urlLen == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
 		if (urlLen == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
@@ -528,7 +529,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	}
 }
 
-int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet) {
+int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -587,7 +588,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
 	if (ret > 0) {
-		handleRequest(&ssl, (char*)req, ret, clientIp, seed, fileSet);
+		handleRequest(&ssl, (char*)req, ret, clientIp, seed, fileSet, domain, lenDomain);
 	} else if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
 		// Failed to read request
 		char error_buf[100];

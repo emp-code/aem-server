@@ -5,7 +5,7 @@ objects = main.o http.o https.o smtp.o Includes/Base64.o Includes/Brotli.o Inclu
 ae-mail: $(objects)
 	$(CC) $(CFLAGS) -o ae-mail $(objects) -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lm -lsqlite3
 
-main: main.c http.h https.h
+main: main.c aep.h http.h https.h smpt.h
 
 Includes/Base64.o: Includes/Base64.c
 Includes/Brotli.o: Includes/Brotli.c
