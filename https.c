@@ -34,7 +34,10 @@
 
 #define AEM_NONCE_TIMEDIFF_MAX 30
 
-#define AEM_SERVER_KEY_SEED "TestServer0123456789012345678901"
+// Server keypair for testing (Base64)
+// Public: D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo=
+// Secret: tCpcTrVsxFRiL8z8+g1SclyHsfX1KSmYZLIA21cHROg=
+#define AEM_SERVER_SECRETKEY "\xb4\x2a\x5c\x4e\xb5\x6c\xc4\x54\x62\x2f\xcc\xfc\xfa\xd\x52\x72\x5c\x87\xb1\xf5\xf5\x29\x29\x98\x64\xb2\x0\xdb\x57\x7\x44\xe8"
 
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
@@ -302,15 +305,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	encryptNonce(nonce, seed);
 
-	unsigned char *pkServer = malloc(32); if (pkServer == NULL) return;
-	unsigned char *skServer = malloc(32); if (skServer == NULL) return;
-	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
-	free(pkServer);
-
 	// Open the Box
 	unsigned char decrypted[18];
-	ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, skServer);
-	free(skServer);
+	ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
 
 	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
 
@@ -395,17 +392,11 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	encryptNonce(nonce, seed);
 
-	unsigned char *pkServer = malloc(32); if (pkServer == NULL) return;
-	unsigned char *skServer = malloc(32); if (skServer == NULL) return;
-	crypto_box_seed_keypair(pkServer, skServer, (unsigned char*)AEM_SERVER_KEY_SEED);
-	free(pkServer);
-
 	// Open the Box
 	char *decrypted = sodium_malloc(postLen);
-	if (decrypted == NULL) {free(skServer); return;}
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, skServer);
+	if (decrypted == NULL) return;
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
 	sodium_mprotect_readonly(decrypted);
-	free(skServer);
 	if (ret != 0) return;
 
 /* Format:
