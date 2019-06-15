@@ -274,42 +274,49 @@ static int numDigits(double number) {
 	return digits;
 }
 
-// Web login
-static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
-	if (postLen != 65) return; // 32 + 33
-
+static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], const uint32_t clientIp, const unsigned char seed[16]) {
 	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, post, 32);
+	sodium_bin2hex(upk_hex, 65, upk, 32);
 
-	// Get nonce
 	char *path = userPath(upk_hex, "nonce");
-	if (path == NULL) return;
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {free(path); return;}
-	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
+	if (path == NULL) return -1;
+	int fd = open(path, O_RDWR);
+	if (fd < 0) {free(path); return -1;}
+	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return -1;}
 
-	unsigned char nonce[24];
 	ssize_t bytesDone = read(fd, nonce, 24);
+	pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
 	flock(fd, LOCK_UN);
 	close(fd);
 	int ret = unlink(path);
 	free(path);
-	if (bytesDone != 24 || ret != 0) return;
+	if (bytesDone != 24 || ret != 0) return -1;
 
 	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
 
 	int32_t ts;
 	memcpy(&ts, nonce + 20, 4);
 	const int timeDiff = (int)time(NULL) - ts;
-	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
+	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return - 1;
 
 	encryptNonce(nonce, seed);
+	return 0;
+}
 
-	// Open the Box
+// Web login
+static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
+	if (postLen != 65) return; // 32 + 33
+
+	unsigned char nonce[24];
+	if (getUserNonce(post, nonce, clientIp, seed) != 0) return;
+
 	unsigned char decrypted[18];
-	ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
+	const int ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
 
 	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
+
+	char upk_hex[65];
+	sodium_bin2hex(upk_hex, 65, post, 32);
 
 	// Login successful
 	int addrCountNormal, addrCountShield;
@@ -366,33 +373,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (postLen < 33) return;
 
-	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, post, 32);
-
-	// Get nonce
-	char *path = userPath(upk_hex, "nonce");
-	if (path == NULL) return;
-	int fd = open(path, O_RDONLY);
-	if (fd < 0) {free(path); return;}
-	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
-
 	unsigned char nonce[24];
-	ssize_t bytesDone = read(fd, nonce, 24);
-	flock(fd, LOCK_UN);
-	close(fd);
-	free(path);
-	if (bytesDone != 24) return;
+	if (getUserNonce(post, nonce, clientIp, seed) != 0) return;
 
-	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
-
-	int32_t ts;
-	memcpy(&ts, nonce + 20, 4);
-	const int timeDiff = (int)time(NULL) - ts;
-	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return;
-
-	encryptNonce(nonce, seed);
-
-	// Open the Box
 	char *decrypted = sodium_malloc(postLen);
 	if (decrypted == NULL) return;
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
