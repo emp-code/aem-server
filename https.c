@@ -37,6 +37,8 @@
 // Secret: tCpcTrVsxFRiL8z8+g1SclyHsfX1KSmYZLIA21cHROg=
 #define AEM_SERVER_SECRETKEY "\xb4\x2a\x5c\x4e\xb5\x6c\xc4\x54\x62\x2f\xcc\xfc\xfa\xd\x52\x72\x5c\x87\xb1\xf5\xf5\x29\x29\x98\x64\xb2\x0\xdb\x57\x7\x44\xe8"
 
+#define AEM_MAXMSGTOTALSIZE 100000 // Max total size of messages to send. TODO: Move this to config
+
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
 
@@ -324,8 +326,8 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	char *addrShield = loadUserAddressList(upk_hex, "address_shield.aea", &addrCountShield);
 	if (addrShield == NULL) {free(addrNormal); return;}
 
-	size_t lenMbSet; int msgCount;
-	unsigned char *mbSet = getUserMessages(post, &lenMbSet, &msgCount);
+	int msgCount;
+	unsigned char *mbSet = getUserMessages(post, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
 
 /*
@@ -340,11 +342,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 		MessageBoxes
 */
 
-	const size_t szBody = 3 + (16 * addrCountNormal) + (16 * addrCountShield) + lenMbSet;
+	const size_t szBody = 3 + (16 * addrCountNormal) + (16 * addrCountShield) + AEM_MAXMSGTOTALSIZE;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
-
-	// TODO: Amount of message data is leaked here. Pad to nearest 100 KiB or so?
 
 	char data[szResponse + 1];
 	sprintf(data,
@@ -361,7 +361,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	data[szHead + 2] = (unsigned char)msgCount;
 	memcpy(data + szHead + 3, addrNormal, addrCountNormal * 16);
 	memcpy(data + szHead + 3 + (16 * addrCountNormal), addrShield, addrCountShield * 16);
-	memcpy(data + szHead + 3 + (16 * addrCountNormal) + (16 * addrCountShield), mbSet, lenMbSet);
+	memcpy(data + szHead + 3 + (16 * addrCountNormal) + (16 * addrCountShield), mbSet, AEM_MAXMSGTOTALSIZE);
 
 	free(addrNormal);
 	free(addrShield);
