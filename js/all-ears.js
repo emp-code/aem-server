@@ -138,13 +138,15 @@ function AllEars() {
 					const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
 					const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-					const im_sml = msgHead[0];
+					let im_sml = 0;
+					if (_BitTest(msgHead[0], 0)) im_sml++;
+					if (_BitTest(msgHead[0], 1)) im_sml += 2;
 
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const im_ts = new Uint32Array(u32bytes)[0];
 
-					const im_from = _DecodeOwnAddress(msgHead, 5, nacl);
-					const im_to   = _DecodeOwnAddress(msgHead, 21, nacl); // 5 + 16
+					const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 21)) : _DecodeAddress(msgHead, 5, nacl);
+					const im_to   = _DecodeOwnAddress(msgHead, 21, nacl);
 
 					// BodyBox
 					const bbSize = msgKilos * 1024 + 50;

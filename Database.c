@@ -22,12 +22,12 @@ static int64_t addressToHash(const unsigned char addr[16], const unsigned char h
 	return result;
 }
 
-int getPublicKeyFromAddress(const unsigned char addr[16], unsigned char pk[32], const unsigned char hashKey[16]) {
+int getPublicKeyFromAddress(const unsigned char addr[16], unsigned char pk[32], const unsigned char hashKey[16], int *memberLevel) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT ownerpk FROM address WHERE hash=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT ownerpk,level FROM address JOIN users ON publickey=ownerpk WHERE hash=?", -1, &query, NULL);
 	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
 
 	ret = sqlite3_step(query);
@@ -38,6 +38,7 @@ int getPublicKeyFromAddress(const unsigned char addr[16], unsigned char pk[32], 
 	}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), 32);
+	*memberLevel = sqlite3_column_int(query, 1);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return 0;

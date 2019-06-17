@@ -24,11 +24,11 @@ BodyBox format:
 */
 #define AEM_INTMSG_HEADERSIZE 37 // Note that HeadBox is a total (AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES) bytes
 
-unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const uint8_t senderMemberLevel, const unsigned char adrFrom[16], const unsigned char adrTo[16]) {
+unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char senderInfo, const unsigned char adrFrom[16], const unsigned char adrTo[16]) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char plaintext[AEM_INTMSG_HEADERSIZE];
-	memcpy(plaintext, &senderMemberLevel, 1);
+	plaintext[0] = senderInfo;
 	memcpy(plaintext + 1, &ts, 4);
 	memcpy(plaintext + 5, adrFrom, 16);
 	memcpy(plaintext + 21, adrTo, 16);

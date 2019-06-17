@@ -39,6 +39,8 @@
 
 #define AEM_MAXMSGTOTALSIZE 100000 // Max total size of messages to send. TODO: Move this to config
 
+#define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
+
 static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
 	size_t sent = 0;
 
@@ -415,15 +417,37 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	const char *endTo = strchr(endFrom + 1, '\n');
 	if (endTo == NULL) {sodium_free(decrypted); return;}
 
-	unsigned char *binFrom = addr2bin(decrypted, endFrom - decrypted);
+	const size_t lenFrom = endFrom - decrypted;
+	const size_t lenTo = endTo - (endFrom + 1);
+
+	unsigned char *binFrom = addr2bin(decrypted, lenFrom);
 	if (binFrom == NULL) return;
-	unsigned char *binTo = addr2bin(endFrom + 1, endTo - (endFrom + 1));
+	unsigned char *binTo = addr2bin(endFrom + 1, lenTo);
 	if (binTo == NULL) {free(binFrom); return;}
 
 	unsigned char pk[32];
-	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+	int memberLevel;
+	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
 
-	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, 0, binFrom, binTo);
+	unsigned char senderInfo = '\0';
+	// Bits 0-1: member level
+	switch(memberLevel) {
+		case 3:
+			BIT_SET(senderInfo, 0);
+			BIT_SET(senderInfo, 1);
+			break;
+		case 2:
+			BIT_SET(senderInfo, 1);
+			break;
+		case 1:
+			BIT_SET(senderInfo, 0);
+			break;
+	}
+
+	// Bit 7: Address type. 0 = normal, 1 = Shield
+	if (lenFrom == 32) BIT_SET(senderInfo, 7);
+
+	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, senderInfo, binFrom, binTo);
 	free(binFrom);
 	free(binTo);
 
