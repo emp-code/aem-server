@@ -380,8 +380,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	char *decrypted = sodium_malloc(postLen);
 	if (decrypted == NULL) return;
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
+	if (ret != 0) {sodium_free(decrypted); return;}
 	sodium_mprotect_readonly(decrypted);
-	if (ret != 0) return;
 
 /* Format:
 	(From)\n
@@ -391,9 +391,9 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 */
 
 	const char *endFrom = strchr(decrypted, '\n');
-	if (endFrom == NULL) return;
+	if (endFrom == NULL) {sodium_free(decrypted); return;}
 	const char *endTo = strchr(endFrom + 1, '\n');
-	if (endTo == NULL) return;
+	if (endTo == NULL) {sodium_free(decrypted); return;}
 
 	char *sbFrom = textToSixBit(decrypted, endFrom - decrypted);
 	char *sbTo = textToSixBit(endFrom + 1, (endTo) - (endFrom + 1));
@@ -412,7 +412,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 
 	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
-	if (boxSet == NULL) {free(headBox); free(bodyBox); return;}
+	if (boxSet == NULL) {sodium_free(decrypted); free(headBox); free(bodyBox); return;}
 
 	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
 	free(headBox);
