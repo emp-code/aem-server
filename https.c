@@ -373,8 +373,6 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 }
 
 static unsigned char *addr2bin(const char *c, const size_t len) {
-	printf("%.*s\n", (int)len, c);
-
 	if (len <= 21) return (unsigned char*)textToSixBit(c, len);
 	if (len != 32) return NULL;
 
