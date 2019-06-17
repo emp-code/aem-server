@@ -3,7 +3,7 @@
 
 #include <sodium.h>
 
-unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char senderMemberLevel, const unsigned char adrFrom[16], const unsigned char adrTo[16]);
+unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char senderInfo, const unsigned char adrFrom[16], const unsigned char adrTo[16]);
 unsigned char *aem_intMsg_makeBodyBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const char *bodyText, size_t *bodyLen);
 
 #endif
