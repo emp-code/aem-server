@@ -115,7 +115,8 @@ function AllEars() {
 				}
 
 				for (let i = 0; i < addressCountShield; i++) {
-					_userAddrShield[i] = _DecodeAddress(byteArray, 3 + (addressCountNormal * 16) + (i * 16));
+					const start = 3 + (addressCountNormal * 16) + (i * 16);
+					_userAddrShield[i] = nacl.to_hex(byteArray.slice(start, start + 16));
 				}
 
 				// Messages
