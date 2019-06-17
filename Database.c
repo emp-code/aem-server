@@ -13,22 +13,22 @@
 
 // A slower hashing method here would increase security at the cost of additional strain on the server.
 // Collisions here cause additional, unintended "aliases" for addresses. That isn't necessarily bad.
-static int64_t addressToHash(const char sixBit[16], const unsigned char hashKey[16]) {
+static int64_t addressToHash(const unsigned char addr[16], const unsigned char hashKey[16]) {
 	unsigned char hash16[16];
-	crypto_generichash(hash16, 16, (unsigned char*)sixBit, 16, hashKey, 16);
+	crypto_generichash(hash16, 16, addr, 16, hashKey, 16);
 
 	int64_t result;
 	memcpy(&result, hash16, 8);
 	return result;
 }
 
-int getPublicKeyFromAddress(const char sixBit[16], unsigned char pk[32], const unsigned char hashKey[16]) {
+int getPublicKeyFromAddress(const unsigned char addr[16], unsigned char pk[32], const unsigned char hashKey[16]) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT ownerpk FROM address WHERE hash=?", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, addressToHash(sixBit, hashKey));
+	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
 
 	ret = sqlite3_step(query);
 	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != 32) {

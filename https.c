@@ -370,6 +370,26 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, szResponse);
 }
 
+static unsigned char *addr2bin(const char *c, const size_t len) {
+	printf("%.*s\n", (int)len, c);
+
+	if (len <= 21) return (unsigned char*)textToSixBit(c, len);
+	if (len != 32) return NULL;
+
+	// Shield addresses are encoded in hex
+	for (int i = 0; i < 32; i++) {
+		if (!((c[i] >= '0' && c[i] <= '9') || (c[i] >= 'a' && c[i] <= 'f'))) return NULL;
+	}
+
+	unsigned char bin[16];
+	size_t binLen;
+	sodium_hex2bin(bin, 16, c, 32, NULL, &binLen, NULL);
+	if (binLen != 16) return NULL;
+	unsigned char* binm = malloc(16);
+	memcpy(binm, bin, 16);
+	return binm;
+}
+
 // Message sending
 static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (postLen < 33) return;
@@ -395,15 +415,17 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	const char *endTo = strchr(endFrom + 1, '\n');
 	if (endTo == NULL) {sodium_free(decrypted); return;}
 
-	char *sbFrom = textToSixBit(decrypted, endFrom - decrypted);
-	char *sbTo = textToSixBit(endFrom + 1, (endTo) - (endFrom + 1));
+	unsigned char *binFrom = addr2bin(decrypted, endFrom - decrypted);
+	if (binFrom == NULL) return;
+	unsigned char *binTo = addr2bin(endFrom + 1, endTo - (endFrom + 1));
+	if (binTo == NULL) {free(binFrom); return;}
 
 	unsigned char pk[32];
-	getPublicKeyFromAddress(sbTo, pk, (unsigned char*)"TestTestTestTest");
+	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
 
-	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, 0, sbFrom, sbTo);
-	free(sbFrom);
-	free(sbTo);
+	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, 0, binFrom, binTo);
+	free(binFrom);
+	free(binTo);
 
 	size_t bodyLen = postLen - crypto_box_MACBYTES - 32 - ((endTo + 1) - decrypted);
 	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);

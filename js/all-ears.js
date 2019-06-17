@@ -47,7 +47,6 @@ function AllEars() {
 		return _BitTest(byteArray[skipBytes], skipBits);
 	}
 
-	// TODO make this a universal sixBitToText
 	var _DecodeAddress = function(byteArray, start) {
 		const sixBitTable = "0123456789abcdefghijklmnopqrstuvwxyz.-@???????????????????????|!";
 		const skip = start * 8;
@@ -68,6 +67,16 @@ function AllEars() {
 		}
 
 		return decoded;
+	}
+
+	var _DecodeOwnAddress = function(byteArray, start, nacl) {
+		let decoded = _DecodeAddress(byteArray, start);
+
+		for (let i = 0; i < _userAddrNormal.length; i++) {
+			if (decoded == _userAddrNormal[i]) return decoded;
+		}
+
+		return nacl.to_hex(byteArray.slice(start, start + 16));
 	}
 
 // Public
@@ -134,8 +143,8 @@ function AllEars() {
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const im_ts = new Uint32Array(u32bytes)[0];
 
-					const im_from = _DecodeAddress(msgHead, 5);
-					const im_to   = _DecodeAddress(msgHead, 21); // 5 + 16
+					const im_from = _DecodeOwnAddress(msgHead, 5, nacl);
+					const im_to   = _DecodeOwnAddress(msgHead, 21, nacl); // 5 + 16
 
 					// BodyBox
 					const bbSize = msgKilos * 1024 + 50;

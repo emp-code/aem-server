@@ -24,7 +24,7 @@ BodyBox format:
 */
 #define AEM_INTMSG_HEADERSIZE 37 // Note that HeadBox is a total (AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES) bytes
 
-unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const uint8_t senderMemberLevel, const char *adrFrom, const char *adrTo) {
+unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const uint8_t senderMemberLevel, const unsigned char adrFrom[16], const unsigned char adrTo[16]) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char plaintext[AEM_INTMSG_HEADERSIZE];
@@ -34,7 +34,6 @@ unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKE
 	memcpy(plaintext + 21, adrTo, 16);
 
 	unsigned char *ciphertext = malloc(AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
-	sodium_memzero(ciphertext, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, plaintext, AEM_INTMSG_HEADERSIZE, pk);
 
 	return ciphertext;
@@ -54,7 +53,6 @@ unsigned char *aem_intMsg_makeBodyBox(const unsigned char pk[crypto_box_PUBLICKE
 	*bodyLen = bodyLenPadded + 2;
 
 	unsigned char *ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
-	sodium_memzero(ciphertext, *bodyLen + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, body, *bodyLen, pk);
 
 	return ciphertext;
