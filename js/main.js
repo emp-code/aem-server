@@ -59,9 +59,22 @@ function allears_onLoginSuccess() {
 		cellFrom.innerHTML = ae.GetIntMsgFrom(i);
 		cellTo.innerHTML = ae.GetIntMsgTo(i);
 
-		// Unused elements
-//		ae.GetIntMsgLevel(i);
-//		ae.GetIntMsgBody(i);
+		row.addEventListener("click", function(){
+			document.getElementById("btn_toinbox").disabled="";
+			document.getElementById("btn_towrite").disabled="";
+			document.getElementById("btn_tosettings").disabled="";
+
+			document.getElementById("div_inbox").style.display="none";
+			document.getElementById("div_write").style.display="none";
+			document.getElementById("div_settings").style.display="none";
+			document.getElementById("div_readmsg").style.display="inline";
+
+			document.getElementById("readmsg_title").innerHTML = ae.GetIntMsgTitle(i);
+			document.getElementById("readmsg_from").innerHTML = ae.GetIntMsgFrom(i);
+			document.getElementById("readmsg_to").innerHTML = ae.GetIntMsgTo(i);
+			document.getElementById("readmsg_body").innerHTML = ae.GetIntMsgBody(i);
+			document.getElementById("readmsg_level").innerHTML = ae.GetIntMsgLevel(i);
+		});
 	}
 }
 
@@ -90,6 +103,7 @@ document.getElementById("btn_toinbox").addEventListener("click", function(){
 	document.getElementById("btn_towrite").disabled="";
 	document.getElementById("btn_tosettings").disabled="";
 
+	document.getElementById("div_readmsg").style.display="none";
 	document.getElementById("div_settings").style.display="none";
 	document.getElementById("div_write").style.display="none";
 	document.getElementById("div_inbox").style.display="inline";
@@ -100,6 +114,7 @@ document.getElementById("btn_towrite").addEventListener("click", function(){
 	document.getElementById("btn_towrite").disabled="disabled";
 	document.getElementById("btn_tosettings").disabled="";
 
+	document.getElementById("div_readmsg").style.display="none";
 	document.getElementById("div_inbox").style.display="none";
 	document.getElementById("div_settings").style.display="none";
 	document.getElementById("div_write").style.display="inline";
@@ -110,6 +125,7 @@ document.getElementById("btn_tosettings").addEventListener("click", function(){
 	document.getElementById("btn_towrite").disabled="";
 	document.getElementById("btn_tosettings").disabled="disabled";
 
+	document.getElementById("div_readmsg").style.display="none";
 	document.getElementById("div_inbox").style.display="none";
 	document.getElementById("div_write").style.display="none";
 	document.getElementById("div_settings").style.display="inline";
