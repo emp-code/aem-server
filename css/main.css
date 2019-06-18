@@ -21,6 +21,6 @@ table {
 	display: inline;
 }
 
-#div_loggedin, #div_write, #div_settings {
+#div_loggedin, #div_write, #div_settings, #div_readmsg {
 	display: none;
 }
