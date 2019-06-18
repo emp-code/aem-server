@@ -1,3 +1,7 @@
+td, #readmsg_title, #readmsg_body {
+	white-space: pre-wrap;
+}
+
 header, nav, footer, p, th, input, h2 {
 	text-align: center;
 }
