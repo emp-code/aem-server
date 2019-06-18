@@ -32,7 +32,7 @@ function allears_onLoginSuccess() {
 	for (let i = 0; i < ae.GetAddressCountNormal(); i++) {
 		let opt = document.createElement("option");
 		opt.value = ae.GetAddressNormal(i);
-		opt.innerHTML = ae.GetAddressNormal(i) + "@allears.test";
+		opt.textContent = ae.GetAddressNormal(i) + "@allears.test";
 		select.appendChild(opt);
 	}
 
@@ -40,7 +40,7 @@ function allears_onLoginSuccess() {
 	for (let i = 0; i < ae.GetAddressCountShield(); i++) {
 		let opt = document.createElement("option");
 		opt.value = ae.GetAddressShield(i);
-		opt.innerHTML = ae.GetAddressShield(i) + "@allears.test";
+		opt.textContent = ae.GetAddressShield(i) + "@allears.test";
 		select.appendChild(opt);
 	}
 
@@ -54,10 +54,10 @@ function allears_onLoginSuccess() {
 		let cellFrom  = row.insertCell(2);
 		let cellTo    = row.insertCell(3);
 
-		cellTime.innerHTML = tsToISO8601(ae.GetIntMsgTime(i));
-		cellTitle.innerHTML = ae.GetIntMsgTitle(i);
-		cellFrom.innerHTML = ae.GetIntMsgFrom(i);
-		cellTo.innerHTML = ae.GetIntMsgTo(i);
+		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
+		cellTitle.textContent = ae.GetIntMsgTitle(i);
+		cellFrom.textContent = ae.GetIntMsgFrom(i);
+		cellTo.textContent = ae.GetIntMsgTo(i);
 
 		row.addEventListener("click", function(){
 			document.getElementById("btn_toinbox").disabled="";
@@ -69,11 +69,11 @@ function allears_onLoginSuccess() {
 			document.getElementById("div_settings").style.display="none";
 			document.getElementById("div_readmsg").style.display="inline";
 
-			document.getElementById("readmsg_title").innerHTML = ae.GetIntMsgTitle(i);
-			document.getElementById("readmsg_from").innerHTML = ae.GetIntMsgFrom(i);
-			document.getElementById("readmsg_to").innerHTML = ae.GetIntMsgTo(i);
-			document.getElementById("readmsg_body").innerHTML = ae.GetIntMsgBody(i);
-			document.getElementById("readmsg_level").innerHTML = ae.GetIntMsgLevel(i);
+			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
+			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
+			document.getElementById("readmsg_to").textContent = ae.GetIntMsgTo(i);
+			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
+			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 		});
 	}
 }
