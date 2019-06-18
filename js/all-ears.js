@@ -111,26 +111,30 @@ function AllEars() {
 			_FetchBinary("/web/login", postMsg, function(httpStatus, byteArray) {
 				if (httpStatus != 200) {allears_onLoginFailure(); return;}
 
-				const addressCountNormal = byteArray[0];
-				const addressCountShield = byteArray[1];
-				const msgBoxCount = byteArray[2];
+				const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
+				const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
+
+				const addrData = nacl.crypto_box_seal_open(byteArray.slice(3, 3 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+
+				const addressCountNormal = addrData[0];
+				const addressCountShield = addrData[1];
 
 				// Empty the arrays
 				while (_userAddrNormal.length > 0) _userAddrNormal.pop();
 				while (_userAddrShield.length > 0) _userAddrShield.pop();
 
 				for (let i = 0; i < addressCountNormal; i++) {
-					_userAddrNormal[i] = _DecodeAddress(byteArray, 3 + (i * 16));
+					_userAddrNormal[i] = _DecodeAddress(addrData, 2 + (i * 16));
 				}
 
 				for (let i = 0; i < addressCountShield; i++) {
-					const start = 3 + (addressCountNormal * 16) + (i * 16);
-					_userAddrShield[i] = nacl.to_hex(byteArray.slice(start, start + 16));
+					const start = 2 + (addressCountNormal * 16) + (i * 16);
+					_userAddrShield[i] = nacl.to_hex(addrData.slice(start, start + 16));
 				}
 
 				// Messages
-				let msgStart = 3 + (addressCountNormal * 16) + (addressCountShield * 16);
-				for (let i = 0; i < msgBoxCount; i++) {
+				let msgStart = 3 + addrDataSize;
+				for (let i = 0; i < byteArray[2]; i++) {
 					// TODO: Detect message type and support extMsg
 					const msgKilos = byteArray[msgStart] + 1;
 

@@ -321,30 +321,15 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	char upk_hex[65];
 	sodium_bin2hex(upk_hex, 65, post, 32);
 
-	// Login successful
-	int addrCountNormal, addrCountShield;
-	char *addrNormal = loadUserAddressList(upk_hex, "address_normal.aea", &addrCountNormal);
-	if (addrNormal == NULL) return;
-	char *addrShield = loadUserAddressList(upk_hex, "address_shield.aea", &addrCountShield);
-	if (addrShield == NULL) {free(addrNormal); return;}
-
+	uint16_t addrDataSize;
 	int msgCount;
-	unsigned char *mbSet = getUserMessages(post, &msgCount, AEM_MAXMSGTOTALSIZE);
-	if (mbSet == NULL) {free(addrNormal); free(addrShield); return;}
 
-/*
-	Login Response Format:
-		[1B] Number of Normal Addresses
-		[1B] Number of Shield Addresses
-		[1B] Number of Message Boxes
-		[16B] Normal Address (21c SixBit-Encoded)
-		...
-		[16B] Shield Address (21c SixBit-Encoded)
-		...
-		MessageBoxes
-*/
+	unsigned char *addrData = getUserAddresses(post, &addrDataSize);
+	if (addrData == NULL) return;
+	unsigned char *msgData = getUserMessages(post, &msgCount, AEM_MAXMSGTOTALSIZE);
+	if (msgData == NULL) return;
 
-	const size_t szBody = 3 + (16 * addrCountNormal) + (16 * addrCountShield) + AEM_MAXMSGTOTALSIZE;
+	const size_t szBody = 3 + addrDataSize + AEM_MAXMSGTOTALSIZE;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
@@ -358,16 +343,12 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 		"\r\n"
 	, szBody);
 
-	data[szHead + 0] = (unsigned char)addrCountNormal;
-	data[szHead + 1] = (unsigned char)addrCountShield;
+	memcpy(data + szHead + 0, &addrDataSize, 2);
 	data[szHead + 2] = (unsigned char)msgCount;
-	memcpy(data + szHead + 3, addrNormal, addrCountNormal * 16);
-	memcpy(data + szHead + 3 + (16 * addrCountNormal), addrShield, addrCountShield * 16);
-	memcpy(data + szHead + 3 + (16 * addrCountNormal) + (16 * addrCountShield), mbSet, AEM_MAXMSGTOTALSIZE);
-
-	free(addrNormal);
-	free(addrShield);
-	free(mbSet);
+	memcpy(data + szHead + 3, addrData, addrDataSize);
+	memcpy(data + szHead + 3 + addrDataSize, msgData, AEM_MAXMSGTOTALSIZE);
+	free(addrData);
+	free(msgData);
 
 	sendData(ssl, data, szResponse);
 }
