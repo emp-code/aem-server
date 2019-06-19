@@ -28,6 +28,7 @@ function addOptAddr(addr, isShield) {
 	let cellChk2 = row.insertCell(-1);
 	let cellChk3 = row.insertCell(-1);
 	let cellChk4 = row.insertCell(-1);
+	let cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent=addr;
 	if (isShield) cellAddr.className="mono";
@@ -36,6 +37,7 @@ function addOptAddr(addr, isShield) {
 	cellChk2.innerHTML = "<input type=\"checkbox\">";
 	cellChk3.innerHTML = "<input type=\"checkbox\">";
 	cellChk4.innerHTML = "<input type=\"checkbox\">";
+	cellBtnD.innerHTML = "<button>&#128473;</button>";
 }
 
 // Called on a successful login
