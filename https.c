@@ -240,9 +240,9 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 }
 
 static char *userPath(const char *upk_hex, const char *filename) {
-	if (filename == NULL) return NULL;
+	if (upk_hex == NULL || filename == NULL) return NULL;
 
-	char *path = malloc(76 + strlen(filename));
+	char *path = malloc(75 + strlen(filename));
 	if (path == NULL) return NULL;
 
 	sprintf(path, "UserData/%.64s/%s", upk_hex, filename);
