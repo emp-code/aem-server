@@ -68,6 +68,9 @@ function allears_onLoginSuccess() {
 		addOptAddr(ae.GetAddressShield(i), true);
 	}
 
+	document.getElementById("addr_use_normal").textContent=ae.GetAddressCountNormal();
+	document.getElementById("addr_use_shield").textContent=ae.GetAddressCountShield();
+
 	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const table = document.getElementById("tbody_inbox");
