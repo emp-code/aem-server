@@ -249,27 +249,6 @@ static char *userPath(const char *upk_hex, const char *filename) {
 	return path;
 }
 
-char *loadUserAddressList(const char *upk_hex, const char *filename, int *count) {
-	char *path = userPath(upk_hex, filename);
-	if (path == NULL) return NULL;
-	const int fd = open(path, O_RDONLY);
-	if (fd < 0) {free(path); return NULL;}
-
-	const off_t sz = lseek(fd, 0, SEEK_END);
-	if (sz % 16 != 0) {close(fd); free(path); return NULL;}
-
-	char *data = malloc(sz);
-	if (data == NULL) {close(fd); free(path); return NULL;}
-	const ssize_t bytesDone = pread(fd, data, sz, 0);
-	close(fd);
-	free(path);
-
-	if (bytesDone != sz) {free(data); return NULL;}
-
-	*count = sz / 16;
-	return data;
-}
-
 static int numDigits(double number) {
 	int digits = 0;
 	while (number > 1) {number /= 10; digits++;}
