@@ -2,6 +2,11 @@ function AllEars() {
 // Private
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
 
+	// These are just informational, the server enforces the real limits
+	// [Level0Limit, Level1Limit, ...]
+	const _maxAddressNormal = [0, 0, 3, 30, 250];
+	const _maxAddressShield = [0, 5, 25, 125, 250];
+
 	var _userKeys;
 
 	var _userAddrNormal = [];
@@ -91,6 +96,8 @@ function AllEars() {
 	this.GetAddressCountShield = function() {return _userAddrShield.length;}
 
 	this.GetUserLevel = function() {return _userLevel;}
+	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];}
+	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];}
 
 	this.GetIntMsgCount = function() {return _intMsg.length;}
 	this.GetIntMsgLevel = function(num) {return _intMsg[num].senderMemberLevel;}

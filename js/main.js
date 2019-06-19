@@ -68,8 +68,10 @@ function allears_onLoginSuccess() {
 		addOptAddr(ae.GetAddressShield(i), true);
 	}
 
-	document.getElementById("addr_use_normal").textContent=ae.GetAddressCountNormal();
-	document.getElementById("addr_use_shield").textContent=ae.GetAddressCountShield();
+	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
+	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
 
 	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
