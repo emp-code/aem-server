@@ -46,9 +46,9 @@ function allears_onLoginSuccess() {
 
 	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
-		const table = document.getElementById("table_inbox");
+		const table = document.getElementById("tbody_inbox");
 
-		let row = table.insertRow(i + 1);
+		let row = table.insertRow(-1);
 		let cellTime  = row.insertCell(0);
 		let cellTitle = row.insertCell(1);
 		let cellFrom  = row.insertCell(2);
