@@ -21,8 +21,13 @@ table {
 	text-align: left;
 }
 
-#div_login {
-	display: inline;
+#tbody_opt_addr td:not(:first-child) {
+	text-align: center;
+	width: 3em;
+}
+
+.mono {
+	font-family: monospace;
 }
 
 #div_loggedin, #div_write, #div_settings, #div_readmsg {

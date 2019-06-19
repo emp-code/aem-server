@@ -20,6 +20,24 @@ function tsToISO8601(ts){
 	return dt_Y + '-' + dt_m + '-' + dt_d + 'T' + dt_H + ':' + dt_M + ':' + dt_S + 'Z';
 }
 
+function addOptAddr(addr, isShield) {
+	const addrTable = document.getElementById("tbody_opt_addr");
+	let row = addrTable.insertRow(-1);
+	let cellAddr = row.insertCell(-1);
+	let cellChk1 = row.insertCell(-1);
+	let cellChk2 = row.insertCell(-1);
+	let cellChk3 = row.insertCell(-1);
+	let cellChk4 = row.insertCell(-1);
+
+	cellAddr.textContent=addr;
+	if (isShield) cellAddr.className="mono";
+
+	cellChk1.innerHTML = "<input type=\"checkbox\">";
+	cellChk2.innerHTML = "<input type=\"checkbox\">";
+	cellChk3.innerHTML = "<input type=\"checkbox\">";
+	cellChk4.innerHTML = "<input type=\"checkbox\">";
+}
+
 // Called on a successful login
 function allears_onLoginSuccess() {
 	console.log("Logged in successfully");
@@ -34,6 +52,8 @@ function allears_onLoginSuccess() {
 		opt.value = ae.GetAddressNormal(i);
 		opt.textContent = ae.GetAddressNormal(i) + "@allears.test";
 		select.appendChild(opt);
+
+		addOptAddr(ae.GetAddressNormal(i), false);
 	}
 
 	// Shield addresses
@@ -42,6 +62,8 @@ function allears_onLoginSuccess() {
 		opt.value = ae.GetAddressShield(i);
 		opt.textContent = ae.GetAddressShield(i) + "@allears.test";
 		select.appendChild(opt);
+
+		addOptAddr(ae.GetAddressShield(i), true);
 	}
 
 	// Messages
@@ -49,10 +71,10 @@ function allears_onLoginSuccess() {
 		const table = document.getElementById("tbody_inbox");
 
 		let row = table.insertRow(-1);
-		let cellTime  = row.insertCell(0);
-		let cellTitle = row.insertCell(1);
-		let cellFrom  = row.insertCell(2);
-		let cellTo    = row.insertCell(3);
+		let cellTime  = row.insertCell(-1);
+		let cellTitle = row.insertCell(-1);
+		let cellFrom  = row.insertCell(-1);
+		let cellTo    = row.insertCell(-1);
 
 		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
