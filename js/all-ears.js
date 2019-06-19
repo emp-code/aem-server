@@ -7,6 +7,8 @@ function AllEars() {
 	var _userAddrNormal = [];
 	var _userAddrShield = [];
 
+	var _userLevel = 0;
+
 	var _intMsg = [];
 
 	function _NewIntMsg(sml, ts, from, to, title, body) {
@@ -88,6 +90,8 @@ function AllEars() {
 	this.GetAddressCountNormal = function() {return _userAddrNormal.length;}
 	this.GetAddressCountShield = function() {return _userAddrShield.length;}
 
+	this.GetUserLevel = function() {return _userLevel;}
+
 	this.GetIntMsgCount = function() {return _intMsg.length;}
 	this.GetIntMsgLevel = function(num) {return _intMsg[num].senderMemberLevel;}
 	this.GetIntMsgTime  = function(num) {return _intMsg[num].timestamp;}
@@ -117,7 +121,7 @@ function AllEars() {
 				const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
 				const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
 
-				const addrData = nacl.crypto_box_seal_open(byteArray.slice(3, 3 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+				const addrData = nacl.crypto_box_seal_open(byteArray.slice(4, 4 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
 				const addressCountNormal = addrData[0];
 				const addressCountShield = addrData[1];
@@ -135,9 +139,11 @@ function AllEars() {
 					_userAddrShield[i] = nacl.to_hex(addrData.slice(start, start + 16));
 				}
 
+				_userLevel = byteArray[2];
+
 				// Messages
-				let msgStart = 3 + addrDataSize;
-				for (let i = 0; i < byteArray[2]; i++) {
+				let msgStart = 4 + addrDataSize;
+				for (let i = 0; i < byteArray[3]; i++) {
 					// TODO: Detect message type and support extMsg
 					const msgKilos = byteArray[msgStart] + 1;
 

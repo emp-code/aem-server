@@ -302,8 +302,9 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	uint16_t addrDataSize;
 	int msgCount;
+	uint8_t level;
 
-	unsigned char *addrData = getUserAddresses(post, &addrDataSize);
+	unsigned char *addrData = getUserInfo(post, &level, &addrDataSize);
 	if (addrData == NULL) return;
 	unsigned char *msgData = getUserMessages(post, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
@@ -323,9 +324,10 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *p
 	, szBody);
 
 	memcpy(data + szHead + 0, &addrDataSize, 2);
-	data[szHead + 2] = (unsigned char)msgCount;
-	memcpy(data + szHead + 3, addrData, addrDataSize);
-	memcpy(data + szHead + 3 + addrDataSize, msgData, AEM_MAXMSGTOTALSIZE);
+	data[szHead + 2] = (unsigned char)level;
+	data[szHead + 3] = (unsigned char)msgCount;
+	memcpy(data + szHead + 4, addrData, addrDataSize);
+	memcpy(data + szHead + 4 + addrDataSize, msgData, AEM_MAXMSGTOTALSIZE);
 	free(addrData);
 	free(msgData);
 

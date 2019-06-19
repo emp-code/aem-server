@@ -42,7 +42,7 @@ function addOptAddr(addr, isShield) {
 
 // Called on a successful login
 function allears_onLoginSuccess() {
-	console.log("Logged in successfully");
+	console.log("Logged in successfully. Our level: " + ae.GetUserLevel());
 
 	document.getElementById("div_login").style.display="none";
 	document.getElementById("div_loggedin").style.display="inline";
