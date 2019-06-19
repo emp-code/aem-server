@@ -66,7 +66,10 @@ function AllEars() {
 			decoded = decoded + sixBitTable[num];
 		}
 
-		return decoded;
+		const end = decoded.indexOf('|');
+		if (end == -1) return decoded;
+
+		return decoded.substring(0, end);
 	}
 
 	var _DecodeOwnAddress = function(byteArray, start, nacl) {
