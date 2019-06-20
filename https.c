@@ -329,7 +329,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 }
 
 static unsigned char *addr2bin(const char *c, const size_t len) {
-	if (len <= 21) return (unsigned char*)textToSixBit(c, len);
+	if (len <= 21) return textToSixBit(c, len);
 	if (len != 32) return NULL;
 
 	// Shield addresses are encoded in hex
