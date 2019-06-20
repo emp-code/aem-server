@@ -255,9 +255,9 @@ static int numDigits(double number) {
 	return digits;
 }
 
-static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], const uint32_t clientIp, const unsigned char seed[16]) {
-	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, upk, 32);
+static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned char nonce[24], const uint32_t clientIp, const unsigned char seed[16]) {
+	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
+	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
 	char *path = userPath(upk_hex, "nonce");
 	if (path == NULL) return -1;
@@ -368,7 +368,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 	unsigned char *binTo = addr2bin(endFrom + 1, lenTo);
 	if (binTo == NULL) {free(binFrom); return;}
 
-	unsigned char pk[32];
+	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	int memberLevel;
 	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
 
@@ -424,8 +424,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
 
-	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, post, 32);
+	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
+	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, post, crypto_box_PUBLICKEYBYTES);
 
 	char *path = userPath(upk_hex, "nonce");
 	if (path == NULL) return;
@@ -542,7 +542,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (decrypted == NULL) return;
 
 		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, &decrypted, lenDecrypted);
-		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send(ssl, &decrypted, lenDecrypted);
+		if (urlLen == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, &decrypted, lenDecrypted);
 	}
 }
 
