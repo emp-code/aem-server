@@ -143,6 +143,18 @@ document.getElementById("btn_send").addEventListener("click", function(){
 	});
 });
 
+document.getElementById("btn_newaddress").addEventListener("click", function(){
+	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
+		if (success) {
+			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+			addOptAddr(ae.GetAddressCount() - 1);
+		} else {
+			console.log("Add failed");
+		}
+	});
+});
+
 // Menu
 document.getElementById("btn_toinbox").addEventListener("click", function(){
 	document.getElementById("btn_toinbox").disabled="disabled";

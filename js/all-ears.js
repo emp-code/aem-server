@@ -301,4 +301,41 @@ function AllEars() {
 			});
 		});
 	}); }
+
+	this.AddAddress = function(addr, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+			if (httpStatus != 200) return callback(false);
+
+			let boxPost = nacl.crypto_box(nacl.encode_utf8(addr), nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+
+			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
+			postMsg.set(_userKeys.boxPk);
+			postMsg.set(boxPost, _userKeys.boxPk.length);
+
+			_FetchBinary("/web/addr/add", postMsg, function(httpStatus, byteArray) {
+				if (httpStatus != 200) return callback(false);
+
+				_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+					if (httpStatus != 200) return callback(false);
+
+					_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
+					console.log(_DecodeAddress(_userAddress[3].address, 0));
+					const boxAddrData = nacl.crypto_box_seal(_makeAddrData(), _userKeys.boxPk);
+
+					boxPost = nacl.crypto_box(boxAddrData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+
+					postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
+					postMsg.set(_userKeys.boxPk);
+					postMsg.set(boxPost, _userKeys.boxPk.length);
+
+					_FetchBinary("/web/addr/upd", postMsg, function(httpStatus, byteArray) {
+						if (httpStatus == 204)
+							return callback(true);
+						else
+							return callback(false);
+					});
+				});
+			});
+		});
+	}); }
 }

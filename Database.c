@@ -13,7 +13,7 @@
 
 // A slower hashing method here would increase security at the cost of additional strain on the server.
 // Collisions here cause additional, unintended "aliases" for addresses. That isn't necessarily bad.
-static int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]) {
+int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]) {
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, addr, 18, hashKey, 16);
 
@@ -147,4 +147,36 @@ int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const 
 
 	sqlite3_close_v2(db);
 	return 0;
+}
+
+int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *addrData, const size_t lenAddrData) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "UPDATE users SET addrdata=? WHERE publickey=?", -1, &query, NULL);
+	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	sqlite3_close_v2(db);
+	return (ret == SQLITE_DONE) ? 0 : -1;
+}
+
+int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, ownerpk) VALUES (?, ?)", -1, &query, NULL);
+	sqlite3_bind_int64(query, 1, hash);
+	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+	sqlite3_close_v2(db);
+
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
