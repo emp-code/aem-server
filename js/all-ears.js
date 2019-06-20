@@ -117,6 +117,12 @@ function AllEars() {
 			return _DecodeAddress(_userAddress[num].address, 0);
 	}
 
+	this.isAddressShield = function(num) {return _userAddress[num].isShield;}
+	this.isAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
+	this.isAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
+	this.isAddressSharePk      = function(num) {return _userAddress[num].sharePublicKey;}
+	this.isAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;}
+
 	this.GetAddressCount = function() {return _userAddress.length;}
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);}
 	this.GetAddressCountShield = function() {return _GetAddressCount(true);}

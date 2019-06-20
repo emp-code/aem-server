@@ -20,7 +20,7 @@ function tsToISO8601(ts){
 	return dt_Y + '-' + dt_m + '-' + dt_d + 'T' + dt_H + ':' + dt_M + ':' + dt_S + 'Z';
 }
 
-function addOptAddr(addr, isShield) {
+function addOptAddr(num) {
 	const addrTable = document.getElementById("tbody_opt_addr");
 	let row = addrTable.insertRow(-1);
 	let cellAddr = row.insertCell(-1);
@@ -30,13 +30,13 @@ function addOptAddr(addr, isShield) {
 	let cellChk4 = row.insertCell(-1);
 	let cellBtnD = row.insertCell(-1);
 
-	cellAddr.textContent=addr;
-	if (isShield) cellAddr.className="mono";
+	cellAddr.textContent=ae.GetAddress(num);
+	if (ae.isAddressShield(num)) cellAddr.className="mono";
 
-	cellChk1.innerHTML = "<input type=\"checkbox\">";
-	cellChk2.innerHTML = "<input type=\"checkbox\">";
-	cellChk3.innerHTML = "<input type=\"checkbox\">";
-	cellChk4.innerHTML = "<input type=\"checkbox\">";
+	cellChk1.innerHTML = ae.isAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk2.innerHTML = ae.isAddressSharePk(num)      ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk3.innerHTML = ae.isAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk4.innerHTML = ae.isAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellBtnD.innerHTML = "<button>&#128473;</button>";
 }
 
@@ -55,7 +55,7 @@ function allears_onLoginSuccess() {
 		opt.textContent = ae.GetAddress(i) + "@allears.test";
 		select.appendChild(opt);
 
-		addOptAddr(ae.GetAddress(i), false);
+		addOptAddr(i);
 	}
 
 	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
