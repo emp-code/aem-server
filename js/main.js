@@ -37,7 +37,36 @@ function addOptAddr(num) {
 	cellChk2.innerHTML = ae.isAddressSharePk(num)      ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.isAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk4.innerHTML = ae.isAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+
 	cellBtnD.innerHTML = "<button>&#128473;</button>";
+	cellBtnD.addEventListener("click", function() {deleteAddress(cellAddr.textContent);});
+}
+
+var addressToDelete = -1;
+
+function deleteAddress(addr) {
+	if (addressToDelete != -1) return;
+
+	for (i = 0; i < ae.GetAddressCount(); i++) {
+		if (addr == ae.GetAddress(i)) {
+			addressToDelete = i;
+			break;
+		}
+	}
+
+	if (addressToDelete == -1) return;
+	ae.DeleteAddress(addressToDelete);
+}
+
+function allears_onAddressDeleteSuccess() {
+	console.log("Address deleted.");
+	document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
+	addressToDelete = -1;
+}
+
+function allears_onAddressDeleteFailure() {
+	console.log("Address failed to delete.");
+	addressToDelete = -1;
 }
 
 // Called on a successful login

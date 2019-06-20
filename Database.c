@@ -118,3 +118,33 @@ int addUserMessage(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const
 	sqlite3_close_v2(db);
 	return retval;
 }
+
+int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash, const unsigned char *addrData, const size_t lenAddrData) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "DELETE FROM address WHERE hash=? AND ownerpk=?", -1, &query, NULL);
+	sqlite3_bind_int64(query, 1, hash);
+	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	if (ret != SQLITE_DONE) {
+		sqlite3_close_v2(db);
+		return -1;
+	}
+
+	ret = sqlite3_prepare_v2(db, "UPDATE users SET addrdata=? WHERE publickey=?", -1, &query, NULL);
+	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	if (ret != SQLITE_DONE) puts("corr");
+
+	sqlite3_close_v2(db);
+	return 0;
+}

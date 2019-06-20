@@ -502,6 +502,24 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 	return decrypted;
 }
 
+static void respond_https_addr_del(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted < 9) {free(*decrypted); return;}
+	int64_t hash;
+	memcpy(&hash, *decrypted, 8);
+
+	if (deleteAddress(upk, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8) != 0) return;
+	sodium_free(*decrypted);
+
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -544,6 +562,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, &decrypted, lenDecrypted);
+		if (urlLen == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk, &decrypted, lenDecrypted);
 	}
 }
 

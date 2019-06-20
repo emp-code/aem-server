@@ -27,7 +27,7 @@ function AllEars() {
 		this.hash = hash;
 		this.isShield = isShield;
 		this.acceptIntMsg = accInt;
-		this.sharePublicKey = spk;
+		this.sharePk = spk;
 		this.acceptExtMsg = accExt;
 		this.useGatekeeper = gk;
 	}
@@ -48,6 +48,14 @@ function AllEars() {
 
 		r.open("POST", url);
 		r.send(postData);
+	}
+
+	var _BitSet = function(num, bit) {
+		return num | 1<<bit;
+	}
+
+	var _BitClear = function(num, bit) {
+		return num & ~(1<<bit);
 	}
 
 	var _BitTest = function(num, bit) {
@@ -108,6 +116,25 @@ function AllEars() {
 		return count;
 	}
 
+	var _makeAddrData = function() {
+		let addrData = new Uint8Array(_userAddress.length * 27);
+
+		for (i = 0; i < _userAddress.length; i++) {
+			if (_userAddress[i].shield)        _BitSet(addrData[i*27], 0); else _BitClear(addrData[i*27], 0);
+			if (_userAddress[i].acceptIntMsg)  _BitSet(addrData[i*27], 1); else _BitClear(addrData[i*27], 1);
+			if (_userAddress[i].sharePk)       _BitSet(addrData[i*27], 2); else _BitClear(addrData[i*27], 2);
+			if (_userAddress[i].acceptExtMsg)  _BitSet(addrData[i*27], 3); else _BitClear(addrData[i*27], 3);
+			if (_userAddress[i].useGatekeeper) _BitSet(addrData[i*27], 4); else _BitClear(addrData[i*27], 4);
+			_BitClear(addrData[i*27], 5);
+			_BitClear(addrData[i*27], 6);
+			_BitClear(addrData[i*27], 7);
+
+			addrData.set(_userAddress[i].address, i * 27 + 1);
+			addrData.set(_userAddress[i].hash, i * 27 + 19);
+		}
+
+		return addrData;
+	}
 
 // Public
 	this.GetAddress = function(num) {
@@ -120,7 +147,7 @@ function AllEars() {
 	this.isAddressShield = function(num) {return _userAddress[num].isShield;}
 	this.isAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
 	this.isAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
-	this.isAddressSharePk      = function(num) {return _userAddress[num].sharePublicKey;}
+	this.isAddressSharePk      = function(num) {return _userAddress[num].sharePk;}
 	this.isAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;}
 
 	this.GetAddressCount = function() {return _userAddress.length;}
@@ -239,6 +266,36 @@ function AllEars() {
 					allears_onSendSuccess();
 				else
 					allears_onSendFailure();
+
+				return;
+			});
+		});
+	}); }
+
+	this.DeleteAddress = function(num) { nacl_factory.instantiate(function (nacl) {
+		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+			if (httpStatus != 200) {allears_onAddressDeleteFailure(); return;}
+
+			const hash = _userAddress[num].hash;
+
+			_userAddress.splice(num, 1);
+			const boxAddrData = nacl.crypto_box_seal(_makeAddrData(), _userKeys.boxPk);
+
+			let postData = new Uint8Array(8 + boxAddrData.length);
+			postData.set(hash);
+			postData.set(boxAddrData, 8);
+
+			const boxPost = nacl.crypto_box(postData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+
+			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
+			postMsg.set(_userKeys.boxPk);
+			postMsg.set(boxPost, _userKeys.boxPk.length);
+
+			_FetchBinary("/web/addr/del", postMsg, function(httpStatus, byteArray) {
+				if (httpStatus == 204)
+					allears_onAddressDeleteSuccess();
+				else
+					allears_onAddressDeleteFailure();
 
 				return;
 			});
