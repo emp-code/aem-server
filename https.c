@@ -287,7 +287,8 @@ static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], co
 // Web login (get settings and messages)
 // TODO: Support multiple pages
 static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *upk, char *decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 17 || memcmp(decrypted, "AllEars:Web.Login", 17) != 0) return;
+	if (lenDecrypted != 17 || memcmp(decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(decrypted); return;}
+	sodium_free(decrypted);
 
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
