@@ -286,9 +286,10 @@ static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], co
 
 // Web login (get settings and messages)
 // TODO: Support multiple pages
-static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *upk, char *decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 17 || memcmp(decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(decrypted); return;}
-	sodium_free(decrypted);
+static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *upk, char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 17 || memcmp(*decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(*decrypted); return;}
+	sodium_free(*decrypted);
+	*decrypted = NULL;
 
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
@@ -346,7 +347,7 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 }
 
 // Message sending
-static void respond_https_send(mbedtls_ssl_context *ssl, char *decrypted, const size_t lenDecrypted) {
+static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const size_t lenDecrypted) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -354,15 +355,15 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char *decrypted, const 
 	(Body)
 */
 
-	const char *endFrom = strchr(decrypted, '\n');
-	if (endFrom == NULL) {sodium_free(decrypted); return;}
+	const char *endFrom = strchr(*decrypted, '\n');
+	if (endFrom == NULL) {sodium_free(*decrypted); return;}
 	const char *endTo = strchr(endFrom + 1, '\n');
-	if (endTo == NULL) {sodium_free(decrypted); return;}
+	if (endTo == NULL) {sodium_free(*decrypted); return;}
 
-	const size_t lenFrom = endFrom - decrypted;
+	const size_t lenFrom = endFrom - *decrypted;
 	const size_t lenTo = endTo - (endFrom + 1);
 
-	unsigned char *binFrom = addr2bin(decrypted, lenFrom);
+	unsigned char *binFrom = addr2bin(*decrypted, lenFrom);
 	if (binFrom == NULL) return;
 	unsigned char *binTo = addr2bin(endFrom + 1, lenTo);
 	if (binTo == NULL) {free(binFrom); return;}
@@ -393,14 +394,14 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char *decrypted, const 
 	free(binFrom);
 	free(binTo);
 
-	size_t bodyLen = lenDecrypted - ((endTo + 1) - decrypted);
+	size_t bodyLen = lenDecrypted - ((endTo + 1) - *decrypted);
 	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);
 
-	sodium_free(decrypted);
+	sodium_free(*decrypted);
 
 	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
-	if (boxSet == NULL) {sodium_free(decrypted); free(headBox); free(bodyBox); return;}
+	if (boxSet == NULL) {sodium_free(*decrypted); free(headBox); free(bodyBox); return;}
 
 	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
 	free(headBox);
@@ -536,12 +537,12 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 		if (urlLen < 5) return;
 		unsigned char upk[crypto_box_PUBLICKEYBYTES];
-		size_t lenDecrpyted;
-		char *decrypted = openWebBox((unsigned char*)post, lenPost, upk, &lenDecrpyted, clientIp, seed);
+		size_t lenDecrypted;
+		char *decrypted = openWebBox((unsigned char*)post, lenPost, upk, &lenDecrypted, clientIp, seed);
 		if (decrypted == NULL) return;
 
-		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, decrypted, lenDecrpyted);
-		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send(ssl, decrypted, lenDecrpyted);
+		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, &decrypted, lenDecrypted);
+		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send(ssl, &decrypted, lenDecrypted);
 	}
 }
 
