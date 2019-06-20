@@ -61,6 +61,8 @@ function deleteAddress(addr) {
 function allears_onAddressDeleteSuccess() {
 	console.log("Address deleted.");
 	document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
+	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 	addressToDelete = -1;
 }
 
