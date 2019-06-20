@@ -30,7 +30,7 @@
 #define AEM_HTTPS_BUFLEN 4096
 #define AEM_NETINT_BUFLEN 4096
 
-#define AEM_NONCE_TIMEDIFF_MAX 30
+#define AEM_NONCE_TIMEDIFF_MAX 3
 
 // Server keypair for testing (Base64)
 // Public: D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo=
