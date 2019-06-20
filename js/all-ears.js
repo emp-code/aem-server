@@ -170,9 +170,9 @@ function AllEars() {
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 	}); }
 
-	this.Login = function() { nacl_factory.instantiate(function (nacl) {
+	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, login_nonce) {
-			if (httpStatus != 200) {allears_onLoginFailure(); return;}
+			if (httpStatus != 200) return callback(false);
 
 			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
 			const box_login = nacl.crypto_box(plaintext, login_nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
@@ -182,7 +182,7 @@ function AllEars() {
 			postMsg.set(box_login, _userKeys.boxPk.length);
 
 			_FetchBinary("/web/login", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus != 200) {allears_onLoginFailure(); return;}
+				if (httpStatus != 200) return callback(false);
 
 				const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
 				const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
@@ -245,14 +245,14 @@ function AllEars() {
 					msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
 				}
 
-				allears_onLoginSuccess();
+				callback(true);
 			});
 		});
 	}); }
 
-	this.Send = function(msgFrom, msgTo, msgTitle, msgBody) { nacl_factory.instantiate(function (nacl) {
+	this.Send = function(msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
-			if (httpStatus != 200) {allears_onSendFailure(); return;}
+			if (httpStatus != 200) return callback(false);
 
 			const plaintext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 			const boxSend = nacl.crypto_box(plaintext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
@@ -263,18 +263,18 @@ function AllEars() {
 
 			_FetchBinary("/web/send", postMsg, function(httpStatus, byteArray) {
 				if (httpStatus == 204)
-					allears_onSendSuccess();
+					callback(true);
 				else
-					allears_onSendFailure();
+					callback(false);
 
 				return;
 			});
 		});
 	}); }
 
-	this.DeleteAddress = function(num) { nacl_factory.instantiate(function (nacl) {
+	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
-			if (httpStatus != 200) {allears_onAddressDeleteFailure(); return;}
+			if (httpStatus != 200) return callback(false);
 
 			const hash = _userAddress[num].hash;
 
@@ -293,9 +293,9 @@ function AllEars() {
 
 			_FetchBinary("/web/addr/del", postMsg, function(httpStatus, byteArray) {
 				if (httpStatus == 204)
-					allears_onAddressDeleteSuccess();
+					callback(true);
 				else
-					allears_onAddressDeleteFailure();
+					callback(false);
 
 				return;
 			});

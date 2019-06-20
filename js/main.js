@@ -4,9 +4,13 @@ document.getElementById("btn_signin").addEventListener("click", function(){
 	// All-Ears needs to be provided with the user's secret key in order to log in
 	ae.SetKeys(document.getElementById('txt_skey').value);
 
-	ae.Login();
-
-	// Continue in functions named allears_onLoginSuccess() and allears_onLoginFailure()
+	ae.Login(function(success) {
+		if (success) {
+			loginSuccess();
+		} else {
+			console.log("Failed to log in");
+		}
+	});
 });
 
 function tsToISO8601(ts){
@@ -42,13 +46,11 @@ function addOptAddr(num) {
 	cellBtnD.addEventListener("click", function() {deleteAddress(cellAddr.textContent);});
 }
 
-var addressToDelete = -1;
-
 function deleteAddress(addr) {
 	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
 	for (i = 0; i < btns.length; i++) btns[i].disabled="disabled";
 
-	addressToDelete = -1;
+	let addressToDelete = -1;
 
 	for (i = 0; i < ae.GetAddressCount(); i++) {
 		if (addr == ae.GetAddress(i)) {
@@ -59,28 +61,23 @@ function deleteAddress(addr) {
 
 	if (addressToDelete == -1) return;
 
-	ae.DeleteAddress(addressToDelete);
+	ae.DeleteAddress(addressToDelete, function(success) {
+		if (success) {
+			console.log("Address #" + addressToDelete + " deleted.");
+			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
+			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+		} else {
+			console.log("Address failed to delete.");
+		}
+
+		let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+		for (i = 0; i < btns.length; i++) btns[i].disabled="";
+
+	});
 }
 
-function allears_onAddressDeleteSuccess() {
-	console.log("Address deleted.");
-	document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
-	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
-	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-
-	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (i = 0; i < btns.length; i++) btns[i].disabled="";
-}
-
-function allears_onAddressDeleteFailure() {
-	console.log("Address failed to delete.");
-
-	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (i = 0; i < btns.length; i++) btns[i].disabled="";
-}
-
-// Called on a successful login
-function allears_onLoginSuccess() {
+function loginSuccess() {
 	console.log("Logged in successfully. Our level: " + ae.GetUserLevel());
 
 	document.getElementById("div_login").style.display="none";
@@ -136,24 +133,15 @@ function allears_onLoginSuccess() {
 	}
 }
 
-// Called on a failed login
-function allears_onLoginFailure() {
-	console.log("Failed to log in");
-}
-
 document.getElementById("btn_send").addEventListener("click", function(){
-	ae.Send(document.getElementById("send_from").value, document.getElementById("send_to").value, document.getElementById("send_title").value, document.getElementById("send_body").value);
-
-	// Continue in functions named allears_onSendSuccess() and allears_onSendFailure()
+	ae.Send(document.getElementById("send_from").value, document.getElementById("send_to").value, document.getElementById("send_title").value, document.getElementById("send_body").value, function(success) {
+		if (success) {
+			console.log("Message sent");
+		} else {
+			console.log("Failed to send message");
+		}
+	});
 });
-
-function allears_onSendSuccess() {
-	console.log("Message sent");
-}
-
-function allears_onSendFailure() {
-	console.log("Failed to send message");
-}
 
 // Menu
 document.getElementById("btn_toinbox").addEventListener("click", function(){
