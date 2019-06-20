@@ -45,7 +45,10 @@ function addOptAddr(num) {
 var addressToDelete = -1;
 
 function deleteAddress(addr) {
-	if (addressToDelete != -1) return;
+	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+	for (i = 0; i < btns.length; i++) btns[i].disabled="disabled";
+
+	addressToDelete = -1;
 
 	for (i = 0; i < ae.GetAddressCount(); i++) {
 		if (addr == ae.GetAddress(i)) {
@@ -55,6 +58,7 @@ function deleteAddress(addr) {
 	}
 
 	if (addressToDelete == -1) return;
+
 	ae.DeleteAddress(addressToDelete);
 }
 
@@ -63,12 +67,16 @@ function allears_onAddressDeleteSuccess() {
 	document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
 	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-	addressToDelete = -1;
+
+	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+	for (i = 0; i < btns.length; i++) btns[i].disabled="";
 }
 
 function allears_onAddressDeleteFailure() {
 	console.log("Address failed to delete.");
-	addressToDelete = -1;
+
+	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+	for (i = 0; i < btns.length; i++) btns[i].disabled="";
 }
 
 // Called on a successful login
