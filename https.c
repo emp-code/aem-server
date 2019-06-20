@@ -286,27 +286,19 @@ static int getUserNonce(const unsigned char upk[32], unsigned char nonce[24], co
 
 // Web login (get settings and messages)
 // TODO: Support multiple pages
-static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
-	if (postLen != 65) return; // 32 + 33
+static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *upk, char *decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 17 || memcmp(decrypted, "AllEars:Web.Login", 17) != 0) return;
 
-	unsigned char nonce[24];
-	if (getUserNonce(post, nonce, clientIp, seed) != 0) return;
-
-	unsigned char decrypted[18];
-	const int ret = crypto_box_open_easy(decrypted, post + 32, 33, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
-
-	if (ret != 0 || strncmp((char*)(decrypted), "AllEars:Web.Login", 17) != 0) {puts("Login failure"); return;}
-
-	char upk_hex[65];
-	sodium_bin2hex(upk_hex, 65, post, 32);
+	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
+	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
 	uint16_t addrDataSize;
 	int msgCount;
 	uint8_t level;
 
-	unsigned char *addrData = getUserInfo(post, &level, &addrDataSize);
+	unsigned char *addrData = getUserInfo(upk, &level, &addrDataSize);
 	if (addrData == NULL) return;
-	unsigned char *msgData = getUserMessages(post, &msgCount, AEM_MAXMSGTOTALSIZE);
+	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
 
 	const size_t szBody = 3 + addrDataSize + AEM_MAXMSGTOTALSIZE;
@@ -353,18 +345,7 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 }
 
 // Message sending
-static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
-	if (postLen < 33) return;
-
-	unsigned char nonce[24];
-	if (getUserNonce(post, nonce, clientIp, seed) != 0) return;
-
-	char *decrypted = sodium_malloc(postLen);
-	if (decrypted == NULL) return;
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + 32, postLen - 32, nonce, post, (unsigned char*)AEM_SERVER_SECRETKEY);
-	if (ret != 0) {sodium_free(decrypted); return;}
-	sodium_mprotect_readonly(decrypted);
-
+static void respond_https_send(mbedtls_ssl_context *ssl, char *decrypted, const size_t lenDecrypted) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -411,7 +392,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	free(binFrom);
 	free(binTo);
 
-	size_t bodyLen = postLen - crypto_box_MACBYTES - 32 - ((endTo + 1) - decrypted);
+	size_t bodyLen = lenDecrypted - ((endTo + 1) - decrypted);
 	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);
 
 	sodium_free(decrypted);
@@ -438,8 +419,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char *po
 	, 142);
 }
 
-static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t postLen, const uint32_t clientIp, const unsigned char seed[16]) {
-	if (postLen != 32) return;
+static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
+	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
 
 	char upk_hex[65];
 	sodium_bin2hex(upk_hex, 65, post, 32);
@@ -498,6 +479,26 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, 219);
 }
 
+static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16]) {
+	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
+
+	unsigned char nonce[24];
+	if (getUserNonce(post, nonce, clientIp, seed) != 0) return NULL;
+
+	char *decrypted = sodium_malloc(lenPost);
+	if (decrypted == NULL) return NULL;
+
+	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
+
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, (unsigned char*)AEM_SERVER_SECRETKEY);
+	if (ret != 0) {sodium_free(decrypted); return NULL;}
+
+	sodium_mprotect_readonly(decrypted);
+	*lenDecrypted = lenPost - crypto_box_PUBLICKEYBYTES - crypto_box_MACBYTES;
+
+	return decrypted;
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -527,13 +528,19 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	} else if (memcmp(clientHeaders, "POST /", 6) == 0) {
 		const char *url = clientHeaders + 6;
 		const size_t urlLen = (end - 9) - url;
-
 		const char *post = endHeaders + 4;
-		const size_t postLen = chLen - (post - clientHeaders);
+		const size_t lenPost = chLen - (post - clientHeaders);
 
-		if (urlLen == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, (unsigned char*)post, postLen, clientIp, seed);
-		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, (unsigned char*)post, postLen, clientIp, seed);
-		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send (ssl, (unsigned char*)post, postLen, clientIp, seed);
+		if (urlLen == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, (unsigned char*)post, lenPost, clientIp, seed);
+
+		if (urlLen < 5) return;
+		unsigned char upk[crypto_box_PUBLICKEYBYTES];
+		size_t lenDecrpyted;
+		char *decrypted = openWebBox((unsigned char*)post, lenPost, upk, &lenDecrpyted, clientIp, seed);
+		if (decrypted == NULL) return;
+
+		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, decrypted, lenDecrpyted);
+		if (urlLen == 8 && memcmp(url, "web/send",  8) == 0) return respond_https_send(ssl, decrypted, lenDecrpyted);
 	}
 }
 
