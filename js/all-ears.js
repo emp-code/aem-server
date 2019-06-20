@@ -319,7 +319,6 @@ function AllEars() {
 					if (httpStatus != 200) return callback(false);
 
 					_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
-					console.log(_DecodeAddress(_userAddress[3].address, 0));
 					const boxAddrData = nacl.crypto_box_seal(_makeAddrData(), _userKeys.boxPk);
 
 					boxPost = nacl.crypto_box(boxAddrData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
