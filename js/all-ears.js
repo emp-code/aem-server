@@ -9,11 +9,8 @@ function AllEars() {
 
 	var _userKeys;
 
-	var _userAddrNormal = [];
-	var _userAddrShield = [];
-
 	var _userLevel = 0;
-
+	var _userAddress = [];
 	var _intMsg = [];
 
 	function _NewIntMsg(sml, ts, from, to, title, body) {
@@ -23,6 +20,16 @@ function AllEars() {
 		this.to = to;
 		this.title = title;
 		this.body = body;
+	}
+
+	function _NewAddress(addr, hash, isShield, accInt, spk, accExt, gk) {
+		this.address = addr;
+		this.hash = hash;
+		this.isShield = isShield;
+		this.acceptIntMsg = accInt;
+		this.sharePublicKey = spk;
+		this.acceptExtMsg = accExt;
+		this.useGatekeeper = gk;
 	}
 
 	var _FetchBinary = function(url, postData, cb) {
@@ -55,12 +62,12 @@ function AllEars() {
 	}
 
 	var _DecodeAddress = function(byteArray, start) {
-		const sixBitTable = "0123456789abcdefghijklmnopqrstuvwxyz.-@???????????????????????|!";
+		const sixBitTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 		const skip = start * 8;
 
 		let decoded = "";
 
-		for (let i = 0; i < 21; i++) {
+		for (let i = 0; i < 24; i++) {
 			let num = 0;
 
 			if (_GetBit(byteArray, skip + i*6 + 0)) num +=  1;
@@ -82,18 +89,37 @@ function AllEars() {
 	var _DecodeOwnAddress = function(byteArray, start, nacl) {
 		let decoded = _DecodeAddress(byteArray, start);
 
-		for (let i = 0; i < _userAddrNormal.length; i++) {
-			if (decoded == _userAddrNormal[i]) return decoded;
+		for (let i = 0; i < _userAddress.length; i++) {
+			if (_userAddress[i].isShield) continue;
+
+			if (decoded == _DecodeAddress(_userAddress[i].address, 0)) return decoded;
 		}
 
-		return nacl.to_hex(byteArray.slice(start, start + 16));
+		return nacl.to_hex(byteArray.slice(start, start + 18));
 	}
 
+	var _GetAddressCount = function(isShield) {
+		let count = 0;
+
+		for (i = 0; i < _userAddress.length; i++) {
+			if (_userAddress[i].isShield == isShield) count++;
+		}
+
+		return count;
+	}
+
+
 // Public
-	this.GetAddressNormal = function(num) {return _userAddrNormal[num];}
-	this.GetAddressShield = function(num) {return _userAddrShield[num];}
-	this.GetAddressCountNormal = function() {return _userAddrNormal.length;}
-	this.GetAddressCountShield = function() {return _userAddrShield.length;}
+	this.GetAddress = function(num) {
+		if (_userAddress[num].isShield)
+			return nacl.to_hex(_userAddress[num].address);
+		else
+			return _DecodeAddress(_userAddress[num].address, 0);
+	}
+
+	this.GetAddressCount = function() {return _userAddress.length;}
+	this.GetAddressCountNormal = function() {return _GetAddressCount(false);}
+	this.GetAddressCountShield = function() {return _GetAddressCount(true);}
 
 	this.GetUserLevel = function() {return _userLevel;}
 	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];}
@@ -128,25 +154,23 @@ function AllEars() {
 				const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
 				const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
 
+				_userLevel = byteArray[2];
 				const addrData = nacl.crypto_box_seal_open(byteArray.slice(4, 4 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
-				const addressCountNormal = addrData[0];
-				const addressCountShield = addrData[1];
-
 				// Empty the arrays
-				while (_userAddrNormal.length > 0) _userAddrNormal.pop();
-				while (_userAddrShield.length > 0) _userAddrShield.pop();
+				while (_userAddress.length > 0) _userAddress.pop();
 
-				for (let i = 0; i < addressCountNormal; i++) {
-					_userAddrNormal[i] = _DecodeAddress(addrData, 2 + (i * 16));
+				for (i = 0; i < (addrData.length / 27); i++) {
+					const isShield      = _BitTest(addrData[i * 27], 0);
+					const acceptIntMsg  = _BitTest(addrData[i * 27], 1);
+					const sharePk       = _BitTest(addrData[i * 27], 2);
+					const acceptExtMsg  = _BitTest(addrData[i * 27], 3);
+					const useGatekeeper = _BitTest(addrData[i * 27], 4);
+					const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
+					const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
+
+					_userAddress[i] = new _NewAddress(addr, hash, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
 				}
-
-				for (let i = 0; i < addressCountShield; i++) {
-					const start = 2 + (addressCountNormal * 16) + (i * 16);
-					_userAddrShield[i] = nacl.to_hex(addrData.slice(start, start + 16));
-				}
-
-				_userLevel = byteArray[2];
 
 				// Messages
 				let msgStart = 4 + addrDataSize;
@@ -155,7 +179,7 @@ function AllEars() {
 					const msgKilos = byteArray[msgStart] + 1;
 
 					// HeadBox
-					const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 86); // 37 + 48
+					const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 90); // 1 + 41 + 48
 					const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 					let im_sml = 0;
@@ -165,12 +189,12 @@ function AllEars() {
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const im_ts = new Uint32Array(u32bytes)[0];
 
-					const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 21)) : _DecodeAddress(msgHead, 5, nacl);
-					const im_to   = _DecodeOwnAddress(msgHead, 21, nacl);
+					const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
+					const im_to   = _DecodeOwnAddress(msgHead, 23, nacl);
 
 					// BodyBox
 					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 86;
+					const bbStart = msgStart + 90;
 
 					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
@@ -185,7 +209,7 @@ function AllEars() {
 					const im_body=msgBodyUtf8.slice(firstLf + 1);
 
 					_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
-					msgStart += (msgKilos * 1024) + 136; // 48*2+37+2+1=136
+					msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
 				}
 
 				allears_onLoginSuccess();

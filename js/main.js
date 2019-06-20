@@ -47,25 +47,15 @@ function allears_onLoginSuccess() {
 	document.getElementById("div_login").style.display="none";
 	document.getElementById("div_loggedin").style.display="inline";
 
-	// Normal addresses
+	// Addresses
 	let select=document.getElementById("send_from");
-	for (let i = 0; i < ae.GetAddressCountNormal(); i++) {
+	for (let i = 0; i < ae.GetAddressCount(); i++) {
 		let opt = document.createElement("option");
-		opt.value = ae.GetAddressNormal(i);
-		opt.textContent = ae.GetAddressNormal(i) + "@allears.test";
+		opt.value = ae.GetAddress(i);
+		opt.textContent = ae.GetAddress(i) + "@allears.test";
 		select.appendChild(opt);
 
-		addOptAddr(ae.GetAddressNormal(i), false);
-	}
-
-	// Shield addresses
-	for (let i = 0; i < ae.GetAddressCountShield(); i++) {
-		let opt = document.createElement("option");
-		opt.value = ae.GetAddressShield(i);
-		opt.textContent = ae.GetAddressShield(i) + "@allears.test";
-		select.appendChild(opt);
-
-		addOptAddr(ae.GetAddressShield(i), true);
+		addOptAddr(ae.GetAddress(i), false);
 	}
 
 	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();

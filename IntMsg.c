@@ -13,8 +13,8 @@ HeadBox is always created by the server. BodyBox may be made locally by the clie
 HeadBox format:
 [1B uint8_t] SenderMemberLevel
 [4B uint32_t] Timestamp
-[16B char*] AddressFrom (21c SixBit)
-[16B char*] AddressTo (21c SixBit)
+[18B char*] AddressFrom (24c SixBit)
+[18B char*] AddressTo (24c SixBit)
 
 BodyBox format:
 [2B uint16_t] Amount of padding used
@@ -22,16 +22,15 @@ BodyBox format:
 [1B char] Linebreak (\n)
 [--- char*] Message body
 */
-#define AEM_INTMSG_HEADERSIZE 37 // Note that HeadBox is a total (AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES) bytes
 
-unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char senderInfo, const unsigned char adrFrom[16], const unsigned char adrTo[16]) {
+unsigned char *aem_intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char senderInfo, const unsigned char adrFrom[18], const unsigned char adrTo[18]) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char plaintext[AEM_INTMSG_HEADERSIZE];
 	plaintext[0] = senderInfo;
 	memcpy(plaintext + 1, &ts, 4);
-	memcpy(plaintext + 5, adrFrom, 16);
-	memcpy(plaintext + 21, adrTo, 16);
+	memcpy(plaintext + 5, adrFrom, 18);
+	memcpy(plaintext + 23, adrTo, 18);
 
 	unsigned char *ciphertext = malloc(AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, plaintext, AEM_INTMSG_HEADERSIZE, pk);

@@ -7,56 +7,52 @@
 
 static int charToUint6(const char character) {
 	switch (character) {
-		case '0': return 0;
-		case '1': return 1;
-		case '2': return 2;
-		case '3': return 3;
-		case '4': return 4;
-		case '5': return 5;
-		case '6': return 6;
-		case '7': return 7;
-		case '8': return 8;
-		case '9': return 9;
-		case 'a': return 10;
-		case 'b': return 11;
-		case 'c': return 12;
-		case 'd': return 13;
-		case 'e': return 14;
-		case 'f': return 15;
-		case 'g': return 16;
-		case 'h': return 17;
-		case 'i': return 18;
-		case 'j': return 19;
-		case 'k': return 20;
-		case 'l': return 21;
-		case 'm': return 22;
-		case 'n': return 23;
-		case 'o': return 24;
-		case 'p': return 25;
-		case 'q': return 26;
-		case 'r': return 27;
-		case 's': return 28;
-		case 't': return 29;
-		case 'u': return 30;
-		case 'v': return 31;
-		case 'w': return 32;
-		case 'x': return 33;
-		case 'y': return 34;
-		case 'z': return 35;
-		case '.': return 36;
-		case '-': return 37;
-		case '@': return 38;
+		case '|': return 0;
+		case '0': return 1;
+		case '1': return 2;
+		case '2': return 3;
+		case '3': return 4;
+		case '4': return 5;
+		case '5': return 6;
+		case '6': return 7;
+		case '7': return 8;
+		case '8': return 9;
+		case '9': return 10;
+		case 'a': return 11;
+		case 'b': return 12;
+		case 'c': return 13;
+		case 'd': return 14;
+		case 'e': return 15;
+		case 'f': return 16;
+		case 'g': return 17;
+		case 'h': return 18;
+		case 'i': return 19;
+		case 'j': return 20;
+		case 'k': return 21;
+		case 'l': return 22;
+		case 'm': return 23;
+		case 'n': return 24;
+		case 'o': return 25;
+		case 'p': return 26;
+		case 'q': return 27;
+		case 'r': return 28;
+		case 's': return 29;
+		case 't': return 30;
+		case 'u': return 31;
+		case 'v': return 32;
+		case 'w': return 33;
+		case 'x': return 34;
+		case 'y': return 35;
+		case 'z': return 36;
+		case '.': return 37;
+		case '-': return 38;
+		case '@': return 39;
 
 		/*
-			39..61 open
+			40..63 open
 		*/
 
-		// Terminating characters
-		case '\0':
-		case '|':
-			return 62;
-
-		default: return 63;
+		default: return 0;
 	}
 }
 
@@ -95,7 +91,7 @@ char *sixBitToText(const char *source, const size_t lenSource) {
 	const size_t lenOut = lenSource * ((double)8 / 6);
 	char *out = malloc(lenOut + 1);
 
-	const char *charTable = "0123456789abcdefghijklmnopqrstuvwxyz.-@???????????????????????\0!";
+	const char *charTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 
 	for (int i = 0; i < lenOut; i++) {
 		int num = 0;

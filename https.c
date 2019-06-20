@@ -303,11 +303,11 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
 
-	const size_t szBody = 3 + addrDataSize + AEM_MAXMSGTOTALSIZE;
+	const size_t szBody = 4 + addrDataSize + AEM_MAXMSGTOTALSIZE;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
-	char data[szResponse + 1];
+	char data[szResponse];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -329,20 +329,20 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 }
 
 static unsigned char *addr2bin(const char *c, const size_t len) {
-	if (len <= 21) return textToSixBit(c, len);
-	if (len != 32) return NULL;
+	if (len <= 24) return textToSixBit(c, len);
+	if (len != 36) return NULL;
 
 	// Shield addresses are encoded in hex
-	for (int i = 0; i < 32; i++) {
+	for (int i = 0; i < 36; i++) {
 		if (!((c[i] >= '0' && c[i] <= '9') || (c[i] >= 'a' && c[i] <= 'f'))) return NULL;
 	}
 
-	unsigned char bin[16];
+	unsigned char bin[18];
 	size_t binLen;
-	sodium_hex2bin(bin, 16, c, 32, NULL, &binLen, NULL);
-	if (binLen != 16) return NULL;
-	unsigned char* binm = malloc(16);
-	memcpy(binm, bin, 16);
+	sodium_hex2bin(bin, 18, c, 36, NULL, &binLen, NULL);
+	if (binLen != 18) return NULL;
+	unsigned char* binm = malloc(18);
+	memcpy(binm, bin, 18);
 	return binm;
 }
 
@@ -370,7 +370,8 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	int memberLevel;
-	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
+	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
+	if (ret != 0) {free(binFrom); free(binTo); return;}
 
 	unsigned char senderInfo = '\0';
 	// Bits 0-1: member level
@@ -399,13 +400,13 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 
 	sodium_free(*decrypted);
 
-	const size_t bsLen = 37 + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
 	if (boxSet == NULL) {sodium_free(*decrypted); free(headBox); free(bodyBox); return;}
 
-	memcpy(boxSet, headBox, 37 + crypto_box_SEALBYTES);
+	memcpy(boxSet, headBox, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
 	free(headBox);
-	memcpy(boxSet + 37 + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
+	memcpy(boxSet + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
 	free(bodyBox);
 
 	addUserMessage(pk, boxSet, bsLen);
