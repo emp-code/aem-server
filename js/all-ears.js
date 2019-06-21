@@ -50,6 +50,19 @@ function AllEars() {
 		r.send(postData);
 	}
 
+	var _FetchEncrypted = function(url, cleartext, nacl, callback) {
+		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+			if (httpStatus != 200) return callback(httpStatus);
+
+			const postBox = nacl.crypto_box(cleartext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+			let postMsg = new Uint8Array(_userKeys.boxPk.length + postBox.length);
+			postMsg.set(_userKeys.boxPk);
+			postMsg.set(postBox, _userKeys.boxPk.length);
+
+			_FetchBinary(url, postMsg, callback);
+		});
+	}
+
 	var _BitSet = function(num, bit) {
 		return num | 1<<bit;
 	}
@@ -171,169 +184,116 @@ function AllEars() {
 	}); }
 
 	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, login_nonce) {
+		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			const plaintext = nacl.encode_utf8("AllEars:Web.Login");
-			const box_login = nacl.crypto_box(plaintext, login_nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+			const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
+			const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
 
-			let postMsg = new Uint8Array(_userKeys.boxPk.length + box_login.length);
-			postMsg.set(_userKeys.boxPk);
-			postMsg.set(box_login, _userKeys.boxPk.length);
+			_userLevel = byteArray[2];
+			const addrData = nacl.crypto_box_seal_open(byteArray.slice(4, 4 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
-			_FetchBinary("/web/login", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus != 200) return callback(false);
+			// Empty the arrays
+			while (_userAddress.length > 0) _userAddress.pop();
 
-				const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
-				const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
+			for (i = 0; i < (addrData.length / 27); i++) {
+				const isShield      = _BitTest(addrData[i * 27], 0);
+				const acceptIntMsg  = _BitTest(addrData[i * 27], 1);
+				const sharePk       = _BitTest(addrData[i * 27], 2);
+				const acceptExtMsg  = _BitTest(addrData[i * 27], 3);
+				const useGatekeeper = _BitTest(addrData[i * 27], 4);
+				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
+				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
 
-				_userLevel = byteArray[2];
-				const addrData = nacl.crypto_box_seal_open(byteArray.slice(4, 4 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+				_userAddress[i] = new _NewAddress(addr, hash, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
+			}
 
-				// Empty the arrays
-				while (_userAddress.length > 0) _userAddress.pop();
+			// Messages
+			let msgStart = 4 + addrDataSize;
+			for (let i = 0; i < byteArray[3]; i++) {
+				// TODO: Detect message type and support extMsg
+				const msgKilos = byteArray[msgStart] + 1;
 
-				for (i = 0; i < (addrData.length / 27); i++) {
-					const isShield      = _BitTest(addrData[i * 27], 0);
-					const acceptIntMsg  = _BitTest(addrData[i * 27], 1);
-					const sharePk       = _BitTest(addrData[i * 27], 2);
-					const acceptExtMsg  = _BitTest(addrData[i * 27], 3);
-					const useGatekeeper = _BitTest(addrData[i * 27], 4);
-					const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
-					const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
+				// HeadBox
+				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 90); // 1 + 41 + 48
+				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-					_userAddress[i] = new _NewAddress(addr, hash, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
-				}
+				let im_sml = 0;
+				if (_BitTest(msgHead[0], 0)) im_sml++;
+				if (_BitTest(msgHead[0], 1)) im_sml += 2;
 
-				// Messages
-				let msgStart = 4 + addrDataSize;
-				for (let i = 0; i < byteArray[3]; i++) {
-					// TODO: Detect message type and support extMsg
-					const msgKilos = byteArray[msgStart] + 1;
+				const u32bytes = msgHead.slice(1, 5).buffer;
+				const im_ts = new Uint32Array(u32bytes)[0];
 
-					// HeadBox
-					const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 90); // 1 + 41 + 48
-					const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
+				const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
+				const im_to   = _DecodeOwnAddress(msgHead, 23, nacl);
 
-					let im_sml = 0;
-					if (_BitTest(msgHead[0], 0)) im_sml++;
-					if (_BitTest(msgHead[0], 1)) im_sml += 2;
+				// BodyBox
+				const bbSize = msgKilos * 1024 + 50;
+				const bbStart = msgStart + 90;
 
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const im_ts = new Uint32Array(u32bytes)[0];
+				const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
-					const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
-					const im_to   = _DecodeOwnAddress(msgHead, 23, nacl);
+				const u16bytes = msgBodyFull.slice(0, 2).buffer;
+				const padAmount = new Uint16Array(u16bytes)[0];
+				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-					// BodyBox
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 90;
+				const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+				const firstLf = msgBodyUtf8.indexOf('\n');
+				const im_title=msgBodyUtf8.slice(0, firstLf);
+				const im_body=msgBodyUtf8.slice(firstLf + 1);
 
-					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+				_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
+				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
+			}
 
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
-
-					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
-					const firstLf = msgBodyUtf8.indexOf('\n');
-					const im_title=msgBodyUtf8.slice(0, firstLf);
-					const im_body=msgBodyUtf8.slice(firstLf + 1);
-
-					_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
-					msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
-				}
-
-				callback(true);
-			});
+			callback(true);
 		});
 	}); }
 
 	this.Send = function(msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
-			if (httpStatus != 200) return callback(false);
+		const cleartext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
-			const plaintext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
-			const boxSend = nacl.crypto_box(plaintext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
-
-			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxSend.length);
-			postMsg.set(_userKeys.boxPk);
-			postMsg.set(boxSend, _userKeys.boxPk.length);
-
-			_FetchBinary("/web/send", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus == 204)
-					callback(true);
-				else
-					callback(false);
-
-				return;
-			});
+		_FetchEncrypted("/web/send", cleartext, nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				callback(true);
+			else
+				callback(false);
 		});
 	}); }
 
 	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
-			if (httpStatus != 200) return callback(false);
+		const hash = _userAddress[num].hash;
+		_userAddress.splice(num, 1);
 
-			const hash = _userAddress[num].hash;
+		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+		let postData = new Uint8Array(8 + boxAddrData.length);
+		postData.set(hash);
+		postData.set(boxAddrData, 8);
 
-			_userAddress.splice(num, 1);
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+		_FetchEncrypted("/web/addr/del", postData, nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				callback(true);
+			else
+				callback(false);
 
-			let postData = new Uint8Array(8 + boxAddrData.length);
-			postData.set(hash);
-			postData.set(boxAddrData, 8);
-
-			const boxPost = nacl.crypto_box(postData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
-
-			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
-			postMsg.set(_userKeys.boxPk);
-			postMsg.set(boxPost, _userKeys.boxPk.length);
-
-			_FetchBinary("/web/addr/del", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus == 204)
-					callback(true);
-				else
-					callback(false);
-
-				return;
-			});
+			return;
 		});
 	}); }
 
 	this.AddAddress = function(addr, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
+		_FetchEncrypted("/web/addr/add", nacl.encode_utf8(addr), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			let boxPost = nacl.crypto_box(nacl.encode_utf8(addr), nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
-			let postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
-			postMsg.set(_userKeys.boxPk);
-			postMsg.set(boxPost, _userKeys.boxPk.length);
-
-			_FetchBinary("/web/addr/add", postMsg, function(httpStatus, byteArray) {
-				if (httpStatus != 200) return callback(false);
-
-				_FetchBinary("/web/nonce", _userKeys.boxPk, function(httpStatus, nonce) {
-					if (httpStatus != 200) return callback(false);
-
-					_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
-					const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-
-					boxPost = nacl.crypto_box(boxAddrData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
-
-					postMsg = new Uint8Array(_userKeys.boxPk.length + boxPost.length);
-					postMsg.set(_userKeys.boxPk);
-					postMsg.set(boxPost, _userKeys.boxPk.length);
-
-					_FetchBinary("/web/addr/upd", postMsg, function(httpStatus, byteArray) {
-						if (httpStatus == 204)
-							return callback(true);
-						else
-							return callback(false);
-					});
-				});
+			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {
+				if (httpStatus == 204)
+					return callback(true);
+				else
+					return callback(false);
 			});
 		});
 	}); }
