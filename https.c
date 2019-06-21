@@ -389,7 +389,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 	}
 
 	// Bit 7: Address type. 0 = normal, 1 = Shield
-	if (lenFrom == 32) BIT_SET(senderInfo, 7);
+	if (lenFrom == 36) BIT_SET(senderInfo, 7);
 
 	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, senderInfo, binFrom, binTo);
 	free(binFrom);
