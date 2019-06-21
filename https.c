@@ -537,17 +537,18 @@ static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char
 }
 
 static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted == 0) {
-		// Shield address requested
-		// TODO
-		return;
+	unsigned char *addr;
+	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
+		addr = malloc(18);
+		if (addr == NULL) return;
+		randombytes_buf(addr, 18);
+	} else {
+		addr = textToSixBit((*decrypted), lenDecrypted);
+		sodium_free(*decrypted);
+		if (addr == NULL) return;
 	}
 
-	unsigned char *sixBit = textToSixBit((*decrypted), lenDecrypted);
-	sodium_free(*decrypted);
-	if (sixBit == NULL) return;
-	int64_t hash = addressToHash(sixBit, (unsigned char*)"TestTestTestTest");
-
+	const int64_t hash = addressToHash(addr, (unsigned char*)"TestTestTestTest");
 	if (addAddress(upk, hash) != 0) return;
 
 	char data[169];
@@ -560,9 +561,8 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char
 		"\r\n"
 	, 143);
 	memcpy(data + 143, &hash, 8);
-	memcpy(data + 151, sixBit, 18);
-	free(sixBit);
-
+	memcpy(data + 151, addr, 18);
+	free(addr);
 	sendData(ssl, data, 169);
 }
 

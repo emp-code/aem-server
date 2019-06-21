@@ -22,9 +22,10 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewAddress(addr, hash, isShield, accInt, spk, accExt, gk) {
+	function _NewAddress(addr, hash, decoded, isShield, accInt, spk, accExt, gk) {
 		this.address = addr;
 		this.hash = hash;
+		this.decoded = decoded;
 		this.isShield = isShield;
 		this.acceptIntMsg = accInt;
 		this.sharePk = spk;
@@ -133,7 +134,7 @@ function AllEars() {
 		let addrData = new Uint8Array(_userAddress.length * 27);
 
 		for (i = 0; i < _userAddress.length; i++) {
-			addrData[i*27] = _userAddress[i].shield        ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
+			addrData[i*27] = _userAddress[i].isShield      ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
 			addrData[i*27] = _userAddress[i].acceptIntMsg  ? _BitSet(addrData[i*27], 1) : _BitClear(addrData[i*27], 1);
 			addrData[i*27] = _userAddress[i].sharePk       ? _BitSet(addrData[i*27], 2) : _BitClear(addrData[i*27], 2);
 			addrData[i*27] = _userAddress[i].acceptExtMsg  ? _BitSet(addrData[i*27], 3) : _BitClear(addrData[i*27], 3);
@@ -150,13 +151,7 @@ function AllEars() {
 	}
 
 // Public
-	this.GetAddress = function(num) {
-		if (_userAddress[num].isShield)
-			return nacl.to_hex(_userAddress[num].address);
-		else
-			return _DecodeAddress(_userAddress[num].address, 0);
-	}
-
+	this.GetAddress = function(num) {return _userAddress[num].decoded;}
 	this.IsAddressShield = function(num) {return _userAddress[num].isShield;}
 	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
 	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
@@ -209,8 +204,9 @@ function AllEars() {
 				const useGatekeeper = _BitTest(addrData[i * 27], 4);
 				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
+				const decoded = isShield ? nacl.to_hex(addr) : _DecodeAddress(addr, 0);
 
-				_userAddress[i] = new _NewAddress(addr, hash, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
+				_userAddress[i] = new _NewAddress(addr, hash, decoded, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
 			}
 
 			// Messages
@@ -289,7 +285,23 @@ function AllEars() {
 		_FetchEncrypted("/web/addr/add", nacl.encode_utf8(addr), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
+			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true);
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+
+			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {
+				if (httpStatus == 204)
+					return callback(true);
+				else
+					return callback(false);
+			});
+		});
+	}); }
+
+	this.AddShieldAddress = function(callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("/web/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(httpStatus, byteArray) {
+			if (httpStatus != 200) return callback(false);
+
+			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), nacl.to_hex(byteArray.slice(8)), true, false, false, false, true);
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {

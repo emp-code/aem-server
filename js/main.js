@@ -152,10 +152,20 @@ document.getElementById("btn_newaddress").addEventListener("click", function(){
 	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+			addOptAddr(ae.GetAddressCount() - 1);
+		} else {
+			console.log("Failed to add address");
+		}
+	});
+});
+
+document.getElementById("btn_newshieldaddress").addEventListener("click", function(){
+	ae.AddShieldAddress(function(success) {
+		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 			addOptAddr(ae.GetAddressCount() - 1);
 		} else {
-			console.log("Add failed");
+			console.log("Failed to add Shield address")
 		}
 	});
 });
