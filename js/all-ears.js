@@ -116,18 +116,18 @@ function AllEars() {
 		return count;
 	}
 
-	var _makeAddrData = function() {
+	var _MakeAddrData = function() {
 		let addrData = new Uint8Array(_userAddress.length * 27);
 
 		for (i = 0; i < _userAddress.length; i++) {
-			if (_userAddress[i].shield)        _BitSet(addrData[i*27], 0); else _BitClear(addrData[i*27], 0);
-			if (_userAddress[i].acceptIntMsg)  _BitSet(addrData[i*27], 1); else _BitClear(addrData[i*27], 1);
-			if (_userAddress[i].sharePk)       _BitSet(addrData[i*27], 2); else _BitClear(addrData[i*27], 2);
-			if (_userAddress[i].acceptExtMsg)  _BitSet(addrData[i*27], 3); else _BitClear(addrData[i*27], 3);
-			if (_userAddress[i].useGatekeeper) _BitSet(addrData[i*27], 4); else _BitClear(addrData[i*27], 4);
-			_BitClear(addrData[i*27], 5);
-			_BitClear(addrData[i*27], 6);
-			_BitClear(addrData[i*27], 7);
+			addrData[i*27] = _userAddress[i].shield        ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
+			addrData[i*27] = _userAddress[i].acceptIntMsg  ? _BitSet(addrData[i*27], 1) : _BitClear(addrData[i*27], 1);
+			addrData[i*27] = _userAddress[i].sharePk       ? _BitSet(addrData[i*27], 2) : _BitClear(addrData[i*27], 2);
+			addrData[i*27] = _userAddress[i].acceptExtMsg  ? _BitSet(addrData[i*27], 3) : _BitClear(addrData[i*27], 3);
+			addrData[i*27] = _userAddress[i].useGatekeeper ? _BitSet(addrData[i*27], 4) : _BitClear(addrData[i*27], 4);
+			addrData[i*27] = _BitClear(addrData[i*27], 5);
+			addrData[i*27] = _BitClear(addrData[i*27], 6);
+			addrData[i*27] = _BitClear(addrData[i*27], 7);
 
 			addrData.set(_userAddress[i].address, i * 27 + 1);
 			addrData.set(_userAddress[i].hash, i * 27 + 19);
@@ -279,7 +279,7 @@ function AllEars() {
 			const hash = _userAddress[num].hash;
 
 			_userAddress.splice(num, 1);
-			const boxAddrData = nacl.crypto_box_seal(_makeAddrData(), _userKeys.boxPk);
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 			let postData = new Uint8Array(8 + boxAddrData.length);
 			postData.set(hash);
@@ -319,7 +319,7 @@ function AllEars() {
 					if (httpStatus != 200) return callback(false);
 
 					_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), false, false, false, false, true);
-					const boxAddrData = nacl.crypto_box_seal(_makeAddrData(), _userKeys.boxPk);
+					const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 					boxPost = nacl.crypto_box(boxAddrData, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
 
