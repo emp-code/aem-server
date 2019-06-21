@@ -118,6 +118,7 @@ function loginSuccess() {
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
 		cellFrom.textContent = ae.GetIntMsgFrom(i);
 		cellTo.textContent = ae.GetIntMsgTo(i);
+		cellFrom.className = ae.GetIntMsgShield(i) ? "mono" : "";
 
 		row.addEventListener("click", function(){
 			document.getElementById("btn_toinbox").disabled="";
@@ -134,6 +135,7 @@ function loginSuccess() {
 			document.getElementById("readmsg_to").textContent = ae.GetIntMsgTo(i);
 			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
+			document.getElementById("readmsg_from").className = ae.GetIntMsgShield(i) ? "mono" : "";
 		});
 	}
 }

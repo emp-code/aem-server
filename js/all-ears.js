@@ -13,10 +13,11 @@ function AllEars() {
 	var _userAddress = [];
 	var _intMsg = [];
 
-	function _NewIntMsg(sml, ts, from, to, title, body) {
+	function _NewIntMsg(sml, ts, from, shield, to, title, body) {
 		this.senderMemberLevel = sml;
 		this.timestamp = ts;
 		this.from = from;
+		this.shield = shield;
 		this.to = to;
 		this.title = title;
 		this.body = body;
@@ -172,12 +173,13 @@ function AllEars() {
 	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];}
 
 	this.GetIntMsgCount = function() {return _intMsg.length;}
-	this.GetIntMsgLevel = function(num) {return _intMsg[num].senderMemberLevel;}
-	this.GetIntMsgTime  = function(num) {return _intMsg[num].timestamp;}
-	this.GetIntMsgFrom  = function(num) {return _intMsg[num].from;}
-	this.GetIntMsgTo    = function(num) {return _intMsg[num].to;}
-	this.GetIntMsgTitle = function(num) {return _intMsg[num].title;}
-	this.GetIntMsgBody  = function(num) {return _intMsg[num].body;}
+	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;}
+	this.GetIntMsgTime   = function(num) {return _intMsg[num].timestamp;}
+	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;}
+	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;}
+	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;}
+	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
+	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
 	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
@@ -226,7 +228,8 @@ function AllEars() {
 				const u32bytes = msgHead.slice(1, 5).buffer;
 				const im_ts = new Uint32Array(u32bytes)[0];
 
-				const im_from = (_BitTest(msgHead[0], 7)) ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
+				const im_shield = _BitTest(msgHead[0], 7);
+				const im_from = im_shield ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
 				const im_to   = _DecodeOwnAddress(msgHead, 23, nacl);
 
 				// BodyBox
@@ -245,7 +248,7 @@ function AllEars() {
 				const im_title=msgBodyUtf8.slice(0, firstLf);
 				const im_body=msgBodyUtf8.slice(firstLf + 1);
 
-				_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_to, im_title, im_body);
+				_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
 				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
 			}
 
