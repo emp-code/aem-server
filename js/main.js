@@ -141,9 +141,16 @@ function loginSuccess() {
 }
 
 document.getElementById("btn_send").addEventListener("click", function(){
-	ae.Send(document.getElementById("send_from").value, document.getElementById("send_to").value, document.getElementById("send_title").value, document.getElementById("send_body").value, function(success) {
+	sfrom=document.getElementById("send_from");
+	stitle=document.getElementById("send_title");
+	sto=document.getElementById("send_to")
+	sbody=document.getElementById("send_body")
+
+	ae.Send(sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
-			console.log("Message sent");
+			stitle.value="";
+			sto.value="";
+			sbody.value="";
 		} else {
 			console.log("Failed to send message");
 		}
