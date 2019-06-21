@@ -277,8 +277,6 @@ function AllEars() {
 				callback(true);
 			else
 				callback(false);
-
-			return;
 		});
 	}); }
 
