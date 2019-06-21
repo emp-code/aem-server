@@ -149,6 +149,11 @@ document.getElementById("btn_send").addEventListener("click", function(){
 });
 
 document.getElementById("btn_newaddress").addEventListener("click", function(){
+	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) {
+		console.log("Address limit reached");
+		return;
+	}
+
 	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -160,6 +165,11 @@ document.getElementById("btn_newaddress").addEventListener("click", function(){
 });
 
 document.getElementById("btn_newshieldaddress").addEventListener("click", function(){
+	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) {
+		console.log("Shield address limit reached");
+		return;
+	}
+
 	ae.AddShieldAddress(function(success) {
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
