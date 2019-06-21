@@ -35,12 +35,17 @@ function addOptAddr(num) {
 	let cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent=ae.GetAddress(num);
-	if (ae.isAddressShield(num)) cellAddr.className="mono";
+	if (ae.IsAddressShield(num)) cellAddr.className="mono";
 
-	cellChk1.innerHTML = ae.isAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk2.innerHTML = ae.isAddressSharePk(num)      ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk3.innerHTML = ae.isAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk4.innerHTML = ae.isAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk2.innerHTML = ae.IsAddressSharePk(num)      ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+
+	cellChk1.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
+	cellChk2.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
+	cellChk3.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
+	cellChk4.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
 
 	cellBtnD.innerHTML = "<button>&#128473;</button>";
 	cellBtnD.addEventListener("click", function() {deleteAddress(cellAddr.textContent);});
@@ -153,6 +158,26 @@ document.getElementById("btn_newaddress").addEventListener("click", function(){
 			console.log("Add failed");
 		}
 	});
+});
+
+document.getElementById("btn_saveaddrdata").addEventListener("click", function(){
+	let tbl = document.getElementById("tbody_opt_addr")
+
+	for (let i = 0; i < tbl.rows.length; i++) {
+		ae.SetAddressAcceptIntMsg(i, tbl.rows[i].cells[1].firstChild.checked);
+		ae.SetAddressSharePk     (i, tbl.rows[i].cells[2].firstChild.checked);
+		ae.SetAddressAcceptExtMsg(i, tbl.rows[i].cells[3].firstChild.checked);
+		ae.SetAddressGatekeeper  (i, tbl.rows[i].cells[4].firstChild.checked);
+	}
+
+	ae.SaveAddressData(function(success) {
+		if (success)
+			console.log("Address data saved");
+		else
+			console.log("Address data failed to save");
+	});
+
+	document.getElementById("btn_saveaddrdata").style.display="hidden";
 });
 
 // Menu

@@ -157,11 +157,16 @@ function AllEars() {
 			return _DecodeAddress(_userAddress[num].address, 0);
 	}
 
-	this.isAddressShield = function(num) {return _userAddress[num].isShield;}
-	this.isAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
-	this.isAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
-	this.isAddressSharePk      = function(num) {return _userAddress[num].sharePk;}
-	this.isAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;}
+	this.IsAddressShield = function(num) {return _userAddress[num].isShield;}
+	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
+	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
+	this.IsAddressSharePk      = function(num) {return _userAddress[num].sharePk;}
+	this.IsAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;}
+
+	this.SetAddressAcceptIntMsg = function(num, val) {_userAddress[num].acceptIntMsg = val;}
+	this.SetAddressAcceptExtMsg = function(num, val) {_userAddress[num].acceptExtMsg = val;}
+	this.SetAddressSharePk      = function(num, val) {_userAddress[num].sharePk = val;}
+	this.SetAddressGatekeeper   = function(num, val) {_userAddress[num].useGatekeeper = val;}
 
 	this.GetAddressCount = function() {return _userAddress.length;}
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);}
@@ -293,6 +298,17 @@ function AllEars() {
 				else
 					return callback(false);
 			});
+		});
+	}); }
+
+	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
+		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+
+		_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				return callback(true);
+			else
+				return callback(false);
 		});
 	}); }
 }

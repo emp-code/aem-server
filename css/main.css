@@ -30,6 +30,6 @@ table {
 	font-family: monospace;
 }
 
-#div_loggedin, #div_write, #div_settings, #div_readmsg {
+#div_loggedin, #div_write, #div_settings, #div_readmsg, #btn_saveaddrdata {
 	display: none;
 }
