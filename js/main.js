@@ -187,7 +187,7 @@ document.getElementById("btn_saveaddrdata").addEventListener("click", function()
 			console.log("Address data failed to save");
 	});
 
-	document.getElementById("btn_saveaddrdata").style.display="hidden";
+	document.getElementById("btn_saveaddrdata").style.display="none";
 });
 
 // Menu
