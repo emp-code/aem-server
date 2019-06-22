@@ -31,14 +31,11 @@ int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[crypt
 	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
 
 	ret = sqlite3_step(query);
-	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {
-		sqlite3_finalize(query);
-		sqlite3_close_v2(db);
-		return -1;
-	}
+	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), crypto_box_PUBLICKEYBYTES);
 	*memberLevel = sqlite3_column_int(query, 1);
+
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return 0;
@@ -59,7 +56,7 @@ unsigned char *getUserInfo(const unsigned char pk[crypto_box_PUBLICKEYBYTES], ui
 
 	*addrDataSize = sqlite3_column_bytes(query, 1);
 	unsigned char* data = malloc(*addrDataSize);
-	if (data == NULL) return NULL;
+	if (data == NULL) {sqlite3_finalize(query); sqlite3_close(db); return NULL;}
 	memcpy(data, sqlite3_column_blob(query, 1), *addrDataSize);
 
 	sqlite3_finalize(query);
@@ -112,11 +109,9 @@ int addUserMessage(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const
 	sqlite3_bind_blob(query, 2, msgData, msgLen, SQLITE_STATIC);
 
 	ret = sqlite3_step(query);
-	const int retval = (ret == SQLITE_DONE) ? 0 : -1;
-
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-	return retval;
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
 int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash, const unsigned char *addrData, const size_t lenAddrData) {
@@ -130,21 +125,14 @@ int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const 
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
-
-	if (ret != SQLITE_DONE) {
-		sqlite3_close_v2(db);
-		return -1;
-	}
+	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
 
 	ret = sqlite3_prepare_v2(db, "UPDATE users SET addrdata=? WHERE publickey=?", -1, &query, NULL);
 	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
 	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 
-	ret = sqlite3_step(query);
+	sqlite3_step(query);
 	sqlite3_finalize(query);
-
-	if (ret != SQLITE_DONE) puts("corr");
-
 	sqlite3_close_v2(db);
 	return 0;
 }
@@ -160,7 +148,6 @@ int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const 
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
-
 	sqlite3_close_v2(db);
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
@@ -177,6 +164,5 @@ int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
