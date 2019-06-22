@@ -210,35 +210,25 @@ document.getElementById("btn_saveaddrdata").addEventListener("click", function()
 });
 
 // Menu
-document.getElementById("btn_toinbox").addEventListener("click", function(){
-	document.getElementById("btn_toinbox").disabled="disabled";
-	document.getElementById("btn_towrite").disabled="";
-	document.getElementById("btn_tosettings").disabled="";
-
+// Main Menu
+function navMenu(num) {
 	document.getElementById("div_readmsg").style.display="none";
-	document.getElementById("div_settings").style.display="none";
-	document.getElementById("div_write").style.display="none";
-	document.getElementById("div_inbox").style.display="inline";
-});
 
-document.getElementById("btn_towrite").addEventListener("click", function(){
-	document.getElementById("btn_toinbox").disabled="";
-	document.getElementById("btn_towrite").disabled="disabled";
-	document.getElementById("btn_tosettings").disabled="";
+	let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
+	let d = document.getElementsByClassName("maindiv");
 
-	document.getElementById("div_readmsg").style.display="none";
-	document.getElementById("div_inbox").style.display="none";
-	document.getElementById("div_settings").style.display="none";
-	document.getElementById("div_write").style.display="inline";
-});
+	for (let i = 0; i < 3; i++) {
+		if (i == num) {
+			b[i].disabled="disabled";
+			d[i].style.display="inline";
+		} else {
+			b[i].disabled="";
+			d[i].style.display="none";
+		}
+	}
+}
 
-document.getElementById("btn_tosettings").addEventListener("click", function(){
-	document.getElementById("btn_toinbox").disabled="";
-	document.getElementById("btn_towrite").disabled="";
-	document.getElementById("btn_tosettings").disabled="disabled";
-
-	document.getElementById("div_readmsg").style.display="none";
-	document.getElementById("div_inbox").style.display="none";
-	document.getElementById("div_write").style.display="none";
-	document.getElementById("div_settings").style.display="inline";
-});
+let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
+b[0].addEventListener("click", function() {navMenu(0);});
+b[1].addEventListener("click", function() {navMenu(1);});
+b[2].addEventListener("click", function() {navMenu(2);});
