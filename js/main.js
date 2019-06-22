@@ -121,13 +121,7 @@ function loginSuccess() {
 		cellFrom.className = ae.GetIntMsgShield(i) ? "mono" : "";
 
 		row.addEventListener("click", function(){
-			document.getElementById("btn_toinbox").disabled="";
-			document.getElementById("btn_towrite").disabled="";
-			document.getElementById("btn_tosettings").disabled="";
-
-			document.getElementById("div_inbox").style.display="none";
-			document.getElementById("div_write").style.display="none";
-			document.getElementById("div_settings").style.display="none";
+			navMenu(-1);
 			document.getElementById("div_readmsg").style.display="inline";
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
