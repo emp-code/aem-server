@@ -289,7 +289,6 @@ static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsi
 static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *upk, char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17 || memcmp(*decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
-	*decrypted = NULL;
 
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
@@ -364,14 +363,14 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 	const size_t lenTo = endTo - (endFrom + 1);
 
 	unsigned char *binFrom = addr2bin(*decrypted, lenFrom);
-	if (binFrom == NULL) return;
+	if (binFrom == NULL) {sodium_free(*decrypted); return;}
 	unsigned char *binTo = addr2bin(endFrom + 1, lenTo);
-	if (binTo == NULL) {free(binFrom); return;}
+	if (binTo == NULL) {sodium_free(*decrypted); free(binFrom); return;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	int memberLevel;
 	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
-	if (ret != 0) {free(binFrom); free(binTo); return;}
+	if (ret != 0) {sodium_free(*decrypted); free(binFrom); free(binTo); return;}
 
 	unsigned char senderInfo = '\0';
 	// Bits 0-1: member level
@@ -402,7 +401,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 
 	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	unsigned char *boxSet = malloc(bsLen);
-	if (boxSet == NULL) {sodium_free(*decrypted); free(headBox); free(bodyBox); return;}
+	if (boxSet == NULL) {free(headBox); free(bodyBox); return;}
 
 	memcpy(boxSet, headBox, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
 	free(headBox);
@@ -539,6 +538,7 @@ static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char
 static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	unsigned char *addr;
 	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
+		sodium_free(*decrypted);
 		addr = malloc(18);
 		if (addr == NULL) return;
 		randombytes_buf(addr, 18);
