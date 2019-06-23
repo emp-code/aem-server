@@ -1,13 +1,13 @@
 <!doctype html>
 <html>
+
 	<head>
 		<title>All-Ears Mail</title>
 		<link rel="stylesheet" href="/css/main.css" type="text/css">
 	</head>
+
 	<body>
-		<header>
-			<h1>All-Ears Mail</h1>
-		</header>
+		<header><h1>All-Ears Mail</h1></header>
 
 		<main>
 			<noscript>
@@ -39,38 +39,21 @@
 				</div>
 
 				<div class="maindiv" id="div_write">
-					<p>
-						<input id="send_title" type="text" placeholder="Subject"></input>
-					</p>
-
-					<p>
-						<select id="send_from"></select>
-					</p>
-
-					<p>
-						<input id="send_to" type="text" placeholder="receiver@example.com"></input>
-					</p>
-
-					<p>
-						<textarea id="send_body" placeholder="Message"></textarea>
-					</p>
-
-					<p>
-						<input type="checkbox" checked="checked"> Save copy to Notes
-					</p>
-
-					<p>
-						<button id="btn_send">Send</button>
-					</p>
+					<div class="topmargin"><input id="send_title" type="text" placeholder="Subject"></div>
+					<div class="topmargin"><select id="send_from"></select></div>
+					<div class="topmargin"><input id="send_to" type="text" placeholder="receiver@example.com"></div>
+					<div class="topmargin"><textarea id="send_body" placeholder="Message"></textarea></div>
+					<div class="topmargin"><input type="checkbox" checked="checked"> Save copy to Notes</div>
+					<div class="topmargin"><button id="btn_send">Send</button></div>
 				</div>
 
 				<div class="maindiv" id="div_notes">
-					<p>
+					<nav>
 						<button id="btn_notes_contacts" disabled="disabled">Contacts</button>
 						<button id="btn_notes_sent">Sent</button>
 						<button id="btn_notes_texts">Texts</button>
 						<button id="btn_notes_files">Files</button>
-					</p>
+					</nav>
 
 					<div id="div_notes_contacts">
 						<table>
@@ -138,12 +121,17 @@
 							</tbody>
 						</table>
 
-						<p><input id="upfile" type="file"> <button id="btn_uploadfile">Add</button></p>
+						<div class="topmargin">
+							<input id="upfile" type="file"> <button id="btn_uploadfile">Add</button>
+						</div>
 					</div>
 				</div>
 
 				<div class="maindiv" id="div_prefs">
-					<p><button id="btn_prefs_addresses" disabled="disabled">Addresses</button> <button id="btn_prefs_gatekeeper">Gatekeeper</button></p>
+					<nav>
+						<button id="btn_prefs_addresses" disabled="disabled">Addresses</button>
+						<button id="btn_prefs_gatekeeper">Gatekeeper</button>
+					</nav>
 
 					<div id="div_prefs_addresses">
 						<table>
@@ -165,22 +153,23 @@
 							<tbody id="tbody_opt_addr">
 							</tbody>
 						</table>
-						<p>
-							<button id="btn_saveaddrdata">Save changes</button>
-						</p>
-						<p>
-							Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses<br>
-							<input type="text" id="txt_newaddress" placeholder="new-address"> <button id="btn_newaddress">Register</button>
-						</p><p>
-							Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses<br>
-							<button id="btn_newshieldaddress">Generate new Shield address</button>
-						</p>
+
+						<div class="topmargin"><button id="btn_saveaddrdata">Save changes</button></div>
+
+						<div class="topmargin">
+							<div>Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses</div>
+							<div><input type="text" id="txt_newaddress" placeholder="new-address"> <button id="btn_newaddress">Register</button></div>
+						</div>
+
+						<div class="topmargin">
+							<div>Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses</div>
+							<div><button id="btn_newshieldaddress">Generate new Shield address</button></div>
+						</div>
 					</div>
 
 					<div id="div_prefs_gatekeeper">
-						<p>
-							<b>Forbidden countries</b>
-							<br>
+						<div class="center bold topmargin">Forbidden countries</div>
+						<div>
 							<select id="gatekeeper_country" multiple="multiple" size="8">
 								<option value="2589581">Africa/Algeria</option>
 								<option value="3351879">Africa/Angola</option>
@@ -435,31 +424,17 @@
 								<option value="3439705">South America/Uruguay</option>
 								<option value="3625428">South America/Venezuela</option>
 							</select>
-						</p>
+						</div>
 
-						<p>
-							<b>Forbidden domains</b>
-							<br>
-							<select id="gatekeeper_domain" size="8">
-								<option>example.com</option>
-							</select>
-							<br>
-							<input type="text"> <button>Add</button> <button>Delete selected</button>
-						</p>
+						<div class="center bold topmargin">Forbidden domains</div>
+						<div><select id="gatekeeper_domain" size="8"><option>example.com</option></select></div>
+						<div class="flex"><input type="text"> <button>Add</button> <button>Del</button></div>
 
-						<p>
-							<b>Forbidden senders</b>
-							<br>
-							<select id="gatekeeper_sender" size="8">
-								<option>spammer@example.com</option>
-							</select>
-							<br>
-							<input type="text"> <button>Add</button> <button>Delete selected</button>
-						</p>
+						<div class="center bold topmargin">Forbidden senders</div>
+						<div><select id="gatekeeper_sender" size="8"><option>spammer@example.com</option></select></div>
+						<div class="flex"><input type="text"> <button>Add</button> <button>Del</button></div>
 
-						<p>
-							<button>Save changes</button>
-						</p>
+						<div class="center topmargin"><button>Save changes</button></div>
 					</div>
 				</div>
 
@@ -477,8 +452,8 @@
 						<tbody>
 							<tr>
 								<td class="mono">0000000000000000000000000000000000000000000000000000000000000000</td>
-								<td class="mono cent">0</td>
-								<td class="mono cent">0</td>
+								<td class="mono center">0</td>
+								<td class="mono center">0</td>
 								<td><button>+</button></td>
 								<td><button>-</button></td>
 								<td><button>X</button></td>
@@ -486,37 +461,31 @@
 						</tbody>
 					</table>
 
-					<p>
+					<div class="topmargin">
 						<input type="text" class="mono" size="64" placeholder="Public key in hex"> <button>Add</button>
-					</p>
+					</div>
 				</div>
 
-				<div id="div_readmsg">
+				<div id="div_readmsg" class="center">
 					<h2 id="readmsg_title"></h2>
-					<p>
-						From <span id="readmsg_from"></span> (Level <span id="readmsg_level"></span>)
-						<br>
-						To <span  id="readmsg_to"></span>
-					</p>
-					<p id="readmsg_body"></p>
+
+					<div class="topmargin">
+						<div>From <span id="readmsg_from"></span> (Level <span id="readmsg_level"></span>)</div>
+						<div>To <span id="readmsg_to"></span></div>
+					</div>
+
+					<div id="readmsg_body" class="topmargin"></div>
 				</div>
 			</div>
 
-			<div id="div_login">
-				<p>
-					Secret key (hex):<br>
-					<input id="txt_skey" type="text" size="64" maxlength="64" pattern="[0-9a-f]{64}" value="5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f196">
-				</p>
-
-				<p>
-					<button id="btn_signin">Sign in</button>
-				</p>
+			<div id="div_login"  class="center">
+				<div>Secret key (hex):</div>
+				<div><input id="txt_skey" type="password" size="64" maxlength="64" pattern="[0-9a-f]{64}" value="5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f196"></div>
+				<div class="center topmargin"><button id="btn_signin">Sign in</button></div>
 			</div>
 		</main>
 
-		<footer>
-			<p>Powered by All-Ears Mail (License: <abbr title="GNU Affero General Public License">AGPL</abbr>; <a href="https://github.com/emp-code/ae-mail">Source</a>)</p>
-		</footer>
+		<footer>Powered by All-Ears Mail (License: <abbr title="GNU Affero General Public License">AGPL</abbr>; <a href="https://github.com/emp-code/ae-mail">Source</a>)</footer>
 
 		<script src="/js/nacl.js"></script>
 		<script src="/js/all-ears.js"></script>

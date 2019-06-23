@@ -243,11 +243,10 @@ function navNotesMenu(num) {
 document.getElementById("btn_prefs_gatekeeper").addEventListener("click", function() {
 	document.getElementById("btn_prefs_addresses").disabled="";
 	document.getElementById("btn_prefs_gatekeeper").disabled="disabled";
-	document.getElementById("div_prefs_gatekeeper").style.display="inline";
+	document.getElementById("div_prefs_gatekeeper").style.display="block";
 	document.getElementById("div_prefs_addresses").style.display="none";
 
-	document.getElementById("gatekeeper_domain").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
-	document.getElementById("gatekeeper_sender").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
+	document.getElementById("div_prefs_gatekeeper").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
 });
 
 document.getElementById("btn_prefs_addresses").addEventListener("click", function() {

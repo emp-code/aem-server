@@ -1,22 +1,16 @@
-p, table {
+header, nav {
+	text-align: center;
+	margin-bottom: 1em;
+}
+
+footer {
+	text-align: center;
 	margin-top: 1em;
 }
 
-td, #readmsg_title, #readmsg_body {
-	white-space: pre-wrap;
-}
-
-td {
+td, th {
 	min-width: 3em;
 	text-align: center;
-}
-
-.cent, header, nav, footer, p, th, input, h2 {
-	text-align: center;
-}
-
-#send_from {
-	text-align-last: center;
 }
 
 textarea {
@@ -30,15 +24,42 @@ table {
 	text-align: left;
 }
 
+.maindiv {
+	margin-top: 1em;
+	text-align: center;
+}
+
+.bold {font-weight: bold;}
+.mono {font-family: monospace;}
+.topmargin {margin-top: 1em;}
+.center {text-align: center;}
+.flex {display: flex;}
+
+.flex input {
+	flex: 1;
+}
+
+td, #readmsg_title, #readmsg_body {
+	white-space: pre-wrap;
+}
+
+#send_from {
+	text-align-last: center;
+}
+
 #tbody_opt_addr td:not(:first-child) {
 	text-align: center;
 	width: 3em;
 }
 
-.mono {
-	font-family: monospace;
-}
-
 #div_loggedin, #btn_saveaddrdata, #div_readmsg, #div_prefs_gatekeeper, #div_notes_files, #div_notes_texts {
 	display: none;
+}
+
+#gatekeeper_domain, #gatekeeper_sender {
+	width:100%;
+}
+
+#div_prefs_gatekeeper {
+	margin: 0 auto;
 }
