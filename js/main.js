@@ -83,8 +83,7 @@ function deleteAddress(addr) {
 }
 
 function loginSuccess() {
-	console.log("Logged in successfully. Our level: " + ae.GetUserLevel());
-
+	if (ae.GetUserLevel() < 3) document.getElementById("btn_toadmin").style.display="none";
 	document.getElementById("div_login").style.display="none";
 	document.getElementById("div_loggedin").style.display="inline";
 
