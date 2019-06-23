@@ -1,12 +1,21 @@
+p, table {
+	margin-top: 1em;
+}
+
 td, #readmsg_title, #readmsg_body {
 	white-space: pre-wrap;
+}
+
+td {
+	min-width: 3em;
+	text-align: center;
 }
 
 header, nav, footer, p, th, input, h2 {
 	text-align: center;
 }
 
-select {
+#send_from {
 	text-align-last: center;
 }
 
