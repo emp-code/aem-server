@@ -14,20 +14,13 @@
 				<p>Javascript required</p>
 			</noscript>
 
-			<div id="div_login">
-				<p>
-					Secret key (hex):<br>
-					<input id="txt_skey" type="text" size="64" maxlength="64" pattern="[0-9a-f]{64}" value="5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f196">
-				</p>
-
-				<p>
-					<button id="btn_signin">Sign in</button>
-				</p>
-			</div>
-
 			<div id="div_loggedin">
 				<nav>
-					<button id="btn_toinbox" disabled="disabled">Inbox</button> <button id="btn_towrite">Write</button> <button id="btn_tosettings">Settings</button>
+					<button id="btn_toinbox">Inbox</button>
+					<button id="btn_towrite">Write</button>
+					<button id="btn_tonotes">Notes</button>
+					<button id="btn_toprefs">Prefs</button>
+					<button id="btn_toadmin">Admin</button>
 				</nav>
 
 				<div class="maindiv" id="div_inbox">
@@ -63,39 +56,438 @@
 					</p>
 
 					<p>
+						<input type="checkbox" checked="checked"> Save copy to Notes
+					</p>
+
+					<p>
 						<button id="btn_send">Send</button>
 					</p>
 				</div>
 
-				<div class="maindiv" id="div_settings">
+				<div class="maindiv" id="div_notes">
+					<p>
+						<button id="btn_notes_contacts" disabled="disabled">Contacts</button>
+						<button id="btn_notes_sent">Sent</button>
+						<button id="btn_notes_texts">Texts</button>
+						<button id="btn_notes_files">Files</button>
+					</p>
+
+					<div id="div_notes_contacts">
+						<table>
+							<thead>
+								<tr>
+									<th>Email</th>
+									<th>Name</th>
+									<th>Write</th>
+									<th>Notes</th>
+									<th>Delete</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>joe@example.com</td>
+									<td>Joe Example</td>
+									<td><button>W</button></td>
+									<td>Just an example</td>
+									<td><button>X</button></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div id="div_notes_sent">
+
+					</div>
+
+					<div id="div_notes_texts">
+						<table>
+							<thead>
+								<tr>
+									<th>Time</th>
+									<th>Title</th>
+									<th>Delete</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>2000-01-01T00:00:00Z</td>
+									<td>An example note for testing</td>
+									<td><button>X</button></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div id="div_notes_files">
+						<table>
+							<thead>
+								<tr>
+									<th>Time</th>
+									<th>Filename</th>
+									<th>Download</th>
+									<th>Delete</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>2000-01-01T00:00:00Z</td>
+									<td>Example.bin</td>
+									<td><button>D</button></td>
+									<td><button>X</button></td>
+								</tr>
+							</tbody>
+						</table>
+
+						<p><input id="upfile" type="file"> <button id="btn_uploadfile">Add</button></p>
+					</div>
+				</div>
+
+				<div class="maindiv" id="div_prefs">
+					<p><button id="btn_prefs_addresses" disabled="disabled">Addresses</button> <button id="btn_prefs_gatekeeper">Gatekeeper</button></p>
+
+					<div id="div_prefs_addresses">
+						<table>
+							<thead>
+								<tr>
+									<th></th>
+									<th colspan="2">Internal</th>
+									<th colspan="2">Email</th>
+								</tr>
+								<tr>
+									<th>Address</th>
+									<th><abbr title="Accept mail">Acc</abbr></th>
+									<th><abbr title="Share Public Key">SPK</abbr></th>
+									<th><abbr title="Accept mail">Acc</abbr></th>
+									<th><abbr title="Gatekeeper">Gk</abbr></th>
+									<th>Delete</th>
+								</tr>
+							</thead>
+							<tbody id="tbody_opt_addr">
+							</tbody>
+						</table>
+						<p>
+							<button id="btn_saveaddrdata">Save changes</button>
+						</p>
+						<p>
+							Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses<br>
+							<input type="text" id="txt_newaddress" placeholder="new-address"> <button id="btn_newaddress">Register</button>
+						</p><p>
+							Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses<br>
+							<button id="btn_newshieldaddress">Generate new Shield address</button>
+						</p>
+					</div>
+
+					<div id="div_prefs_gatekeeper">
+						<p>
+							<b>Forbidden countries</b>
+							<br>
+							<select id="gatekeeper_country" multiple="multiple" size="8">
+								<option>Africa/Algeria</option>
+								<option>Africa/Angola</option>
+								<option>Africa/Benin</option>
+								<option>Africa/Botswana</option>
+								<option>Africa/Burkina Faso</option>
+								<option>Africa/Burundi</option>
+								<option>Africa/Cabo Verde</option>
+								<option>Africa/Cameroon</option>
+								<option>Africa/Central African Republic</option>
+								<option>Africa/Chad</option>
+								<option>Africa/Comoros</option>
+								<option>Africa/Congo</option>
+								<option>Africa/Djibouti</option>
+								<option>Africa/Egypt</option>
+								<option>Africa/Equatorial Guinea</option>
+								<option>Africa/Eritrea</option>
+								<option>Africa/Eswatini</option>
+								<option>Africa/Ethiopia</option>
+								<option>Africa/Gabon</option>
+								<option>Africa/Gambia</option>
+								<option>Africa/Ghana</option>
+								<option>Africa/Guinea</option>
+								<option>Africa/Guinea-Bissau</option>
+								<option>Africa/Ivory Coast</option>
+								<option>Africa/Kenya</option>
+								<option>Africa/Lesotho</option>
+								<option>Africa/Liberia</option>
+								<option>Africa/Libya</option>
+								<option>Africa/Madagascar</option>
+								<option>Africa/Malawi</option>
+								<option>Africa/Mali</option>
+								<option>Africa/Mauritania</option>
+								<option>Africa/Mauritius</option>
+								<option>Africa/Mayotte</option>
+								<option>Africa/Morocco</option>
+								<option>Africa/Mozambique</option>
+								<option>Africa/Namibia</option>
+								<option>Africa/Niger</option>
+								<option>Africa/Nigeria</option>
+								<option>Africa/Republic of the Congo</option>
+								<option>Africa/Rwanda</option>
+								<option>Africa/Réunion</option>
+								<option>Africa/Saint Helena</option>
+								<option>Africa/Senegal</option>
+								<option>Africa/Seychelles</option>
+								<option>Africa/Sierra Leone</option>
+								<option>Africa/Somalia</option>
+								<option>Africa/South Africa</option>
+								<option>Africa/South Sudan</option>
+								<option>Africa/Sudan</option>
+								<option>Africa/São Tomé and Príncipe</option>
+								<option>Africa/Tanzania</option>
+								<option>Africa/Togo</option>
+								<option>Africa/Tunisia</option>
+								<option>Africa/Uganda</option>
+								<option>Africa/Western Sahara</option>
+								<option>Africa/Zambia</option>
+								<option>Africa/Zimbabwe</option>
+								<option>Antarctica/Antarctica</option>
+								<option>Antarctica/Bouvet Island</option>
+								<option>Antarctica/French Southern Territories</option>
+								<option>Antarctica/Heard Island and McDonald Islands</option>
+								<option>Antarctica/South Georgia and the South Sandwich Islands</option>
+								<option>Asia</option>
+								<option>Asia/Afghanistan</option>
+								<option>Asia/Armenia</option>
+								<option>Asia/Azerbaijan</option>
+								<option>Asia/Bahrain</option>
+								<option>Asia/Bangladesh</option>
+								<option>Asia/Bhutan</option>
+								<option>Asia/British Indian Ocean Territory</option>
+								<option>Asia/Brunei</option>
+								<option>Asia/Cambodia</option>
+								<option>Asia/China</option>
+								<option>Asia/Cocos [Keeling] Islands</option>
+								<option>Asia/Georgia</option>
+								<option>Asia/Hashemite Kingdom of Jordan</option>
+								<option>Asia/Hong Kong</option>
+								<option>Asia/India</option>
+								<option>Asia/Indonesia</option>
+								<option>Asia/Iran</option>
+								<option>Asia/Iraq</option>
+								<option>Asia/Israel</option>
+								<option>Asia/Japan</option>
+								<option>Asia/Kazakhstan</option>
+								<option>Asia/Kuwait</option>
+								<option>Asia/Kyrgyzstan</option>
+								<option>Asia/Laos</option>
+								<option>Asia/Lebanon</option>
+								<option>Asia/Macao</option>
+								<option>Asia/Malaysia</option>
+								<option>Asia/Maldives</option>
+								<option>Asia/Mongolia</option>
+								<option>Asia/Myanmar</option>
+								<option>Asia/Nepal</option>
+								<option>Asia/North Korea</option>
+								<option>Asia/Oman</option>
+								<option>Asia/Pakistan</option>
+								<option>Asia/Palestine</option>
+								<option>Asia/Philippines</option>
+								<option>Asia/Qatar</option>
+								<option>Asia/Saudi Arabia</option>
+								<option>Asia/Singapore</option>
+								<option>Asia/South Korea</option>
+								<option>Asia/Sri Lanka</option>
+								<option>Asia/Syria</option>
+								<option>Asia/Taiwan</option>
+								<option>Asia/Tajikistan</option>
+								<option>Asia/Thailand</option>
+								<option>Asia/Turkey</option>
+								<option>Asia/Turkmenistan</option>
+								<option>Asia/United Arab Emirates</option>
+								<option>Asia/Uzbekistan</option>
+								<option>Asia/Vietnam</option>
+								<option>Asia/Yemen</option>
+								<option>Europe</option>
+								<option>Europe/Albania</option>
+								<option>Europe/Andorra</option>
+								<option>Europe/Austria</option>
+								<option>Europe/Belarus</option>
+								<option>Europe/Belgium</option>
+								<option>Europe/Bosnia and Herzegovina</option>
+								<option>Europe/Bulgaria</option>
+								<option>Europe/Croatia</option>
+								<option>Europe/Cyprus</option>
+								<option>Europe/Czechia</option>
+								<option>Europe/Denmark</option>
+								<option>Europe/Estonia</option>
+								<option>Europe/Faroe Islands</option>
+								<option>Europe/Finland</option>
+								<option>Europe/France</option>
+								<option>Europe/Germany</option>
+								<option>Europe/Gibraltar</option>
+								<option>Europe/Greece</option>
+								<option>Europe/Guernsey</option>
+								<option>Europe/Hungary</option>
+								<option>Europe/Iceland</option>
+								<option>Europe/Ireland</option>
+								<option>Europe/Isle of Man</option>
+								<option>Europe/Italy</option>
+								<option>Europe/Jersey</option>
+								<option>Europe/Kosovo</option>
+								<option>Europe/Latvia</option>
+								<option>Europe/Liechtenstein</option>
+								<option>Europe/Luxembourg</option>
+								<option>Europe/Malta</option>
+								<option>Europe/Monaco</option>
+								<option>Europe/Montenegro</option>
+								<option>Europe/Netherlands</option>
+								<option>Europe/North Macedonia</option>
+								<option>Europe/Norway</option>
+								<option>Europe/Poland</option>
+								<option>Europe/Portugal</option>
+								<option>Europe/Republic of Lithuania</option>
+								<option>Europe/Republic of Moldova</option>
+								<option>Europe/Romania</option>
+								<option>Europe/Russia</option>
+								<option>Europe/San Marino</option>
+								<option>Europe/Serbia</option>
+								<option>Europe/Slovakia</option>
+								<option>Europe/Slovenia</option>
+								<option>Europe/Spain</option>
+								<option>Europe/Svalbard and Jan Mayen</option>
+								<option>Europe/Sweden</option>
+								<option>Europe/Switzerland</option>
+								<option>Europe/Ukraine</option>
+								<option>Europe/United Kingdom</option>
+								<option>Europe/Vatican City</option>
+								<option>Europe/Åland</option>
+								<option>North America/Anguilla</option>
+								<option>North America/Antigua and Barbuda</option>
+								<option>North America/Aruba</option>
+								<option>North America/Bahamas</option>
+								<option>North America/Barbados</option>
+								<option>North America/Belize</option>
+								<option>North America/Bermuda</option>
+								<option>North America/Bonaire, Sint Eustatius, and Saba</option>
+								<option>North America/British Virgin Islands</option>
+								<option>North America/Canada</option>
+								<option>North America/Cayman Islands</option>
+								<option>North America/Costa Rica</option>
+								<option>North America/Cuba</option>
+								<option>North America/Curaçao</option>
+								<option>North America/Dominica</option>
+								<option>North America/Dominican Republic</option>
+								<option>North America/El Salvador</option>
+								<option>North America/Greenland</option>
+								<option>North America/Grenada</option>
+								<option>North America/Guadeloupe</option>
+								<option>North America/Guatemala</option>
+								<option>North America/Haiti</option>
+								<option>North America/Honduras</option>
+								<option>North America/Jamaica</option>
+								<option>North America/Martinique</option>
+								<option>North America/Mexico</option>
+								<option>North America/Montserrat</option>
+								<option>North America/Nicaragua</option>
+								<option>North America/Panama</option>
+								<option>North America/Puerto Rico</option>
+								<option>North America/Saint Barthélemy</option>
+								<option>North America/Saint Lucia</option>
+								<option>North America/Saint Martin</option>
+								<option>North America/Saint Pierre and Miquelon</option>
+								<option>North America/Saint Vincent and the Grenadines</option>
+								<option>North America/Sint Maarten</option>
+								<option>North America/St Kitts and Nevis</option>
+								<option>North America/Trinidad and Tobago</option>
+								<option>North America/Turks and Caicos Islands</option>
+								<option>North America/U.S. Virgin Islands</option>
+								<option>North America/United States</option>
+								<option>Oceania/American Samoa</option>
+								<option>Oceania/Australia</option>
+								<option>Oceania/Christmas Island</option>
+								<option>Oceania/Cook Islands</option>
+								<option>Oceania/Democratic Republic of Timor-Leste</option>
+								<option>Oceania/Federated States of Micronesia</option>
+								<option>Oceania/Fiji</option>
+								<option>Oceania/French Polynesia</option>
+								<option>Oceania/Guam</option>
+								<option>Oceania/Kiribati</option>
+								<option>Oceania/Marshall Islands</option>
+								<option>Oceania/Nauru</option>
+								<option>Oceania/New Caledonia</option>
+								<option>Oceania/New Zealand</option>
+								<option>Oceania/Niue</option>
+								<option>Oceania/Norfolk Island</option>
+								<option>Oceania/Northern Mariana Islands</option>
+								<option>Oceania/Palau</option>
+								<option>Oceania/Papua New Guinea</option>
+								<option>Oceania/Pitcairn Islands</option>
+								<option>Oceania/Samoa</option>
+								<option>Oceania/Solomon Islands</option>
+								<option>Oceania/Tokelau</option>
+								<option>Oceania/Tonga</option>
+								<option>Oceania/Tuvalu</option>
+								<option>Oceania/U.S. Minor Outlying Islands</option>
+								<option>Oceania/Vanuatu</option>
+								<option>Oceania/Wallis and Futuna</option>
+								<option>South America/Argentina</option>
+								<option>South America/Bolivia</option>
+								<option>South America/Brazil</option>
+								<option>South America/Chile</option>
+								<option>South America/Colombia</option>
+								<option>South America/Ecuador</option>
+								<option>South America/Falkland Islands</option>
+								<option>South America/French Guiana</option>
+								<option>South America/Guyana</option>
+								<option>South America/Paraguay</option>
+								<option>South America/Peru</option>
+								<option>South America/Suriname</option>
+								<option>South America/Uruguay</option>
+								<option>South America/Venezuela</option>
+							</select>
+						</p>
+
+						<p>
+							<b>Forbidden domains</b>
+							<br>
+							<select id="gatekeeper_domain" size="8">
+								<option>example.com</option>
+							</select>
+							<br>
+							<input type="text"> <button>Add</button> <button>Delete selected</button>
+						</p>
+
+						<p>
+							<b>Forbidden senders</b>
+							<br>
+							<select id="gatekeeper_sender" size="8">
+								<option>spammer@example.com</option>
+							</select>
+							<br>
+							<input type="text"> <button>Add</button> <button>Delete selected</button>
+						</p>
+
+						<p>
+							<button>Save changes</button>
+						</p>
+					</div>
+				</div>
+
+				<div class="maindiv" id="div_admin">
 					<table>
 						<thead>
 							<tr>
-								<th></th>
-								<th colspan="2">Internal</th>
-								<th colspan="2">Email</th>
-							</tr>
-							<tr>
-								<th>Address</th>
-								<th><abbr title="Accept mail">Acc</abbr></th>
-								<th><abbr title="Share Public Key">SPK</abbr></th>
-								<th><abbr title="Accept mail">Acc</abbr></th>
-								<th><abbr title="Gatekeeper">Gk</abbr></th>
-								<th>Delete</th>
+								<th>Public key</th>
+								<th><abbr title="Mebibyte">MiB</abbr></th>
+								<th><abbr title="Level">Lvl</abbr></th>
+								<th colspan="2">Adjust level</th>
+								<th>Destroy</th>
 							</tr>
 						</thead>
-						<tbody id="tbody_opt_addr">
+						<tbody>
+							<tr>
+								<td class="mono">0000000000000000000000000000000000000000000000000000000000000000</td>
+								<td class="mono cent">0</td>
+								<td class="mono cent">0</td>
+								<td><button>+</button></td>
+								<td><button>-</button></td>
+								<td><button>X</button></td>
+							</tr>
 						</tbody>
 					</table>
+
 					<p>
-						<button id="btn_saveaddrdata">Save changes</button>
-					</p>
-					<p>
-						Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses<br>
-						<input type="text" id="txt_newaddress" placeholder="new-address"> <button id="btn_newaddress">Register</button>
-					</p><p>
-						Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses<br>
-						<button id="btn_newshieldaddress">Generate new Shield address</button>
+						<input type="text" class="mono" size="64" placeholder="Public key in hex"> <button>Add</button>
 					</p>
 				</div>
 
@@ -108,6 +500,17 @@
 					</p>
 					<p id="readmsg_body"></p>
 				</div>
+			</div>
+
+			<div id="div_login">
+				<p>
+					Secret key (hex):<br>
+					<input id="txt_skey" type="text" size="64" maxlength="64" pattern="[0-9a-f]{64}" value="5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f196">
+				</p>
+
+				<p>
+					<button id="btn_signin">Sign in</button>
+				</p>
 			</div>
 		</main>
 

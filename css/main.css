@@ -11,7 +11,7 @@ td {
 	text-align: center;
 }
 
-header, nav, footer, p, th, input, h2 {
+.cent, header, nav, footer, p, th, input, h2 {
 	text-align: center;
 }
 
@@ -39,6 +39,6 @@ table {
 	font-family: monospace;
 }
 
-#div_loggedin, #div_write, #div_settings, #div_readmsg, #btn_saveaddrdata {
+#div_loggedin, #btn_saveaddrdata, #div_readmsg, #div_prefs_gatekeeper, #div_notes_files, #div_notes_texts {
 	display: none;
 }

@@ -211,7 +211,7 @@ function navMenu(num) {
 	let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
 	let d = document.getElementsByClassName("maindiv");
 
-	for (let i = 0; i < 3; i++) {
+	for (let i = 0; i < 5; i++) {
 		if (i == num) {
 			b[i].disabled="disabled";
 			d[i].style.display="inline";
@@ -222,7 +222,51 @@ function navMenu(num) {
 	}
 }
 
+navMenu(0);
+
+// Notes Menu
+function navNotesMenu(num) {
+	let b = document.getElementById("div_notes").getElementsByTagName("button");
+	let d = document.getElementById("div_notes").getElementsByTagName("div");
+
+	for (let i = 0; i < 4; i++) {
+		if (i == num) {
+			b[i].disabled="disabled";
+			d[i].style.display="inline";
+		} else {
+			b[i].disabled="";
+			d[i].style.display="none";
+		}
+	}
+}
+
+// Prefs menu
+document.getElementById("btn_prefs_gatekeeper").addEventListener("click", function() {
+	document.getElementById("btn_prefs_addresses").disabled="";
+	document.getElementById("btn_prefs_gatekeeper").disabled="disabled";
+	document.getElementById("div_prefs_gatekeeper").style.display="inline";
+	document.getElementById("div_prefs_addresses").style.display="none";
+
+	document.getElementById("gatekeeper_domain").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
+	document.getElementById("gatekeeper_sender").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
+});
+
+document.getElementById("btn_prefs_addresses").addEventListener("click", function() {
+	document.getElementById("btn_prefs_addresses").disabled="disabled";
+	document.getElementById("btn_prefs_gatekeeper").disabled="";
+	document.getElementById("div_prefs_gatekeeper").style.display="none";
+	document.getElementById("div_prefs_addresses").style.display="inline";
+});
+
 let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
 b[0].addEventListener("click", function() {navMenu(0);});
 b[1].addEventListener("click", function() {navMenu(1);});
 b[2].addEventListener("click", function() {navMenu(2);});
+b[3].addEventListener("click", function() {navMenu(3);});
+b[4].addEventListener("click", function() {navMenu(4);});
+
+b = document.getElementById("div_notes").getElementsByTagName("button");
+b[0].addEventListener("click", function() {navNotesMenu(0);});
+b[1].addEventListener("click", function() {navNotesMenu(1);});
+b[2].addEventListener("click", function() {navNotesMenu(2);});
+b[3].addEventListener("click", function() {navNotesMenu(3);});
