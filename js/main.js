@@ -175,7 +175,13 @@ document.getElementById("btn_newaddress").addEventListener("click", function(){
 		return;
 	}
 
+	document.getElementById("btn_newaddress").disabled="disabled";
+	document.getElementById("btn_newshieldaddress").disabled="disabled";
+
 	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
+		document.getElementById("btn_newaddress").disabled="";
+		document.getElementById("btn_newshieldaddress").disabled="";
+
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			addOptAddr(ae.GetAddressCount() - 1);
@@ -191,7 +197,13 @@ document.getElementById("btn_newshieldaddress").addEventListener("click", functi
 		return;
 	}
 
+	document.getElementById("btn_newaddress").disabled="disabled";
+	document.getElementById("btn_newshieldaddress").disabled="disabled";
+
 	ae.AddShieldAddress(function(success) {
+		document.getElementById("btn_newaddress").disabled="";
+		document.getElementById("btn_newshieldaddress").disabled="";
+
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 			addOptAddr(ae.GetAddressCount() - 1);
