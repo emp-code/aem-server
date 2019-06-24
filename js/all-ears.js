@@ -326,4 +326,17 @@ function AllEars() {
 				return callback(false);
 		});
 	}); }
+
+
+	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
+		let gkText = "";
+		for (let i = 0; i < lst.length; i++) gkText += lst[i] + '\n';
+
+		_FetchEncrypted("/web/gatekeeper", nacl.encode_utf8(gkText), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				return callback(true);
+			else
+				return callback(false);
+		});
+	}); }
 }

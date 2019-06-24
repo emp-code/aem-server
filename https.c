@@ -566,6 +566,25 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char
 	sendData(ssl, data, 169);
 }
 
+static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char hashKey[16]) {
+	int64_t upk64;
+	memcpy(&upk64, upk, 8);
+
+	int ret = updateGatekeeper(upk64, *decrypted, lenDecrypted, hashKey);
+	sodium_free(*decrypted);
+
+	if (ret != 0) return;
+
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -612,6 +631,8 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk, &decrypted, lenDecrypted);
+
+		if (urlLen == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, (unsigned char*)"TestTestTestTest");
 	}
 }
 

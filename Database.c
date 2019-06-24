@@ -137,6 +137,43 @@ int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const 
 	return 0;
 }
 
+// Format: item1\nitem2\n...
+int updateGatekeeper(const int64_t upk64, char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]) {
+	if (lenGkData < 1) return -1;
+	if (gkData[lenGkData - 1] != '\n') return -1;
+
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
+	sqlite3_bind_int64(query, 1, upk64);
+	sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	char *lf = gkData;
+	while (lf != NULL) {
+		char *next = strchr(lf + 1, '\n');
+		const size_t len = next - lf - 1;
+		if (*lf == '\n') lf++;
+
+		unsigned char hash[64];
+		crypto_generichash(hash, 64, (unsigned char*)lf, len, hashKey, 16);
+
+		sqlite3_prepare_v2(db, "INSERT INTO gatekeeper VALUES (?, ?)", -1, &query, NULL);
+		sqlite3_bind_int64(query, 1, upk64);
+		sqlite3_bind_blob(query, 2, hash, 64, SQLITE_STATIC);
+		sqlite3_step(query);
+		sqlite3_finalize(query);
+
+		lf = next;
+		if (lenGkData - (next - gkData) < 2) break;
+	}
+
+	sqlite3_close_v2(db);
+	return 0;
+}
+
 int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *addrData, const size_t lenAddrData) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;

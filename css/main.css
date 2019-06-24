@@ -56,7 +56,7 @@ td, #readmsg_title, #readmsg_body {
 	display: none;
 }
 
-#gatekeeper_domain, #gatekeeper_sender {
+#gatekeeper_domain, #gatekeeper_addr {
 	width:100%;
 }
 

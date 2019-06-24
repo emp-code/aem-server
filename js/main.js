@@ -202,6 +202,63 @@ document.getElementById("btn_saveaddrdata").addEventListener("click", function()
 	document.getElementById("btn_saveaddrdata").style.display="none";
 });
 
+document.getElementById("btn_gkdomain_add").addEventListener("click", function() {
+	let select = document.getElementById("gatekeeper_domain");
+	let txt = document.getElementById("txt_gkdomain");
+
+	if (!(txt.reportValidity())) return;
+
+	let opt = document.createElement("option");
+	opt.value = txt.value;
+	opt.textContent = opt.value;
+	select.appendChild(opt);
+	txt.value = "";
+});
+
+document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
+	let select = document.getElementById("gatekeeper_addr");
+	let txt = document.getElementById("txt_gkaddr");
+
+	if (!(txt.reportValidity())) return;
+
+	let opt = document.createElement("option");
+	opt.value = txt.value;
+	opt.textContent = opt.value;
+	select.appendChild(opt);
+	txt.value = "";
+});
+
+document.getElementById("btn_gkdomain_del").addEventListener("click", function() {
+	let select = document.getElementById("gatekeeper_domain");
+	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
+});
+
+document.getElementById("btn_gkaddr_del").addEventListener("click", function() {
+	let select = document.getElementById("gatekeeper_addr");
+	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
+});
+
+document.getElementById("btn_savegkdata").addEventListener("click", function() {
+	let blocklist = [];
+
+	let opts = document.getElementById("gatekeeper_country").options;
+	for (let i = 0; i < opts.length; i++) if (opts[i].selected) blocklist.push(opts[i].value);
+
+	opts = document.getElementById("gatekeeper_domain").options;
+	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
+
+	opts = document.getElementById("gatekeeper_addr").options;
+	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
+
+	ae.SaveGatekeeperData(blocklist, function(success) {
+		if (success) {
+			console.log("Gatekeeper update succeeded");
+		} else {
+			console.log("Gatekeeper update failed;")
+		}
+	});
+});
+
 // Menu
 // Main Menu
 function navMenu(num) {

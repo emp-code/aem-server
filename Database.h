@@ -13,4 +13,6 @@ int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const 
 int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *addrData, const size_t lenAddrData);
 int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash);
 
+int updateGatekeeper(const int64_t upk64, char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]);
+
 #endif
