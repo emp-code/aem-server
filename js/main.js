@@ -263,11 +263,13 @@ document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
 document.getElementById("btn_gkdomain_del").addEventListener("click", function() {
 	let select = document.getElementById("gatekeeper_domain");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
+	document.getElementById("btn_savegkdata").style.display="inline";
 });
 
 document.getElementById("btn_gkaddr_del").addEventListener("click", function() {
 	let select = document.getElementById("gatekeeper_addr");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
+	document.getElementById("btn_savegkdata").style.display="inline";
 });
 
 document.getElementById("btn_savegkdata").addEventListener("click", function() {
@@ -283,6 +285,8 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
 
 	ae.SaveGatekeeperData(blocklist, function(success) {
+		document.getElementById("btn_savegkdata").style.display="none";
+
 		if (success) {
 			console.log("Gatekeeper update succeeded");
 		} else {
@@ -357,3 +361,5 @@ b[0].addEventListener("click", function() {navNotesMenu(0);});
 b[1].addEventListener("click", function() {navNotesMenu(1);});
 b[2].addEventListener("click", function() {navNotesMenu(2);});
 b[3].addEventListener("click", function() {navNotesMenu(3);});
+
+gatekeeper_country.addEventListener("change", function() {document.getElementById("btn_savegkdata").style.display="inline";});
