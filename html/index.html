@@ -55,26 +55,34 @@
 						<button id="btn_notes_files">Files</button>
 					</nav>
 
-					<div id="div_notes_contacts">
+					<div id="div_notes_contacts" class="center">
 						<table>
 							<thead>
 								<tr>
 									<th>Email</th>
 									<th>Name</th>
-									<th>Write</th>
 									<th>Notes</th>
+									<th>Write</th>
 									<th>Delete</th>
 								</tr>
 							</thead>
 							<tbody>
 								<tr>
-									<td>joe@example.com</td>
-									<td>Joe Example</td>
+									<td class="left">joe@example.com</td>
+									<td class="left">Joe Example</td>
+									<td class="left">Just an example</td>
 									<td><button>W</button></td>
-									<td>Just an example</td>
 									<td><button>X</button></td>
 								</tr>
 							</tbody>
+							<tfoot>
+								<tr>
+									<td><input type="text" placeholder="email@address.example"></td>
+									<td><input type="text" placeholder="Name"></td>
+									<td><input type="text" placeholder="Notes"></td>
+									<td colspan="2" class="center"><button>Add</button></td>
+								</tr>
+							</tfoot>
 						</table>
 					</div>
 

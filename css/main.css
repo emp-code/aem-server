@@ -33,6 +33,7 @@ table {
 .mono {font-family: monospace;}
 .topmargin {margin-top: 1em;}
 .center {text-align: center;}
+.left {text-align: left;}
 .flex {display: flex;}
 
 .flex input {
