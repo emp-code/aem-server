@@ -293,16 +293,19 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
-	uint16_t addrDataSize;
-	int msgCount;
+	unsigned char *addrData;
+	unsigned char *gkData;
+	uint16_t lenAddr;
+	uint16_t lenGk;
+	uint8_t msgCount;
 	uint8_t level;
 
-	unsigned char *addrData = getUserInfo(upk, &level, &addrDataSize);
-	if (addrData == NULL) return;
+	int ret = getUserInfo(upk, &level, &addrData, &lenAddr, &gkData, &lenGk);
+	if (ret != 0) return;
 	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
 
-	const size_t szBody = 4 + addrDataSize + AEM_MAXMSGTOTALSIZE;
+	const size_t szBody = 6 + lenAddr + lenGk + AEM_MAXMSGTOTALSIZE;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
@@ -316,12 +319,17 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 		"\r\n"
 	, szBody);
 
-	memcpy(data + szHead + 0, &addrDataSize, 2);
-	data[szHead + 2] = (unsigned char)level;
-	data[szHead + 3] = (unsigned char)msgCount;
-	memcpy(data + szHead + 4, addrData, addrDataSize);
-	memcpy(data + szHead + 4 + addrDataSize, msgData, AEM_MAXMSGTOTALSIZE);
+	memcpy(data + szHead + 0, &level,    1);
+	memcpy(data + szHead + 1, &msgCount, 1);
+	memcpy(data + szHead + 2, &lenAddr,  2);
+	memcpy(data + szHead + 4, &lenGk,    2);
+
+	memcpy(data + szHead + 6,                   addrData, lenAddr);
+	memcpy(data + szHead + 6 + lenAddr,         gkData,   lenGk);
+	memcpy(data + szHead + 6 + lenAddr + lenGk, msgData,  AEM_MAXMSGTOTALSIZE);
+
 	free(addrData);
+	free(gkData);
 	free(msgData);
 
 	sendData(ssl, data, szResponse);
@@ -567,10 +575,7 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char
 }
 
 static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char hashKey[16]) {
-	int64_t upk64;
-	memcpy(&upk64, upk, 8);
-
-	int ret = updateGatekeeper(upk64, *decrypted, lenDecrypted, hashKey);
+	int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
 	sodium_free(*decrypted);
 
 	if (ret != 0) return;

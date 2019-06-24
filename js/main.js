@@ -103,6 +103,25 @@ function loginSuccess() {
 	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
 	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
 
+	// Gatekeeper data
+	let gkList = ae.GetGatekeeperAddress();
+	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_addr"), gkList[i]);
+
+	gkList = ae.GetGatekeeperDomain();
+	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_domain"), gkList[i]);
+
+	gkList = ae.GetGatekeeperCountry();
+	for (let i = 0; i < gkList.length; i++) {
+		opts = document.getElementById("gatekeeper_country");
+
+		for (let j = 0; j < opts.length; j++) {
+			if (opts[j].value == gkList[i]) {
+				opts[j].selected="selected";
+				break;
+			}
+		}
+	}
+
 	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const table = document.getElementById("tbody_inbox");
@@ -202,16 +221,20 @@ document.getElementById("btn_saveaddrdata").addEventListener("click", function()
 	document.getElementById("btn_saveaddrdata").style.display="none";
 });
 
+function addOpt(select, val) {
+	let opt = document.createElement("option");
+	opt.value = val;
+	opt.textContent = val;
+	select.appendChild(opt);
+}
+
 document.getElementById("btn_gkdomain_add").addEventListener("click", function() {
 	let select = document.getElementById("gatekeeper_domain");
 	let txt = document.getElementById("txt_gkdomain");
 
 	if (!(txt.reportValidity())) return;
 
-	let opt = document.createElement("option");
-	opt.value = txt.value;
-	opt.textContent = opt.value;
-	select.appendChild(opt);
+	addOpt(select, txt.value);
 	txt.value = "";
 });
 
@@ -221,10 +244,7 @@ document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
 
 	if (!(txt.reportValidity())) return;
 
-	let opt = document.createElement("option");
-	opt.value = txt.value;
-	opt.textContent = opt.value;
-	select.appendChild(opt);
+	addOpt(select, txt.value);
 	txt.value = "";
 });
 

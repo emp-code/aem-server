@@ -13,6 +13,10 @@ function AllEars() {
 	var _userAddress = [];
 	var _intMsg = [];
 
+	var _gkCountry = [];
+	var _gkDomain  = [];
+	var _gkAddress = [];
+
 	function _NewIntMsg(sml, ts, from, shield, to, title, body) {
 		this.senderMemberLevel = sml;
 		this.timestamp = ts;
@@ -181,6 +185,10 @@ function AllEars() {
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
+	this.GetGatekeeperCountry = function() {return _gkCountry;}
+	this.GetGatekeeperDomain  = function() {return _gkDomain;}
+	this.GetGatekeeperAddress = function() {return _gkAddress;}
+
 	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 	}); }
@@ -189,13 +197,14 @@ function AllEars() {
 		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			const addrDataSize_bytes = byteArray.slice(0, 2).buffer;
-			const addrDataSize = new Uint16Array(addrDataSize_bytes)[0];
+			_userLevel = byteArray[0];
+			const msgCount = byteArray[1];
+			const addrDataSize = new Uint16Array(byteArray.slice(2, 4).buffer)[0];
+			const gkDataSize   = new Uint16Array(byteArray.slice(4, 6).buffer)[0];
 
-			_userLevel = byteArray[2];
-			const addrData = nacl.crypto_box_seal_open(byteArray.slice(4, 4 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+			const addrData = nacl.crypto_box_seal_open(byteArray.slice(6, 6 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
-			// Empty the arrays
+			// Address data
 			while (_userAddress.length > 0) _userAddress.pop();
 
 			for (i = 0; i < (addrData.length / 27); i++) {
@@ -211,9 +220,29 @@ function AllEars() {
 				_userAddress[i] = new _NewAddress(addr, hash, decoded, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
 			}
 
-			// Messages
-			let msgStart = 4 + addrDataSize;
-			for (let i = 0; i < byteArray[3]; i++) {
+			// Gatekeeper data
+			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(byteArray.slice(6 + addrDataSize, 6 + addrDataSize + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkSet = gkData.split('\n');
+			let gkCountCountry = 0;
+			let gkCountDomain = 0;
+			let gkCountAddress = 0;
+
+			for (let i = 0; i < gkSet.length; i++) {
+				if (gkSet[i].indexOf('@') != -1) {
+					_gkAddress[gkCountAddress] = gkSet[i];
+					gkCountAddress++;
+				} else if (gkSet[i].indexOf('.') != -1) {
+					_gkDomain[gkCountDomain] = gkSet[i];
+					gkCountDomain++;
+				} else {
+					_gkCountry[gkCountCountry] = gkSet[i];
+					gkCountCountry++;
+				}
+			}
+
+			// Message data
+			let msgStart = 6 + addrDataSize + gkDataSize;
+			for (let i = 0; i < msgCount; i++) {
 				// TODO: Detect message type and support extMsg
 				const msgKilos = byteArray[msgStart] + 1;
 
