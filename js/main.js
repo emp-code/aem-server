@@ -82,6 +82,20 @@ function deleteAddress(addr) {
 	});
 }
 
+function deleteContact(email) {
+	const tbl = document.getElementById("tbody_notes_contact");
+	const rows = tbl.rows;
+
+	for (i = 0; i < rows.length; i++) {
+		if (email == rows[i].cells[0].textContent) {
+			tbl.deleteRow(i);
+			break;
+		}
+	}
+
+	document.getElementById("btn_savenotes").style.display = "inline";
+}
+
 function addContact(mail, name, note) {
 	const contactTable = document.getElementById("tbody_notes_contact");
 	let row = contactTable.insertRow(-1);
@@ -98,6 +112,8 @@ function addContact(mail, name, note) {
 	cellName.textContent = name;
 	cellNote.textContent = note;
 	cellBtnD.innerHTML = "<button>X</button>";
+
+	cellBtnD.addEventListener("click", function() {deleteContact(mail)});
 }
 
 document.getElementById("btn_contact_add").addEventListener("click", function() {
