@@ -82,10 +82,72 @@ function deleteAddress(addr) {
 	});
 }
 
+function addContact(mail, name, note) {
+	const contactTable = document.getElementById("tbody_notes_contact");
+	let row = contactTable.insertRow(-1);
+	let cellMail = row.insertCell(-1);
+	let cellName = row.insertCell(-1);
+	let cellNote = row.insertCell(-1);
+	let cellBtnD = row.insertCell(-1);
+
+	cellMail.className = "left";
+	cellName.className = "left";
+	cellNote.className = "left";
+
+	cellMail.textContent = mail;
+	cellName.textContent = name;
+	cellNote.textContent = note;
+	cellBtnD.innerHTML = "<button>X</button>";
+}
+
+document.getElementById("btn_contact_add").addEventListener("click", function() {
+	addContact(
+		document.getElementById("txt_newcontact_mail").value,
+		document.getElementById("txt_newcontact_name").value,
+		document.getElementById("txt_newcontact_note").value
+	);
+
+	document.getElementById("txt_newcontact_mail").value = "";
+	document.getElementById("txt_newcontact_name").value = "";
+	document.getElementById("txt_newcontact_note").value = "";
+
+	document.getElementById("btn_savenotes").style.display = "inline";
+});
+
+document.getElementById("btn_savenotes").addEventListener("click", function() {
+	noteText = "";
+
+	// Contacts
+	const rows = document.getElementById("tbody_notes_contact").rows;
+	for (let i = 0; i < rows.length; i++) {
+		noteText += rows[i].cells[0].textContent + '\n';
+		noteText += rows[i].cells[1].textContent + '\n';
+		noteText += rows[i].cells[2].textContent + '\n';
+	}
+
+	ae.SaveNoteData(noteText, function(success) {
+		document.getElementById("btn_savenotes").style.display = "none";
+
+		if (success)
+			console.log("Note data saved successfully");
+		else
+			console.log("Note data failed to save");
+	});
+});
+
 function loginSuccess() {
 	if (ae.GetUserLevel() < 3) document.getElementById("btn_toadmin").style.display="none";
 	document.getElementById("div_login").style.display="none";
 	document.getElementById("div_loggedin").style.display="inline";
+
+	// Contacts
+	for (let i = 0; i < ae.GetContactCount(); i++) {
+		addContact(
+			ae.GetContactMail(i),
+			ae.GetContactName(i),
+			ae.GetContactNote(i)
+		);
+	}
 
 	// Addresses
 	let select=document.getElementById("send_from");

@@ -62,28 +62,22 @@
 									<th>Email</th>
 									<th>Name</th>
 									<th>Notes</th>
-									<th>Write</th>
 									<th>Delete</th>
 								</tr>
 							</thead>
-							<tbody>
-								<tr>
-									<td class="left">joe@example.com</td>
-									<td class="left">Joe Example</td>
-									<td class="left">Just an example</td>
-									<td><button>W</button></td>
-									<td><button>X</button></td>
-								</tr>
+							<tbody id="tbody_notes_contact">
 							</tbody>
 							<tfoot>
 								<tr>
-									<td><input type="text" placeholder="email@address.example"></td>
-									<td><input type="text" placeholder="Name"></td>
-									<td><input type="text" placeholder="Notes"></td>
-									<td colspan="2" class="center"><button>Add</button></td>
+									<td><input type="text" id="txt_newcontact_mail" placeholder="email@address.example"></td>
+									<td><input type="text" id="txt_newcontact_name" placeholder="Name"></td>
+									<td><input type="text" id="txt_newcontact_note" placeholder="Notes"></td>
+									<td class="center"><button id="btn_contact_add">Add</button></td>
 								</tr>
 							</tfoot>
 						</table>
+
+						<button id="btn_savenotes" class="topmargin">Save changes</button>
 					</div>
 
 					<div id="div_notes_sent">

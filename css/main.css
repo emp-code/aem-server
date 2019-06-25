@@ -53,7 +53,7 @@ td, #readmsg_title, #readmsg_body {
 	width: 3em;
 }
 
-#div_loggedin, #btn_saveaddrdata, #btn_savegkdata, #div_readmsg, #div_prefs_gatekeeper, #div_notes_files, #div_notes_texts {
+#div_loggedin, #btn_saveaddrdata, #btn_savegkdata, #btn_savenotes, #div_readmsg, #div_prefs_gatekeeper, #div_notes_files, #div_notes_texts {
 	display: none;
 }
 

@@ -27,7 +27,7 @@
 #define AEM_FILETYPE_IMG 2
 #define AEM_FILETYPE_JS  3
 
-#define AEM_HTTPS_BUFLEN 4096
+#define AEM_HTTPS_BUFLEN 8192
 #define AEM_NETINT_BUFLEN 4096
 
 #define AEM_NONCE_TIMEDIFF_MAX 3
@@ -293,23 +293,25 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
+	unsigned char *noteData;
 	unsigned char *addrData;
 	unsigned char *gkData;
+	const int lenNote = AEM_NOTEDATA_LEN + crypto_box_SEALBYTES;
 	uint16_t lenAddr;
 	uint16_t lenGk;
 	uint8_t msgCount;
 	uint8_t level;
 
-	int ret = getUserInfo(upk, &level, &addrData, &lenAddr, &gkData, &lenGk);
+	int ret = getUserInfo(upk, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
 	if (ret != 0) return;
 	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
 
-	const size_t szBody = 6 + lenAddr + lenGk + AEM_MAXMSGTOTALSIZE;
+	const size_t szBody = 6 + lenNote + lenAddr + lenGk + AEM_MAXMSGTOTALSIZE;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
-	char data[szResponse];
+	char *data = malloc(szResponse);
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -324,15 +326,17 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	memcpy(data + szHead + 2, &lenAddr,  2);
 	memcpy(data + szHead + 4, &lenGk,    2);
 
-	memcpy(data + szHead + 6,                   addrData, lenAddr);
-	memcpy(data + szHead + 6 + lenAddr,         gkData,   lenGk);
-	memcpy(data + szHead + 6 + lenAddr + lenGk, msgData,  AEM_MAXMSGTOTALSIZE);
+	memcpy(data + szHead + 6, noteData, lenNote);
+	memcpy(data + szHead + 6 + lenNote,                   addrData, lenAddr);
+	memcpy(data + szHead + 6 + lenNote + lenAddr,         gkData,   lenGk);
+	memcpy(data + szHead + 6 + lenNote + lenAddr + lenGk, msgData,  AEM_MAXMSGTOTALSIZE);
 
 	free(addrData);
 	free(gkData);
 	free(msgData);
 
 	sendData(ssl, data, szResponse);
+	free(data);
 }
 
 static unsigned char *addr2bin(const char *c, const size_t len) {
@@ -590,6 +594,24 @@ static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk
 	, 142);
 }
 
+static void respond_https_notedata(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) return;
+
+	int ret = updateNoteData(upk, (unsigned char*)*decrypted);
+	sodium_free(*decrypted);
+
+	if (ret != 0) return;
+
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -638,6 +660,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk, &decrypted, lenDecrypted);
 
 		if (urlLen == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, (unsigned char*)"TestTestTestTest");
+		if (urlLen == 12 && memcmp(url, "web/notedata", 12) == 0) return respond_https_notedata(ssl, upk, &decrypted, lenDecrypted);
 	}
 }
 

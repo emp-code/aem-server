@@ -1,6 +1,8 @@
 function AllEars() {
 // Private
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
+	const _lenNoteData_unsealed = 5122;
+	const _lenNoteData = _lenNoteData_unsealed + 48;
 
 	// These are just informational, the server enforces the real limits
 	// [Level0Limit, Level1Limit, ...]
@@ -16,6 +18,10 @@ function AllEars() {
 	var _gkCountry = [];
 	var _gkDomain  = [];
 	var _gkAddress = [];
+
+	var _contactMail = [];
+	var _contactName = [];
+	var _contactNote = [];
 
 	function _NewIntMsg(sml, ts, from, shield, to, title, body) {
 		this.senderMemberLevel = sml;
@@ -189,6 +195,11 @@ function AllEars() {
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
 	this.GetGatekeeperAddress = function() {return _gkAddress;}
 
+	this.GetContactCount = function() {return _contactMail.length;}
+	this.GetContactMail = function(num) {return _contactMail[num];}
+	this.GetContactName = function(num) {return _contactName[num];}
+	this.GetContactNote = function(num) {return _contactNote[num];}
+
 	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 	}); }
@@ -202,9 +213,21 @@ function AllEars() {
 			const addrDataSize = new Uint16Array(byteArray.slice(2, 4).buffer)[0];
 			const gkDataSize   = new Uint16Array(byteArray.slice(4, 6).buffer)[0];
 
-			const addrData = nacl.crypto_box_seal_open(byteArray.slice(6, 6 + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+			// Note Data
+			const noteData = nacl.crypto_box_seal_open(byteArray.slice(6, 6 + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
+			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
+			const contactSet = nacl.decode_utf8(noteData.slice(2)).split('\n');
+
+			for (let i = 0, j = 0; i < (contactSet.length - 1); i += 3) {
+				_contactMail[j] = contactSet[i];
+				_contactName[j] = contactSet[i + 1];
+				_contactNote[j] = contactSet[i + 2];
+				j++;
+			}
 
 			// Address data
+			const addrData = nacl.crypto_box_seal_open(byteArray.slice(6 + _lenNoteData, 6 + _lenNoteData + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+
 			while (_userAddress.length > 0) _userAddress.pop();
 
 			for (i = 0; i < (addrData.length / 27); i++) {
@@ -221,7 +244,7 @@ function AllEars() {
 			}
 
 			// Gatekeeper data
-			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(byteArray.slice(6 + addrDataSize, 6 + addrDataSize + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(byteArray.slice(6 + _lenNoteData + addrDataSize, 6 + _lenNoteData + addrDataSize + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
 			let gkCountDomain = 0;
@@ -241,7 +264,7 @@ function AllEars() {
 			}
 
 			// Message data
-			let msgStart = 6 + addrDataSize + gkDataSize;
+			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
 			for (let i = 0; i < msgCount; i++) {
 				// TODO: Detect message type and support extMsg
 				const msgKilos = byteArray[msgStart] + 1;
@@ -356,12 +379,29 @@ function AllEars() {
 		});
 	}); }
 
-
 	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
 		let gkText = "";
 		for (let i = 0; i < lst.length; i++) gkText += lst[i] + '\n';
 
 		_FetchEncrypted("/web/gatekeeper", nacl.encode_utf8(gkText), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				return callback(true);
+			else
+				return callback(false);
+		});
+	}); }
+
+	this.SaveNoteData = function(noteText, callback) { nacl_factory.instantiate(function (nacl) {
+		let noteData = new Uint8Array(_lenNoteData_unsealed);
+		noteUtf8 = nacl.encode_utf8(noteText);
+		noteData.set(noteUtf8, 2);
+
+		let n = noteUtf8.length;
+		noteData[0] = n & 0xff;
+		n >>= 8;
+		noteData[1] = n & 0xff;
+
+		_FetchEncrypted("/web/notedata", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204)
 				return callback(true);
 			else
