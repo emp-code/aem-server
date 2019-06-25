@@ -88,6 +88,7 @@ function deleteContact(email) {
 
 	for (i = 0; i < rows.length; i++) {
 		if (email == rows[i].cells[0].textContent) {
+			ae.DeleteContact(i);
 			tbl.deleteRow(i);
 			break;
 		}
@@ -96,7 +97,7 @@ function deleteContact(email) {
 	document.getElementById("btn_savenotes").style.display = "inline";
 }
 
-function addContact(mail, name, note) {
+function addContactToTable(mail, name, note) {
 	const contactTable = document.getElementById("tbody_notes_contact");
 	let row = contactTable.insertRow(-1);
 	let cellMail = row.insertCell(-1);
@@ -117,31 +118,22 @@ function addContact(mail, name, note) {
 }
 
 document.getElementById("btn_contact_add").addEventListener("click", function() {
-	addContact(
-		document.getElementById("txt_newcontact_mail").value,
-		document.getElementById("txt_newcontact_name").value,
-		document.getElementById("txt_newcontact_note").value
-	);
+	txtMail = document.getElementById("txt_newcontact_mail");
+	txtName = document.getElementById("txt_newcontact_name");
+	txtNote = document.getElementById("txt_newcontact_note");
 
-	document.getElementById("txt_newcontact_mail").value = "";
-	document.getElementById("txt_newcontact_name").value = "";
-	document.getElementById("txt_newcontact_note").value = "";
+	addContactToTable(txtMail.value, txtName.value, txtNote.value);
+	ae.AddContact(txtMail.value, txtName.value, txtNote.value);
+
+	txtMail.value = "";
+	txtName.value = "";
+	txtNote.value = "";
 
 	document.getElementById("btn_savenotes").style.display = "inline";
 });
 
 document.getElementById("btn_savenotes").addEventListener("click", function() {
-	noteText = "";
-
-	// Contacts
-	const rows = document.getElementById("tbody_notes_contact").rows;
-	for (let i = 0; i < rows.length; i++) {
-		noteText += rows[i].cells[0].textContent + '\n';
-		noteText += rows[i].cells[1].textContent + '\n';
-		noteText += rows[i].cells[2].textContent + '\n';
-	}
-
-	ae.SaveNoteData(noteText, function(success) {
+	ae.SaveNoteData(function(success) {
 		document.getElementById("btn_savenotes").style.display = "none";
 
 		if (success)
@@ -158,7 +150,7 @@ function loginSuccess() {
 
 	// Contacts
 	for (let i = 0; i < ae.GetContactCount(); i++) {
-		addContact(
+		addContactToTable(
 			ae.GetContactMail(i),
 			ae.GetContactName(i),
 			ae.GetContactNote(i)

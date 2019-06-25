@@ -199,6 +199,16 @@ function AllEars() {
 	this.GetContactMail = function(num) {return _contactMail[num];}
 	this.GetContactName = function(num) {return _contactName[num];}
 	this.GetContactNote = function(num) {return _contactNote[num];}
+	this.AddContact = function(mail, name, note) {
+		_contactMail.push(mail);
+		_contactName.push(name);
+		_contactNote.push(note);
+	};
+	this.DeleteContact = function(index) {
+		_contactMail.splice(index, 1);
+		_contactName.splice(index, 1);
+		_contactNote.splice(index, 1);
+	}
 
 	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
@@ -218,11 +228,10 @@ function AllEars() {
 			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
 			const contactSet = nacl.decode_utf8(noteData.slice(2)).split('\n');
 
-			for (let i = 0, j = 0; i < (contactSet.length - 1); i += 3) {
-				_contactMail[j] = contactSet[i];
-				_contactName[j] = contactSet[i + 1];
-				_contactNote[j] = contactSet[i + 2];
-				j++;
+			for (let i = 0; i < (contactSet.length - 1); i += 3) {
+				_contactMail.push(contactSet[i]);
+				_contactName.push(contactSet[i + 1]);
+				_contactNote.push(contactSet[i + 2]);
 			}
 
 			// Address data
@@ -391,7 +400,15 @@ function AllEars() {
 		});
 	}); }
 
-	this.SaveNoteData = function(noteText, callback) { nacl_factory.instantiate(function (nacl) {
+	this.SaveNoteData = function(callback) { nacl_factory.instantiate(function (nacl) {
+		noteText = "";
+
+		for (let i = 0; i < _contactMail.length; i++) {
+			noteText += _contactMail[i] + '\n';
+			noteText += _contactName[i] + '\n';
+			noteText += _contactNote[i] + '\n';
+		}
+
 		let noteData = new Uint8Array(_lenNoteData_unsealed);
 		noteUtf8 = nacl.encode_utf8(noteText);
 		noteData.set(noteUtf8, 2);
