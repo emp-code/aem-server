@@ -398,8 +398,7 @@ function AllEars() {
 
 		let n = noteUtf8.length;
 		noteData[0] = n & 0xff;
-		n >>= 8;
-		noteData[1] = n & 0xff;
+		noteData[1] = n >> 8 & 0xff;
 
 		_FetchEncrypted("/web/notedata", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204)
