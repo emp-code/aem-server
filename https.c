@@ -27,7 +27,7 @@
 #define AEM_FILETYPE_IMG 2
 #define AEM_FILETYPE_JS  3
 
-#define AEM_HTTPS_BUFLEN 8192
+#define AEM_HTTPS_MAXREQSIZE 8192
 #define AEM_NETINT_BUFLEN 4096
 
 #define AEM_NONCE_TIMEDIFF_MAX 3
@@ -41,7 +41,7 @@
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
-static void sendData(mbedtls_ssl_context* ssl, const char* data, const size_t lenData) {
+static void sendData(mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
 	size_t sent = 0;
 
 	while (sent < lenData) {
@@ -664,6 +664,16 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 	}
 }
 
+static int tlsRead(mbedtls_ssl_context *ssl, char ** const buf, size_t * const len) {
+	int ret;
+	do {
+		ret = mbedtls_ssl_read(ssl, (unsigned char*)(*buf + *len), AEM_HTTPS_MAXREQSIZE - *len);
+		if (ret > 0) *len += ret;
+	} while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+	return ret;
+}
+
 int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
@@ -715,15 +725,36 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 	}
 
-	unsigned char req[AEM_HTTPS_BUFLEN + 1];
-	bzero(req, AEM_HTTPS_BUFLEN);
+	char *req = calloc(AEM_HTTPS_MAXREQSIZE + 1, 1);
 
 	// Read request
-	do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_BUFLEN);}
-		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+	size_t totalLen = 0;
+	ret = tlsRead(&ssl, &req, &totalLen);
 
 	if (ret > 0) {
-		handleRequest(&ssl, (char*)req, ret, clientIp, seed, fileSet, domain, lenDomain);
+		char * const postCl = strstr(req, "\r\nContent-Length: ");
+		if (postCl != NULL) {
+			int postLen = strtol(postCl + 18, NULL, 10);
+
+			char *postBegin = strstr(req, "\r\n\r\n");
+			while (postBegin == NULL) {
+				ret = tlsRead(&ssl, &req, &totalLen);
+				if (ret <= 0) break;
+
+				postBegin = strstr(req, "\r\n\r\n");
+			}
+
+			if (ret > 0) {
+				postBegin += 4;
+
+				while (totalLen - (postBegin - req) < postLen) {
+					ret = tlsRead(&ssl, &req, &totalLen);
+					if (ret <= 0) break;
+				}
+			}
+		}
+
+		if (ret > 0) handleRequest(&ssl, (char*)req, totalLen, clientIp, seed, fileSet, domain, lenDomain);
 	} else if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
 		// Failed to read request
 		char error_buf[100];
@@ -731,6 +762,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		printf("ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
 	}
 
+	free(req);
 	mbedtls_entropy_free(&entropy);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_ssl_config_free(&conf);
