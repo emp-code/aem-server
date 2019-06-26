@@ -318,6 +318,7 @@ document.getElementById("btn_gkdomain_add").addEventListener("click", function()
 
 	addOpt(select, txt.value);
 	txt.value = "";
+	document.getElementById("btn_savegkdata").style.display="inline";
 });
 
 document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
@@ -328,6 +329,7 @@ document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
 
 	addOpt(select, txt.value);
 	txt.value = "";
+	document.getElementById("btn_savegkdata").style.display="inline";
 });
 
 document.getElementById("btn_gkdomain_del").addEventListener("click", function() {
