@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -march=native -pipe -Wall -Werror=array-bounds -Werror=format-overflow=0 -Werror=format -Werror=implicit-function-declaration -Werror=implicit-int -Werror=incompatible-pointer-types -Wno-comment -Wno-switch -Wno-unused-variable -Werror=address -Werror=int-conversion -fsanitize=undefined
+CFLAGS=-g -march=native -pipe -Wall -Wextra -Werror -Wno-comment -Wno-unused-parameter -fsanitize=undefined
 objects = main.o aep.o http.o https.o smtp.o Includes/Brotli.o Includes/SixBit.o IntMsg.o Database.o
 
 ae-mail: $(objects)

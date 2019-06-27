@@ -79,13 +79,14 @@ unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES]
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT msg FROM messages WHERE ownerpk=? ORDER BY rowid DESC", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
 	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 
 	unsigned char* data = calloc(maxSize, 1);
 	size_t totalSize = 0;
 	*msgCount = 0;
 
-	while (sqlite3_step(query) == SQLITE_ROW && *msgCount < 256) {
+	while (sqlite3_step(query) == SQLITE_ROW && *msgCount < 255) {
 		const size_t sz = sqlite3_column_bytes(query, 0);
 		if (sz < 5) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 

@@ -108,7 +108,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 
 			int fd = open(filePath, O_RDONLY);
 			if (fd < 0) {f[counter].lenData = 0; continue;}
-			size_t bytes = lseek(fd, 0, SEEK_END);
+			off_t bytes = lseek(fd, 0, SEEK_END);
 
 			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 				// Files to be compressed
@@ -119,7 +119,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 				close(fd);
 
 				if (readBytes == bytes) {
-					brotliCompress(&tempData, &bytes);
+					brotliCompress(&tempData, (size_t*)&bytes);
 
 					f[counter].filename = strdup(de->d_name);
 					f[counter].lenData = bytes;

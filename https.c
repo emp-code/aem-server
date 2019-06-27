@@ -304,6 +304,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 
 	int ret = getUserInfo(upk, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
 	if (ret != 0) return;
+
 	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
 	if (msgData == NULL) return;
 
@@ -734,7 +735,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	if (ret > 0) {
 		char * const postCl = strstr(req, "\r\nContent-Length: ");
 		if (postCl != NULL) {
-			int postLen = strtol(postCl + 18, NULL, 10);
+			unsigned int postLen = strtoul(postCl + 18, NULL, 10);
 
 			char *postBegin = strstr(req, "\r\n\r\n");
 			while (postBegin == NULL) {

@@ -68,7 +68,7 @@ unsigned char *textToSixBit(const char *source, const size_t lenSource) {
 	unsigned char *out = calloc(18, 1);//calloc(ceil(lenSource * 0.75), 1);
 	if (out == NULL) return NULL;
 
-	for (int i = 0; i < lenSource; i++) {
+	for (size_t i = 0; i < lenSource; i++) {
 		int num = charToUint6(source[i]);
 
 		if (num >= 32) {setBit(out, (i * 6) + 5); num -= 32;}
@@ -95,7 +95,7 @@ char *sixBitToText(const char *source, const size_t lenSource) {
 
 	const char *charTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 
-	for (int i = 0; i < lenOut; i++) {
+	for (size_t i = 0; i < lenOut; i++) {
 		int num = 0;
 
 		if (getBit(source, (i * 6) + 5)) num += 32;
