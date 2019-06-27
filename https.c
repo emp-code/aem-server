@@ -266,7 +266,7 @@ static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsi
 	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return -1;}
 
 	ssize_t bytesDone = read(fd, nonce, 24);
-	pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
+	if (bytesDone == 24) bytesDone = pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
 	flock(fd, LOCK_UN);
 	close(fd);
 	int ret = unlink(path);
@@ -449,16 +449,12 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 
 		fd = open(path, O_RDWR);
 		char ts_c[4];
-		pread(fd, ts_c, 4, 20);
+		if (pread(fd, ts_c, 4, 20) != 4) {close(fd); free(path); return;}
 		int32_t ts;
 		memcpy(&ts, ts_c, 4);
 
 		const int timeDiff = (int)time(NULL) - ts;
-		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {
-			close(fd);
-			free(path);
-			return;
-		}
+		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); free(path); return;}
 	}
 
 	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
