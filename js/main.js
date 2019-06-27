@@ -395,7 +395,24 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 document.getElementById("btn_admin_addaccount").addEventListener("click", function() {
 	ae.AddAccount(document.getElementById("txt_newacc_pkey").value, function(success) {
 		if (success) {
-			console.log("Account added");
+			const table = document.getElementById("tbody_admin");
+
+			let row = table.insertRow(-1);
+			let cellPk = row.insertCell(-1);
+			let cellMb = row.insertCell(-1);
+			let cellLv = row.insertCell(-1);
+			let cellBtnPl = row.insertCell(-1);
+			let cellBtnMn = row.insertCell(-1);
+			let cellBtnDe = row.insertCell(-1);
+
+			cellPk.textContent = document.getElementById("txt_newacc_pkey").value.substring(0, 16);
+			cellMb.textContent = "0"
+			cellLv.textContent = "0"
+			cellBtnPl.innerHTML = "<button>+</button>";
+			cellBtnMn.innerHTML = "<button disabled=\"disabled\">-</button>";
+			cellBtnDe.innerHTML = "<button>X</button>";
+
+			cellPk.className = "mono";
 		} else {
 			console.log("Failed to add account");
 		}
