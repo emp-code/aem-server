@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -march=native -pipe -Wall -Wextra -Werror -Wno-comment -Wno-unused-parameter -fsanitize=undefined
+CFLAGS=-g -march=native -pipe -Wall -Wextra -Werror -Wno-comment -Wno-unused-parameter -fsanitize=undefined -fstack-protector-strong -Wl,-z,relro,-z,now
 objects = main.o aep.o http.o https.o smtp.o Includes/Brotli.o Includes/SixBit.o IntMsg.o Database.o
 
 ae-mail: $(objects)
