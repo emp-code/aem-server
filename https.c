@@ -305,10 +305,15 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	int ret = getUserInfo(upk, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
 	if (ret != 0) return;
 
-	unsigned char *msgData = getUserMessages(upk, &msgCount, AEM_MAXMSGTOTALSIZE);
+	const size_t lenAdmin = (level == 3) ? AEM_ADMINDATA_LEN : 0;
+	unsigned char *adminData;
+	if (level == 3) getAdminData(&adminData);
+
+	const size_t lenMsg = (level == 3) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
+	unsigned char *msgData = getUserMessages(upk, &msgCount, lenMsg);
 	if (msgData == NULL) return;
 
-	const size_t szBody = 6 + lenNote + lenAddr + lenGk + AEM_MAXMSGTOTALSIZE;
+	const size_t szBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
 	const size_t szHead = 141 + numDigits(szBody);
 	const size_t szResponse = szHead + szBody;
 
@@ -327,10 +332,12 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	memcpy(data + szHead + 2, &lenAddr,  2);
 	memcpy(data + szHead + 4, &lenGk,    2);
 
-	memcpy(data + szHead + 6, noteData, lenNote);
-	memcpy(data + szHead + 6 + lenNote,                   addrData, lenAddr);
-	memcpy(data + szHead + 6 + lenNote + lenAddr,         gkData,   lenGk);
-	memcpy(data + szHead + 6 + lenNote + lenAddr + lenGk, msgData,  AEM_MAXMSGTOTALSIZE);
+	size_t s = szHead + 6;
+	memcpy(data + s, noteData,  lenNote);  s += lenNote;
+	memcpy(data + s, addrData,  lenAddr);  s += lenAddr;
+	memcpy(data + s, gkData,    lenGk);    s += lenGk;
+	memcpy(data + s, adminData, lenAdmin); s += lenAdmin;
+	memcpy(data + s, msgData,   lenMsg);   s += lenMsg;
 
 	free(addrData);
 	free(gkData);

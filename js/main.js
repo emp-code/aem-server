@@ -220,6 +220,31 @@ function loginSuccess() {
 			document.getElementById("readmsg_from").className = ae.GetIntMsgShield(i) ? "mono" : "";
 		});
 	}
+
+	if (ae.IsUserAdmin()) {
+		const table = document.getElementById("tbody_admin");
+
+		for (let i = 0; i < ae.Admin_GetUserCount(); i++) {
+			let row = table.insertRow(-1);
+			let cellPk = row.insertCell(-1);
+			let cellMb = row.insertCell(-1);
+			let cellLv = row.insertCell(-1);
+			let cellBtnPl = row.insertCell(-1);
+			let cellBtnMn = row.insertCell(-1);
+			let cellBtnDe = row.insertCell(-1);
+
+			cellPk.textContent = ae.Admin_GetUserPkHex(i);
+			cellMb.textContent = ae.Admin_GetUserSpace(i);
+			cellLv.textContent = ae.Admin_GetUserLevel(i);
+			cellBtnPl.innerHTML = "<button>+</button>";
+			cellBtnMn.innerHTML = "<button>-</button>";
+			cellBtnDe.innerHTML = "<button>X</button>";
+
+			cellPk.className = "mono";
+			if (ae.Admin_GetUserLevel(i) == 3) cellBtnPl.children[0].disabled = "disabled";
+			if (ae.Admin_GetUserLevel(i) == 0) cellBtnMn.children[0].disabled = "disabled";
+		}
+	}
 }
 
 document.getElementById("btn_send").addEventListener("click", function(){

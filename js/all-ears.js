@@ -3,6 +3,8 @@ function AllEars() {
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
+	const _lenAdminData = 9216 // 9 KiB, space for 1024 users' data
+	const _maxLevel = 3;
 
 	// These are just informational, the server enforces the real limits
 	// [Level0Limit, Level1Limit, ...]
@@ -22,6 +24,11 @@ function AllEars() {
 	var _contactMail = [];
 	var _contactName = [];
 	var _contactNote = [];
+
+	var _admin_userPk = [];
+	var _admin_userPkHex = [];
+	var _admin_userSpace = [];
+	var _admin_userLevel = [];
 
 	function _NewIntMsg(sml, ts, from, shield, to, title, body) {
 		this.senderMemberLevel = sml;
@@ -162,6 +169,8 @@ function AllEars() {
 	}
 
 // Public
+	this.GetLevelMax = function() {return _maxLevel;}
+
 	this.GetAddress = function(num) {return _userAddress[num].decoded;}
 	this.IsAddressShield = function(num) {return _userAddress[num].isShield;}
 	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
@@ -178,6 +187,7 @@ function AllEars() {
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);}
 	this.GetAddressCountShield = function() {return _GetAddressCount(true);}
 
+	this.IsUserAdmin = function() {return (_userLevel == _maxLevel);}
 	this.GetUserLevel = function() {return _userLevel;}
 	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];}
 	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];}
@@ -194,6 +204,12 @@ function AllEars() {
 	this.GetGatekeeperCountry = function() {return _gkCountry;}
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
 	this.GetGatekeeperAddress = function() {return _gkAddress;}
+
+	this.Admin_GetUserCount = function() {return _admin_userPk.length;}
+	this.Admin_GetUserPk = function(num) {return _admin_userPk[num];}
+	this.Admin_GetUserPkHex = function(num) {return _admin_userPkHex[num];}
+	this.Admin_GetUserSpace = function(num) {return _admin_userSpace[num];}
+	this.Admin_GetUserLevel = function(num) {return _admin_userLevel[num];}
 
 	this.GetContactCount = function() {return _contactMail.length;}
 	this.GetContactMail = function(num) {return _contactMail[num];}
@@ -272,8 +288,39 @@ function AllEars() {
 				}
 			}
 
+			// Admin data
+			const lenAdmin = (_userLevel == _maxLevel) ? _lenAdminData : 0;
+			if (_userLevel == _maxLevel) {
+				let adminStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
+
+				for (let i = 0; i < (_lenAdminData / 9); i++) {
+					const pos = (adminStart + i * 9);
+					const newPk = byteArray.slice(pos, pos + 8);
+
+					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
+					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
+
+					let newLevel = 0;
+					if (_BitTest(byteArray[pos + 8], 0)) newLevel += 1;
+					if (_BitTest(byteArray[pos + 8], 1)) newLevel += 2;
+
+					let newSpace = 0;
+					if (_BitTest(byteArray[pos + 8], 2)) newLevel += 1;
+					if (_BitTest(byteArray[pos + 8], 3)) newLevel += 2;
+					if (_BitTest(byteArray[pos + 8], 4)) newLevel += 4;
+					if (_BitTest(byteArray[pos + 8], 5)) newLevel += 8;
+					if (_BitTest(byteArray[pos + 8], 6)) newLevel += 16;
+					if (_BitTest(byteArray[pos + 8], 7)) newLevel += 32;
+
+					_admin_userPk.push(newPk);
+					_admin_userPkHex.push(nacl.to_hex(newPk));
+					_admin_userSpace.push(newSpace);
+					_admin_userLevel.push(newLevel);
+				}
+			}
+
 			// Message data
-			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
+			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
 			for (let i = 0; i < msgCount; i++) {
 				// TODO: Detect message type and support extMsg
 				const msgKilos = byteArray[msgStart] + 1;

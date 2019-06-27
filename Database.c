@@ -11,6 +11,8 @@
 #define AEM_PATH_DB_MESSAGES "Data/Messages.aed"
 #define AEM_PATH_DB_USERS  "Data/Users.aed"
 
+#define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
+
 // A slower hashing method here would increase security at the cost of additional strain on the server.
 // Collisions here cause additional, unintended "aliases" for addresses. That isn't necessarily bad.
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]) {
@@ -67,6 +69,42 @@ int getUserInfo(const unsigned char pk[crypto_box_PUBLICKEYBYTES], uint8_t * con
 	*gkData = malloc(*lenGk);
 	if (*gkData == NULL) {sqlite3_finalize(query); sqlite3_close(db); free(noteData); free(*addrData); return -1;}
 	memcpy(*gkData, sqlite3_column_blob(query, 3), *lenGk);
+
+	sqlite3_finalize(query);
+	sqlite3_close(db);
+	return 0;
+}
+
+int getAdminData(unsigned char ** const adminData) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
+
+	*adminData = calloc(AEM_ADMINDATA_LEN, 1);
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "SELECT publickey, level FROM userdata LIMIT 1024", -1, &query, NULL);
+	if (ret != SQLITE_OK) return -1;
+
+	int userCount = 0;
+	while (sqlite3_step(query) == SQLITE_ROW) {
+		memcpy(*adminData + (userCount * 9), sqlite3_column_blob(query, 0), 8);
+
+		unsigned char memberInfo = 0x0;
+		switch(sqlite3_column_int(query, 1)) {
+		case 3:
+			BIT_SET(memberInfo, 0);
+			BIT_SET(memberInfo, 1);
+			break;
+		case 2:
+			BIT_SET(memberInfo, 1);
+			break;
+		case 1:
+			BIT_SET(memberInfo, 0);
+			break;
+		}
+
+		*(*adminData + (userCount * 9) + 8) = memberInfo;
+	}
 
 	sqlite3_finalize(query);
 	sqlite3_close(db);
