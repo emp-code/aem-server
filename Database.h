@@ -5,6 +5,7 @@
 #define AEM_ADMINDATA_LEN 9216 // 9 KiB
 
 int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]);
+int destroyAccount(const char pk_hex[16]);
 
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]);
 

@@ -632,6 +632,22 @@ static void respond_https_addaccount(mbedtls_ssl_context *ssl, unsigned char upk
 	, 142);
 }
 
+static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
+	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
+	if (destroyAccount(*decrypted) != 0) {sodium_free(*decrypted); return;}
+
+	sodium_free(*decrypted);
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -683,6 +699,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 12 && memcmp(url, "web/notedata", 12) == 0) return respond_https_notedata(ssl, upk, &decrypted, lenDecrypted);
 
 		if (urlLen == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk, &decrypted, lenDecrypted);
+		if (urlLen == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk, &decrypted, lenDecrypted);
 	}
 }
 

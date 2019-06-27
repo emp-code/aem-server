@@ -481,6 +481,17 @@ function AllEars() {
 		});
 	}); }
 
+	this.DestroyAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		console.log("Destroying account " + pk_hex);
+
+		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(pk_hex), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				return callback(true);
+			else
+				return callback(false);
+		});
+	}); }
+
 	this.NewKeys = function(callback) { nacl_factory.instantiate(function (nacl) {
 		const newKeys = nacl.crypto_box_keypair();
 		callback(nacl.to_hex(newKeys.boxPk), nacl.to_hex(newKeys.boxSk));

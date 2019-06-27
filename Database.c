@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <endian.h>
 
 #include <sodium.h>
 #include <sqlite3.h>
@@ -310,4 +311,40 @@ int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return (ret == SQLITE_DONE) ? 0 : -1;
+}
+
+int destroyAccount(const char pk_hex[16]) {
+	int retval = 0;
+
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	const int64_t upk64 = htole64(strtol(pk_hex, NULL, 16));
+	sqlite3_stmt *query;
+
+	sqlite3_prepare_v2(db, "DELETE FROM userdata WHERE lower(substr(hex(publickey), 1, 16))=?", -1, &query, NULL);
+	sqlite3_bind_text(query, 1, pk_hex, 16, SQLITE_STATIC);
+	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	sqlite3_finalize(query);
+
+	sqlite3_prepare_v2(db, "DELETE FROM address WHERE lower(substr(hex(ownerpk), 1, 16))=?", -1, &query, NULL);
+	sqlite3_bind_text(query, 1, pk_hex, 16, SQLITE_STATIC);
+	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	sqlite3_finalize(query);
+
+	sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
+	sqlite3_bind_int64(query, 1, upk64);
+	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	sqlite3_finalize(query);
+
+	sqlite3_close_v2(db);
+
+	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+	sqlite3_prepare_v2(db, "DELETE FROM messages WHERE lower(substr(hex(ownerpk), 1, 16))=?", -1, &query, NULL);
+	sqlite3_bind_text(query, 1, pk_hex, 16, SQLITE_STATIC);
+	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	sqlite3_finalize(query);
+	sqlite3_close_v2(db);
+
+	return retval;
 }

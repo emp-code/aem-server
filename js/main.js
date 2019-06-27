@@ -143,6 +143,30 @@ document.getElementById("btn_savenotes").addEventListener("click", function() {
 	});
 });
 
+function destroyAccount(upk_hex) {
+	let tbl = document.getElementById("tbody_admin")
+
+	let rowid = -1;
+
+	for (i = 0; i < tbl.rows.length; i++) {
+		if (upk_hex == tbl.rows[i].cells[0].textContent) {
+			rowid = i;
+			break;
+		}
+	}
+
+	if (rowid == -1) return;
+
+	ae.DestroyAccount(upk_hex, function(success) {
+		if (success) {
+			console.log("Account destroyed");
+			tbl.deleteRow(rowid);
+		} else {
+			console.log("Failed to destroy account");
+		}
+	});
+}
+
 function loginSuccess() {
 	if (ae.GetUserLevel() < 3) document.getElementById("btn_toadmin").style.display="none";
 	document.getElementById("div_login").style.display="none";
@@ -243,6 +267,7 @@ function loginSuccess() {
 			cellPk.className = "mono";
 			if (ae.Admin_GetUserLevel(i) == 3) cellBtnPl.children[0].disabled = "disabled";
 			if (ae.Admin_GetUserLevel(i) == 0) cellBtnMn.children[0].disabled = "disabled";
+			cellBtnDe.children[0].addEventListener("click", function() {destroyAccount(ae.Admin_GetUserPkHex(i))});
 		}
 	}
 }
