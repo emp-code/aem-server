@@ -471,4 +471,18 @@ function AllEars() {
 				return callback(false);
 		});
 	}); }
+
+	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("/web/addaccount", nacl.from_hex(pk_hex), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				return callback(true);
+			else
+				return callback(false);
+		});
+	}); }
+
+	this.NewKeys = function(callback) { nacl_factory.instantiate(function (nacl) {
+		const newKeys = nacl.crypto_box_keypair();
+		callback(nacl.to_hex(newKeys.boxPk), nacl.to_hex(newKeys.boxSk));
+	}); }
 }

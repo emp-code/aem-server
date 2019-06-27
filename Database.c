@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include <sodium.h>
 #include <sqlite3.h>
@@ -75,6 +76,22 @@ int getUserInfo(const unsigned char pk[crypto_box_PUBLICKEYBYTES], uint8_t * con
 	return 0;
 }
 
+int isUserAdmin(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return false;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM userdata WHERE publickey=?1 AND level=3", -1, &query, NULL);
+	if (ret != SQLITE_OK) return false;
+
+	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+	int retval = (sqlite3_step(query) == SQLITE_ROW);
+
+	sqlite3_finalize(query);
+	sqlite3_close(db);
+	return retval;
+}
+
 int getAdminData(unsigned char ** const adminData) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
@@ -104,6 +121,7 @@ int getAdminData(unsigned char ** const adminData) {
 		}
 
 		*(*adminData + (userCount * 9) + 8) = memberInfo;
+		userCount++;
 	}
 
 	sqlite3_finalize(query);
@@ -272,6 +290,21 @@ int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int
 	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, ownerpk) VALUES (?, ?)", -1, &query, NULL);
 	sqlite3_bind_int64(query, 1, hash);
 	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+	sqlite3_close_v2(db);
+	return (ret == SQLITE_DONE) ? 0 : -1;
+}
+
+int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (publickey, level) VALUES (?, ?)", -1, &query, NULL);
+	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+	sqlite3_bind_int(query, 2, 0);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);

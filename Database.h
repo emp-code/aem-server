@@ -4,6 +4,8 @@
 #define AEM_NOTEDATA_LEN 5122 // 5 KiB + 2 bytes (16 bits) for length
 #define AEM_ADMINDATA_LEN 9216 // 9 KiB
 
+int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]);
+
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]);
 
 int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[32], const unsigned char hashKey[16], int *memberLevel);
@@ -19,5 +21,7 @@ int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int
 
 int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]);
 int updateNoteData(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *noteData);
+
+int isUserAdmin(const unsigned char pk[crypto_box_PUBLICKEYBYTES]);
 
 #endif

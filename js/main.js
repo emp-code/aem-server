@@ -392,6 +392,23 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 	});
 });
 
+document.getElementById("btn_admin_addaccount").addEventListener("click", function() {
+	ae.AddAccount(document.getElementById("txt_newacc_pkey").value, function(success) {
+		if (success) {
+			console.log("Account added");
+		} else {
+			console.log("Failed to add account");
+		}
+	});
+});
+
+function genKeys() {
+	ae.NewKeys(function(pk, sk) {
+		console.log("Public=" + pk);
+		console.log("Secret=" + sk);
+	});
+}
+
 // Menu
 // Main Menu
 function navMenu(num) {
