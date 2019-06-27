@@ -396,7 +396,7 @@ function AllEars() {
 		_FetchEncrypted("/web/addr/add", nacl.encode_utf8(addr), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true);
+			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true));
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {
@@ -412,7 +412,7 @@ function AllEars() {
 		_FetchEncrypted("/web/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(httpStatus, byteArray) {
 			if (httpStatus != 200) return callback(false);
 
-			_userAddress[_userAddress.length] = new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), nacl.to_hex(byteArray.slice(8)), true, false, false, false, true);
+			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), nacl.to_hex(byteArray.slice(8)), true, false, false, false, true));
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(httpStatus, byteArray) {
