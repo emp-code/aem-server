@@ -393,7 +393,11 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 });
 
 document.getElementById("btn_admin_addaccount").addEventListener("click", function() {
-	ae.AddAccount(document.getElementById("txt_newacc_pkey").value, function(success) {
+	txtPkey = document.getElementById("txt_newacc_pkey");
+	btn = document.getElementById("btn_admin_addaccount");
+
+	btn.disabled = "disabled";
+	ae.AddAccount(txtPkey.value, function(success) {
 		if (success) {
 			const table = document.getElementById("tbody_admin");
 
@@ -405,7 +409,7 @@ document.getElementById("btn_admin_addaccount").addEventListener("click", functi
 			let cellBtnMn = row.insertCell(-1);
 			let cellBtnDe = row.insertCell(-1);
 
-			cellPk.textContent = document.getElementById("txt_newacc_pkey").value.substring(0, 16);
+			cellPk.textContent = txtPkey.value.substring(0, 16);
 			cellMb.textContent = "0"
 			cellLv.textContent = "0"
 			cellBtnPl.innerHTML = "<button>+</button>";
@@ -413,10 +417,14 @@ document.getElementById("btn_admin_addaccount").addEventListener("click", functi
 			cellBtnDe.innerHTML = "<button>X</button>";
 
 			cellPk.className = "mono";
+
+			txtPkey.value = "";
 		} else {
 			console.log("Failed to add account");
 		}
 	});
+
+	btn.disabled = "";
 });
 
 function genKeys() {
