@@ -617,9 +617,9 @@ static void respond_https_notedata(mbedtls_ssl_context *ssl, unsigned char upk[c
 }
 
 static void respond_https_addaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
-	if (!isUserAdmin(upk)) return;
-	if (addAccount((unsigned char*)*decrypted) != 0) return;
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
+	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
+	if (addAccount((unsigned char*)*decrypted) != 0) {sodium_free(*decrypted); return;}
 
 	sodium_free(*decrypted);
 	sendData(ssl,
