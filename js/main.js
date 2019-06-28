@@ -117,6 +117,35 @@ function addContactToTable(mail, name, note) {
 	cellBtnD.addEventListener("click", function() {deleteContact(mail)});
 }
 
+function addRowAdmin(num) {
+	const table = document.getElementById("tbody_admin");
+
+	let row = table.insertRow(-1);
+	let cellPk = row.insertCell(-1);
+	let cellMb = row.insertCell(-1);
+	let cellLv = row.insertCell(-1);
+	let cellBtnPl = row.insertCell(-1);
+	let cellBtnMn = row.insertCell(-1);
+	let cellBtnDe = row.insertCell(-1);
+
+	cellPk.textContent = ae.Admin_GetUserPkHex(num);
+	cellMb.textContent = ae.Admin_GetUserSpace(num);
+	cellLv.textContent = ae.Admin_GetUserLevel(num);
+	cellBtnPl.innerHTML = "<button>+</button>";
+	cellBtnMn.innerHTML = "<button>-</button>";
+	cellBtnDe.innerHTML = "<button>X</button>";
+
+	cellPk.className = "mono";
+	if (ae.Admin_GetUserLevel(num) == ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
+	if (ae.Admin_GetUserLevel(num) == 0) cellBtnMn.children[0].disabled = "disabled";
+
+	const pkHex = ae.Admin_GetUserPkHex(num);
+	const currentLevel = ae.Admin_GetUserLevel(num);
+	cellBtnPl.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1)};
+	cellBtnMn.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1)};
+	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex)};
+}
+
 document.getElementById("btn_contact_add").addEventListener("click", function() {
 	txtMail = document.getElementById("txt_newcontact_mail");
 	txtName = document.getElementById("txt_newcontact_name");
@@ -157,7 +186,7 @@ function destroyAccount(upk_hex) {
 
 	if (rowid == -1) return;
 
-	ae.DestroyAccount(upk_hex, function(success) {
+	ae.DestroyAccount(rowid, function(success) {
 		if (success) {
 			tbl.deleteRow(rowid);
 		} else {
@@ -172,27 +201,37 @@ function setAccountLevel(upk_hex, level) {
 	let rowid = -1;
 
 	for (i = 0; i < tbl.rows.length; i++) {
-		if (upk_hex == tbl.rows[i].cells[0].textContent) {
+		if (tbl.rows[i].cells[0].textContent == upk_hex) {
 			rowid = i;
 			break;
 		}
 	}
 
-	if (rowid == -1 || ae.Admin_GetUserPkHex(rowid) != upk_hex) return;
+	if (rowid == -1) return;
 
 	ae.SetAccountLevel(rowid, level, function(success) {
-		if (success) {
-			tbl.rows[rowid].cells[2].textContent = level;
-			if (level == 0) {
-				tbl.rows[rowid].cells[3].children[0].disabled = "";
-				tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
-			} else if (level == ae.GetLevelMax()) {
-				tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
-				tbl.rows[rowid].cells[4].children[0].disabled = "";
-			}
-		} else {
+		if (!success) {
 			console.log("Failed to set account level");
+			return;
 		}
+
+		tbl.rows[rowid].cells[2].textContent = level;
+
+		if (level == 0) {
+			tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[3].children[0].disabled = "";
+		} else if (level == ae.GetLevelMax()) {
+			tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[4].children[0].disabled = "";
+		} else {
+			tbl.rows[rowid].cells[3].children[0].disabled = "";
+			tbl.rows[rowid].cells[4].children[0].disabled = "";
+		}
+
+		const pkHex = ae.Admin_GetUserPkHex(rowid);
+		const currentLevel = ae.Admin_GetUserLevel(rowid);
+		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1)};
+		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1)};
 	});
 }
 
@@ -275,31 +314,8 @@ function loginSuccess() {
 	}
 
 	if (ae.IsUserAdmin()) {
-		const table = document.getElementById("tbody_admin");
-
 		for (let i = 0; i < ae.Admin_GetUserCount(); i++) {
-			let row = table.insertRow(-1);
-			let cellPk = row.insertCell(-1);
-			let cellMb = row.insertCell(-1);
-			let cellLv = row.insertCell(-1);
-			let cellBtnPl = row.insertCell(-1);
-			let cellBtnMn = row.insertCell(-1);
-			let cellBtnDe = row.insertCell(-1);
-
-			cellPk.textContent = ae.Admin_GetUserPkHex(i);
-			cellMb.textContent = ae.Admin_GetUserSpace(i);
-			cellLv.textContent = ae.Admin_GetUserLevel(i);
-			cellBtnPl.innerHTML = "<button>+</button>";
-			cellBtnMn.innerHTML = "<button>-</button>";
-			cellBtnDe.innerHTML = "<button>X</button>";
-
-			cellPk.className = "mono";
-			if (ae.Admin_GetUserLevel(i) == 3) cellBtnPl.children[0].disabled = "disabled";
-			if (ae.Admin_GetUserLevel(i) == 0) cellBtnMn.children[0].disabled = "disabled";
-
-			cellBtnPl.children[0].addEventListener("click", function() {setAccountLevel(ae.Admin_GetUserPkHex(i), ae.Admin_GetUserLevel(i) + 1)});
-			cellBtnMn.children[0].addEventListener("click", function() {setAccountLevel(ae.Admin_GetUserPkHex(i), ae.Admin_GetUserLevel(i) - 1)});
-			cellBtnDe.children[0].addEventListener("click", function() {destroyAccount(ae.Admin_GetUserPkHex(i))});
+			addRowAdmin(i);
 		}
 	}
 }
@@ -452,29 +468,11 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 document.getElementById("btn_admin_addaccount").addEventListener("click", function() {
 	txtPkey = document.getElementById("txt_newacc_pkey");
 	btn = document.getElementById("btn_admin_addaccount");
-
 	btn.disabled = "disabled";
+
 	ae.AddAccount(txtPkey.value, function(success) {
 		if (success) {
-			const table = document.getElementById("tbody_admin");
-
-			let row = table.insertRow(-1);
-			let cellPk = row.insertCell(-1);
-			let cellMb = row.insertCell(-1);
-			let cellLv = row.insertCell(-1);
-			let cellBtnPl = row.insertCell(-1);
-			let cellBtnMn = row.insertCell(-1);
-			let cellBtnDe = row.insertCell(-1);
-
-			cellPk.textContent = txtPkey.value.substring(0, 16);
-			cellMb.textContent = "0"
-			cellLv.textContent = "0"
-			cellBtnPl.innerHTML = "<button>+</button>";
-			cellBtnMn.innerHTML = "<button disabled=\"disabled\">-</button>";
-			cellBtnDe.innerHTML = "<button>X</button>";
-
-			cellPk.className = "mono";
-
+			addRowAdmin(ae.Admin_GetUserCount() - 1);
 			txtPkey.value = "";
 		} else {
 			console.log("Failed to add account");

@@ -205,8 +205,7 @@ function AllEars() {
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
 	this.GetGatekeeperAddress = function() {return _gkAddress;}
 
-	this.Admin_GetUserCount = function() {return _admin_userPk.length;}
-	this.Admin_GetUserPk = function(num) {return _admin_userPk[num];}
+	this.Admin_GetUserCount = function() {return _admin_userPkHex.length;}
 	this.Admin_GetUserPkHex = function(num) {return _admin_userPkHex[num];}
 	this.Admin_GetUserSpace = function(num) {return _admin_userSpace[num];}
 	this.Admin_GetUserLevel = function(num) {return _admin_userLevel[num];}
@@ -312,7 +311,6 @@ function AllEars() {
 					if (_BitTest(byteArray[pos + 8], 6)) newLevel += 16;
 					if (_BitTest(byteArray[pos + 8], 7)) newLevel += 32;
 
-					_admin_userPk.push(newPk);
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
 					_admin_userLevel.push(newLevel);
@@ -474,19 +472,27 @@ function AllEars() {
 
 	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/addaccount", nacl.from_hex(pk_hex), nacl, function(httpStatus, byteArray) {
-			if (httpStatus == 204)
+			if (httpStatus == 204) {
+				_admin_userPkHex.push(pk_hex.substr(0, 16));
+				_admin_userLevel.push(0);
+				_admin_userSpace.push(0);
 				return callback(true);
-			else
+			} else {
 				return callback(false);
+			}
 		});
 	}); }
 
-	this.DestroyAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(pk_hex), nacl, function(httpStatus, byteArray) {
-			if (httpStatus == 204)
+	this.DestroyAccount = function(num, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(_admin_userPkHex[num]), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204) {
+				_admin_userPkHex.splice(num, 1);
+				_admin_userLevel.splice(num, 1);
+				_admin_userSpace.splice(num, 1);
 				return callback(true);
-			else
+			} else {
 				return callback(false);
+			}
 		});
 	}); }
 
