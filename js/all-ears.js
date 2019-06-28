@@ -482,13 +482,22 @@ function AllEars() {
 	}); }
 
 	this.DestroyAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		console.log("Destroying account " + pk_hex);
-
 		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(pk_hex), nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204)
 				return callback(true);
 			else
 				return callback(false);
+		});
+	}); }
+
+	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("/web/accountlevel", nacl.encode_utf8(_admin_userPkHex[num] + level), nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204) {
+				_admin_userLevel[num] = level;
+				return callback(true);
+			} else {
+				return callback(false);
+			}
 		});
 	}); }
 

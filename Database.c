@@ -313,6 +313,23 @@ int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+int setAccountLevel(const char pk_hex[16], const int level) {
+	if (level < 0 || level > 3) return -1;
+
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE lower(substr(hex(publickey), 1, 16))=?", -1, &query, NULL);
+	sqlite3_bind_int(query, 1, level);
+	sqlite3_bind_text(query, 2, pk_hex, 16, SQLITE_STATIC);
+
+	const int retval = (sqlite3_step(query) == SQLITE_DONE) ? 0 : -1;
+	sqlite3_finalize(query);
+	sqlite3_close_v2(db);
+	return retval;
+}
+
 int destroyAccount(const char pk_hex[16]) {
 	int retval = 0;
 

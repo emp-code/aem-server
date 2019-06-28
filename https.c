@@ -605,6 +605,17 @@ static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, unsigned char
 	send204(ssl);
 }
 
+static void respond_https_accountlevel(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
+	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
+
+	const int level = strtol(*decrypted + 16, NULL, 10);
+	if (setAccountLevel(*decrypted, level) != 0) {sodium_free(*decrypted); return;}
+
+	sodium_free(*decrypted);
+	send204(ssl);
+}
+
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	char* endHeaders = strstr(clientHeaders, "\r\n\r\n");
 	if (endHeaders == NULL) return;
@@ -656,6 +667,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 12 && memcmp(url, "web/notedata", 12) == 0) return respond_https_notedata(ssl, upk, &decrypted, lenDecrypted);
 
 		if (urlLen == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk, &decrypted, lenDecrypted);
+		if (urlLen == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk, &decrypted, lenDecrypted);
 	}
 }
