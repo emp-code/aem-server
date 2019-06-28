@@ -58,6 +58,17 @@ static void sendData(mbedtls_ssl_context* ssl, const char * const data, const si
 	}
 }
 
+static void send204(mbedtls_ssl_context* ssl) {
+	sendData(ssl,
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 142);
+}
+
 static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
 	int reqNum = -1;
 
@@ -430,15 +441,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, char **decrypted, const
 
 	addUserMessage(pk, boxSet, bsLen);
 	free(boxSet);
-
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
@@ -524,15 +527,7 @@ static void respond_https_addr_del(mbedtls_ssl_context *ssl, const unsigned char
 
 	if (deleteAddress(upk, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8) != 0) return;
 	sodium_free(*decrypted);
-
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -540,15 +535,7 @@ static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char
 
 	if (updateAddress(upk, (unsigned char*)(*decrypted), lenDecrypted) != 0) return;
 	sodium_free(*decrypted);
-
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -587,15 +574,7 @@ static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk
 	sodium_free(*decrypted);
 
 	if (ret != 0) return;
-
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_notedata(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -605,15 +584,7 @@ static void respond_https_notedata(mbedtls_ssl_context *ssl, unsigned char upk[c
 	sodium_free(*decrypted);
 
 	if (ret != 0) return;
-
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_addaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -622,14 +593,7 @@ static void respond_https_addaccount(mbedtls_ssl_context *ssl, unsigned char upk
 	if (addAccount((unsigned char*)*decrypted) != 0) {sodium_free(*decrypted); return;}
 
 	sodium_free(*decrypted);
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -638,14 +602,7 @@ static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, unsigned char
 	if (destroyAccount(*decrypted) != 0) {sodium_free(*decrypted); return;}
 
 	sodium_free(*decrypted);
-	sendData(ssl,
-		"HTTP/1.1 204 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 142);
+	send204(ssl);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
