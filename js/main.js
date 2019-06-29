@@ -314,7 +314,22 @@ function loginSuccess() {
 			document.getElementById("readmsg_from").className = ae.GetIntMsgShield(i) ? "mono" : "";
 		};
 
-		cellDel.onchange = function() {
+		cellDel.children[0].onchange = function() {
+			if (!cellDel.children[0].checked) {
+				let checked = false;
+				for (let i = 0; i < table.rows.length; i++) {
+					if (table.rows[i].cells[4].children[0].checked) {
+						checked = true;
+						break;
+					}
+				}
+
+				if (!checked) {
+					document.getElementById("btn_msgdel").style.display="none";
+					return;
+				}
+			}
+
 			document.getElementById("btn_msgdel").style.display="inline";
 		}
 	}
