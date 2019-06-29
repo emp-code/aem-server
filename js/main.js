@@ -343,12 +343,13 @@ document.getElementById("btn_msgdel").onclick = function() {
 				tbl.deleteRow(ids[i] - rowsDeleted);
 				rowsDeleted++;
 			}
+
+			document.getElementById("btn_msgdel").style.display="none";
 		} else {
 			console.log("Failed to delete messages");
 		}
 	});
 
-	document.getElementById("btn_msgdel").style.display="none";
 };
 
 document.getElementById("btn_send").onclick = function() {
@@ -423,13 +424,13 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	}
 
 	ae.SaveAddressData(function(success) {
-		if (success)
+		if (success) {
 			console.log("Address data saved");
-		else
+			document.getElementById("btn_saveaddrdata").style.display="none";
+		} else {
 			console.log("Address data failed to save");
+		}
 	});
-
-	document.getElementById("btn_saveaddrdata").style.display="none";
 };
 
 function addOpt(select, val) {
@@ -486,10 +487,9 @@ document.getElementById("btn_savegkdata").onclick = function() {
 	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
 
 	ae.SaveGatekeeperData(blocklist, function(success) {
-		document.getElementById("btn_savegkdata").style.display="none";
-
 		if (success) {
 			console.log("Gatekeeper update succeeded");
+			document.getElementById("btn_savegkdata").style.display="none";
 		} else {
 			console.log("Gatekeeper update failed;")
 		}
