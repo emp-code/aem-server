@@ -25,7 +25,6 @@ function AllEars() {
 	var _contactName = [];
 	var _contactNote = [];
 
-	var _admin_userPk = [];
 	var _admin_userPkHex = [];
 	var _admin_userSpace = [];
 	var _admin_userLevel = [];
