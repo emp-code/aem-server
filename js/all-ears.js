@@ -140,7 +140,7 @@ function AllEars() {
 	var _GetAddressCount = function(isShield) {
 		let count = 0;
 
-		for (i = 0; i < _userAddress.length; i++) {
+		for (let i = 0; i < _userAddress.length; i++) {
 			if (_userAddress[i].isShield == isShield) count++;
 		}
 
@@ -150,7 +150,7 @@ function AllEars() {
 	var _MakeAddrData = function() {
 		let addrData = new Uint8Array(_userAddress.length * 27);
 
-		for (i = 0; i < _userAddress.length; i++) {
+		for (let i = 0; i < _userAddress.length; i++) {
 			addrData[i*27] = _userAddress[i].isShield      ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
 			addrData[i*27] = _userAddress[i].acceptIntMsg  ? _BitSet(addrData[i*27], 1) : _BitClear(addrData[i*27], 1);
 			addrData[i*27] = _userAddress[i].sharePk       ? _BitSet(addrData[i*27], 2) : _BitClear(addrData[i*27], 2);
@@ -253,7 +253,7 @@ function AllEars() {
 
 			while (_userAddress.length > 0) _userAddress.pop();
 
-			for (i = 0; i < (addrData.length / 27); i++) {
+			for (let i = 0; i < (addrData.length / 27); i++) {
 				const isShield      = _BitTest(addrData[i * 27], 0);
 				const acceptIntMsg  = _BitTest(addrData[i * 27], 1);
 				const sharePk       = _BitTest(addrData[i * 27], 2);

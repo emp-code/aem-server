@@ -53,11 +53,11 @@ function addOptAddr(num) {
 
 function deleteAddress(addr) {
 	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (i = 0; i < btns.length; i++) btns[i].disabled="disabled";
+	for (let i = 0; i < btns.length; i++) btns[i].disabled="disabled";
 
 	let addressToDelete = -1;
 
-	for (i = 0; i < ae.GetAddressCount(); i++) {
+	for (let i = 0; i < ae.GetAddressCount(); i++) {
 		if (addr == ae.GetAddress(i)) {
 			addressToDelete = i;
 			break;
@@ -77,7 +77,7 @@ function deleteAddress(addr) {
 		}
 
 		let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-		for (i = 0; i < btns.length; i++) btns[i].disabled="";
+		for (let i = 0; i < btns.length; i++) btns[i].disabled="";
 
 	});
 }
@@ -86,7 +86,7 @@ function deleteContact(email) {
 	const tbl = document.getElementById("tbody_notes_contact");
 	const rows = tbl.rows;
 
-	for (i = 0; i < rows.length; i++) {
+	for (let i = 0; i < rows.length; i++) {
 		if (email == rows[i].cells[0].textContent) {
 			ae.DeleteContact(i);
 			tbl.deleteRow(i);
@@ -177,7 +177,7 @@ function destroyAccount(upk_hex) {
 
 	let rowid = -1;
 
-	for (i = 0; i < tbl.rows.length; i++) {
+	for (let i = 0; i < tbl.rows.length; i++) {
 		if (upk_hex == tbl.rows[i].cells[0].textContent) {
 			rowid = i;
 			break;
@@ -200,7 +200,7 @@ function setAccountLevel(upk_hex, level) {
 
 	let rowid = -1;
 
-	for (i = 0; i < tbl.rows.length; i++) {
+	for (let i = 0; i < tbl.rows.length; i++) {
 		if (tbl.rows[i].cells[0].textContent == upk_hex) {
 			rowid = i;
 			break;
