@@ -75,7 +75,7 @@ function AllEars() {
 			if (httpStatus != 200) return callback(httpStatus);
 
 			const postBox = nacl.crypto_box(cleartext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
-			let postMsg = new Uint8Array(_userKeys.boxPk.length + postBox.length);
+			const postMsg = new Uint8Array(_userKeys.boxPk.length + postBox.length);
 			postMsg.set(_userKeys.boxPk);
 			postMsg.set(postBox, _userKeys.boxPk.length);
 
@@ -128,7 +128,7 @@ function AllEars() {
 	}
 
 	var _DecodeOwnAddress = function(byteArray, start, nacl) {
-		let decoded = _DecodeAddress(byteArray, start);
+		const decoded = _DecodeAddress(byteArray, start);
 
 		for (let i = 0; i < _userAddress.length; i++) {
 			if (_userAddress[i].isShield) continue;
@@ -150,7 +150,7 @@ function AllEars() {
 	}
 
 	var _MakeAddrData = function() {
-		let addrData = new Uint8Array(_userAddress.length * 27);
+		const addrData = new Uint8Array(_userAddress.length * 27);
 
 		for (let i = 0; i < _userAddress.length; i++) {
 			addrData[i*27] = _userAddress[i].isShield      ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
@@ -291,7 +291,7 @@ function AllEars() {
 			// Admin data
 			const lenAdmin = (_userLevel == _maxLevel) ? _lenAdminData : 0;
 			if (_userLevel == _maxLevel) {
-				let adminStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
+				const adminStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
 
 				for (let i = 0; i < (_lenAdminData / 9); i++) {
 					const pos = (adminStart + i * 9);
@@ -379,7 +379,7 @@ function AllEars() {
 		_userAddress.splice(num, 1);
 
 		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-		let postData = new Uint8Array(8 + boxAddrData.length);
+		const postData = new Uint8Array(8 + boxAddrData.length);
 		postData.set(hash);
 		postData.set(boxAddrData, 8);
 
@@ -455,11 +455,11 @@ function AllEars() {
 			noteText += _contactNote[i] + '\n';
 		}
 
-		let noteData = new Uint8Array(_lenNoteData_unsealed);
-		let noteUtf8 = nacl.encode_utf8(noteText);
+		const noteData = new Uint8Array(_lenNoteData_unsealed);
+		const noteUtf8 = nacl.encode_utf8(noteText);
 		noteData.set(noteUtf8, 2);
 
-		let n = noteUtf8.length;
+		const n = noteUtf8.length;
 		noteData[0] = n & 0xff;
 		noteData[1] = n >> 8 & 0xff;
 
@@ -472,7 +472,7 @@ function AllEars() {
 	}); }
 
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
-		let data = new Uint8Array(ids.length);
+		const data = new Uint8Array(ids.length);
 		for (let i = 0; i < ids.length; i++) {
 			if (ids[i] > 254) return;
 			data[i] = ids[i];
