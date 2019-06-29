@@ -569,6 +569,18 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char
 	sendData(ssl, data, 169);
 }
 
+static void respond_https_delmsg(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	int ids[lenDecrypted]; // 1 byte per ID
+	for (size_t i = 0; i < lenDecrypted; i++) {
+		ids[i] = (unsigned char)((*decrypted)[i]);
+	}
+
+	int ret = deleteMessages(upk, ids, (int)lenDecrypted);
+	sodium_free(*decrypted);
+
+	if (ret == 0) send204(ssl);
+}
+
 static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char hashKey[16]) {
 	int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
 	sodium_free(*decrypted);
@@ -663,8 +675,9 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (urlLen == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk, &decrypted, lenDecrypted);
 
+		if (urlLen == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk, &decrypted, lenDecrypted);
+		if (urlLen == 12 && memcmp(url, "web/notedata",   12) == 0) return respond_https_notedata  (ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, (unsigned char*)"TestTestTestTest");
-		if (urlLen == 12 && memcmp(url, "web/notedata", 12) == 0) return respond_https_notedata(ssl, upk, &decrypted, lenDecrypted);
 
 		if (urlLen == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk, &decrypted, lenDecrypted);

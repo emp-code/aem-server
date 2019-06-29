@@ -17,6 +17,7 @@ unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES]
 
 int addUserMessage(const unsigned char ownerPk[32], const unsigned char *msgData, const size_t msgLen);
 
+int deleteMessages(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int ids[], const int count);
 int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash, const unsigned char *addrData, const size_t lenAddrData);
 int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *addrData, const size_t lenAddrData);
 int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash);

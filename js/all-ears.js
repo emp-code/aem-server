@@ -470,6 +470,22 @@ function AllEars() {
 		});
 	}); }
 
+	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
+		let data = new Uint8Array(ids.length);
+		for (let i = 0; i < ids.length; i++) {
+			if (ids[i] > 254) return;
+			data[i] = ids[i];
+		}
+
+		_FetchEncrypted("/web/delmsg", data, nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204) {
+				return callback(true);
+			} else {
+				return callback(false);
+			}
+		});
+	}); }
+
 	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/addaccount", nacl.from_hex(pk_hex), nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204) {

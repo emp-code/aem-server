@@ -135,7 +135,7 @@ unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES]
 	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return NULL;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT msg FROM messages WHERE ownerpk=? ORDER BY rowid DESC", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT msg FROM messages WHERE ownerpk=? ORDER BY rowid DESC LIMIT 255", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
 	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 
@@ -248,6 +248,42 @@ int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], cha
 	sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 	sqlite3_step(query);
 	sqlite3_finalize(query);
+
+	sqlite3_close_v2(db);
+	return 0;
+}
+
+int deleteMessages(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int ids[], const int count) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "SELECT rowid FROM messages WHERE ownerpk=? ORDER BY rowid DESC LIMIT 255", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+	sqlite3_bind_blob(query, 1, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+
+	int rowCount = 0;
+	int rowIds[count];
+	for (int i = 0; rowCount < count; i++) {
+		if (sqlite3_step(query) != SQLITE_ROW) {
+			sqlite3_finalize(query);
+			sqlite3_close_v2(db);
+			return -1;
+		}
+
+		if (i == ids[rowCount]) {
+			rowIds[rowCount] = sqlite3_column_int(query, 0);
+			rowCount++;
+		}
+	}
+
+	sqlite3_finalize(query);
+	for (int i = 0; i < rowCount; i++) {
+		ret = sqlite3_prepare_v2(db, "DELETE FROM messages WHERE rowid=? AND ownerpk=?", -1, &query, NULL);
+		sqlite3_bind_int(query, 1, rowIds[i]);
+		sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
+		sqlite3_step(query);
+	}
 
 	sqlite3_close_v2(db);
 	return 0;

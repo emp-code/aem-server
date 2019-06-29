@@ -293,14 +293,16 @@ function loginSuccess() {
 		let cellTitle = row.insertCell(-1);
 		let cellFrom  = row.insertCell(-1);
 		let cellTo    = row.insertCell(-1);
+		let cellDel   = row.insertCell(-1);
 
 		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
 		cellFrom.textContent = ae.GetIntMsgFrom(i);
 		cellTo.textContent = ae.GetIntMsgTo(i);
 		cellFrom.className = ae.GetIntMsgShield(i) ? "mono" : "";
+		cellDel.innerHTML = "<input type=\"checkbox\">"
 
-		row.addEventListener("click", function(){
+		cellTitle.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").style.display="inline";
 
@@ -310,7 +312,11 @@ function loginSuccess() {
 			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 			document.getElementById("readmsg_from").className = ae.GetIntMsgShield(i) ? "mono" : "";
-		});
+		};
+
+		cellDel.onchange = function() {
+			document.getElementById("btn_msgdel").style.display="inline";
+		}
 	}
 
 	if (ae.IsUserAdmin()) {
@@ -319,6 +325,31 @@ function loginSuccess() {
 		}
 	}
 }
+
+document.getElementById("btn_msgdel").addEventListener("click", function(){
+	const tbl = document.getElementById("tbody_inbox");
+	let ids = [];
+
+	for (let i = 0; i < tbl.rows.length; i++) {
+		if (tbl.rows[i].cells[4].children[0].checked) {
+			ids.push(i);
+		}
+	}
+
+	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
+		if (success) {
+			let rowsDeleted = 0;
+			for (let i = 0; i < ids.length; i++) {
+				tbl.deleteRow(ids[i] - rowsDeleted);
+				rowsDeleted++;
+			}
+		} else {
+			console.log("Failed to delete messages");
+		}
+	});
+
+	document.getElementById("btn_msgdel").style.display="none";
+});
 
 document.getElementById("btn_send").addEventListener("click", function(){
 	sfrom=document.getElementById("send_from");
