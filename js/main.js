@@ -163,12 +163,12 @@ document.getElementById("btn_contact_add").onclick = function() {
 
 document.getElementById("btn_savenotes").onclick = function() {
 	ae.SaveNoteData(function(success) {
-		document.getElementById("btn_savenotes").style.display = "none";
-
-		if (success)
+		if (success) {
 			console.log("Note data saved successfully");
-		else
+			document.getElementById("btn_savenotes").style.display = "none";
+		} else {
 			console.log("Note data failed to save");
+		}
 	});
 };
 
