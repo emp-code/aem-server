@@ -236,7 +236,7 @@ function setAccountLevel(upk_hex, level) {
 }
 
 function loginSuccess() {
-	if (ae.GetUserLevel() < 3) document.getElementById("btn_toadmin").style.display="none";
+	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").style.display="none";
 	document.getElementById("div_login").style.display="none";
 	document.getElementById("div_loggedin").style.display="inline";
 
