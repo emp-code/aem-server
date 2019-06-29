@@ -1,6 +1,6 @@
 ae=new AllEars();
 
-document.getElementById("btn_signin").addEventListener("click", function(){
+document.getElementById("btn_signin").onclick = function() {
 	// All-Ears needs to be provided with the user's secret key in order to log in
 	ae.SetKeys(document.getElementById('txt_skey').value);
 
@@ -11,7 +11,7 @@ document.getElementById("btn_signin").addEventListener("click", function(){
 			console.log("Failed to log in");
 		}
 	});
-});
+};
 
 function tsToISO8601(ts){
 	const dt = new Date(ts * 1000);
@@ -42,13 +42,13 @@ function addOptAddr(num) {
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
-	cellChk1.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
-	cellChk2.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
-	cellChk3.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
-	cellChk4.addEventListener("change", function() {document.getElementById("btn_saveaddrdata").style.display="inline";});
+	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
+	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
+	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
+	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
 
 	cellBtnD.innerHTML = "<button>&#128473;</button>";
-	cellBtnD.addEventListener("click", function() {deleteAddress(cellAddr.textContent);});
+	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
 }
 
 function deleteAddress(addr) {
@@ -114,7 +114,7 @@ function addContactToTable(mail, name, note) {
 	cellNote.textContent = note;
 	cellBtnD.innerHTML = "<button>X</button>";
 
-	cellBtnD.addEventListener("click", function() {deleteContact(mail)});
+	cellBtnD.onclick = function() {deleteContact(mail)};
 }
 
 function addRowAdmin(num) {
@@ -146,7 +146,7 @@ function addRowAdmin(num) {
 	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex)};
 }
 
-document.getElementById("btn_contact_add").addEventListener("click", function() {
+document.getElementById("btn_contact_add").onclick = function() {
 	txtMail = document.getElementById("txt_newcontact_mail");
 	txtName = document.getElementById("txt_newcontact_name");
 	txtNote = document.getElementById("txt_newcontact_note");
@@ -159,9 +159,9 @@ document.getElementById("btn_contact_add").addEventListener("click", function() 
 	txtNote.value = "";
 
 	document.getElementById("btn_savenotes").style.display = "inline";
-});
+};
 
-document.getElementById("btn_savenotes").addEventListener("click", function() {
+document.getElementById("btn_savenotes").onclick = function() {
 	ae.SaveNoteData(function(success) {
 		document.getElementById("btn_savenotes").style.display = "none";
 
@@ -170,7 +170,7 @@ document.getElementById("btn_savenotes").addEventListener("click", function() {
 		else
 			console.log("Note data failed to save");
 	});
-});
+};
 
 function destroyAccount(upk_hex) {
 	let tbl = document.getElementById("tbody_admin")
@@ -326,7 +326,7 @@ function loginSuccess() {
 	}
 }
 
-document.getElementById("btn_msgdel").addEventListener("click", function(){
+document.getElementById("btn_msgdel").onclick = function() {
 	const tbl = document.getElementById("tbody_inbox");
 	let ids = [];
 
@@ -349,9 +349,9 @@ document.getElementById("btn_msgdel").addEventListener("click", function(){
 	});
 
 	document.getElementById("btn_msgdel").style.display="none";
-});
+};
 
-document.getElementById("btn_send").addEventListener("click", function(){
+document.getElementById("btn_send").onclick = function() {
 	sfrom=document.getElementById("send_from");
 	stitle=document.getElementById("send_title");
 	sto=document.getElementById("send_to")
@@ -366,9 +366,9 @@ document.getElementById("btn_send").addEventListener("click", function(){
 			console.log("Failed to send message");
 		}
 	});
-});
+};
 
-document.getElementById("btn_newaddress").addEventListener("click", function(){
+document.getElementById("btn_newaddress").onclick = function() {
 	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) {
 		console.log("Address limit reached");
 		return;
@@ -388,9 +388,9 @@ document.getElementById("btn_newaddress").addEventListener("click", function(){
 			console.log("Failed to add address");
 		}
 	});
-});
+};
 
-document.getElementById("btn_newshieldaddress").addEventListener("click", function(){
+document.getElementById("btn_newshieldaddress").onclick = function() {
 	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) {
 		console.log("Shield address limit reached");
 		return;
@@ -410,9 +410,9 @@ document.getElementById("btn_newshieldaddress").addEventListener("click", functi
 			console.log("Failed to add Shield address")
 		}
 	});
-});
+};
 
-document.getElementById("btn_saveaddrdata").addEventListener("click", function(){
+document.getElementById("btn_saveaddrdata").onclick = function() {
 	let tbl = document.getElementById("tbody_opt_addr")
 
 	for (let i = 0; i < tbl.rows.length; i++) {
@@ -430,7 +430,7 @@ document.getElementById("btn_saveaddrdata").addEventListener("click", function()
 	});
 
 	document.getElementById("btn_saveaddrdata").style.display="none";
-});
+};
 
 function addOpt(select, val) {
 	let opt = document.createElement("option");
@@ -439,7 +439,7 @@ function addOpt(select, val) {
 	select.appendChild(opt);
 }
 
-document.getElementById("btn_gkdomain_add").addEventListener("click", function() {
+document.getElementById("btn_gkdomain_add").onclick = function() {
 	let select = document.getElementById("gatekeeper_domain");
 	let txt = document.getElementById("txt_gkdomain");
 
@@ -448,9 +448,9 @@ document.getElementById("btn_gkdomain_add").addEventListener("click", function()
 	addOpt(select, txt.value);
 	txt.value = "";
 	document.getElementById("btn_savegkdata").style.display="inline";
-});
+};
 
-document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
+document.getElementById("btn_gkaddr_add").onclick = function() {
 	let select = document.getElementById("gatekeeper_addr");
 	let txt = document.getElementById("txt_gkaddr");
 
@@ -459,21 +459,21 @@ document.getElementById("btn_gkaddr_add").addEventListener("click", function() {
 	addOpt(select, txt.value);
 	txt.value = "";
 	document.getElementById("btn_savegkdata").style.display="inline";
-});
+};
 
-document.getElementById("btn_gkdomain_del").addEventListener("click", function() {
+document.getElementById("btn_gkdomain_del").onclick = function() {
 	let select = document.getElementById("gatekeeper_domain");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
 	document.getElementById("btn_savegkdata").style.display="inline";
-});
+};
 
-document.getElementById("btn_gkaddr_del").addEventListener("click", function() {
+document.getElementById("btn_gkaddr_del").onclick = function() {
 	let select = document.getElementById("gatekeeper_addr");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
 	document.getElementById("btn_savegkdata").style.display="inline";
-});
+};
 
-document.getElementById("btn_savegkdata").addEventListener("click", function() {
+document.getElementById("btn_savegkdata").onclick = function() {
 	let blocklist = [];
 
 	let opts = document.getElementById("gatekeeper_country").options;
@@ -494,9 +494,9 @@ document.getElementById("btn_savegkdata").addEventListener("click", function() {
 			console.log("Gatekeeper update failed;")
 		}
 	});
-});
+};
 
-document.getElementById("btn_admin_addaccount").addEventListener("click", function() {
+document.getElementById("btn_admin_addaccount").onclick = function() {
 	txtPkey = document.getElementById("txt_newacc_pkey");
 	btn = document.getElementById("btn_admin_addaccount");
 	btn.disabled = "disabled";
@@ -511,7 +511,7 @@ document.getElementById("btn_admin_addaccount").addEventListener("click", functi
 	});
 
 	btn.disabled = "";
-});
+};
 
 function genKeys() {
 	ae.NewKeys(function(pk, sk) {
@@ -558,33 +558,35 @@ function navNotesMenu(num) {
 }
 
 // Prefs menu
-document.getElementById("btn_prefs_gatekeeper").addEventListener("click", function() {
+document.getElementById("btn_prefs_gatekeeper").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled="";
 	document.getElementById("btn_prefs_gatekeeper").disabled="disabled";
 	document.getElementById("div_prefs_gatekeeper").style.display="block";
 	document.getElementById("div_prefs_addresses").style.display="none";
 
 	document.getElementById("div_prefs_gatekeeper").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
-});
+};
 
-document.getElementById("btn_prefs_addresses").addEventListener("click", function() {
+document.getElementById("btn_prefs_addresses").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled="disabled";
 	document.getElementById("btn_prefs_gatekeeper").disabled="";
 	document.getElementById("div_prefs_gatekeeper").style.display="none";
 	document.getElementById("div_prefs_addresses").style.display="inline";
-});
+};
 
 let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
-b[0].addEventListener("click", function() {navMenu(0);});
-b[1].addEventListener("click", function() {navMenu(1);});
-b[2].addEventListener("click", function() {navMenu(2);});
-b[3].addEventListener("click", function() {navMenu(3);});
-b[4].addEventListener("click", function() {navMenu(4);});
+b[0].onclick = function() {navMenu(0);};
+b[1].onclick = function() {navMenu(1);};
+b[2].onclick = function() {navMenu(2);};
+b[3].onclick = function() {navMenu(3);};
+b[4].onclick = function() {navMenu(4);};
 
 b = document.getElementById("div_notes").getElementsByTagName("button");
-b[0].addEventListener("click", function() {navNotesMenu(0);});
-b[1].addEventListener("click", function() {navNotesMenu(1);});
-b[2].addEventListener("click", function() {navNotesMenu(2);});
-b[3].addEventListener("click", function() {navNotesMenu(3);});
+b[0].onclick = function() {navNotesMenu(0);};
+b[1].onclick = function() {navNotesMenu(1);};
+b[2].onclick = function() {navNotesMenu(2);};
+b[3].onclick = function() {navNotesMenu(3);};
 
-gatekeeper_country.addEventListener("change", function() {document.getElementById("btn_savegkdata").style.display="inline";});
+gatekeeper_country.onchange = function() {
+	document.getElementById("btn_savegkdata").style.display="inline";
+};
