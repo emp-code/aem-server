@@ -28,13 +28,13 @@ function tsToISO8601(ts){
 
 function addOptAddr(num) {
 	const addrTable = document.getElementById("tbody_opt_addr");
-	let row = addrTable.insertRow(-1);
-	let cellAddr = row.insertCell(-1);
-	let cellChk1 = row.insertCell(-1);
-	let cellChk2 = row.insertCell(-1);
-	let cellChk3 = row.insertCell(-1);
-	let cellChk4 = row.insertCell(-1);
-	let cellBtnD = row.insertCell(-1);
+	const row = addrTable.insertRow(-1);
+	const cellAddr = row.insertCell(-1);
+	const cellChk1 = row.insertCell(-1);
+	const cellChk2 = row.insertCell(-1);
+	const cellChk3 = row.insertCell(-1);
+	const cellChk4 = row.insertCell(-1);
+	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent=ae.GetAddress(num);
 	if (ae.IsAddressShield(num)) cellAddr.className="mono";
@@ -54,7 +54,7 @@ function addOptAddr(num) {
 }
 
 function deleteAddress(addr) {
-	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+	const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
 	for (let i = 0; i < btns.length; i++) btns[i].disabled="disabled";
 
 	let addressToDelete = -1;
@@ -78,7 +78,7 @@ function deleteAddress(addr) {
 			console.log("Address failed to delete.");
 		}
 
-		let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+		const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
 		for (let i = 0; i < btns.length; i++) btns[i].disabled="";
 
 	});
@@ -101,11 +101,11 @@ function deleteContact(email) {
 
 function addContactToTable(mail, name, note) {
 	const contactTable = document.getElementById("tbody_notes_contact");
-	let row = contactTable.insertRow(-1);
-	let cellMail = row.insertCell(-1);
-	let cellName = row.insertCell(-1);
-	let cellNote = row.insertCell(-1);
-	let cellBtnD = row.insertCell(-1);
+	const row = contactTable.insertRow(-1);
+	const cellMail = row.insertCell(-1);
+	const cellName = row.insertCell(-1);
+	const cellNote = row.insertCell(-1);
+	const cellBtnD = row.insertCell(-1);
 
 	cellMail.className = "left";
 	cellName.className = "left";
@@ -122,13 +122,13 @@ function addContactToTable(mail, name, note) {
 function addRowAdmin(num) {
 	const table = document.getElementById("tbody_admin");
 
-	let row = table.insertRow(-1);
-	let cellPk = row.insertCell(-1);
-	let cellMb = row.insertCell(-1);
-	let cellLv = row.insertCell(-1);
-	let cellBtnPl = row.insertCell(-1);
-	let cellBtnMn = row.insertCell(-1);
-	let cellBtnDe = row.insertCell(-1);
+	const row = table.insertRow(-1);
+	const cellPk = row.insertCell(-1);
+	const cellMb = row.insertCell(-1);
+	const cellLv = row.insertCell(-1);
+	const cellBtnPl = row.insertCell(-1);
+	const cellBtnMn = row.insertCell(-1);
+	const cellBtnDe = row.insertCell(-1);
 
 	cellPk.textContent = ae.Admin_GetUserPkHex(num);
 	cellMb.textContent = ae.Admin_GetUserSpace(num);
@@ -175,7 +175,7 @@ document.getElementById("btn_savenotes").onclick = function() {
 };
 
 function destroyAccount(upk_hex) {
-	let tbl = document.getElementById("tbody_admin")
+	const tbl = document.getElementById("tbody_admin")
 
 	let rowid = -1;
 
@@ -198,7 +198,7 @@ function destroyAccount(upk_hex) {
 }
 
 function setAccountLevel(upk_hex, level) {
-	let tbl = document.getElementById("tbody_admin")
+	const tbl = document.getElementById("tbody_admin")
 
 	let rowid = -1;
 
@@ -252,9 +252,9 @@ function loginSuccess() {
 	}
 
 	// Addresses
-	let select=document.getElementById("send_from");
+	const select=document.getElementById("send_from");
 	for (let i = 0; i < ae.GetAddressCount(); i++) {
-		let opt = document.createElement("option");
+		const opt = document.createElement("option");
 		opt.value = ae.GetAddress(i);
 		opt.textContent = ae.GetAddress(i) + "@allears.test";
 		select.appendChild(opt);
@@ -276,7 +276,7 @@ function loginSuccess() {
 
 	gkList = ae.GetGatekeeperCountry();
 	for (let i = 0; i < gkList.length; i++) {
-		var opts = document.getElementById("gatekeeper_country");
+		const opts = document.getElementById("gatekeeper_country");
 
 		for (let j = 0; j < opts.length; j++) {
 			if (opts[j].value == gkList[i]) {
@@ -290,12 +290,12 @@ function loginSuccess() {
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const table = document.getElementById("tbody_inbox");
 
-		let row = table.insertRow(-1);
-		let cellTime  = row.insertCell(-1);
-		let cellTitle = row.insertCell(-1);
-		let cellFrom  = row.insertCell(-1);
-		let cellTo    = row.insertCell(-1);
-		let cellDel   = row.insertCell(-1);
+		const row = table.insertRow(-1);
+		const cellTime  = row.insertCell(-1);
+		const cellTitle = row.insertCell(-1);
+		const cellFrom  = row.insertCell(-1);
+		const cellTo    = row.insertCell(-1);
+		const cellDel   = row.insertCell(-1);
 
 		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
@@ -431,7 +431,7 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 };
 
 document.getElementById("btn_saveaddrdata").onclick = function() {
-	let tbl = document.getElementById("tbody_opt_addr")
+	const tbl = document.getElementById("tbody_opt_addr")
 
 	for (let i = 0; i < tbl.rows.length; i++) {
 		ae.SetAddressAcceptIntMsg(i, tbl.rows[i].cells[1].firstChild.checked);
@@ -451,15 +451,15 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 };
 
 function addOpt(select, val) {
-	let opt = document.createElement("option");
+	const opt = document.createElement("option");
 	opt.value = val;
 	opt.textContent = val;
 	select.appendChild(opt);
 }
 
 document.getElementById("btn_gkdomain_add").onclick = function() {
-	let select = document.getElementById("gatekeeper_domain");
-	let txt = document.getElementById("txt_gkdomain");
+	const select = document.getElementById("gatekeeper_domain");
+	const txt = document.getElementById("txt_gkdomain");
 
 	if (!(txt.reportValidity())) return;
 
@@ -469,8 +469,8 @@ document.getElementById("btn_gkdomain_add").onclick = function() {
 };
 
 document.getElementById("btn_gkaddr_add").onclick = function() {
-	let select = document.getElementById("gatekeeper_addr");
-	let txt = document.getElementById("txt_gkaddr");
+	const select = document.getElementById("gatekeeper_addr");
+	const txt = document.getElementById("txt_gkaddr");
 
 	if (!(txt.reportValidity())) return;
 
@@ -480,13 +480,13 @@ document.getElementById("btn_gkaddr_add").onclick = function() {
 };
 
 document.getElementById("btn_gkdomain_del").onclick = function() {
-	let select = document.getElementById("gatekeeper_domain");
+	const select = document.getElementById("gatekeeper_domain");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
 	document.getElementById("btn_savegkdata").style.display="inline";
 };
 
 document.getElementById("btn_gkaddr_del").onclick = function() {
-	let select = document.getElementById("gatekeeper_addr");
+	const select = document.getElementById("gatekeeper_addr");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
 	document.getElementById("btn_savegkdata").style.display="inline";
 };
@@ -542,8 +542,8 @@ function genKeys() {
 function navMenu(num) {
 	document.getElementById("div_readmsg").style.display="none";
 
-	let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
-	let d = document.getElementsByClassName("maindiv");
+	const b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
+	const d = document.getElementsByClassName("maindiv");
 
 	for (let i = 0; i < 5; i++) {
 		if (i == num) {
@@ -560,8 +560,8 @@ navMenu(0);
 
 // Notes Menu
 function navNotesMenu(num) {
-	let b = document.getElementById("div_notes").getElementsByTagName("button");
-	let d = document.getElementById("div_notes").getElementsByTagName("div");
+	const b = document.getElementById("div_notes").getElementsByTagName("button");
+	const d = document.getElementById("div_notes").getElementsByTagName("div");
 
 	for (let i = 0; i < 4; i++) {
 		if (i == num) {
