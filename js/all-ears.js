@@ -1,3 +1,5 @@
+"use strict";
+
 function AllEars() {
 // Private
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
@@ -445,7 +447,7 @@ function AllEars() {
 	}); }
 
 	this.SaveNoteData = function(callback) { nacl_factory.instantiate(function (nacl) {
-		noteText = "";
+		let noteText = "";
 
 		for (let i = 0; i < _contactMail.length; i++) {
 			noteText += _contactMail[i] + '\n';
@@ -454,7 +456,7 @@ function AllEars() {
 		}
 
 		let noteData = new Uint8Array(_lenNoteData_unsealed);
-		noteUtf8 = nacl.encode_utf8(noteText);
+		let noteUtf8 = nacl.encode_utf8(noteText);
 		noteData.set(noteUtf8, 2);
 
 		let n = noteUtf8.length;

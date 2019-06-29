@@ -1,4 +1,6 @@
-ae=new AllEars();
+"use strict";
+
+var ae=new AllEars();
 
 document.getElementById("btn_signin").onclick = function() {
 	// All-Ears needs to be provided with the user's secret key in order to log in
@@ -147,9 +149,9 @@ function addRowAdmin(num) {
 }
 
 document.getElementById("btn_contact_add").onclick = function() {
-	txtMail = document.getElementById("txt_newcontact_mail");
-	txtName = document.getElementById("txt_newcontact_name");
-	txtNote = document.getElementById("txt_newcontact_note");
+	const txtMail = document.getElementById("txt_newcontact_mail");
+	const txtName = document.getElementById("txt_newcontact_name");
+	const txtNote = document.getElementById("txt_newcontact_note");
 
 	addContactToTable(txtMail.value, txtName.value, txtNote.value);
 	ae.AddContact(txtMail.value, txtName.value, txtNote.value);
@@ -274,7 +276,7 @@ function loginSuccess() {
 
 	gkList = ae.GetGatekeeperCountry();
 	for (let i = 0; i < gkList.length; i++) {
-		opts = document.getElementById("gatekeeper_country");
+		var opts = document.getElementById("gatekeeper_country");
 
 		for (let j = 0; j < opts.length; j++) {
 			if (opts[j].value == gkList[i]) {
@@ -368,10 +370,10 @@ document.getElementById("btn_msgdel").onclick = function() {
 };
 
 document.getElementById("btn_send").onclick = function() {
-	sfrom=document.getElementById("send_from");
-	stitle=document.getElementById("send_title");
-	sto=document.getElementById("send_to")
-	sbody=document.getElementById("send_body")
+	const sfrom=document.getElementById("send_from");
+	const stitle=document.getElementById("send_title");
+	const sto=document.getElementById("send_to")
+	const sbody=document.getElementById("send_body")
 
 	ae.Send(sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
@@ -512,8 +514,8 @@ document.getElementById("btn_savegkdata").onclick = function() {
 };
 
 document.getElementById("btn_admin_addaccount").onclick = function() {
-	txtPkey = document.getElementById("txt_newacc_pkey");
-	btn = document.getElementById("btn_admin_addaccount");
+	const txtPkey = document.getElementById("txt_newacc_pkey");
+	const btn = document.getElementById("btn_admin_addaccount");
 	btn.disabled = "disabled";
 
 	ae.AddAccount(txtPkey.value, function(success) {
