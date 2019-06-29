@@ -1,6 +1,6 @@
 "use strict";
 
-var ae=new AllEars();
+const ae=new AllEars();
 
 document.getElementById("btn_signin").onclick = function() {
 	// All-Ears needs to be provided with the user's secret key in order to log in
