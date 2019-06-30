@@ -247,7 +247,7 @@ function setAccountLevel(upk_hex, level) {
 function loginSuccess() {
 	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").style.display="none";
 	document.getElementById("div_login").style.display="none";
-	document.getElementById("div_loggedin").style.display="inline";
+	document.getElementById("div_loggedin").style.display="block";
 
 	// Contacts
 	for (let i = 0; i < ae.GetContactCount(); i++) {
@@ -320,7 +320,7 @@ function loginSuccess() {
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
-			document.getElementById("div_readmsg").style.display="inline";
+			document.getElementById("div_readmsg").style.display="block";
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
@@ -564,7 +564,7 @@ function navMenu(num) {
 	for (let i = 0; i < 5; i++) {
 		if (i == num) {
 			b[i].disabled="disabled";
-			d[i].style.display="inline";
+			d[i].style.display="block";
 		} else {
 			b[i].disabled="";
 			d[i].style.display="none";
@@ -582,7 +582,7 @@ function navNotesMenu(num) {
 	for (let i = 0; i < 4; i++) {
 		if (i == num) {
 			b[i].disabled="disabled";
-			d[i].style.display="inline";
+			d[i].style.display="block";
 		} else {
 			b[i].disabled="";
 			d[i].style.display="none";
@@ -604,7 +604,7 @@ document.getElementById("btn_prefs_addresses").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled="disabled";
 	document.getElementById("btn_prefs_gatekeeper").disabled="";
 	document.getElementById("div_prefs_gatekeeper").style.display="none";
-	document.getElementById("div_prefs_addresses").style.display="inline";
+	document.getElementById("div_prefs_addresses").style.display="block";
 };
 
 let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
