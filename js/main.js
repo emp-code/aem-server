@@ -26,7 +26,7 @@ function tsToISO8601(ts){
 	return dt_Y + '-' + dt_m + '-' + dt_d + 'T' + dt_H + ':' + dt_M + ':' + dt_S + 'Z';
 }
 
-function addOptAddr(num) {
+function addAddress(num) {
 	const addrTable = document.getElementById("tbody_opt_addr");
 	const row = addrTable.insertRow(-1);
 	const cellAddr = row.insertCell(-1);
@@ -51,6 +51,11 @@ function addOptAddr(num) {
 
 	cellBtnD.innerHTML = "<button>&#128473;</button>";
 	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
+
+	const opt = document.createElement("option");
+	opt.value = cellAddr.textContent;
+	opt.textContent = cellAddr.textContent + "@allears.test";
+	document.getElementById("send_from").appendChild(opt);
 }
 
 function deleteAddress(addr) {
@@ -72,6 +77,8 @@ function deleteAddress(addr) {
 		if (success) {
 			console.log("Address #" + addressToDelete + " deleted.");
 			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
+			document.getElementById("send_from").remove(addressToDelete);
+
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 		} else {
@@ -254,12 +261,7 @@ function loginSuccess() {
 	// Addresses
 	const select=document.getElementById("send_from");
 	for (let i = 0; i < ae.GetAddressCount(); i++) {
-		const opt = document.createElement("option");
-		opt.value = ae.GetAddress(i);
-		opt.textContent = ae.GetAddress(i) + "@allears.test";
-		select.appendChild(opt);
-
-		addOptAddr(i);
+		addAddress(i);
 	}
 
 	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -401,7 +403,7 @@ document.getElementById("btn_newaddress").onclick = function() {
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
-			addOptAddr(ae.GetAddressCount() - 1);
+			addAddress(ae.GetAddressCount() - 1);
 		} else {
 			console.log("Failed to add address");
 		}
@@ -423,7 +425,7 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-			addOptAddr(ae.GetAddressCount() - 1);
+			addAddress(ae.GetAddressCount() - 1);
 		} else {
 			console.log("Failed to add Shield address")
 		}
