@@ -301,9 +301,15 @@ function loginSuccess() {
 
 		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
-		cellFrom.textContent = ae.GetIntMsgFrom(i);
 		cellTo.textContent = ae.GetIntMsgTo(i);
-		cellFrom.className = ae.GetIntMsgShield(i) ? "mono" : "";
+
+		if (ae.GetIntMsgShield(i)) {
+			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
+			cellFrom.className = "mono";
+		} else {
+			cellFrom.textContent = ae.GetIntMsgFrom(i);
+		}
+
 		cellDel.innerHTML = "<input type=\"checkbox\">"
 
 		cellTitle.onclick = function() {
