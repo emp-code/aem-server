@@ -301,10 +301,16 @@ function loginSuccess() {
 
 		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
-		cellTo.textContent = ae.GetIntMsgTo(i);
+
+		if (ae.GetIntMsgTo(i).length == 36) {
+			cellTo.textContent = ae.GetIntMsgTo(i).substr(0, 24);
+			cellTo.className = "mono";
+		} else {
+			cellTo.textContent = ae.GetIntMsgTo(i);
+		}
 
 		if (ae.GetIntMsgShield(i)) {
-			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
+			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 24);
 			cellFrom.className = "mono";
 		} else {
 			cellFrom.textContent = ae.GetIntMsgFrom(i);
