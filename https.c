@@ -450,6 +450,17 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 		addUserMessage(pk, boxSet, bsLen);
 		free(boxSet);
 	} else {
+		const char *domainAt = strchr(addrTo, '@');
+		if (domainAt == NULL) {
+			sodium_free(*decrypted);
+			return;
+		}
+
+		const size_t lenExtDomain = lenTo - (domainAt - addrTo) - 1;
+		char extDomain[lenExtDomain + 1];
+		memcpy(extDomain, domainAt + 1, lenExtDomain);
+		extDomain[lenExtDomain] = '\0';
+
 		// TODO: ExtMsg (email)
 		sodium_free(*decrypted);
 		return;
