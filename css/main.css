@@ -10,7 +10,6 @@ footer {
 
 td, th {
 	min-width: 3em;
-	text-align: center;
 }
 
 textarea {
@@ -48,7 +47,16 @@ td, #readmsg_title, #readmsg_body {
 	text-align-last: center;
 }
 
-#tbody_opt_addr td:not(:first-child) {
+#div_admin td:not(:first-child),
+#div_admin th:not(:first-child),
+#div_inbox td:last-child,
+#div_inbox th:last-child,
+#div_notes_contacts th:last-child,
+#div_notes_contacts td:last-child,
+#div_notes_texts td:last-child,
+#div_notes_texts th:last-child,
+#div_prefs_addresses td:not(:first-child),
+#div_prefs_addresses th:not(:first-child) {
 	text-align: center;
 	width: 3em;
 }
