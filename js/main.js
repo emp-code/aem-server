@@ -510,8 +510,8 @@ document.getElementById("btn_gkaddr_del").onclick = function() {
 document.getElementById("btn_savegkdata").onclick = function() {
 	let blocklist = [];
 
-	let opts = document.getElementById("gatekeeper_country").options;
-	for (let i = 0; i < opts.length; i++) if (opts[i].selected) blocklist.push(opts[i].value);
+	let opts = document.getElementById("gatekeeper_country").selectedOptions;
+	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
 
 	opts = document.getElementById("gatekeeper_domain").options;
 	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
