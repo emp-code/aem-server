@@ -520,24 +520,6 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 	return decrypted;
 }
 
-static void respond_https_addr_del(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 9) {free(*decrypted); return;}
-	int64_t hash;
-	memcpy(&hash, *decrypted, 8);
-
-	if (deleteAddress(upk, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8) != 0) return;
-	sodium_free(*decrypted);
-	send204(ssl);
-}
-
-static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 1) {free(*decrypted); return;}
-
-	if (updateAddress(upk, (unsigned char*)(*decrypted), lenDecrypted) != 0) return;
-	sodium_free(*decrypted);
-	send204(ssl);
-}
-
 static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	unsigned char *addr;
 	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
@@ -569,52 +551,65 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const unsigned char
 	sendData(ssl, data, 169);
 }
 
+static void respond_https_addr_del(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted < 9) {free(*decrypted); return;}
+	int64_t hash;
+	memcpy(&hash, *decrypted, 8);
+
+	const int ret = deleteAddress(upk, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8);
+	sodium_free(*decrypted);
+	if (ret == 0) send204(ssl);
+}
+
+static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted < 1) {free(*decrypted); return;}
+
+	const int ret = updateAddress(upk, (unsigned char*)(*decrypted), lenDecrypted);
+	sodium_free(*decrypted);
+	if (ret == 0) send204(ssl);
+}
+
 static void respond_https_delmsg(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	int ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
 		ids[i] = (unsigned char)((*decrypted)[i]);
 	}
 
-	int ret = deleteMessages(upk, ids, (int)lenDecrypted);
+	const int ret = deleteMessages(upk, ids, (int)lenDecrypted);
 	sodium_free(*decrypted);
-
 	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char hashKey[16]) {
-	int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
+	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
 	sodium_free(*decrypted);
-
-	if (ret != 0) return;
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_notedata(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) return;
 
-	int ret = updateNoteData(upk, (unsigned char*)*decrypted);
+	const int ret = updateNoteData(upk, (unsigned char*)*decrypted);
 	sodium_free(*decrypted);
-
-	if (ret != 0) return;
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_addaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
-	if (addAccount((unsigned char*)*decrypted) != 0) {sodium_free(*decrypted); return;}
 
+	const int ret = addAccount((unsigned char*)*decrypted);
 	sodium_free(*decrypted);
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
 	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
-	if (destroyAccount(*decrypted) != 0) {sodium_free(*decrypted); return;}
 
+	const int ret = destroyAccount(*decrypted);
 	sodium_free(*decrypted);
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_accountlevel(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
@@ -622,10 +617,9 @@ static void respond_https_accountlevel(mbedtls_ssl_context *ssl, unsigned char u
 	if (!isUserAdmin(upk)) {sodium_free(*decrypted); return;}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
-	if (setAccountLevel(*decrypted, level) != 0) {sodium_free(*decrypted); return;}
-
+	const int ret = setAccountLevel(*decrypted, level);
 	sodium_free(*decrypted);
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, const size_t chLen, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
