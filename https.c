@@ -385,16 +385,15 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 	(Body)
 */
 
-	const char *endFrom = strchr(*decrypted, '\n');
-	if (endFrom == NULL) {sodium_free(*decrypted); return;}
-	const char *endTo = strchr(endFrom + 1, '\n');
-	if (endTo == NULL) {sodium_free(*decrypted); return;}
-
-	const size_t lenFrom = endFrom - *decrypted;
-	const size_t lenTo = endTo - (endFrom + 1);
-
 	const char *addrFrom = *decrypted;
+	const char *endFrom = strchr(addrFrom, '\n');
+	if (endFrom == NULL) {sodium_free(*decrypted); return;}
+	const size_t lenFrom = endFrom - addrFrom;
+
 	const char *addrTo = endFrom + 1;
+	const char *endTo = strchr(addrTo, '\n');
+	if (endTo == NULL) {sodium_free(*decrypted); return;}
+	const size_t lenTo = endTo - addrTo;
 
 	const char *c = strchr(domain, ':');
 	const size_t lenDomain = (c == NULL) ? strlen(domain) : (size_t)(c - domain);
