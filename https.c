@@ -376,6 +376,61 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 	return binm;
 }
 
+static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted) {
+	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
+
+	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
+	if (binFrom == NULL) {sodium_free(*decrypted); return -1;}
+	unsigned char *binTo = addr2bin(addrTo, lenTo);
+	if (binTo == NULL) {sodium_free(*decrypted); free(binFrom); return -1;}
+
+	unsigned char pk[crypto_box_PUBLICKEYBYTES];
+	int memberLevel;
+	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
+	if (ret != 0) {sodium_free(*decrypted); free(binFrom); free(binTo); return -1;}
+
+	unsigned char senderInfo = '\0';
+	// Bits 0-1: member level
+	switch(memberLevel) {
+		case 3:
+			BIT_SET(senderInfo, 0);
+			BIT_SET(senderInfo, 1);
+			break;
+		case 2:
+			BIT_SET(senderInfo, 1);
+			break;
+		case 1:
+			BIT_SET(senderInfo, 0);
+			break;
+	}
+
+	// Bit 7: Address type. 0 = normal, 1 = Shield
+	if (lenFrom == 36) BIT_SET(senderInfo, 7);
+
+	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, senderInfo, binFrom, binTo);
+	free(binFrom);
+	free(binTo);
+	if (headBox == NULL) {sodium_free(*decrypted); return -1;}
+
+	size_t bodyLen = lenDecrypted - bodyBegin;
+	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, *decrypted + bodyBegin, &bodyLen);
+	sodium_free(*decrypted);
+	if (bodyBox == NULL) {free(headBox); return -1;}
+
+	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	unsigned char *boxSet = malloc(bsLen);
+	if (boxSet == NULL) {free(headBox); free(bodyBox); return -1;}
+
+	memcpy(boxSet, headBox, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
+	free(headBox);
+	memcpy(boxSet + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
+	free(bodyBox);
+
+	addUserMessage(pk, boxSet, bsLen);
+	free(boxSet);
+	return 0;
+}
+
 // Message sending
 static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, char **decrypted, const size_t lenDecrypted) {
 /* Format:
@@ -384,7 +439,6 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 	(Title)\n
 	(Body)
 */
-
 	const char *addrFrom = *decrypted;
 	const char *endFrom = strchr(addrFrom, '\n');
 	if (endFrom == NULL) {sodium_free(*decrypted); return;}
@@ -398,56 +452,9 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 	const char *c = strchr(domain, ':');
 	const size_t lenDomain = (c == NULL) ? strlen(domain) : (size_t)(c - domain);
 
+	int ret;
 	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		// IntMsg
-		unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
-		if (binFrom == NULL) {sodium_free(*decrypted); return;}
-		unsigned char *binTo = addr2bin(addrTo, lenTo - lenDomain - 1);
-		if (binTo == NULL) {sodium_free(*decrypted); free(binFrom); return;}
-
-		unsigned char pk[crypto_box_PUBLICKEYBYTES];
-		int memberLevel;
-		int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
-		if (ret != 0) {sodium_free(*decrypted); free(binFrom); free(binTo); return;}
-
-		unsigned char senderInfo = '\0';
-		// Bits 0-1: member level
-		switch(memberLevel) {
-			case 3:
-				BIT_SET(senderInfo, 0);
-				BIT_SET(senderInfo, 1);
-				break;
-			case 2:
-				BIT_SET(senderInfo, 1);
-				break;
-			case 1:
-				BIT_SET(senderInfo, 0);
-				break;
-		}
-
-		// Bit 7: Address type. 0 = normal, 1 = Shield
-		if (lenFrom == 36) BIT_SET(senderInfo, 7);
-
-		unsigned char *headBox = aem_intMsg_makeHeadBox(pk, senderInfo, binFrom, binTo);
-		free(binFrom);
-		free(binTo);
-
-		size_t bodyLen = lenDecrypted - ((endTo + 1) - *decrypted);
-		unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, endTo + 1, &bodyLen);
-
-		sodium_free(*decrypted);
-
-		const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-		unsigned char *boxSet = malloc(bsLen);
-		if (boxSet == NULL) {free(headBox); free(bodyBox); return;}
-
-		memcpy(boxSet, headBox, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
-		free(headBox);
-		memcpy(boxSet + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
-		free(bodyBox);
-
-		addUserMessage(pk, boxSet, bsLen);
-		free(boxSet);
+		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted);
 	} else {
 		const char *domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
@@ -465,7 +472,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 		return;
 	}
 
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
