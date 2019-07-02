@@ -250,16 +250,6 @@ static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) 
 	memcpy(nonce, nonce_encrypted, 24);
 }
 
-static char *userPath(const char *upk_hex, const char *filename) {
-	if (upk_hex == NULL || filename == NULL) return NULL;
-
-	char *path = malloc(75 + strlen(filename));
-	if (path == NULL) return NULL;
-
-	sprintf(path, "UserData/%.64s/%s", upk_hex, filename);
-	return path;
-}
-
 static int numDigits(double number) {
 	int digits = 0;
 	while (number > 1) {number /= 10; digits++;}
@@ -270,18 +260,15 @@ static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsi
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
-	char *path = userPath(upk_hex, "nonce");
-	if (path == NULL) return -1;
-	int fd = open(path, O_RDWR);
-	if (fd < 0) {free(path); return -1;}
-	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return -1;}
+	int fd = open("/tmp/nonce.aem", O_RDWR);
+	if (fd < 0) return -1;
+	if (flock(fd, LOCK_EX) != 0) {close(fd); return -1;}
 
 	ssize_t bytesDone = read(fd, nonce, 24);
 	if (bytesDone == 24) bytesDone = pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
 	flock(fd, LOCK_UN);
 	close(fd);
-	int ret = unlink(path);
-	free(path);
+	int ret = unlink("/tmp/nonce.aem");
 	if (bytesDone != 24 || ret != 0) return -1;
 
 	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
@@ -481,24 +468,22 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, post, crypto_box_PUBLICKEYBYTES);
 
-	char *path = userPath(upk_hex, "nonce");
-	if (path == NULL) return;
-	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+	int fd = open("/tmp/nonce.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 
 	if (fd < 0) {
-		if (errno != EEXIST) {free(path); return;}
+		if (errno != EEXIST) return;
 
-		fd = open(path, O_RDWR);
+		fd = open("/tmp/nonce.aem", O_RDWR);
 		char ts_c[4];
-		if (pread(fd, ts_c, 4, 20) != 4) {close(fd); free(path); return;}
+		if (pread(fd, ts_c, 4, 20) != 4) {close(fd); return;}
 		int32_t ts;
 		memcpy(&ts, ts_c, 4);
 
 		const int timeDiff = (int)time(NULL) - ts;
-		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); free(path); return;}
+		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); return;}
 	}
 
-	if (flock(fd, LOCK_EX) != 0) {close(fd); free(path); return;}
+	if (flock(fd, LOCK_EX) != 0) {close(fd); return;}
 
 	// Generate nonce
 	unsigned char nonce[24];
@@ -510,7 +495,6 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	const ssize_t bytesDone = write(fd, nonce, 24);
 	flock(fd, LOCK_UN);
 	close(fd);
-	free(path);
 	if (bytesDone != 24) return;
 
 	encryptNonce(nonce, seed);
