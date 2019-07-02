@@ -386,12 +386,13 @@ document.getElementById("btn_msgdel").onclick = function() {
 };
 
 document.getElementById("btn_send").onclick = function() {
+	const scopy=document.getElementById("send_copy");
 	const sfrom=document.getElementById("send_from");
 	const stitle=document.getElementById("send_title");
 	const sto=document.getElementById("send_to")
 	const sbody=document.getElementById("send_body")
 
-	ae.Send(sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
+	ae.Send(scopy.checked, sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
 			stitle.value="";
 			sto.value="";

@@ -365,7 +365,7 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 	return binm;
 }
 
-static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted) {
+static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, unsigned char sender_pk[crypto_box_PUBLICKEYBYTES]) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
 	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
@@ -398,11 +398,18 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
 	unsigned char *boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, pk);
-	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
-
 	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 	addUserMessage(pk, boxSet, bsLen);
 	free(boxSet);
+
+	if (sender_pk != NULL) {
+		bodyLen = lenDecrypted - bodyBegin;
+		boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, sender_pk);
+		if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
+		addUserMessage(sender_pk, boxSet, bsLen);
+		free(boxSet);
+	}
 
 	free(binFrom);
 	free(binTo);
@@ -410,14 +417,16 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 }
 
 // Message sending
-static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], const char *domain, char **decrypted, const size_t lenDecrypted) {
 /* Format:
 	(From)\n
 	(To)\n
 	(Title)\n
 	(Body)
 */
-	const char *addrFrom = *decrypted;
+	const char senderCopy = *decrypted[0];
+
+	const char *addrFrom = *decrypted + 1;
 	const char *endFrom = strchr(addrFrom, '\n');
 	if (endFrom == NULL) {sodium_free(*decrypted); return;}
 	const size_t lenFrom = endFrom - addrFrom;
@@ -432,7 +441,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 
 	int ret;
 	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted);
+		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, (senderCopy == 'Y') ? upk : NULL);
 	} else {
 		const char *domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
@@ -669,7 +678,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 		if (decrypted == NULL) return;
 
 		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, &decrypted, lenDecrypted);
-		if (urlLen == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, domain, &decrypted, lenDecrypted);
+		if (urlLen == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, lenDecrypted);
 
 		if (urlLen == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk, &decrypted, lenDecrypted);

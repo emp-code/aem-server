@@ -363,8 +363,9 @@ function AllEars() {
 		});
 	}); }
 
-	this.Send = function(msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
-		const cleartext = nacl.encode_utf8(msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
+	this.Send = function(senderCopy, msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
+		const sc = senderCopy? "Y" : "N";
+		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
 		_FetchEncrypted("/web/send", cleartext, nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204)
