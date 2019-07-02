@@ -31,7 +31,8 @@ function AllEars() {
 	var _admin_userSpace = [];
 	var _admin_userLevel = [];
 
-	function _NewIntMsg(sml, ts, from, shield, to, title, body) {
+	function _NewIntMsg(isSent, sml, ts, from, shield, to, title, body) {
+		this.isSent = isSent;
 		this.senderMemberLevel = sml;
 		this.timestamp = ts;
 		this.from = from;
@@ -198,6 +199,7 @@ function AllEars() {
 	this.GetIntMsgTime   = function(num) {return _intMsg[num].timestamp;}
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;}
 	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;}
+	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;}
 	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;}
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
@@ -336,8 +338,9 @@ function AllEars() {
 				const im_ts = new Uint32Array(u32bytes)[0];
 
 				const im_shield = _BitTest(msgHead[0], 7);
-				const im_from = im_shield ? nacl.to_hex(msgHead.slice(5, 23)) : _DecodeAddress(msgHead, 5, nacl);
-				const im_to   = _DecodeOwnAddress(msgHead, 23, nacl);
+				const im_from_raw = msgHead.slice(5, 23);
+				const im_from = im_shield ? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, nacl);
+				const im_to = _DecodeOwnAddress(msgHead, 23, nacl);
 
 				// BodyBox
 				const bbSize = msgKilos * 1024 + 50;
@@ -355,7 +358,21 @@ function AllEars() {
 				const im_title=msgBodyUtf8.slice(0, firstLf);
 				const im_body=msgBodyUtf8.slice(firstLf + 1);
 
-				_intMsg[i] = new _NewIntMsg(im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
+				let im_isSent;
+				for (let j = 0; j < _userAddress.length; j++) {
+					im_isSent = true;
+
+					for (let k = 0; k < 18; k++) {
+						if (im_from_raw[k] != _userAddress[j].address[k]) {
+							im_isSent = false;
+							break;
+						}
+					}
+
+					if (im_isSent) break;
+				}
+
+				_intMsg[i] = new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
 				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
 			}
 
