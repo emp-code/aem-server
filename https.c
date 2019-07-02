@@ -334,13 +334,13 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 	memcpy(data + s, noteData,  lenNote);  s += lenNote;
 	memcpy(data + s, addrData,  lenAddr);  s += lenAddr;
 	memcpy(data + s, gkData,    lenGk);    s += lenGk;
-	memcpy(data + s, adminData, lenAdmin); s += lenAdmin;
+	if (level == 3) {memcpy(data + s, adminData, lenAdmin); s += lenAdmin;}
 	memcpy(data + s, msgData,   lenMsg);   s += lenMsg;
 
 	free(noteData);
 	free(addrData);
 	free(gkData);
-	free(adminData);
+	if (level == 3) free(adminData);
 	free(msgData);
 
 	sendData(ssl, data, szResponse);
