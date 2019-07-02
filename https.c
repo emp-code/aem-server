@@ -367,14 +367,14 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
 	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
-	if (binFrom == NULL) {sodium_free(*decrypted); return -1;}
+	if (binFrom == NULL) return -1;
 	unsigned char *binTo = addr2bin(addrTo, lenTo);
-	if (binTo == NULL) {sodium_free(*decrypted); free(binFrom); return -1;}
+	if (binTo == NULL) {free(binFrom); return -1;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	int memberLevel;
 	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
-	if (ret != 0) {sodium_free(*decrypted); free(binFrom); free(binTo); return -1;}
+	if (ret != 0) {free(binFrom); free(binTo); return -1;}
 
 	unsigned char senderInfo = '\0';
 	// Bits 0-1: member level
@@ -394,27 +394,16 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	// Bit 7: Address type. 0 = normal, 1 = Shield
 	if (lenFrom == 36) BIT_SET(senderInfo, 7);
 
-	unsigned char *headBox = aem_intMsg_makeHeadBox(pk, senderInfo, binFrom, binTo);
-	free(binFrom);
-	free(binTo);
-	if (headBox == NULL) {sodium_free(*decrypted); return -1;}
-
 	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *bodyBox = aem_intMsg_makeBodyBox(pk, *decrypted + bodyBegin, &bodyLen);
-	sodium_free(*decrypted);
-	if (bodyBox == NULL) {free(headBox); return -1;}
+	unsigned char *boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, pk);
+	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 
 	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-	unsigned char *boxSet = malloc(bsLen);
-	if (boxSet == NULL) {free(headBox); free(bodyBox); return -1;}
-
-	memcpy(boxSet, headBox, AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES);
-	free(headBox);
-	memcpy(boxSet + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, bodyBox, bodyLen + crypto_box_SEALBYTES);
-	free(bodyBox);
-
 	addUserMessage(pk, boxSet, bsLen);
 	free(boxSet);
+
+	free(binFrom);
+	free(binTo);
 	return 0;
 }
 
@@ -455,10 +444,10 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const char *domain, cha
 		extDomain[lenExtDomain] = '\0';
 
 		// TODO: ExtMsg (email)
-		sodium_free(*decrypted);
 		return;
 	}
 
+	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
 
