@@ -338,10 +338,23 @@ int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
 
+	unsigned char zero[AEM_NOTEDATA_LEN];
+	sodium_memzero(zero, AEM_NOTEDATA_LEN);
+
+	unsigned char ciphertext_notedata[AEM_NOTEDATA_LEN + crypto_box_SEALBYTES];
+	unsigned char ciphertext_empty[crypto_box_SEALBYTES];
+	crypto_box_seal(ciphertext_notedata, zero, AEM_NOTEDATA_LEN, pk);
+	crypto_box_seal(ciphertext_empty, NULL, 0, pk);
+
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (publickey, level) VALUES (?, ?)", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (publickey, level, notedata, addrdata, gkdata) VALUES (?,?,?,?,?)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 	sqlite3_bind_int(query, 2, 0);
+	sqlite3_bind_blob(query, 3, ciphertext_notedata, AEM_NOTEDATA_LEN + crypto_box_SEALBYTES, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 4, ciphertext_empty, crypto_box_SEALBYTES, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 5, ciphertext_empty, crypto_box_SEALBYTES, SQLITE_STATIC);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
