@@ -290,7 +290,8 @@ function loginSuccess() {
 
 	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
-		const table = document.getElementById("tbody_inbox");
+		const isSent = ae.GetIntMsgIsSent(i);
+		const table = document.getElementById(isSent? "tbody_sentbox" : "tbody_inbox");
 
 		const row = table.insertRow(-1);
 		const cellTime  = row.insertCell(-1);
@@ -343,12 +344,12 @@ function loginSuccess() {
 				}
 
 				if (!checked) {
-					document.getElementById("btn_msgdel").style.display="none";
+					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").style.display="none";
 					return;
 				}
 			}
 
-			document.getElementById("btn_msgdel").style.display="inline";
+			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").style.display="inline";
 		}
 	}
 
