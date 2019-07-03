@@ -2,6 +2,7 @@
 
 function AllEars() {
 	if (!document.documentURI.startsWith("https://")) return;
+	if (!window.isSecureContext) return;
 	if (document.compatMode == "BackCompat") return;
 	if (document.characterSet != "UTF-8") return;
 
