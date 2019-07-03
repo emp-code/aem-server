@@ -360,8 +360,8 @@ function loginSuccess() {
 	}
 }
 
-document.getElementById("btn_msgdel").onclick = function() {
-	const tbl = document.getElementById("tbody_inbox");
+function delMsgs(tblName, btnName) {
+	const tbl = document.getElementById(tblName);
 	let ids = [];
 
 	for (let i = 0; i < tbl.rows.length; i++) {
@@ -380,12 +380,19 @@ document.getElementById("btn_msgdel").onclick = function() {
 				}
 			}
 
-			document.getElementById("btn_msgdel").style.display="none";
+			document.getElementById(btnName).style.display="none";
 		} else {
 			console.log("Failed to delete messages");
 		}
 	});
+}
 
+document.getElementById("btn_msgdel").onclick = function() {
+	delMsgs("tbody_inbox", "btn_msgdel");
+};
+
+document.getElementById("btn_sentdel").onclick = function() {
+	delMsgs("tbody_sentbox", "btn_sentdel");
 };
 
 document.getElementById("btn_send").onclick = function() {
