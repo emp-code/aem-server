@@ -339,8 +339,23 @@ function AllEars() {
 
 				const im_shield = _BitTest(msgHead[0], 7);
 				const im_from_raw = msgHead.slice(5, 23);
-				const im_from = im_shield ? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, nacl);
-				const im_to = _DecodeOwnAddress(msgHead, 23, nacl);
+				const im_from = im_shield? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, nacl);
+
+				let im_isSent;
+				for (let j = 0; j < _userAddress.length; j++) {
+					im_isSent = true;
+
+					for (let k = 0; k < 18; k++) {
+						if (im_from_raw[k] != _userAddress[j].address[k]) {
+							im_isSent = false;
+							break;
+						}
+					}
+
+					if (im_isSent) break;
+				}
+
+				const im_to = im_isSent? _DecodeAddress(msgHead, 23, nacl) : _DecodeOwnAddress(msgHead, 23, nacl); //nacl.to_hex(msgHead.slice(23, 41))
 
 				// BodyBox
 				const bbSize = msgKilos * 1024 + 50;
@@ -357,20 +372,6 @@ function AllEars() {
 				const firstLf = msgBodyUtf8.indexOf('\n');
 				const im_title=msgBodyUtf8.slice(0, firstLf);
 				const im_body=msgBodyUtf8.slice(firstLf + 1);
-
-				let im_isSent;
-				for (let j = 0; j < _userAddress.length; j++) {
-					im_isSent = true;
-
-					for (let k = 0; k < 18; k++) {
-						if (im_from_raw[k] != _userAddress[j].address[k]) {
-							im_isSent = false;
-							break;
-						}
-					}
-
-					if (im_isSent) break;
-				}
 
 				_intMsg[i] = new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
 				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
