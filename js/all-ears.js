@@ -2,6 +2,7 @@
 
 function AllEars() {
 	if (!document.documentURI.startsWith("https://")) return;
+	if (document.compatMode == "BackCompat") return;
 
 // Private
 	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
