@@ -103,7 +103,7 @@ function AllEars() {
 		return _BitTest(byteArray[skipBytes], skipBits);
 	}
 
-	var _DecodeAddress = function(byteArray, start) {
+	var _DecodeAddress = function(byteArray, start, nacl) {
 		const sixBitTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 		const skip = start * 8;
 
@@ -119,6 +119,8 @@ function AllEars() {
 			if (_GetBit(byteArray, skip + i*6 + 4)) num += 16;
 			if (_GetBit(byteArray, skip + i*6 + 5)) num += 32;
 
+			if (nacl != null && sixBitTable[num] == '?') return nacl.to_hex(byteArray.slice(start, start + 18));
+
 			decoded = decoded + sixBitTable[num];
 		}
 
@@ -129,12 +131,12 @@ function AllEars() {
 	}
 
 	var _DecodeOwnAddress = function(byteArray, start, nacl) {
-		const decoded = _DecodeAddress(byteArray, start);
+		const decoded = _DecodeAddress(byteArray, start, null);
 
 		for (let i = 0; i < _userAddress.length; i++) {
 			if (_userAddress[i].isShield) continue;
 
-			if (decoded == _DecodeAddress(_userAddress[i].address, 0)) return decoded;
+			if (decoded == _DecodeAddress(_userAddress[i].address, 0, null)) return decoded;
 		}
 
 		return nacl.to_hex(byteArray.slice(start, start + 18));
@@ -265,7 +267,7 @@ function AllEars() {
 				const useGatekeeper = _BitTest(addrData[i * 27], 4);
 				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
-				const decoded = isShield ? nacl.to_hex(addr) : _DecodeAddress(addr, 0);
+				const decoded = isShield ? nacl.to_hex(addr) : _DecodeAddress(addr, 0, null);
 
 				_userAddress[i] = new _NewAddress(addr, hash, decoded, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
 			}
@@ -339,7 +341,7 @@ function AllEars() {
 
 				const im_shield = _BitTest(msgHead[0], 7);
 				const im_from_raw = msgHead.slice(5, 23);
-				const im_from = im_shield? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, nacl);
+				const im_from = im_shield? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, null);
 
 				let im_isSent;
 				for (let j = 0; j < _userAddress.length; j++) {
