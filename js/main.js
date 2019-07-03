@@ -317,7 +317,7 @@ function loginSuccess() {
 			cellFrom.textContent = ae.GetIntMsgFrom(i);
 		}
 
-		cellDel.innerHTML = "<input type=\"checkbox\">"
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + i + "\">"
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
@@ -365,17 +365,19 @@ document.getElementById("btn_msgdel").onclick = function() {
 	let ids = [];
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		if (tbl.rows[i].cells[4].children[0].checked) {
-			ids.push(i);
-		}
+		const checkbox = tbl.rows[i].cells[4].children[0];
+		if (checkbox.checked) ids.push(checkbox.getAttribute("data-id"));
 	}
 
 	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
 		if (success) {
-			let rowsDeleted = 0;
 			for (let i = 0; i < ids.length; i++) {
-				tbl.deleteRow(ids[i] - rowsDeleted);
-				rowsDeleted++;
+				for (let j = 0; j < tbl.rows.length; j++) {
+					if (tbl.rows[j].cells[4].children[0].getAttribute("data-id") == ids[i]) {
+						tbl.deleteRow(j);
+						break;
+					}
+				}
 			}
 
 			document.getElementById("btn_msgdel").style.display="none";
