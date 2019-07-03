@@ -366,7 +366,7 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 	return binm;
 }
 
-static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, unsigned char sender_pk[crypto_box_PUBLICKEYBYTES]) {
+static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, unsigned char sender_pk[crypto_box_PUBLICKEYBYTES], const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
 	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
@@ -377,7 +377,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	int memberLevel;
 	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
-	if (ret != 0) {free(binFrom); free(binTo); return -1;}
+	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) {free(binFrom); free(binTo); return -1;}
 
 	unsigned char senderInfo = '\0';
 	// Bits 0-1: member level
@@ -404,7 +404,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	addUserMessage(pk, boxSet, bsLen);
 	free(boxSet);
 
-	if (sender_pk != NULL) {
+	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
 		boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, sender_pk);
 		if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
@@ -442,7 +442,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 
 	int ret;
 	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, (senderCopy == 'Y') ? upk : NULL);
+		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
 	} else {
 		const char *domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
