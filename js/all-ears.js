@@ -27,6 +27,10 @@ function AllEars() {
 	var _contactName = [];
 	var _contactNote = [];
 
+	var _noteTime = [];
+	var _noteTitle = [];
+	var _noteBody = [];
+
 	var _admin_userPkHex = [];
 	var _admin_userSpace = [];
 	var _admin_userLevel = [];
@@ -206,6 +210,11 @@ function AllEars() {
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
+	this.GetNoteCount = function() {return _noteTitle.length;}
+	this.GetNoteTime = function(num) {return _noteTime[num];}
+	this.GetNoteTitle = function(num) {return _noteTitle[num];}
+	this.GetNoteBody = function(num) {return _noteBody[num];}
+
 	this.GetGatekeeperCountry = function() {return _gkCountry;}
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
 	this.GetGatekeeperAddress = function() {return _gkAddress;}
@@ -324,13 +333,42 @@ function AllEars() {
 
 			// Message data
 			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
-			for (let i = 0; i < msgCount; i++) {
+			let skipMsg = 0;
+			for (let i = 0; i < msgCount - skipMsg; i++) {
 				// TODO: Detect message type and support extMsg
 				const msgKilos = byteArray[msgStart] + 1;
 
 				// HeadBox
 				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 90); // 1 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
+
+				if (_BitTest(msgHead[0], 5)) {
+					// TextNote
+					const u32bytes = msgHead.slice(1, 5).buffer;
+					const note_ts = new Uint32Array(u32bytes)[0];
+
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 90;
+
+					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = nacl.decode_utf8(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
+
+					const ln = msgBody.indexOf('\n');
+					if (ln != -1) {
+						_noteTime.push(note_ts);
+						_noteTitle.push(msgBody.substr(0, ln));
+						_noteBody.push(msgBody.substr(ln + 1));
+					} else console.log("Received corrupted note");
+
+					msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=140
+					skipMsg++;
+					i--;
+					continue;
+				}
 
 				let im_sml = 0;
 				if (_BitTest(msgHead[0], 0)) im_sml++;
@@ -376,7 +414,7 @@ function AllEars() {
 				const im_body=msgBodyUtf8.slice(firstLf + 1);
 
 				_intMsg[i] = new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
-				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=136
+				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=140
 			}
 
 			callback(true);
@@ -388,6 +426,30 @@ function AllEars() {
 		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
 		_FetchEncrypted("/web/send", cleartext, nacl, function(httpStatus, byteArray) {
+			if (httpStatus == 204)
+				callback(true);
+			else
+				callback(false);
+		});
+	}); }
+
+	// Notes are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
+	this.SaveNote = function(title, body, callback) { nacl_factory.instantiate(function (nacl) {
+		const txt = title + '\n' + body;
+		const lenTxt = txt.length;
+		if (lenTxt > (256 * 1024)) {callback(false); return;}
+
+		const paddedLen = Math.ceil(txt.length / 1024.0) * 1024;
+		const u16pad = new Uint16Array([paddedLen - lenTxt]);
+		const u8pad = new Uint8Array(u16pad.buffer);
+
+		const u8data = new Uint8Array(paddedLen + 2);
+		u8data.set(u8pad);
+		u8data.set(nacl.encode_utf8(txt.padEnd(paddedLen)), 2);
+
+		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk, _userKeys.boxSk);
+
+		_FetchEncrypted("/web/note", sealbox, nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204)
 				callback(true);
 			else

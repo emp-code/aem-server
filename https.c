@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <math.h>
 
 #include <sodium.h>
 
@@ -462,6 +463,29 @@ static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 	if (ret == 0) send204(ssl);
 }
 
+static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES) % 1026 != 0) return; // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
+
+	// HeadBox format for notes: [1B] SenderInfo (00001000), [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
+	unsigned char header[AEM_INTMSG_HEADERSIZE];
+	bzero(header, AEM_INTMSG_HEADERSIZE);
+
+	BIT_SET(header[0], 5); // Bit 5: isTextNote
+	const uint32_t t = (uint32_t)time(NULL);
+	memcpy(header + 1, &t, 4);
+
+	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + lenDecrypted;
+	unsigned char *boxset = malloc(bsLen);
+
+	crypto_box_seal(boxset, header, AEM_INTMSG_HEADERSIZE, upk);
+	memcpy(boxset + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, *decrypted, lenDecrypted);
+
+	addUserMessage(upk, boxset, bsLen);
+	free(boxset);
+
+	send204(ssl);
+}
+
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
 
@@ -679,6 +703,7 @@ static void handleRequest(mbedtls_ssl_context *ssl, const char *clientHeaders, c
 
 		if (urlLen == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, lenDecrypted);
+		if (urlLen == 8 && memcmp(url, "web/note", 8) == 0) return respond_https_note(ssl, upk, &decrypted, lenDecrypted);
 
 		if (urlLen == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk, &decrypted, lenDecrypted);
 		if (urlLen == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk, &decrypted, lenDecrypted);

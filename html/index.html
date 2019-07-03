@@ -112,14 +112,13 @@
 									<th>Delete</th>
 								</tr>
 							</thead>
-							<tbody>
-								<tr>
-									<td>2000-01-01T00:00:00Z</td>
-									<td>An example note for testing</td>
-									<td><button>X</button></td>
-								</tr>
+							<tbody id="tbody_textnotes">
 							</tbody>
 						</table>
+
+						<button id="btn_notenew" class="topmargin">New</button>
+
+						<button id="btn_notedel" class="topmargin">Delete selected messages</button>
 					</div>
 
 					<div id="div_notes_files">
@@ -145,6 +144,14 @@
 						<div class="topmargin">
 							<input id="upfile" type="file"> <button id="btn_uploadfile">Add</button>
 						</div>
+					</div>
+
+					<div id="div_newtextnote">
+						<input id="txt_newnote_title" type="text" placeholder="Title">
+						<br>
+						<textarea id="txt_newnote_body" class="topmargin" placeholder="Contents"></textarea>
+						<br>
+						<button id="btn_newnote_save" class="topmargin">Save</button> <button id="btn_newnote_cancel" class="topmargin">Discard</button>
 					</div>
 				</div>
 
