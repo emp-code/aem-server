@@ -445,6 +445,8 @@ document.getElementById("btn_newnote_save").onclick = function() {
 	const txtTitle = document.getElementById("txt_newnote_title");
 	const txtBody = document.getElementById("txt_newnote_body");
 
+	if (!(txtTitle.reportValidity()) || !(txtBody.reportValidity())) return;
+
 	ae.SaveNote(txtTitle.value, txtBody.value, function(success) {
 		if (success) {
 			document.getElementById("txt_newnote_title").value = "";
