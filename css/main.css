@@ -51,6 +51,8 @@ td, #readmsg_title, #readmsg_body {
 #div_admin th:not(:first-child),
 #div_inbox td:last-child,
 #div_inbox th:last-child,
+#div_notes_sent td:last-child,
+#div_notes_sent th:last-child,
 #div_notes_contacts th:last-child,
 #div_notes_contacts td:last-child,
 #div_notes_texts td:last-child,
