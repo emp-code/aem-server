@@ -465,6 +465,8 @@ document.getElementById("btn_newaddress").onclick = function() {
 		return;
 	}
 
+	if (!(document.getElementById("txt_newaddress").reportValidity())) return;
+
 	document.getElementById("btn_newaddress").disabled="disabled";
 	document.getElementById("btn_newshieldaddress").disabled="disabled";
 
