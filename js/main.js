@@ -586,6 +586,9 @@ document.getElementById("btn_savegkdata").onclick = function() {
 
 document.getElementById("btn_admin_addaccount").onclick = function() {
 	const txtPkey = document.getElementById("txt_newacc_pkey");
+
+	if (!(txtPkey.reportValidity())) return;
+
 	const btn = document.getElementById("btn_admin_addaccount");
 	btn.disabled = "disabled";
 
