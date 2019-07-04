@@ -416,6 +416,8 @@ document.getElementById("btn_send").onclick = function() {
 	const sto=document.getElementById("send_to")
 	const sbody=document.getElementById("send_body")
 
+	if (!(stitle.reportValidity()) || !(sto.reportValidity()) || !(sbody.reportValidity())) return;
+
 	ae.Send(scopy.checked, sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
 			stitle.value="";
