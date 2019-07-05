@@ -285,7 +285,7 @@ function AllEars() {
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
 				const decoded = isShield ? nacl.to_hex(addr) : _DecodeAddress(addr, 0, null);
 
-				_userAddress[i] = new _NewAddress(addr, hash, decoded, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper);
+				_userAddress.push(new _NewAddress(addr, hash, decoded, isShield, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
 			}
 
 			// Gatekeeper data
@@ -417,10 +417,10 @@ function AllEars() {
 
 				const msgBodyUtf8 = nacl.decode_utf8(msgBody);
 				const firstLf = msgBodyUtf8.indexOf('\n');
-				const im_title=msgBodyUtf8.slice(0, firstLf);
-				const im_body=msgBodyUtf8.slice(firstLf + 1);
+				const im_title = msgBodyUtf8.slice(0, firstLf);
+				const im_body = msgBodyUtf8.slice(firstLf + 1);
 
-				_intMsg[i] = new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body);
+				_intMsg.push(new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
 				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=140
 			}
 
