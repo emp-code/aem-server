@@ -317,7 +317,7 @@ function loginSuccess() {
 			cellFrom.textContent = ae.GetIntMsgFrom(i);
 		}
 
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + i + "\">"
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">"
 
 		cellTitle.onclick = function() {
 			navMenu(-1);

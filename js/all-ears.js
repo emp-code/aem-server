@@ -42,7 +42,8 @@ function AllEars() {
 	var _admin_userSpace = [];
 	var _admin_userLevel = [];
 
-	function _NewIntMsg(isSent, sml, ts, from, shield, to, title, body) {
+	function _NewIntMsg(id, isSent, sml, ts, from, shield, to, title, body) {
+		this.id = id;
 		this.isSent = isSent;
 		this.senderMemberLevel = sml;
 		this.timestamp = ts;
@@ -208,6 +209,7 @@ function AllEars() {
 	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];}
 
 	this.GetIntMsgCount = function() {return _intMsg.length;}
+	this.GetIntMsgId     = function(num) {return _intMsg[num].id;}
 	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;}
 	this.GetIntMsgTime   = function(num) {return _intMsg[num].timestamp;}
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;}
@@ -421,7 +423,7 @@ function AllEars() {
 				const im_title = msgBodyUtf8.slice(0, firstLf);
 				const im_body = msgBodyUtf8.slice(firstLf + 1);
 
-				_intMsg.push(new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
+				_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
 				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 			}
 

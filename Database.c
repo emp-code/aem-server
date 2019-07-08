@@ -260,7 +260,7 @@ int deleteMessages(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const
 	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READWRITE, NULL) != SQLITE_OK) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT rowid FROM messages WHERE ownerpk=? ORDER BY rowid DESC LIMIT 255", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM messages WHERE ownerpk=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 	sqlite3_bind_blob(query, 1, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 
@@ -273,18 +273,28 @@ int deleteMessages(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const
 			return -1;
 		}
 
-		if (i == ids[rowCount]) {
-			rowIds[rowCount] = sqlite3_column_int(query, 0);
-			rowCount++;
+		int deleteRowId = -1;
+		for (int i = 0; i < count; i++) {
+			if (ids[i] == sqlite3_column_int(query, 1)) {
+				deleteRowId = sqlite3_column_int(query, 0);
+				break;
+			}
 		}
+
+		if (deleteRowId == -1) continue;
+
+		rowIds[rowCount] = deleteRowId;
+		rowCount++;
 	}
 
 	sqlite3_finalize(query);
+
 	for (int i = 0; i < rowCount; i++) {
 		ret = sqlite3_prepare_v2(db, "DELETE FROM messages WHERE rowid=? AND ownerpk=?", -1, &query, NULL);
 		sqlite3_bind_int(query, 1, rowIds[i]);
 		sqlite3_bind_blob(query, 2, ownerPk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 		sqlite3_step(query);
+		sqlite3_finalize(query);
 	}
 
 	sqlite3_close_v2(db);
