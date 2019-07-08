@@ -6,25 +6,25 @@
 
 int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]);
 int setAccountLevel(const char pk_hex[16], const int level);
-int destroyAccount(const char pk_hex[16]);
+int destroyAccount(const int64_t upk64);
 
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]);
 
 int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[32], const unsigned char hashKey[16], int *memberLevel);
-int getUserInfo(const unsigned char pk[crypto_box_PUBLICKEYBYTES], uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk);
+int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk);
 int getAdminData(unsigned char ** const adminData);
-unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES], uint8_t * const msgCount, const size_t maxSize);
+unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, const size_t maxSize);
 
-int addUserMessage(const unsigned char ownerPk[32], const unsigned char *msgData, const size_t msgLen);
+int addUserMessage(const int64_t upk64, const unsigned char *msgData, const size_t msgLen);
 
-int deleteMessages(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int ids[], const int count);
-int deleteAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash, const unsigned char *addrData, const size_t lenAddrData);
-int updateAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *addrData, const size_t lenAddrData);
-int addAddress(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const int64_t hash);
+int deleteMessages(const int64_t upk64, const int ids[], const int count);
+int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *addrData, const size_t lenAddrData);
+int updateAddress(const int64_t upk64, const unsigned char *addrData, const size_t lenAddrData);
+int addAddress(const int64_t upk64, const int64_t hash);
 
 int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]);
-int updateNoteData(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], const unsigned char *noteData);
+int updateNoteData(const int64_t upk64, const unsigned char *noteData);
 
-int isUserAdmin(const unsigned char pk[crypto_box_PUBLICKEYBYTES]);
+int isUserAdmin(const int64_t upk64);
 
 #endif
