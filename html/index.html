@@ -17,11 +17,11 @@
 
 			<div id="div_loggedin">
 				<nav>
-					<button type="button" id="btn_toinbox">Inbox</button>
-					<button type="button" id="btn_towrite">Write</button>
-					<button type="button" id="btn_tonotes">Notes</button>
-					<button type="button" id="btn_toprefs">Prefs</button>
-					<button type="button" id="btn_toadmin">Admin</button>
+					<button type="button" autocomplete="off" id="btn_toinbox">Inbox</button>
+					<button type="button" autocomplete="off" id="btn_towrite">Write</button>
+					<button type="button" autocomplete="off" id="btn_tonotes">Notes</button>
+					<button type="button" autocomplete="off" id="btn_toprefs">Prefs</button>
+					<button type="button" autocomplete="off" id="btn_toadmin">Admin</button>
 				</nav>
 
 				<div class="maindiv" id="div_inbox">
@@ -40,7 +40,7 @@
 					</table>
 
 					<div class="center">
-						<button type="button" id="btn_msgdel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_msgdel" class="topmargin">Delete selected messages</button>
 					</div>
 				</div>
 
@@ -50,15 +50,15 @@
 					<div class="topmargin"><input id="send_to" type="email" required placeholder="receiver@example.com"></div>
 					<div class="topmargin"><textarea id="send_body" required placeholder="Message"></textarea></div>
 					<div class="topmargin"><input id="send_copy" type="checkbox" checked="checked"> Save copy to Notes</div>
-					<div class="topmargin"><button type="button" id="btn_send">Send</button></div>
+					<div class="topmargin"><button type="button" autocomplete="off" id="btn_send">Send</button></div>
 				</div>
 
 				<div class="maindiv" id="div_notes">
 					<nav>
-						<button type="button" id="btn_notes_contacts" disabled="disabled">Contacts</button>
-						<button type="button" id="btn_notes_sent">Sent</button>
-						<button type="button" id="btn_notes_texts">Texts</button>
-						<button type="button" id="btn_notes_files">Files</button>
+						<button type="button" autocomplete="off" id="btn_notes_contacts" disabled="disabled">Contacts</button>
+						<button type="button" autocomplete="off" id="btn_notes_sent">Sent</button>
+						<button type="button" autocomplete="off" id="btn_notes_texts">Texts</button>
+						<button type="button" autocomplete="off" id="btn_notes_files">Files</button>
 					</nav>
 
 					<div id="div_notes_contacts" class="center">
@@ -78,12 +78,12 @@
 									<td><input type="email" id="txt_newcontact_mail" placeholder="email@example.com"></td>
 									<td><input type="text" id="txt_newcontact_name" placeholder="Name"></td>
 									<td><input type="text" id="txt_newcontact_note" placeholder="Notes"></td>
-									<td class="center"><button type="button" id="btn_contact_add">Add</button></td>
+									<td class="center"><button type="button" autocomplete="off" id="btn_contact_add">Add</button></td>
 								</tr>
 							</tfoot>
 						</table>
 
-						<button type="button" id="btn_savenotes" class="topmargin">Save changes</button>
+						<button type="button" autocomplete="off" id="btn_savenotes" class="topmargin">Save changes</button>
 					</div>
 
 					<div id="div_notes_sent">
@@ -101,7 +101,7 @@
 							</tbody>
 						</table>
 
-						<button type="button" id="btn_sentdel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_sentdel" class="topmargin">Delete selected messages</button>
 					</div>
 
 					<div id="div_notes_texts">
@@ -117,9 +117,9 @@
 							</tbody>
 						</table>
 
-						<button type="button" id="btn_notenew" class="topmargin">New</button>
+						<button type="button" autocomplete="off" id="btn_notenew" class="topmargin">New</button>
 
-						<button type="button" id="btn_notedel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_notedel" class="topmargin">Delete selected messages</button>
 					</div>
 
 					<div id="div_notes_files">
@@ -136,14 +136,14 @@
 								<tr>
 									<td>2000-01-01T00:00:00Z</td>
 									<td>Example.bin</td>
-									<td><button type="button">D</button></td>
-									<td><button type="button">X</button></td>
+									<td><button type="button" autocomplete="off">D</button></td>
+									<td><button type="button" autocomplete="off">X</button></td>
 								</tr>
 							</tbody>
 						</table>
 
 						<div class="topmargin">
-							<input id="upfile" type="file"> <button type="button" id="btn_uploadfile">Add</button>
+							<input id="upfile" type="file"> <button type="button" autocomplete="off" id="btn_uploadfile">Add</button>
 						</div>
 					</div>
 
@@ -152,14 +152,14 @@
 						<br>
 						<textarea id="txt_newnote_body" required class="topmargin" placeholder="Contents"></textarea>
 						<br>
-						<button type="button" id="btn_newnote_save" class="topmargin">Save</button> <button type="button" id="btn_newnote_cancel" class="topmargin">Discard</button>
+						<button type="button" autocomplete="off" id="btn_newnote_save" class="topmargin">Save</button> <button type="button" autocomplete="off" id="btn_newnote_cancel" class="topmargin">Discard</button>
 					</div>
 				</div>
 
 				<div class="maindiv" id="div_prefs">
 					<nav>
-						<button type="button" id="btn_prefs_addresses" disabled="disabled">Addresses</button>
-						<button type="button" id="btn_prefs_gatekeeper">Gatekeeper</button>
+						<button type="button" autocomplete="off" id="btn_prefs_addresses" disabled="disabled">Addresses</button>
+						<button type="button" autocomplete="off" id="btn_prefs_gatekeeper">Gatekeeper</button>
 					</nav>
 
 					<div id="div_prefs_addresses">
@@ -184,16 +184,16 @@
 							</tbody>
 						</table>
 
-						<div class="topmargin"><button type="button" id="btn_saveaddrdata">Save changes</button></div>
+						<div class="topmargin"><button type="button" autocomplete="off" id="btn_saveaddrdata">Save changes</button></div>
 
 						<div class="topmargin">
 							<div>Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses</div>
-							<div><input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required placeholder="new-address"> <button type="button" id="btn_newaddress">Register</button></div>
+							<div><input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button></div>
 						</div>
 
 						<div class="topmargin">
 							<div>Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses</div>
-							<div><button type="button" id="btn_newshieldaddress">Generate new Shield address</button></div>
+							<div><button type="button" autocomplete="off" id="btn_newshieldaddress">Generate new Shield address</button></div>
 						</div>
 					</div>
 
@@ -458,13 +458,13 @@
 
 						<div class="center bold topmargin">Forbidden domains</div>
 						<div><select id="gatekeeper_domain" size="8"></select></div>
-						<div class="flex"><input id="txt_gkdomain" type="text" pattern="[0-9a-z.-]{1,100}\.[a-z.]{2,50}"> <button type="button" id="btn_gkdomain_add">Add</button> <button type="button" id="btn_gkdomain_del">Del</button></div>
+						<div class="flex"><input id="txt_gkdomain" type="text" pattern="[0-9a-z.-]{1,100}\.[a-z.]{2,50}"> <button type="button" autocomplete="off" id="btn_gkdomain_add">Add</button> <button type="button" autocomplete="off" id="btn_gkdomain_del">Del</button></div>
 
 						<div class="center bold topmargin">Forbidden senders</div>
 						<div><select id="gatekeeper_addr" size="8"></select></div>
-						<div class="flex"><input id="txt_gkaddr" type="email" required> <button type="button" id="btn_gkaddr_add">Add</button> <button type="button" id="btn_gkaddr_del">Del</button></div>
+						<div class="flex"><input id="txt_gkaddr" type="email" required> <button type="button" autocomplete="off" id="btn_gkaddr_add">Add</button> <button type="button" autocomplete="off" id="btn_gkaddr_del">Del</button></div>
 
-						<div class="center topmargin"><button type="button" id="btn_savegkdata">Save changes</button></div>
+						<div class="center topmargin"><button type="button" autocomplete="off" id="btn_savegkdata">Save changes</button></div>
 					</div>
 				</div>
 
@@ -484,7 +484,7 @@
 					</table>
 
 					<div class="topmargin">
-						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" placeholder="Public key in hex"> <button type="button" id="btn_admin_addaccount">Add</button>
+						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" placeholder="Public key in hex"> <button type="button" autocomplete="off" id="btn_admin_addaccount">Add</button>
 					</div>
 				</div>
 
@@ -503,7 +503,7 @@
 			<div id="div_login"  class="center">
 				<div>Secret key (hex):</div>
 				<div><input id="txt_skey" type="password" size="64" maxlength="64" pattern="[0-9a-f]{64}" value="5046adc1dba838867b2bbbfdd0c3423e58b57970b5267a90f57960924a87f196"></div>
-				<div class="center topmargin"><button type="button" id="btn_signin">Sign in</button></div>
+				<div class="center topmargin"><button type="button" autocomplete="off" id="btn_signin">Sign in</button></div>
 			</div>
 		</main>
 
