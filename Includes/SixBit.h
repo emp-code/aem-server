@@ -3,5 +3,6 @@
 
 char *sixBitToText(const char *source, const size_t lenSource);
 unsigned char *textToSixBit(const char *source, const size_t lenSource);
+size_t lenToSixBit(const size_t len);
 
 #endif

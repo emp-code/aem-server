@@ -64,8 +64,7 @@ static void setBit(unsigned char *c, const int bitNum) {
 }
 
 unsigned char *textToSixBit(const char *source, const size_t lenSource) {
-	if (lenSource > 24) return NULL;
-	unsigned char *out = calloc(18, 1);//calloc(ceil(lenSource * 0.75), 1);
+	unsigned char *out = calloc(ceil(lenSource * 0.75), 1);
 	if (out == NULL) return NULL;
 
 	for (size_t i = 0; i < lenSource; i++) {
@@ -80,6 +79,10 @@ unsigned char *textToSixBit(const char *source, const size_t lenSource) {
 	}
 
 	return out;
+}
+
+size_t lenToSixBit(const size_t len) {
+	return ceil(len * 0.75);
 }
 
 static int getBit(const char *c, const int bitNum) {
