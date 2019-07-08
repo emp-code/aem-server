@@ -17,19 +17,16 @@
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
-// A slower hashing method here would increase security at the cost of additional strain on the server.
-// Collisions here cause additional, unintended "aliases" for addresses. That isn't necessarily bad.
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]) {
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, addr, 18, hashKey, 16);
+//	if (crypto_pwhash(hash16, 16, (char*)addr, 18, hashKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
 
 	int64_t result;
 	memcpy(&result, hash16, 8);
 	return result;
 }
 
-// A slower hashing method here would increase security at the cost of additional strain on the server.
-// Longer hashes reduce chance of false positives.
 int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, const unsigned char hashKey[16]) {
 	unsigned char saltyKey[24];
 	memcpy(saltyKey, &upk64, 8);
@@ -37,6 +34,7 @@ int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, c
 
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, in, len, saltyKey, 24);
+//	if (crypto_pwhash(hash16, 16, (char*)in, len, saltyKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
 
 	int64_t result;
 	memcpy(&result, hash16, 8);
