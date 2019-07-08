@@ -135,11 +135,12 @@ unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES]
 	if (sqlite3_open_v2(AEM_PATH_DB_MESSAGES, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return NULL;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT msg FROM messages WHERE ownerpk=? ORDER BY rowid DESC LIMIT 255", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT msg,row_number FROM (SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM messages WHERE ownerpk=? ORDER BY rowid DESC) JOIN messages ON messages.rowid=rowid LIMIT 255", -1, &query, NULL);
+
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
 	sqlite3_bind_blob(query, 1, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
 
-	unsigned char* data = calloc(maxSize, 1);
+	unsigned char *data = calloc(maxSize, 1);
 	size_t totalSize = 0;
 	*msgCount = 0;
 
@@ -155,9 +156,10 @@ unsigned char *getUserMessages(const unsigned char pk[crypto_box_PUBLICKEYBYTES]
 		int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
 		if (sizeFactor > 255) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
-		data[totalSize] = sizeFactor;
-		memcpy(data + totalSize + 1, sqlite3_column_blob(query, 0), sz);
-		totalSize += sz + 1;
+		data[totalSize + 0] = sqlite3_column_int(query, 1);
+		data[totalSize + 1] = sizeFactor;
+		memcpy(data + totalSize + 2, sqlite3_column_blob(query, 0), sz);
+		totalSize += sz + 2;
 		(*msgCount)++;
 	}
 

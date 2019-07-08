@@ -343,10 +343,11 @@ function AllEars() {
 			let skipMsg = 0;
 			for (let i = 0; i < msgCount - skipMsg; i++) {
 				// TODO: Detect message type and support extMsg
-				const msgKilos = byteArray[msgStart] + 1;
+				const msgId = byteArray[msgStart];
+				const msgKilos = byteArray[msgStart + 1] + 1;
 
 				// HeadBox
-				const msgHeadBox = byteArray.slice(msgStart + 1, msgStart + 90); // 1 + 41 + 48
+				const msgHeadBox = byteArray.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				if (_BitTest(msgHead[0], 5)) {
@@ -355,7 +356,7 @@ function AllEars() {
 					const note_ts = new Uint32Array(u32bytes)[0];
 
 					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 90;
+					const bbStart = msgStart + 91;
 
 					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
@@ -371,7 +372,7 @@ function AllEars() {
 						_noteBody.push(msgBody.substr(ln + 1));
 					} else console.log("Received corrupted note");
 
-					msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=140
+					msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 					skipMsg++;
 					i--;
 					continue;
@@ -406,7 +407,7 @@ function AllEars() {
 
 				// BodyBox
 				const bbSize = msgKilos * 1024 + 50;
-				const bbStart = msgStart + 90;
+				const bbStart = msgStart + 91;
 
 				const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
 				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
@@ -421,7 +422,7 @@ function AllEars() {
 				const im_body = msgBodyUtf8.slice(firstLf + 1);
 
 				_intMsg.push(new _NewIntMsg(im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
-				msgStart += (msgKilos * 1024) + 140; // 48*2+41+2+1=140
+				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 			}
 
 			callback(true);
