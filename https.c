@@ -653,8 +653,14 @@ static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, const int64_t
 	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
 
-	const int64_t delete_upk64 = htole64(strtoll(*decrypted, NULL, 16));
+	unsigned char bin[8];
+	const int ret = sodium_hex2bin(bin, 8, *decrypted, 16, NULL, NULL, NULL);
 	sodium_free(*decrypted);
+
+	if (ret != 0) return;
+
+	int64_t delete_upk64;
+	memcpy(&delete_upk64, bin, 8);
 
 	if (destroyAccount(delete_upk64) == 0) send204(ssl);
 }
