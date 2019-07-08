@@ -310,7 +310,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const unsigned char *u
 
 	const size_t lenMsg = (level == 3) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
 	unsigned char *msgData = getUserMessages(upk, &msgCount, lenMsg);
-	if (msgData == NULL) return;
+	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
 
 	const size_t szBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
 	const size_t szHead = 141 + numDigits(szBody);
