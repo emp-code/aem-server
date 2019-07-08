@@ -372,9 +372,12 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	if (binTo == NULL) {free(binFrom); return -1;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	int memberLevel;
-	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest", &memberLevel);
+	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
 	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) {free(binFrom); free(binTo); return -1;}
+
+	int64_t sender_pk64;
+	memcpy(&sender_pk64, sender_pk, 8);
+	int memberLevel = getUserLevel(sender_pk64);
 
 	unsigned char senderInfo = '\0';
 	// Bits 0-1: member level
@@ -639,7 +642,7 @@ static void respond_https_notedata(mbedtls_ssl_context *ssl, const int64_t upk64
 
 static void respond_https_addaccount(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
-	if (!isUserAdmin(upk64)) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
 	const int ret = addAccount((unsigned char*)*decrypted);
 	sodium_free(*decrypted);
@@ -647,7 +650,7 @@ static void respond_https_addaccount(mbedtls_ssl_context *ssl, const int64_t upk
 }
 
 static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
-	if (!isUserAdmin(upk64)) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
 
 	const int64_t delete_upk64 = htole64(strtoll(*decrypted, NULL, 16));
@@ -658,7 +661,7 @@ static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, const int64_t
 
 static void respond_https_accountlevel(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
-	if (!isUserAdmin(upk64)) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
 	const int ret = setAccountLevel(*decrypted, level);

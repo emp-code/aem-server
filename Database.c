@@ -43,23 +43,40 @@ int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, c
 	return result;
 }
 
-int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char hashKey[16], int *memberLevel) {
+int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char hashKey[16]) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT publickey,level FROM address JOIN userdata USING(upk64) WHERE hash=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT publickey FROM userdata WHERE upk64=(SELECT upk64 FROM address WHERE hash=?)", -1, &query, NULL);
 	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
 
 	ret = sqlite3_step(query);
 	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), crypto_box_PUBLICKEYBYTES);
-	*memberLevel = sqlite3_column_int(query, 1);
 
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return 0;
+}
+
+int getUserLevel(const int64_t upk64) {
+	sqlite3 *db;
+	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return -1;
+
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "SELECT level FROM userdata WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) return -1;
+
+	sqlite3_bind_int64(query, 1, upk64);
+	if (sqlite3_step(query) != SQLITE_ROW) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
+
+	const int level = sqlite3_column_int(query, 0);
+
+	sqlite3_finalize(query);
+	sqlite3_close_v2(db);
+	return level;
 }
 
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk) {
@@ -92,22 +109,6 @@ int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** con
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return 0;
-}
-
-int isUserAdmin(const int64_t upk64) {
-	sqlite3 *db;
-	if (sqlite3_open_v2(AEM_PATH_DB_USERS, &db, SQLITE_OPEN_READONLY, NULL) != SQLITE_OK) return false;
-
-	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM userdata WHERE upk64=? AND level=3", -1, &query, NULL);
-	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return false;}
-
-	sqlite3_bind_int64(query, 1, upk64);
-	int retval = (sqlite3_step(query) == SQLITE_ROW);
-
-	sqlite3_finalize(query);
-	sqlite3_close_v2(db);
-	return retval;
 }
 
 int getAdminData(unsigned char ** const adminData) {

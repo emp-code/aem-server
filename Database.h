@@ -10,7 +10,7 @@ int destroyAccount(const int64_t upk64);
 
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]);
 
-int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[32], const unsigned char hashKey[16], int *memberLevel);
+int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[32], const unsigned char hashKey[16]);
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk);
 int getAdminData(unsigned char ** const adminData);
 unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, const size_t maxSize);
@@ -25,6 +25,6 @@ int addAddress(const int64_t upk64, const int64_t hash);
 int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]);
 int updateNoteData(const int64_t upk64, const unsigned char *noteData);
 
-int isUserAdmin(const int64_t upk64);
+int getUserLevel(const int64_t upk64);
 
 #endif
