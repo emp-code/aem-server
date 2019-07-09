@@ -25,6 +25,7 @@ function AllEars() {
 	var _userLevel = 0;
 	var _userAddress = [];
 	var _intMsg = [];
+	var _textNote = [];
 
 	var _gkCountry = [];
 	var _gkDomain  = [];
@@ -33,11 +34,6 @@ function AllEars() {
 	var _contactMail = [];
 	var _contactName = [];
 	var _contactNote = [];
-
-	var _noteId = [];
-	var _noteTime = [];
-	var _noteTitle = [];
-	var _noteBody = [];
 
 	var _admin_userPkHex = [];
 	var _admin_userSpace = [];
@@ -51,6 +47,13 @@ function AllEars() {
 		this.from = from;
 		this.shield = shield;
 		this.to = to;
+		this.title = title;
+		this.body = body;
+	}
+
+	function _NewTextNote(id, ts, title, body) {
+		this.id = id;
+		this.timestamp = ts;
 		this.title = title;
 		this.body = body;
 	}
@@ -220,11 +223,11 @@ function AllEars() {
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
-	this.GetNoteCount = function() {return _noteTitle.length;}
-	this.GetNoteId = function(num) {return _noteId[num];}
-	this.GetNoteTime = function(num) {return _noteTime[num];}
-	this.GetNoteTitle = function(num) {return _noteTitle[num];}
-	this.GetNoteBody = function(num) {return _noteBody[num];}
+	this.GetNoteCount = function() {return _textNote.length;}
+	this.GetNoteId = function(num) {return _textNote[num].id;}
+	this.GetNoteTime = function(num) {return _textNote[num].timestamp;}
+	this.GetNoteTitle = function(num) {return _textNote[num].title;}
+	this.GetNoteBody = function(num) {return _textNote[num].body;}
 
 	this.GetGatekeeperCountry = function() {return _gkCountry;}
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
@@ -372,12 +375,10 @@ function AllEars() {
 					const msgBody = nacl.decode_utf8(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
 
 					const ln = msgBody.indexOf('\n');
-					if (ln != -1) {
-						_noteId.push(msgId);
-						_noteTime.push(note_ts);
-						_noteTitle.push(msgBody.substr(0, ln));
-						_noteBody.push(msgBody.substr(ln + 1));
-					} else console.log("Received corrupted note");
+					if (ln > 0)
+						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
+					else
+						console.log("Received corrupted note");
 
 					msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 					skipMsg++;
