@@ -3,8 +3,10 @@
 const ae=new AllEars();
 
 document.getElementById("btn_signin").onclick = function() {
-	// All-Ears needs to be provided with the user's secret key in order to log in
-	ae.SetKeys(document.getElementById('txt_skey').value);
+	const txtSkey = document.getElementById('txt_skey');
+	if (!(txtSkey.reportValidity())) return;
+	ae.SetKeys(txtSkey.value);
+	txtSkey.value = "";
 
 	ae.Login(function(success) {
 		if (success) {
