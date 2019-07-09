@@ -45,7 +45,7 @@
 				</div>
 
 				<div class="maindiv" id="div_write">
-					<div class="topmargin"><input id="send_title" type="text" required placeholder="Subject"></div>
+					<div class="topmargin"><input id="send_title" type="text" required autocomplete="off" placeholder="Subject"></div>
 					<div class="topmargin"><select id="send_from"></select></div>
 					<div class="topmargin"><input id="send_to" type="email" required placeholder="receiver@example.com"></div>
 					<div class="topmargin"><textarea id="send_body" required placeholder="Message"></textarea></div>
@@ -75,9 +75,9 @@
 							</tbody>
 							<tfoot>
 								<tr>
-									<td><input type="email" id="txt_newcontact_mail" placeholder="email@example.com"></td>
-									<td><input type="text" id="txt_newcontact_name" placeholder="Name"></td>
-									<td><input type="text" id="txt_newcontact_note" placeholder="Notes"></td>
+									<td><input type="email" id="txt_newcontact_mail" autocomplete="off" placeholder="email@example.com"></td>
+									<td><input type="text" id="txt_newcontact_name" autocomplete="off" placeholder="Name"></td>
+									<td><input type="text" id="txt_newcontact_note" autocomplete="off" placeholder="Notes"></td>
 									<td class="center"><button type="button" autocomplete="off" id="btn_contact_add">Add</button></td>
 								</tr>
 							</tfoot>
@@ -148,7 +148,7 @@
 					</div>
 
 					<div id="div_newtextnote">
-						<input id="txt_newnote_title" type="text" required placeholder="Title">
+						<input id="txt_newnote_title" type="text" required autocomplete="off" placeholder="Title">
 						<br>
 						<textarea id="txt_newnote_body" required class="topmargin" placeholder="Contents"></textarea>
 						<br>
@@ -188,7 +188,7 @@
 
 						<div class="topmargin">
 							<div>Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses</div>
-							<div><input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button></div>
+							<div><input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required autocomplete="off" placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button></div>
 						</div>
 
 						<div class="topmargin">
@@ -484,7 +484,7 @@
 					</table>
 
 					<div class="topmargin">
-						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" placeholder="Public key in hex"> <button type="button" autocomplete="off" id="btn_admin_addaccount">Add</button>
+						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" autocomplete="off" placeholder="Public key in hex"> <button type="button" autocomplete="off" id="btn_admin_addaccount">Add</button>
 					</div>
 				</div>
 
@@ -501,7 +501,7 @@
 			</div>
 
 			<div id="div_login" class="center">
-				<input id="txt_skey" type="password" size="64" maxlength="64" pattern="[0-9a-f]{64}" required placeholder="Secret key (hex)" class="center">
+				<input id="txt_skey" type="password" size="64" maxlength="64" pattern="[0-9a-f]{64}" required autofocus placeholder="Secret key (hex)" class="center">
 				<br>
 				<button type="button" id="btn_signin" class="topmargin">Sign in</button>
 			</div>
