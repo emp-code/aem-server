@@ -466,10 +466,12 @@ function AllEars() {
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk, _userKeys.boxSk);
 
 		_FetchEncrypted("/web/note", sealbox, nacl, function(httpStatus, byteArray) {
-			if (httpStatus == 204)
+			if (httpStatus == 204) {
+				_textNote.push(new _NewTextNote(-1, Date.now(), title, body));
 				callback(true);
-			else
+			} else {
 				callback(false);
+			}
 		});
 	}); }
 

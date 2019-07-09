@@ -457,12 +457,20 @@ document.getElementById("btn_newnote_save").onclick = function() {
 
 	ae.SaveNote(txtTitle.value, txtBody.value, function(success) {
 		if (success) {
+			const table = document.getElementById("tbody_textnotes");
+			const row = table.insertRow(0);
+			const cellTime = row.insertCell(-1);
+			const cellTitle = row.insertCell(-1);
+			const cellBtnDe = row.insertCell(-1);
+
+			cellTime.textContent = "new";
+			cellTitle.textContent = txtTitle.value;
+			cellBtnDe.innerHTML = "<button type=\"button\" disabled=\"disabled\" title=\"Reload page to delete\">X</button>";
+
 			document.getElementById("txt_newnote_title").value = "";
 			document.getElementById("txt_newnote_body").value = "";
 			document.getElementById("div_notes_texts").hidden=false;
 			document.getElementById("div_newtextnote").hidden=true;
-
-			// TODO: add note to table
 		} else {
 			console.log("Failed to save note");
 		}
