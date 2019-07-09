@@ -2,6 +2,10 @@
 
 const ae=new AllEars();
 
+document.getElementById("txt_skey").onkeyup = function(e) {
+	if (e.keyCode == 13) document.getElementById("btn_signin").click();
+}
+
 document.getElementById("btn_signin").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
 	if (!(txtSkey.reportValidity())) return;
