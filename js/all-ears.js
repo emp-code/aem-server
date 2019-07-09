@@ -251,6 +251,8 @@ function AllEars() {
 	}
 
 	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
+		if (typeof(skey_hex) !== "string" || skey_hex.length != 64) {_userKeys = null; return;}
+
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 	}); }
 
