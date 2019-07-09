@@ -62,7 +62,7 @@ function addAddress(num) {
 
 function deleteAddress(addr) {
 	const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (let i = 0; i < btns.length; i++) btns[i].disabled="disabled";
+	for (let i = 0; i < btns.length; i++) btns[i].disabled=true;
 
 	let addressToDelete = -1;
 
@@ -88,7 +88,7 @@ function deleteAddress(addr) {
 		}
 
 		const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-		for (let i = 0; i < btns.length; i++) btns[i].disabled="";
+		for (let i = 0; i < btns.length; i++) btns[i].disabled=false;
 
 	});
 }
@@ -482,12 +482,12 @@ document.getElementById("btn_newaddress").onclick = function() {
 
 	if (!(document.getElementById("txt_newaddress").reportValidity())) return;
 
-	document.getElementById("btn_newaddress").disabled="disabled";
-	document.getElementById("btn_newshieldaddress").disabled="disabled";
+	document.getElementById("btn_newaddress").disabled=true;
+	document.getElementById("btn_newshieldaddress").disabled=true;
 
 	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
-		document.getElementById("btn_newaddress").disabled="";
-		document.getElementById("btn_newshieldaddress").disabled="";
+		document.getElementById("btn_newaddress").disabled=false;
+		document.getElementById("btn_newshieldaddress").disabled=false;
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -504,12 +504,12 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 		return;
 	}
 
-	document.getElementById("btn_newaddress").disabled="disabled";
-	document.getElementById("btn_newshieldaddress").disabled="disabled";
+	document.getElementById("btn_newaddress").disabled=true;
+	document.getElementById("btn_newshieldaddress").disabled=true;
 
 	ae.AddShieldAddress(function(success) {
-		document.getElementById("btn_newaddress").disabled="";
-		document.getElementById("btn_newshieldaddress").disabled="";
+		document.getElementById("btn_newaddress").disabled=false;
+		document.getElementById("btn_newshieldaddress").disabled=false;
 
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
@@ -640,10 +640,10 @@ function navMenu(num) {
 
 	for (let i = 0; i < 5; i++) {
 		if (i == num) {
-			b[i].disabled="disabled";
+			b[i].disabled=true;
 			d[i].hidden=false;
 		} else {
-			b[i].disabled="";
+			b[i].disabled=false;
 			d[i].hidden=true;
 		}
 	}
@@ -658,10 +658,10 @@ function navNotesMenu(num) {
 
 	for (let i = 0; i < 4; i++) {
 		if (i == num) {
-			b[i].disabled="disabled";
+			b[i].disabled=true;
 			d[i].hidden=false;
 		} else {
-			b[i].disabled="";
+			b[i].disabled=false;
 			d[i].hidden=true;
 		}
 	}
@@ -669,8 +669,8 @@ function navNotesMenu(num) {
 
 // Prefs menu
 document.getElementById("btn_prefs_gatekeeper").onclick = function() {
-	document.getElementById("btn_prefs_addresses").disabled="";
-	document.getElementById("btn_prefs_gatekeeper").disabled="disabled";
+	document.getElementById("btn_prefs_addresses").disabled=false;
+	document.getElementById("btn_prefs_gatekeeper").disabled=true;
 	document.getElementById("div_prefs_gatekeeper").hidden=false;
 	document.getElementById("div_prefs_addresses").hidden=true;
 
@@ -678,8 +678,8 @@ document.getElementById("btn_prefs_gatekeeper").onclick = function() {
 };
 
 document.getElementById("btn_prefs_addresses").onclick = function() {
-	document.getElementById("btn_prefs_addresses").disabled="disabled";
-	document.getElementById("btn_prefs_gatekeeper").disabled="";
+	document.getElementById("btn_prefs_addresses").disabled=true;
+	document.getElementById("btn_prefs_gatekeeper").disabled=false;
 	document.getElementById("div_prefs_gatekeeper").hidden=true;
 	document.getElementById("div_prefs_addresses").hidden=false;
 };
