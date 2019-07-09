@@ -46,10 +46,10 @@ function addAddress(num) {
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
-	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
-	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
-	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
-	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
+	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
+	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
+	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
+	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
 
 	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
@@ -105,7 +105,7 @@ function deleteContact(email) {
 		}
 	}
 
-	document.getElementById("btn_savenotes").style.display = "inline";
+	document.getElementById("btn_savenotes").hidden=false;
 }
 
 function addContactToTable(mail, name, note) {
@@ -169,14 +169,14 @@ document.getElementById("btn_contact_add").onclick = function() {
 	txtName.value = "";
 	txtNote.value = "";
 
-	document.getElementById("btn_savenotes").style.display = "inline";
+	document.getElementById("btn_savenotes").hidden=false;
 };
 
 document.getElementById("btn_savenotes").onclick = function() {
 	ae.SaveNoteData(function(success) {
 		if (success) {
 			console.log("Note data saved successfully");
-			document.getElementById("btn_savenotes").style.display = "none";
+			document.getElementById("btn_savenotes").hidden=true;
 		} else {
 			console.log("Note data failed to save");
 		}
@@ -247,9 +247,9 @@ function setAccountLevel(upk_hex, level) {
 }
 
 function loginSuccess() {
-	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").style.display="none";
-	document.getElementById("div_login").style.display="none";
-	document.getElementById("div_loggedin").style.display="block";
+	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
+	document.getElementById("div_login").hidden=true;
+	document.getElementById("div_loggedin").hidden=false;
 
 	// Contacts
 	for (let i = 0; i < ae.GetContactCount(); i++) {
@@ -323,7 +323,7 @@ function loginSuccess() {
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
-			document.getElementById("div_readmsg").style.display="block";
+			document.getElementById("div_readmsg").hidden=false;
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
@@ -346,12 +346,12 @@ function loginSuccess() {
 				}
 
 				if (!checked) {
-					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").style.display="none";
+					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=true;
 					return;
 				}
 			}
 
-			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").style.display="inline";
+			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
 		}
 	}
 
@@ -407,7 +407,7 @@ function delMsgs(tblName, btnName) {
 				}
 			}
 
-			document.getElementById(btnName).style.display="none";
+			document.getElementById(btnName).hidden=true;
 		} else {
 			console.log("Failed to delete messages");
 		}
@@ -443,15 +443,15 @@ document.getElementById("btn_send").onclick = function() {
 };
 
 document.getElementById("btn_notenew").onclick = function() {
-	document.getElementById("div_notes_texts").style.display="none";
-	document.getElementById("div_newtextnote").style.display="block";
+	document.getElementById("div_notes_texts").hidden=true;
+	document.getElementById("div_newtextnote").hidden=false;
 }
 
 document.getElementById("btn_newnote_cancel").onclick = function() {
 	document.getElementById("txt_newnote_title").value = "";
 	document.getElementById("txt_newnote_body").value = "";
-	document.getElementById("div_notes_texts").style.display="block";
-	document.getElementById("div_newtextnote").style.display="none";
+	document.getElementById("div_notes_texts").hidden=false;
+	document.getElementById("div_newtextnote").hidden=true;
 }
 
 document.getElementById("btn_newnote_save").onclick = function() {
@@ -464,8 +464,8 @@ document.getElementById("btn_newnote_save").onclick = function() {
 		if (success) {
 			document.getElementById("txt_newnote_title").value = "";
 			document.getElementById("txt_newnote_body").value = "";
-			document.getElementById("div_notes_texts").style.display="block";
-			document.getElementById("div_newtextnote").style.display="none";
+			document.getElementById("div_notes_texts").hidden=false;
+			document.getElementById("div_newtextnote").hidden=true;
 
 			// TODO: add note to table
 		} else {
@@ -533,7 +533,7 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	ae.SaveAddressData(function(success) {
 		if (success) {
 			console.log("Address data saved");
-			document.getElementById("btn_saveaddrdata").style.display="none";
+			document.getElementById("btn_saveaddrdata").hidden=true;
 		} else {
 			console.log("Address data failed to save");
 		}
@@ -555,7 +555,7 @@ document.getElementById("btn_gkdomain_add").onclick = function() {
 
 	addOpt(select, txt.value);
 	txt.value = "";
-	document.getElementById("btn_savegkdata").style.display="inline";
+	document.getElementById("btn_savegkdata").hidden=false;
 };
 
 document.getElementById("btn_gkaddr_add").onclick = function() {
@@ -566,19 +566,19 @@ document.getElementById("btn_gkaddr_add").onclick = function() {
 
 	addOpt(select, txt.value);
 	txt.value = "";
-	document.getElementById("btn_savegkdata").style.display="inline";
+	document.getElementById("btn_savegkdata").hidden=false;
 };
 
 document.getElementById("btn_gkdomain_del").onclick = function() {
 	const select = document.getElementById("gatekeeper_domain");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
-	document.getElementById("btn_savegkdata").style.display="inline";
+	document.getElementById("btn_savegkdata").hidden=false;
 };
 
 document.getElementById("btn_gkaddr_del").onclick = function() {
 	const select = document.getElementById("gatekeeper_addr");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
-	document.getElementById("btn_savegkdata").style.display="inline";
+	document.getElementById("btn_savegkdata").hidden=false;
 };
 
 document.getElementById("btn_savegkdata").onclick = function() {
@@ -596,7 +596,7 @@ document.getElementById("btn_savegkdata").onclick = function() {
 	ae.SaveGatekeeperData(blocklist, function(success) {
 		if (success) {
 			console.log("Gatekeeper update succeeded");
-			document.getElementById("btn_savegkdata").style.display="none";
+			document.getElementById("btn_savegkdata").hidden=true;
 		} else {
 			console.log("Gatekeeper update failed;")
 		}
@@ -633,7 +633,7 @@ function genKeys() {
 // Menu
 // Main Menu
 function navMenu(num) {
-	document.getElementById("div_readmsg").style.display="none";
+	document.getElementById("div_readmsg").hidden=true;
 
 	const b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
 	const d = document.getElementsByClassName("maindiv");
@@ -641,10 +641,10 @@ function navMenu(num) {
 	for (let i = 0; i < 5; i++) {
 		if (i == num) {
 			b[i].disabled="disabled";
-			d[i].style.display="block";
+			d[i].hidden=false;
 		} else {
 			b[i].disabled="";
-			d[i].style.display="none";
+			d[i].hidden=true;
 		}
 	}
 }
@@ -659,10 +659,10 @@ function navNotesMenu(num) {
 	for (let i = 0; i < 4; i++) {
 		if (i == num) {
 			b[i].disabled="disabled";
-			d[i].style.display="block";
+			d[i].hidden=false;
 		} else {
 			b[i].disabled="";
-			d[i].style.display="none";
+			d[i].hidden=true;
 		}
 	}
 }
@@ -671,8 +671,8 @@ function navNotesMenu(num) {
 document.getElementById("btn_prefs_gatekeeper").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled="";
 	document.getElementById("btn_prefs_gatekeeper").disabled="disabled";
-	document.getElementById("div_prefs_gatekeeper").style.display="block";
-	document.getElementById("div_prefs_addresses").style.display="none";
+	document.getElementById("div_prefs_gatekeeper").hidden=false;
+	document.getElementById("div_prefs_addresses").hidden=true;
 
 	document.getElementById("div_prefs_gatekeeper").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
 };
@@ -680,8 +680,8 @@ document.getElementById("btn_prefs_gatekeeper").onclick = function() {
 document.getElementById("btn_prefs_addresses").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled="disabled";
 	document.getElementById("btn_prefs_gatekeeper").disabled="";
-	document.getElementById("div_prefs_gatekeeper").style.display="none";
-	document.getElementById("div_prefs_addresses").style.display="block";
+	document.getElementById("div_prefs_gatekeeper").hidden=true;
+	document.getElementById("div_prefs_addresses").hidden=false;
 };
 
 let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
@@ -698,5 +698,5 @@ b[2].onclick = function() {navNotesMenu(2);};
 b[3].onclick = function() {navNotesMenu(3);};
 
 gatekeeper_country.onchange = function() {
-	document.getElementById("btn_savegkdata").style.display="inline";
+	document.getElementById("btn_savegkdata").hidden=false;
 };

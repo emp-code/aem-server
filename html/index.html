@@ -15,7 +15,7 @@
 				<p>Javascript required</p>
 			</noscript>
 
-			<div id="div_loggedin">
+			<div id="div_loggedin" hidden>
 				<nav>
 					<button type="button" autocomplete="off" id="btn_toinbox">Inbox</button>
 					<button type="button" autocomplete="off" id="btn_towrite">Write</button>
@@ -40,7 +40,7 @@
 					</table>
 
 					<div class="center">
-						<button type="button" autocomplete="off" id="btn_msgdel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_msgdel" hidden class="topmargin">Delete selected messages</button>
 					</div>
 				</div>
 
@@ -83,10 +83,10 @@
 							</tfoot>
 						</table>
 
-						<button type="button" autocomplete="off" id="btn_savenotes" class="topmargin">Save changes</button>
+						<button type="button" autocomplete="off" id="btn_savenotes" hidden class="topmargin">Save changes</button>
 					</div>
 
-					<div id="div_notes_sent">
+					<div id="div_notes_sent" hidden>
 						<table>
 							<thead>
 								<tr>
@@ -101,10 +101,10 @@
 							</tbody>
 						</table>
 
-						<button type="button" autocomplete="off" id="btn_sentdel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_sentdel" hidden class="topmargin">Delete selected messages</button>
 					</div>
 
-					<div id="div_notes_texts">
+					<div id="div_notes_texts" hidden>
 						<table>
 							<thead>
 								<tr>
@@ -119,10 +119,10 @@
 
 						<button type="button" autocomplete="off" id="btn_notenew" class="topmargin">New</button>
 
-						<button type="button" autocomplete="off" id="btn_notedel" class="topmargin">Delete selected messages</button>
+						<button type="button" autocomplete="off" id="btn_notedel" hidden class="topmargin">Delete selected messages</button>
 					</div>
 
-					<div id="div_notes_files">
+					<div id="div_notes_files" hidden>
 						<table>
 							<thead>
 								<tr>
@@ -147,7 +147,7 @@
 						</div>
 					</div>
 
-					<div id="div_newtextnote">
+					<div id="div_newtextnote" hidden>
 						<input id="txt_newnote_title" type="text" required autocomplete="off" placeholder="Title">
 						<br>
 						<textarea id="txt_newnote_body" required class="topmargin" placeholder="Contents"></textarea>
@@ -185,7 +185,7 @@
 						</table>
 
 						<div class="topmargin">
-							<button type="button" autocomplete="off" id="btn_saveaddrdata">Save changes</button>
+							<button type="button" autocomplete="off" id="btn_saveaddrdata" hidden>Save changes</button>
 						</div>
 
 						<div class="topmargin">
@@ -201,7 +201,7 @@
 						</div>
 					</div>
 
-					<div id="div_prefs_gatekeeper">
+					<div id="div_prefs_gatekeeper" hidden>
 						<div class="center bold topmargin">Forbidden countries</div>
 						<div>
 							<select id="gatekeeper_country" multiple="multiple" size="8">
@@ -469,7 +469,7 @@
 						<div class="flex"><input id="txt_gkaddr" type="email" required> <button type="button" autocomplete="off" id="btn_gkaddr_add">Add</button> <button type="button" autocomplete="off" id="btn_gkaddr_del">Del</button></div>
 
 						<div class="center topmargin">
-							<button type="button" autocomplete="off" id="btn_savegkdata">Save changes</button>
+							<button type="button" autocomplete="off" id="btn_savegkdata" hidden>Save changes</button>
 						</div>
 					</div>
 				</div>
@@ -494,7 +494,7 @@
 					</div>
 				</div>
 
-				<div id="div_readmsg" class="center">
+				<div id="div_readmsg" hidden class="center">
 					<h2 id="readmsg_title"></h2>
 
 					<div class="topmargin">
