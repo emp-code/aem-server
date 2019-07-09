@@ -17,17 +17,6 @@ document.getElementById("btn_signin").onclick = function() {
 	});
 };
 
-function tsToISO8601(ts){
-	const dt = new Date(ts * 1000);
-	const dt_Y = dt.getUTCFullYear();
-	const dt_m = dt.getUTCMonth()   < 10 ? '0' + dt.getUTCMonth()   : dt.getUTCMonth();
-	const dt_d = dt.getUTCDate()    < 10 ? '0' + dt.getUTCDate()    : dt.getUTCDate();
-	const dt_H = dt.getUTCHours()   < 10 ? '0' + dt.getUTCHours()   : dt.getUTCHours();
-	const dt_M = dt.getUTCMinutes() < 10 ? '0' + dt.getUTCMinutes() : dt.getUTCMinutes();
-	const dt_S = dt.getUTCSeconds() < 10 ? '0' + dt.getUTCSeconds() : dt.getUTCSeconds();
-	return dt_Y + '-' + dt_m + '-' + dt_d + 'T' + dt_H + ':' + dt_M + ':' + dt_S + 'Z';
-}
-
 function addAddress(num) {
 	const addrTable = document.getElementById("tbody_opt_addr");
 	const row = addrTable.insertRow(-1);
@@ -302,7 +291,7 @@ function loginSuccess() {
 		const cellTo    = row.insertCell(-1);
 		const cellDel   = row.insertCell(-1);
 
-		cellTime.textContent = tsToISO8601(ae.GetIntMsgTime(i));
+		cellTime.textContent = new Date(ae.GetIntMsgTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
 
 		if (ae.GetIntMsgTo(i).length == 36) {
@@ -364,7 +353,7 @@ function loginSuccess() {
 		const cellTitle = row.insertCell(-1);
 		const cellBtnDe = row.insertCell(-1);
 
-		cellTime.textContent = tsToISO8601(ae.GetNoteTime(i));
+		cellTime.textContent = new Date(ae.GetNoteTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetNoteTitle(i);
 		cellBtnDe.innerHTML = "<button type=\"button\" data-id=\"" + ae.GetNoteId(i) + "\">X</button>";
 
