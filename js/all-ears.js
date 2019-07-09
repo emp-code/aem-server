@@ -34,6 +34,7 @@ function AllEars() {
 	var _contactName = [];
 	var _contactNote = [];
 
+	var _noteId = [];
 	var _noteTime = [];
 	var _noteTitle = [];
 	var _noteBody = [];
@@ -220,6 +221,7 @@ function AllEars() {
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
 	this.GetNoteCount = function() {return _noteTitle.length;}
+	this.GetNoteId = function(num) {return _noteId[num];}
 	this.GetNoteTime = function(num) {return _noteTime[num];}
 	this.GetNoteTitle = function(num) {return _noteTitle[num];}
 	this.GetNoteBody = function(num) {return _noteBody[num];}
@@ -369,6 +371,7 @@ function AllEars() {
 
 					const ln = msgBody.indexOf('\n');
 					if (ln != -1) {
+						_noteId.push(msgId);
 						_noteTime.push(note_ts);
 						_noteTitle.push(msgBody.substr(0, ln));
 						_noteBody.push(msgBody.substr(ln + 1));

@@ -364,7 +364,18 @@ function loginSuccess() {
 
 		cellTime.textContent = tsToISO8601(ae.GetNoteTime(i));
 		cellTitle.textContent = ae.GetNoteTitle(i);
-		cellBtnDe.innerHTML = "<button>X</button>";
+		cellBtnDe.innerHTML = "<button type=\"button\" data-id=\"" + ae.GetNoteId(i) + "\">X</button>";
+
+		cellBtnDe.children[0].onclick = function() {
+			const parentRow = this.parentElement.parentElement;
+			ae.DeleteMessages([this.getAttribute("data-id")], function(success) {
+				if (success) {
+					table.deleteRow(parentRow.rowIndex - 1);
+				} else {
+					console.log("Failed to delete note");
+				}
+			});
+		}
 	}
 
 	if (ae.IsUserAdmin()) {
