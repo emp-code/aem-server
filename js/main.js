@@ -3,7 +3,7 @@
 const ae=new AllEars();
 
 document.getElementById("txt_skey").onkeyup = function(e) {
-	if (e.keyCode == 13) document.getElementById("btn_signin").click();
+	if (e.key === "Enter") document.getElementById("btn_signin").click();
 }
 
 document.getElementById("btn_signin").onclick = function() {
