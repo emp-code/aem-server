@@ -467,7 +467,7 @@ function AllEars() {
 
 		_FetchEncrypted("/web/note", sealbox, nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204) {
-				_textNote.push(new _NewTextNote(-1, Date.now(), title, body));
+				_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));
 				callback(true);
 			} else {
 				callback(false);
