@@ -235,54 +235,16 @@ function setAccountLevel(upk_hex, level) {
 	});
 }
 
-function loginSuccess() {
-	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
-	document.getElementById("div_login").hidden=true;
-	document.getElementById("div_loggedin").hidden=false;
+function addMessages() {
+	const tblInbox = document.getElementById("tbody_inbox");
+	const tblSent = document.getElementById("tbody_sentbox");
 
-	// Contacts
-	for (let i = 0; i < ae.GetContactCount(); i++) {
-		addContactToTable(
-			ae.GetContactMail(i),
-			ae.GetContactName(i),
-			ae.GetContactNote(i)
-		);
-	}
+	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
+	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
 
-	// Addresses
-	const select=document.getElementById("send_from");
-	for (let i = 0; i < ae.GetAddressCount(); i++) {
-		addAddress(i);
-	}
-
-	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
-	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
-	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
-
-	// Gatekeeper data
-	let gkList = ae.GetGatekeeperAddress();
-	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_addr"), gkList[i]);
-
-	gkList = ae.GetGatekeeperDomain();
-	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_domain"), gkList[i]);
-
-	gkList = ae.GetGatekeeperCountry();
-	for (let i = 0; i < gkList.length; i++) {
-		const opts = document.getElementById("gatekeeper_country");
-
-		for (let j = 0; j < opts.length; j++) {
-			if (opts[j].value == gkList[i]) {
-				opts[j].selected="selected";
-				break;
-			}
-		}
-	}
-
-	// Messages
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const isSent = ae.GetIntMsgIsSent(i);
-		const table = document.getElementById(isSent? "tbody_sentbox" : "tbody_inbox");
+		const table = isSent? tblSent : tblInbox;
 
 		const row = table.insertRow(-1);
 		const cellTime  = row.insertCell(-1);
@@ -343,6 +305,54 @@ function loginSuccess() {
 			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
 		}
 	}
+}
+
+function loginSuccess() {
+	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
+	document.getElementById("div_login").hidden=true;
+	document.getElementById("div_loggedin").hidden=false;
+
+	// Contacts
+	for (let i = 0; i < ae.GetContactCount(); i++) {
+		addContactToTable(
+			ae.GetContactMail(i),
+			ae.GetContactName(i),
+			ae.GetContactNote(i)
+		);
+	}
+
+	// Addresses
+	const select=document.getElementById("send_from");
+	for (let i = 0; i < ae.GetAddressCount(); i++) {
+		addAddress(i);
+	}
+
+	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
+	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
+
+	// Gatekeeper data
+	let gkList = ae.GetGatekeeperAddress();
+	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_addr"), gkList[i]);
+
+	gkList = ae.GetGatekeeperDomain();
+	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_domain"), gkList[i]);
+
+	gkList = ae.GetGatekeeperCountry();
+	for (let i = 0; i < gkList.length; i++) {
+		const opts = document.getElementById("gatekeeper_country");
+
+		for (let j = 0; j < opts.length; j++) {
+			if (opts[j].value == gkList[i]) {
+				opts[j].selected="selected";
+				break;
+			}
+		}
+	}
+
+	// Messages
+	addMessages();
 
 	// Notes
 	for (let i = 0; i < ae.GetNoteCount(); i++) {
@@ -355,11 +365,11 @@ function loginSuccess() {
 
 		cellTime.textContent = new Date(ae.GetNoteTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetNoteTitle(i);
-		cellBtnDe.innerHTML = "<button type=\"button\" data-id=\"" + ae.GetNoteId(i) + "\">X</button>";
+		cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
 
 		cellBtnDe.children[0].onclick = function() {
 			const parentRow = this.parentElement.parentElement;
-			ae.DeleteMessages([this.getAttribute("data-id")], function(success) {
+			ae.DeleteMessages([ae.GetNoteId(parentRow.rowIndex - 1)], function(success) {
 				if (success) {
 					table.deleteRow(parentRow.rowIndex - 1);
 				} else {
@@ -387,15 +397,7 @@ function delMsgs(tblName, btnName) {
 
 	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
 		if (success) {
-			for (let i = 0; i < ids.length; i++) {
-				for (let j = 0; j < tbl.rows.length; j++) {
-					if (tbl.rows[j].cells[4].children[0].getAttribute("data-id") == ids[i]) {
-						tbl.deleteRow(j);
-						break;
-					}
-				}
-			}
-
+			addMessages();
 			document.getElementById(btnName).hidden=true;
 		} else {
 			console.log("Failed to delete messages");

@@ -571,7 +571,9 @@ function AllEars() {
 	}); }
 
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
-		const data = new Uint8Array(ids.length);
+		const delCount = ids.length;
+
+		const data = new Uint8Array(delCount);
 		for (let i = 0; i < ids.length; i++) {
 			if (ids[i] > 254) return;
 			data[i] = ids[i];
@@ -579,6 +581,18 @@ function AllEars() {
 
 		_FetchEncrypted("/web/delmsg", data, nacl, function(httpStatus, byteArray) {
 			if (httpStatus == 204) {
+				for (let i = 0; i < delCount; i++) {
+					for (let j = 0; j < _intMsg.length; j++) {
+						if (_intMsg[j].id == ids[i]) _intMsg.splice(j, 1);
+						else if (_intMsg[j].id > ids[i]) _intMsg[j].id -= 1;
+					}
+
+					for (let j = 0; j < _textNote.length; j++) {
+						if (ids[i] == _textNote[j].id) _textNote.splice(j, 1);
+						else if (ids[i] < _textNote[j].id) _textNote[j].id -= 1;
+					}
+				}
+
 				return callback(true);
 			} else {
 				return callback(false);
