@@ -49,7 +49,7 @@ function addAddress(num) {
 	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
 	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").style.display="inline";};
 
-	cellBtnD.innerHTML = "<button>&#128473;</button>";
+	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
 
 	const opt = document.createElement("option");
@@ -121,7 +121,7 @@ function addContactToTable(mail, name, note) {
 	cellMail.textContent = mail;
 	cellName.textContent = name;
 	cellNote.textContent = note;
-	cellBtnD.innerHTML = "<button>X</button>";
+	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 
 	cellBtnD.onclick = function() {deleteContact(mail)};
 }
@@ -140,9 +140,9 @@ function addRowAdmin(num) {
 	cellPk.textContent = ae.Admin_GetUserPkHex(num);
 	cellMb.textContent = ae.Admin_GetUserSpace(num);
 	cellLv.textContent = ae.Admin_GetUserLevel(num);
-	cellBtnPl.innerHTML = "<button>+</button>";
-	cellBtnMn.innerHTML = "<button>-</button>";
-	cellBtnDe.innerHTML = "<button>X</button>";
+	cellBtnPl.innerHTML = "<button type=\"button\">+</button>";
+	cellBtnMn.innerHTML = "<button type=\"button\">-</button>";
+	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
 
 	cellPk.className = "mono";
 	if (ae.Admin_GetUserLevel(num) == ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
