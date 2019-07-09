@@ -45,12 +45,12 @@
 				</div>
 
 				<div class="maindiv" id="div_write">
-					<div class="topmargin"><input id="send_title" type="text" required autocomplete="off" placeholder="Subject"></div>
-					<div class="topmargin"><select id="send_from"></select></div>
-					<div class="topmargin"><input id="send_to" type="email" required placeholder="receiver@example.com"></div>
-					<div class="topmargin"><textarea id="send_body" required placeholder="Message"></textarea></div>
-					<div class="topmargin"><input id="send_copy" type="checkbox" checked="checked"> Save copy to Notes</div>
-					<div class="topmargin"><button type="button" autocomplete="off" id="btn_send">Send</button></div>
+					<input id="send_title" type="text" required autocomplete="off" placeholder="Subject" class="topmargin"><br>
+					<select id="send_from" class="topmargin"></select><br>
+					<input id="send_to" type="email" required placeholder="receiver@example.com" class="topmargin"><br>
+					<textarea id="send_body" required placeholder="Message" class="topmargin"></textarea><br>
+					<input id="send_copy" type="checkbox" checked="checked" class="topmargin"> Save copy to Notes<br>
+					<button type="button" autocomplete="off" id="btn_send" class="topmargin">Send</button>
 				</div>
 
 				<div class="maindiv" id="div_notes">
@@ -184,16 +184,20 @@
 							</tbody>
 						</table>
 
-						<div class="topmargin"><button type="button" autocomplete="off" id="btn_saveaddrdata">Save changes</button></div>
-
 						<div class="topmargin">
-							<div>Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses</div>
-							<div><input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required autocomplete="off" placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button></div>
+							<button type="button" autocomplete="off" id="btn_saveaddrdata">Save changes</button>
 						</div>
 
 						<div class="topmargin">
-							<div>Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses</div>
-							<div><button type="button" autocomplete="off" id="btn_newshieldaddress">Generate new Shield address</button></div>
+							Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses
+							<br>
+							<input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required autocomplete="off" placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button>
+						</div>
+
+						<div class="topmargin">
+							Using <span id="addr_use_shield">?</span> out of <span id="addr_max_shield">?</span> Shield addresses
+							<br>
+							<button type="button" autocomplete="off" id="btn_newshieldaddress">Generate new Shield address</button>
 						</div>
 					</div>
 
@@ -464,7 +468,9 @@
 						<div><select id="gatekeeper_addr" size="8"></select></div>
 						<div class="flex"><input id="txt_gkaddr" type="email" required> <button type="button" autocomplete="off" id="btn_gkaddr_add">Add</button> <button type="button" autocomplete="off" id="btn_gkaddr_del">Del</button></div>
 
-						<div class="center topmargin"><button type="button" autocomplete="off" id="btn_savegkdata">Save changes</button></div>
+						<div class="center topmargin">
+							<button type="button" autocomplete="off" id="btn_savegkdata">Save changes</button>
+						</div>
 					</div>
 				</div>
 
@@ -492,8 +498,9 @@
 					<h2 id="readmsg_title"></h2>
 
 					<div class="topmargin">
-						<div>From <span id="readmsg_from"></span> (Level <span id="readmsg_level"></span>)</div>
-						<div>To <span id="readmsg_to"></span></div>
+						From <span id="readmsg_from"></span> (Level <span id="readmsg_level"></span>)
+						<br>
+						To <span id="readmsg_to"></span>
 					</div>
 
 					<div id="readmsg_body" class="topmargin"></div>
