@@ -23,7 +23,6 @@
 
 #include "Includes/Brotli.h"
 
-#include "aep.h"
 #include "http.h"
 #include "https.h"
 #include "smtp.h"
@@ -47,19 +46,6 @@ static int initSocket(const int *sock, const int port) {
 	if (ret < 0) return ret;
 
 	listen(*sock, 10); // socket, backlog (# of connections to keep in queue)
-	return 0;
-}
-
-static int receiveConnections_aep(const int port) {
-/*	int sock;
-	if (initSocket(&sock, port) != 0) return 1;
-
-	while(1) {
-		const int sockNew = accept(sock, NULL, NULL);
-		respond_aef(sockNew);
-		close(sockNew);
-	}
-*/
 	return 0;
 }
 
@@ -301,16 +287,11 @@ int main() {
 	// TODO config from file
 	const char *domain = "allears.test:60443";
 	const size_t lenDomain = strlen(domain);
-	const int portAep = 64343;
 	const int portHttp = 60080;
 	const int portHttps = 60443;
 	const int portSmtp = 60025;
 
 	int pid;
-
-	pid = fork();
-	if (pid < 0) return 1;
-	if (pid == 0) return receiveConnections_aep(portAep);
 
 	pid = fork();
 	if (pid < 0) return 1;
