@@ -1,23 +1,21 @@
 #define _GNU_SOURCE // for accept4
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <dirent.h>
-
-#include <sys/socket.h>
 #include <arpa/inet.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <sodium.h>
-
-#include "mbedtls/error.h"
-#include "mbedtls/ssl.h"
+#include <mbedtls/error.h>
+#include <mbedtls/ssl.h>
 
 #include "aem_file.h"
 
@@ -26,6 +24,25 @@
 #include "http.h"
 #include "https.h"
 #include "smtp.h"
+
+int dropRoot() {
+	if (getuid() != 0) return 1;
+
+	struct passwd* p = getpwnam("allears");
+	if (p == NULL) return -1;
+	if ((int)p->pw_uid != (int)p->pw_gid) return 2;
+
+	if (strcmp(p->pw_shell, "/bin/nologin") != 0) return 3;
+	if (strcmp(p->pw_dir, "/home/allears") != 0) return 4;
+	if (chroot(p->pw_dir) != 0) return 5;
+
+	if (setgid(p->pw_gid) != 0) return 7;
+	if (setuid(p->pw_uid) != 0) return 6;
+
+	if (getuid() != p->pw_uid || getgid() != p->pw_gid) return 8;
+
+	return 0;
+}
 
 // Allow restarting the server immediately after kill
 static void allowQuickRestart(const int* sock) {
@@ -52,6 +69,7 @@ static int initSocket(const int *sock, const int port) {
 static int receiveConnections_http(const int port, const char *domain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (initSocket(&sock, port) != 0) return 1;
+	if (dropRoot() != 0) return 1;
 
 	while(1) {
 		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
@@ -224,22 +242,25 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	sodium_mprotect_readonly(fileSet);
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {puts("ERROR: Opening socket failed"); return 2;}
-	if (initSocket(&sock, port) != 0) {puts("ERROR: Binding socket failed"); return 3;}
+	if (sock < 0) ret = -2;
+	if (ret == 0) {if (initSocket(&sock, port) != 0) ret = -3;}
+	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
 
-	while(1) {
-		struct sockaddr_in clientAddr;
-		unsigned int clen = sizeof(clientAddr);
-		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-		if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
+	if (ret == 0) {
+		while(1) {
+			struct sockaddr_in clientAddr;
+			unsigned int clen = sizeof(clientAddr);
+			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+			if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
 
-		const int pid = fork();
-		if (pid < 0) {puts("ERROR: Failed fork"); break;}
-		else if (pid == 0) {
-			// Child goes on to communicate with the client
-			respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain);
-			break;
-		} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
+			const int pid = fork();
+			if (pid < 0) {puts("ERROR: Failed fork"); break;}
+			else if (pid == 0) {
+				// Child goes on to communicate with the client
+				respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain);
+				break;
+			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
+		}
 	}
 
 	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  sodium_free(fileCss[i].data);}
@@ -284,10 +305,10 @@ int main() {
 	}
 
 	// TODO config from file
-	const char *domain = "allears.test:60443";
+	const char *domain = "allears.test";
 	const size_t lenDomain = strlen(domain);
-	const int portHttp = 60080;
-	const int portHttps = 60443;
+	const int portHttp = 80;
+	const int portHttps = 443;
 	const int portSmtp = 60025;
 
 	int pid;
