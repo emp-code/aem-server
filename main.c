@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for accept4
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -66,7 +68,7 @@ static int receiveConnections_http(const int port, const char *domain) {
 	if (initSocket(&sock, port) != 0) return 1;
 
 	while(1) {
-		const int sockNew = accept(sock, NULL, NULL);
+		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
 		respond_http(sockNew, domain);
 		close(sockNew);
 	}
@@ -75,7 +77,7 @@ static int receiveConnections_http(const int port, const char *domain) {
 }
 
 static int aem_countFiles(const char *path, const char *ext, const size_t extLen) {
-	DIR* dir = opendir(path);
+	DIR *dir = opendir(path);
 	if (dir == NULL) return 0;
 
 	int counter = 0;

@@ -1,5 +1,5 @@
 #include <string.h>
-#include <sys/socket.h>
+#include <unistd.h>
 
 #include "http.h"
 
@@ -19,5 +19,6 @@ void respond_http(const int sock, const char * const domain) {
 	memcpy(r + 126, domain, len);
 	memcpy(r + 126 + len, "\r\n\r\n", 4);
 
-	send(sock, r, 130 + len, 0);
+	write(sock, r, 130 + len);
+	close(sock);
 }
