@@ -87,7 +87,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1129 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1152 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -148,6 +148,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Referrer-Policy: no-referrer\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
+		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
 	, files[reqNum].lenData, domain, domain, domain, domain);
