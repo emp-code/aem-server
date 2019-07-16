@@ -56,7 +56,6 @@ static int receiveConnections_http(const int port, const char *domain) {
 	while(1) {
 		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
 		respond_http(sockNew, domain);
-		close(sockNew);
 	}
 
 	return 0;
