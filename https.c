@@ -89,11 +89,11 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1152 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1161 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=94672800; includeSubDomains; preload\r\n"
 		"Connection: close\r\n"
 		"Content-Encoding: br\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
