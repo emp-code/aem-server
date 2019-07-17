@@ -89,7 +89,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1161 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1179 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -120,7 +120,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *reqName, co
 			"worker-src"      " 'none';"
 
 			"block-all-mixed-content;"
-			"sandbox allow-scripts;"
+			"sandbox allow-scripts allow-same-origin;"
 		"\r\n"
 
 		"Feature-Policy:"
