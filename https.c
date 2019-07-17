@@ -540,7 +540,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	encryptNonce(nonce, seed);
 
-	char data[220];
+	char data[187];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -548,12 +548,11 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 		"Connection: close\r\n"
 		"Content-Length: 24\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
 		"%.24s"
 	, nonce);
 
-	sendData(ssl, data, 219);
+	sendData(ssl, data, 186);
 }
 
 static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16]) {
