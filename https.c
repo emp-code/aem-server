@@ -28,6 +28,7 @@
 #define AEM_FILETYPE_IMG 2
 #define AEM_FILETYPE_JS  3
 
+#define AEM_HTTPS_TIMEOUT 30
 #define AEM_HTTPS_MAXREQSIZE 8192
 #define AEM_NETINT_BUFLEN 4096
 
@@ -767,6 +768,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
 	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 4096); // Minimum length for DH parameters
+	mbedtls_ssl_conf_read_timeout(&conf, AEM_HTTPS_TIMEOUT);
 	const int cs[] = AEM_CIPHERSUITES;
 	mbedtls_ssl_conf_ciphersuites(&conf, cs);
 
