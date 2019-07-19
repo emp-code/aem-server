@@ -85,7 +85,7 @@ void respond_smtp(const int sock, const unsigned long ip) {
 		}
 
 		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
-			printf("[SMTP] Terminating, unsupported command received: %s\n", buf);
+			printf("[SMTP] Terminating, unsupported command received: %.4s\n", buf);
 			close(sock);
 			return;
 		}
