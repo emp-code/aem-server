@@ -281,15 +281,18 @@ static int receiveConnections_https(const int port, const char *domain, const si
 }
 
 static int receiveConnections_smtp(const int port) {
-/*	int sock;
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (initSocket(&sock, port) != 0) return 1;
+	if (dropRoot() != 0) return 1;
 
 	while(1) {
-		const int sockNew = accept(sock, NULL, NULL);
-		respond_smtp(sockNew);
-		close(sockNew);
+		struct sockaddr_in clientAddr;
+		unsigned int clen = sizeof(clientAddr);
+		const int sockNew = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+
+		respond_smtp(sockNew, clientAddr.sin_addr.s_addr);
 	}
-*/
+
 	return 0;
 }
 
@@ -309,7 +312,7 @@ int main() {
 	const size_t lenDomain = strlen(domain);
 	const int portHttp = 80;
 	const int portHttps = 443;
-	const int portSmtp = 60025;
+	const int portSmtp = 25;
 
 	int pid;
 
