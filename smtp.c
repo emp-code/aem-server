@@ -32,12 +32,17 @@ static int smtp_addr(const size_t cmdSize, size_t len, char buf[AEM_SMTP_SIZE_BU
 	return szAddr;
 }
 
-void respond_smtp(const int sock, const unsigned long ip) {
+void respond_smtp(const int sock, const size_t lenDomain, const char *domain, const unsigned long ip) {
 	struct in_addr ip_addr;
 	ip_addr.s_addr = ip;
 	printf("[SMTP] New connection from %s\n", inet_ntoa(ip_addr));
 
-	send(sock, "220 allears.test\r\n", 18, 0);
+	const ssize_t lenOur = 6 + lenDomain;
+	char ourGreeting[lenOur];
+	memcpy(ourGreeting, "220 ", 4);
+	memcpy(ourGreeting + 4, domain, lenDomain);
+	memcpy(ourGreeting + 4 + lenDomain, "\r\n", 2);
+	if (send(sock, ourGreeting, lenOur, 0) != lenOur) return;
 
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
