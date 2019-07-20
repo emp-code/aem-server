@@ -2,15 +2,21 @@
 #define AEM_SMTP_MAXSIZE_TO   99
 
 #define AEM_SMTP_SIZE_BUF  16384
-#define AEM_SMTP_MAX_MSGSIZE "15000" // 5 digits
 #define AEM_SMTP_MAX_ADDRSIZE 100
 #define AEM_SMTP_MAX_TO_ADDR 10
+
+#define AEM_EHLO_RESPONSE_LEN 28
+#define AEM_EHLO_RESPONSE \
+"\r\n250-SIZE 15000" \
+"\r\n250 AUTH" \
+"\r\n"
 
 #define AEM_SMTP_SIZE_COMMAND_FROM 10 // MAIL FROM:
 #define AEM_SMTP_SIZE_COMMAND_TO 8 // RCPT TO:
 
 #include <arpa/inet.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +38,28 @@ static int smtp_addr(const size_t cmdSize, size_t len, char buf[AEM_SMTP_SIZE_BU
 	return szAddr;
 }
 
+static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain, const ssize_t bytes, const char *buf) {
+	if (bytes < 4) return false;
+
+	if (strncasecmp(buf, "EHLO", 4) == 0) {
+		const ssize_t lenHelo = 4 + lenDomain + AEM_EHLO_RESPONSE_LEN;
+		char helo[lenHelo];
+		memcpy(helo, "250-", 4);
+		memcpy(helo + 4, domain, lenDomain);
+		memcpy(helo + 4 + lenDomain, AEM_EHLO_RESPONSE, AEM_EHLO_RESPONSE_LEN);
+		return (send(sock, helo, lenHelo, 0) == lenHelo);
+	} else if (strncasecmp(buf, "HELO", 4) == 0) {
+		const ssize_t lenHelo = 6 + lenDomain;
+		char helo[lenHelo];
+		memcpy(helo, "250 ", 4);
+		memcpy(helo + 4, domain, lenDomain);
+		memcpy(helo + 4 + lenDomain, "\r\n", 2);
+		return (send(sock, helo, lenHelo, 0) == lenHelo);
+	}
+
+	return false;
+}
+
 void respond_smtp(const int sock, const size_t lenDomain, const char *domain, const unsigned long ip) {
 	struct in_addr ip_addr;
 	ip_addr.s_addr = ip;
@@ -47,16 +75,7 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
-	if (bytes < 4) {close(sock); return;}
-	if (strncasecmp(buf, "EHLO", 4) == 0) {
-		send(sock,
-			"250-allears.test\r\n"
-			"250-SIZE "AEM_SMTP_MAX_MSGSIZE"\r\n"
-			"250 AUTH\r\n"
-		, 44, 0);
-	} else if (strncasecmp(buf, "HELO", 4) == 0) {
-		send(sock, "250 allears.test\r\n", 8, 0);
-	} else {close(sock); return;}
+	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return;
 
 	size_t szFrom = 0, szTo = 0, toCount = 0;
 	char from[AEM_SMTP_MAX_ADDRSIZE];
