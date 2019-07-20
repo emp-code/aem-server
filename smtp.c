@@ -11,9 +11,6 @@
 "\r\n250 AUTH" \
 "\r\n"
 
-#define AEM_SMTP_SIZE_COMMAND_FROM 10 // MAIL FROM:
-#define AEM_SMTP_SIZE_COMMAND_TO 8 // RCPT TO:
-
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -24,17 +21,17 @@
 
 #include "smtp.h"
 
-static int smtp_addr(const size_t cmdSize, size_t len, char buf[AEM_SMTP_SIZE_BUF], char addr[AEM_SMTP_MAX_ADDRSIZE], const size_t offset) {
-	size_t start = cmdSize;
-	size_t szAddr = len - start;
+static size_t smtp_addr(const size_t len, const char * const buf, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
+	size_t start = 1;
+	size_t szAddr = len - 1;
 
 	while (szAddr > 0 && buf[start - 1] != '<') {start++; szAddr--;}
-	if (szAddr < 1) return -1;
+	if (szAddr < 1) return 0;
 	while (szAddr > 0 && buf[start + szAddr] != '>') szAddr--;
-	if (szAddr < 1) return -1;
+	if (szAddr < 1) return 0;
 
-	if (szAddr > AEM_SMTP_MAX_ADDRSIZE) return -1;
-	memcpy(addr + offset, buf + start, szAddr);
+	if (szAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
+	memcpy(addr, buf + start, szAddr);
 	return szAddr;
 }
 
@@ -93,23 +90,31 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 
 	size_t szFrom = 0, szTo = 0, toCount = 0;
 	char from[AEM_SMTP_MAX_ADDRSIZE];
-	char to[AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR];
-	bzero(to, AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR);
+	char to[AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR];
+	bzero(to, AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR);
 
 	while(1) {
 		bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			szFrom = smtp_addr(AEM_SMTP_SIZE_COMMAND_FROM, bytes, buf, from, 0);
-			if (szFrom <= 0) return smtp_fail(sock, ip);
+			szFrom = smtp_addr(bytes - 10, buf + 10, from);
+			if (szFrom < 1) return smtp_fail(sock, ip);
 		}
 
-		else if (bytes > 9 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
+		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
 			if (toCount > AEM_SMTP_MAX_TO_ADDR) return smtp_fail(sock, ip);
 
-			szTo = smtp_addr(AEM_SMTP_SIZE_COMMAND_TO, bytes, buf, to, toCount * AEM_SMTP_MAX_ADDRSIZE);
-			if (szTo <= 0) return smtp_fail(sock, ip);
+			char newTo[AEM_SMTP_MAX_ADDRSIZE];
+			size_t szNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
+			if (szNewTo < 1) return smtp_fail(sock, ip);
 
+			if (toCount > 0) {
+				to[szTo] = '\n';
+				szTo++;
+			}
+
+			memcpy(to + szTo, newTo, szNewTo);
+			szTo += szNewTo;
 			toCount++;
 		}
 
