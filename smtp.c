@@ -69,14 +69,23 @@ static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain
 	return false;
 }
 
+void smtp_fail(const int sock, const unsigned long ip) {
+	send(sock, "421 Bye\r\n", 9, 0);
+	close(sock);
+
+	if (ip == 0) return;
+	struct in_addr ip_addr; ip_addr.s_addr = ip;
+	printf("[SMTP] Error receiving message (IP: %s)\n", inet_ntoa(ip_addr));
+}
+
 void respond_smtp(const int sock, const size_t lenDomain, const char *domain, const unsigned long ip) {
 	puts("[SMTP] New connection");
-	if (!smtp_greet(sock, lenDomain, domain)) return;
+	if (!smtp_greet(sock, lenDomain, domain)) return smtp_fail(sock, ip);
 
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
-	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return;
+	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return smtp_fail(sock, ip);
 
 	const size_t lenGreeting = bytes - 7;
 	char greeting[lenGreeting];
@@ -92,14 +101,14 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			szFrom = smtp_addr(AEM_SMTP_SIZE_COMMAND_FROM, bytes, buf, from, 0);
-			if (szFrom <= 0) {close(sock); return;}
+			if (szFrom <= 0) return smtp_fail(sock, ip);
 		}
 
 		else if (bytes > 9 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
-			if (toCount > AEM_SMTP_MAX_TO_ADDR) {close(sock); return;}
+			if (toCount > AEM_SMTP_MAX_TO_ADDR) return smtp_fail(sock, ip);
 
 			szTo = smtp_addr(AEM_SMTP_SIZE_COMMAND_TO, bytes, buf, to, toCount * AEM_SMTP_MAX_ADDRSIZE);
-			if (szTo <= 0) {close(sock); return;}
+			if (szTo <= 0) return smtp_fail(sock, ip);
 
 			toCount++;
 		}
@@ -112,8 +121,7 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
 			struct in_addr ip_addr; ip_addr.s_addr = ip;
 			printf("[SMTP] Terminating, unsupported command received: %.4s (IP: %s; greeting: %.*s)\n", buf, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
-			close(sock);
-			return;
+			return smtp_fail(ip, 0);
 		}
 
 		send(sock, "250 OK\r\n", 8, 0);
