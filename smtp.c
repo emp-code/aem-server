@@ -38,6 +38,15 @@ static int smtp_addr(const size_t cmdSize, size_t len, char buf[AEM_SMTP_SIZE_BU
 	return szAddr;
 }
 
+static bool smtp_greet(const int sock, const size_t lenDomain, const char *domain) {
+	const int lenGreet = 12 + lenDomain;
+	char ourGreeting[lenGreet];
+	memcpy(ourGreeting, "220 ", 4);
+	memcpy(ourGreeting + 4, domain, lenDomain);
+	memcpy(ourGreeting + 4 + lenDomain, " ESMPT\r\n", 8);
+	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
+}
+
 static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain, const ssize_t bytes, const char *buf) {
 	if (bytes < 4) return false;
 
@@ -60,20 +69,8 @@ static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain
 	return false;
 }
 
-static bool smtp_greet(const int sock, const size_t lenDomain, const char *domain) {
-	const int lenGreet = 12 + lenDomain;
-	char ourGreeting[lenGreet];
-	memcpy(ourGreeting, "220 ", 4);
-	memcpy(ourGreeting + 4, domain, lenDomain);
-	memcpy(ourGreeting + 4 + lenDomain, " ESMPT\r\n", 8);
-	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
-}
-
 void respond_smtp(const int sock, const size_t lenDomain, const char *domain, const unsigned long ip) {
-	struct in_addr ip_addr;
-	ip_addr.s_addr = ip;
-	printf("[SMTP] New connection from %s\n", inet_ntoa(ip_addr));
-
+	puts("[SMTP] New connection");
 	if (!smtp_greet(sock, lenDomain, domain)) return;
 
 	char buf[AEM_SMTP_SIZE_BUF + 1];
@@ -81,14 +78,14 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 
 	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return;
 
+	const size_t lenGreeting = bytes - 7;
+	char greeting[lenGreeting];
+	memcpy(greeting, buf + 5, lenGreeting);
+
 	size_t szFrom = 0, szTo = 0, toCount = 0;
 	char from[AEM_SMTP_MAX_ADDRSIZE];
 	char to[AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR];
 	bzero(to, AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR);
-
-	const size_t lenGreeting = bytes - 7;
-	char greeting[lenGreeting];
-	memcpy(greeting, buf + 5, lenGreeting);
 
 	while(1) {
 		bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
@@ -113,7 +110,8 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 		}
 
 		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
-			printf("[SMTP] Terminating, unsupported command received: %.4s\n", buf);
+			struct in_addr ip_addr; ip_addr.s_addr = ip;
+			printf("[SMTP] Terminating, unsupported command received: %.4s (IP: %s; greeting: %.*s)\n", buf, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
 			close(sock);
 			return;
 		}
@@ -147,6 +145,8 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 
 	close(sock);
 
+	struct in_addr ip_addr; ip_addr.s_addr = ip;
+	printf("[SMTP] IP=%s\n", inet_ntoa(ip_addr));
 	printf("[SMTP] Greeting=%.*s\n", (int)lenGreeting, greeting);
 	printf("[SMTP] From=%.*s\n", (int)szFrom, from);
 	printf("[SMTP] To=%.*s\n", (int)szTo, to);
