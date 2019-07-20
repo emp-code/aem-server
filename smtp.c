@@ -123,7 +123,7 @@ void respond_smtp(const int sock, const size_t lenDomain, const char *domain, co
 		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
 			struct in_addr ip_addr; ip_addr.s_addr = ip;
 			printf("[SMTP] Terminating, unsupported command received: %.4s (IP: %s; greeting: %.*s)\n", buf, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
-			return smtp_fail(ip, 0);
+			return smtp_fail(sock, 0);
 		}
 
 		send(sock, "250 OK\r\n", 8, 0);
