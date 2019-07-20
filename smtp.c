@@ -60,17 +60,21 @@ static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain
 	return false;
 }
 
+static bool smtp_greet(const int sock, const size_t lenDomain, const char *domain) {
+	const int lenGreet = 12 + lenDomain;
+	char ourGreeting[lenGreet];
+	memcpy(ourGreeting, "220 ", 4);
+	memcpy(ourGreeting + 4, domain, lenDomain);
+	memcpy(ourGreeting + 4 + lenDomain, " ESMPT\r\n", 8);
+	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
+}
+
 void respond_smtp(const int sock, const size_t lenDomain, const char *domain, const unsigned long ip) {
 	struct in_addr ip_addr;
 	ip_addr.s_addr = ip;
 	printf("[SMTP] New connection from %s\n", inet_ntoa(ip_addr));
 
-	const ssize_t lenOur = 6 + lenDomain;
-	char ourGreeting[lenOur];
-	memcpy(ourGreeting, "220 ", 4);
-	memcpy(ourGreeting + 4, domain, lenDomain);
-	memcpy(ourGreeting + 4 + lenDomain, "\r\n", 2);
-	if (send(sock, ourGreeting, lenOur, 0) != lenOur) return;
+	if (!smtp_greet(sock, lenDomain, domain)) return;
 
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
