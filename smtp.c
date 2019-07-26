@@ -278,6 +278,15 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 11);
 			}
 
+			if (szNewTo < (lenDomain + 2) || newTo[szNewTo - lenDomain - 1] != '@' || strncasecmp(newTo + szNewTo - lenDomain, domain, lenDomain) != 0) {
+				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
+					tlsFree(tls, &conf, &ctr_drbg, &entropy);
+					return smtp_fail(sock, tls, clientIp, 10);
+				}
+
+				continue;
+			}
+
 			if (toCount > 0) {
 				to[szTo] = '\n';
 				szTo++;
