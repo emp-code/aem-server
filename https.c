@@ -805,9 +805,9 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	// Handshake
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			char error_buf[100];
-			mbedtls_strerror(ret, error_buf, 100);
-			printf( "ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
+			char errorBuf[100];
+			mbedtls_strerror(ret, errorBuf, sizeof(errorBuf));
+			printf("ERROR: mbedtls_ssl_handshake returned %d: %s\n", ret, errorBuf);
 			mbedtls_ssl_free(&ssl);
 			return -1;
 		}
@@ -845,9 +845,9 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		if (ret > 0) handleRequest(&ssl, (char*)req, totalLen, clientIp, seed, fileSet, domain, lenDomain);
 	} else if (ret < 0 && ret != MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY && ret != MBEDTLS_ERR_SSL_CONN_EOF && ret != MBEDTLS_ERR_NET_CONN_RESET) {
 		// Failed to read request
-		char error_buf[100];
-		mbedtls_strerror(ret, error_buf, 100);
-		printf("ERROR: Incoming connection failed: %d: %s\n", ret, error_buf);
+		char errorBuf[100];
+		mbedtls_strerror(ret, errorBuf, sizeof(errorBuf));
+		printf("ERROR: Incoming connection failed: %d: %s\n", ret, errorBuf);
 	}
 
 	free(req);
