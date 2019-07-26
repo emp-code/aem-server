@@ -763,7 +763,8 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 	int ret;
 	if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-		printf( "Failed; mbedtls_ssl_config_defaults returned %d\n\n", ret);
+		printf("ERROR: mbedtls_ssl_config_defaults returned %d\n\n", ret);
+		return -1;
 	}
 
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
