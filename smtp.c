@@ -90,7 +90,7 @@ static bool smtp_greet(const int sock, const size_t lenDomain, const char *domai
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
 	memcpy(ourGreeting + 4, domain, lenDomain);
-	memcpy(ourGreeting + 4 + lenDomain, " ESMPT\r\n", 8);
+	memcpy(ourGreeting + 4 + lenDomain, " ESMTP\r\n", 8);
 	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
 }
 
