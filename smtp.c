@@ -142,9 +142,9 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-void deliverMessage(const uint32_t clientIp, const int tls, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
+void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
 	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
-	printf("[SMTP] IP=%s (TLS=%d)\n", inet_ntoa(ip_addr), tls);
+	printf("[SMTP] IP=%s (%s)\n", inet_ntoa(ip_addr), (cs == 0) ? "insecure" : mbedtls_ssl_get_ciphersuite_name(cs));
 	printf("[SMTP] Greeting=%.*s\n", (int)szGreeting, greeting);
 	printf("[SMTP] From=%.*s\n", (int)szFrom, from);
 	printf("[SMTP] To=%.*s\n", (int)szTo, to);
@@ -314,7 +314,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				if (szBody > 5 && memcmp(body + szBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
-			deliverMessage(clientIp, (tls == NULL), szGreeting, greeting, szFrom, from, szTo, to, szBody, body);
+			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
+			deliverMessage(clientIp, cs, szGreeting, greeting, szFrom, from, szTo, to, szBody, body);
 
 			szFrom = 0;
 			szTo = 0;
