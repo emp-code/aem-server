@@ -261,6 +261,17 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			toCount++;
 		}
 
+		else if (bytes >= 4 && strncasecmp(buf, "RSET", 4) == 0) {
+			szFrom = 0;
+			szTo = 0;
+			toCount = 0;
+
+			if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
+				tlsFree(tls, &conf, &ctr_drbg, &entropy);
+				return smtp_fail(sock, tls, clientIp, 10);
+			}
+		}
+
 		else if (bytes >= 4 && strncasecmp(buf, "DATA", 4) == 0) {
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
