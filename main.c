@@ -281,18 +281,72 @@ static int receiveConnections_https(const int port, const char *domain, const si
 }
 
 static int receiveConnections_smtp(const int port, const size_t lenDomain, const char *domain) {
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, port) != 0) return 1;
-	if (dropRoot() != 0) return 1;
+	// Load the certificate
+	int fd = open("aem-https.crt", O_RDONLY);
+	if (fd < 0) return 1;
+	off_t lenFile = lseek(fd, 0, SEEK_END);
 
-	while(1) {
-		struct sockaddr_in clientAddr;
-		unsigned int clen = sizeof(clientAddr);
-		const int sockNew = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+	unsigned char *cert = calloc(lenFile + 2, 1);
+	ssize_t readBytes = pread(fd, cert, lenFile, 0);
+	close(fd);
+	if (readBytes != lenFile) {free(cert); return 2;}
 
-		respond_smtp(sockNew, lenDomain, domain, clientAddr.sin_addr.s_addr);
+	mbedtls_x509_crt srvcert;
+	mbedtls_x509_crt_init(&srvcert);
+	int ret = mbedtls_x509_crt_parse(&srvcert, cert, lenFile + 1);
+	free(cert);
+
+	if (ret != 0) {
+		char error_buf[100];
+		mbedtls_strerror(ret, error_buf, 100);
+		printf("ERROR: Loading server cert failed - mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		return 1;
 	}
 
+	// Load the private key
+	fd = open("aem-https.key", O_RDONLY);
+	if (fd < 0) return 1;
+	lenFile = lseek(fd, 0, SEEK_END);
+
+	unsigned char *key = calloc(lenFile + 2, 1);
+	readBytes = pread(fd, key, lenFile, 0);
+	close(fd);
+	if (readBytes != lenFile) {free(key); return 1;}
+
+	mbedtls_pk_context pkey;
+	mbedtls_pk_init(&pkey);
+	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
+	free(key);
+	if (ret != 0) {printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
+
+	unsigned char seed[16];
+	randombytes_buf(seed, 16);
+
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) ret = -2;
+	if (ret == 0) {if (initSocket(&sock, port) != 0) ret = -3;}
+	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
+
+	if (ret == 0) {
+		while(1) {
+			struct sockaddr_in clientAddr;
+			unsigned int clen = sizeof(clientAddr);
+			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+			if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
+
+			const int pid = fork();
+			if (pid < 0) {puts("ERROR: Failed fork"); break;}
+			else if (pid == 0) {
+				// Child goes on to communicate with the client
+				respond_smtp(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, lenDomain, domain);
+				break;
+			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
+		}
+	}
+
+	mbedtls_x509_crt_free(&srvcert);
+	mbedtls_pk_free(&pkey);
+	close(sock);
 	return 0;
 }
 
