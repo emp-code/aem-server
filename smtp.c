@@ -242,6 +242,12 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	size_t szBody = 0;
 
 	while(1) {
+		if (bytes < 4) {
+			struct in_addr ip_addr; ip_addr.s_addr = clientIp;
+			printf("[SMTP] Terminating received only %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
+			break;
+		}
+
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			szFrom = smtp_addr(bytes - 10, buf + 10, from);
 			if (szFrom < 1) {
@@ -273,7 +279,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			toCount++;
 		}
 
-		else if (bytes >= 4 && strncasecmp(buf, "RSET", 4) == 0) {
+		else if (strncasecmp(buf, "RSET", 4) == 0) {
 			szFrom = 0;
 			szTo = 0;
 			toCount = 0;
@@ -284,19 +290,19 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 		}
 
-		else if (bytes >= 4 && strncasecmp(buf, "VRFY", 4) == 0) {
+		else if (strncasecmp(buf, "VRFY", 4) == 0) {
 			if (send_aem(sock, tls, "252 Ok\r\n", 8) != 8) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 10);
 			}
 		}
 
-		else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
+		else if (strncasecmp(buf, "QUIT", 4) == 0) {
 			send_aem(sock, tls, "221 Ok\r\n", 8);
 			break;
 		}
 
-		else if (bytes >= 4 && strncasecmp(buf, "DATA", 4) == 0) {
+		else if (strncasecmp(buf, "DATA", 4) == 0) {
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 10);
@@ -325,16 +331,15 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (bytes < 1) break; // nonstandard termination
 		}
 
-		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
-			struct in_addr ip_addr; ip_addr.s_addr = clientIp;
+		else if (strncasecmp(buf, "NOOP", 4) != 0) {
+			// Unsupported commands
+			if (send_aem(sock, tls, "500 Ok\r\n", 8) != 8) {
+				tlsFree(tls, &conf, &ctr_drbg, &entropy);
+				return smtp_fail(sock, tls, clientIp, 10);
+			}
 
-			if (bytes > 0)
-				printf("[SMTP] Terminating, unsupported command received: %.4s (%d bytes; IP: %s; greeting: %.*s)\n", buf, bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
-			else
-				printf("[SMTP] Terminating, unsupported command received (%d bytes; IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
-
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return smtp_fail(sock, tls, 0, 12);
+			bytes = recv_aem(sock, tls, buf);
+			continue;
 		}
 
 		if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
