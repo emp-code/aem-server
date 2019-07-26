@@ -142,6 +142,15 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
+void deliverMessage(const uint32_t clientIp, const int tls, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
+	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
+	printf("[SMTP] IP=%s (TLS=%d)\n", inet_ntoa(ip_addr), tls);
+	printf("[SMTP] Greeting=%.*s\n", (int)szGreeting, greeting);
+	printf("[SMTP] From=%.*s\n", (int)szFrom, from);
+	printf("[SMTP] To=%.*s\n", (int)szTo, to);
+	printf("[SMTP] Message:\n%.*s\n", (int)szMsgBody, msgBody);
+}
+
 void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const size_t lenDomain, const char *domain) {
 	puts("[SMTP] New connection");
 	if (!smtp_greet(sock, lenDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
@@ -149,9 +158,9 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
-	const size_t lenGreeting = bytes - 7;
-	char greeting[lenGreeting];
-	memcpy(greeting, buf + 5, lenGreeting);
+	const size_t szGreeting = bytes - 7;
+	char greeting[szGreeting];
+	memcpy(greeting, buf + 5, szGreeting);
 
 	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
 
@@ -229,6 +238,9 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	char to[AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR];
 	bzero(to, AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR);
 
+	char *body = NULL;
+	size_t szBody = 0;
+
 	while(1) {
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			szFrom = smtp_addr(bytes - 10, buf + 10, from);
@@ -281,8 +293,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 		else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			send_aem(sock, tls, "221 Ok\r\n", 8);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return;
+			break;
 		}
 
 		else if (bytes >= 4 && strncasecmp(buf, "DATA", 4) == 0) {
@@ -291,16 +302,35 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 10);
 			}
 
-			break;
+			body = malloc(AEM_SMTP_SIZE_BUF + 1);
+
+			while(1) {
+				bytes = recv_aem(sock, tls, buf);
+				if (bytes < 1) break;
+
+				memcpy(body + szBody, buf, bytes);
+				szBody += bytes;
+
+				if (szBody > 5 && memcmp(body + szBody - 5, "\r\n.\r\n", 5) == 0) break;
+			}
+
+			deliverMessage(clientIp, (tls == NULL), szGreeting, greeting, szFrom, from, szTo, to, szBody, body);
+
+			szFrom = 0;
+			szTo = 0;
+			szBody = 0;
+			free(body);
+
+			if (bytes < 1) break; // nonstandard termination
 		}
 
 		else if (bytes < 4 || strncasecmp(buf, "NOOP", 4) != 0) {
 			struct in_addr ip_addr; ip_addr.s_addr = clientIp;
 
 			if (bytes > 0)
-				printf("[SMTP] Terminating, unsupported command received: %.4s (%d bytes; IP: %s; greeting: %.*s)\n", buf, bytes, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
+				printf("[SMTP] Terminating, unsupported command received: %.4s (%d bytes; IP: %s; greeting: %.*s)\n", buf, bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
 			else
-				printf("[SMTP] Terminating, unsupported command received (%d bytes; IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
+				printf("[SMTP] Terminating, unsupported command received (%d bytes; IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
 
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return smtp_fail(sock, tls, 0, 12);
@@ -314,39 +344,6 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		bytes = recv_aem(sock, tls, buf);
 	}
 
-	char* msgBody = malloc(AEM_SMTP_SIZE_BUF + 1);
-	size_t lenMsgBody = 0;
-
-	while(1) {
-		bytes = recv_aem(sock, tls, buf);
-		if (bytes < 1) break;
-
-		memcpy(msgBody + lenMsgBody, buf, bytes);
-		lenMsgBody += bytes;
-
-		if (lenMsgBody > 5 && memcmp(msgBody + lenMsgBody - 5, "\r\n.\r\n", 5) == 0) break;
-	}
-
-	msgBody[lenMsgBody] = '\0';
-
-	send_aem(sock, tls, "250 Ok\r\n", 8);
-
-	recv_aem(sock, tls, buf);
-	if (strncasecmp(buf, "QUIT", 4) == 0) {
-		send_aem(sock, tls, "221 Bye\r\n", 9);
-	} else {
-		printf("[SMTP] Expected QUIT, got %.4s\n", buf);
-		send_aem(sock, tls, "421 Bye\r\n", 9);
-	}
-
 	close(sock);
 	tlsFree(tls, &conf, &ctr_drbg, &entropy);
-
-	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
-	printf("[SMTP] IP=%s\n", inet_ntoa(ip_addr));
-	printf("[SMTP] Greeting=%.*s\n", (int)lenGreeting, greeting);
-	printf("[SMTP] From=%.*s\n", (int)szFrom, from);
-	printf("[SMTP] To=%.*s\n", (int)szTo, to);
-	printf("[SMTP] Message:\n%.*s\n", (int)lenMsgBody, msgBody);
-	free(msgBody);
 }
