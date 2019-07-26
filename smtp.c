@@ -283,11 +283,6 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			szFrom = 0;
 			szTo = 0;
 			toCount = 0;
-
-			if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 10);
-			}
 		}
 
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
@@ -295,6 +290,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 10);
 			}
+
+			continue;
 		}
 
 		else if (strncasecmp(buf, "QUIT", 4) == 0) {
