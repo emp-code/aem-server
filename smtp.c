@@ -279,6 +279,12 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 		}
 
+		else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
+			send_aem(sock, tls, "221 Ok\r\n", 8);
+			tlsFree(tls, &conf, &ctr_drbg, &entropy);
+			return;
+		}
+
 		else if (bytes >= 4 && strncasecmp(buf, "DATA", 4) == 0) {
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
