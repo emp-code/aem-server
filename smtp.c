@@ -272,6 +272,13 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 		}
 
+		else if (bytes >= 4 && strncasecmp(buf, "VRFY", 4) == 0) {
+			if (send_aem(sock, tls, "252 Ok\r\n", 8) != 8) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
+				tlsFree(tls, &conf, &ctr_drbg, &entropy);
+				return smtp_fail(sock, tls, clientIp, 10);
+			}
+		}
+
 		else if (bytes >= 4 && strncasecmp(buf, "DATA", 4) == 0) {
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
