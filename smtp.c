@@ -257,6 +257,15 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
+			if (szFrom < 1) {
+				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
+					tlsFree(tls, &conf, &ctr_drbg, &entropy);
+					return smtp_fail(sock, tls, clientIp, 10);
+				}
+
+				continue;
+			}
+
 			if (toCount > AEM_SMTP_MAX_TO_ADDR) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 10);
@@ -300,6 +309,15 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		else if (strncasecmp(buf, "DATA", 4) == 0) {
+			if (szFrom < 1 || szTo < 1) {
+				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
+					tlsFree(tls, &conf, &ctr_drbg, &entropy);
+					return smtp_fail(sock, tls, clientIp, 10);
+				}
+
+				continue;
+			}
+
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 10);
