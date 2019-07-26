@@ -176,7 +176,6 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
-		mbedtls_ssl_conf_dhm_min_bitlen(&conf, 4096); // Minimum length for DH parameters
 		mbedtls_ssl_conf_read_timeout(&conf, AEM_SMTP_TIMEOUT);
 		const int cs[] = AEM_CIPHERSUITES_SMTP;
 		mbedtls_ssl_conf_ciphersuites(&conf, cs);
