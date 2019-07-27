@@ -252,7 +252,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			szFrom = smtp_addr(bytes - 10, buf + 10, from);
 			if (szFrom < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 9);
+				return smtp_fail(sock, tls, clientIp, 100);
 			}
 		}
 
@@ -260,7 +260,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (szFrom < 1) {
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 10);
+					return smtp_fail(sock, tls, clientIp, 101);
 				}
 
 				continue;
@@ -268,20 +268,20 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 			if (toCount > AEM_SMTP_MAX_TO_ADDR) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 10);
+				return smtp_fail(sock, tls, clientIp, 102);
 			}
 
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
 			size_t szNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
 			if (szNewTo < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 11);
+				return smtp_fail(sock, tls, clientIp, 103);
 			}
 
 			if (szNewTo < (lenDomain + 2) || newTo[szNewTo - lenDomain - 1] != '@' || strncasecmp(newTo + szNewTo - lenDomain, domain, lenDomain) != 0) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 10);
+					return smtp_fail(sock, tls, clientIp, 104);
 				}
 
 				continue;
@@ -306,7 +306,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
 			if (send_aem(sock, tls, "252 Ok\r\n", 8) != 8) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 10);
+				return smtp_fail(sock, tls, clientIp, 105);
 			}
 
 			continue;
@@ -321,7 +321,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (szFrom < 1 || szTo < 1) {
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 10);
+					return smtp_fail(sock, tls, clientIp, 106);
 				}
 
 				continue;
@@ -329,7 +329,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 10);
+				return smtp_fail(sock, tls, clientIp, 107);
 			}
 
 			body = malloc(AEM_SMTP_SIZE_BUF + 1);
@@ -359,7 +359,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			// Unsupported commands
 			if (send_aem(sock, tls, "500 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 10);
+				return smtp_fail(sock, tls, clientIp, 108);
 			}
 
 			bytes = recv_aem(sock, tls, buf);
@@ -368,7 +368,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 		if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return smtp_fail(sock, tls, clientIp, 10);
+			return smtp_fail(sock, tls, clientIp, 150);
 		}
 
 		bytes = recv_aem(sock, tls, buf);
