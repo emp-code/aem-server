@@ -43,13 +43,9 @@ static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char buf[AEM_SMTP_
 
 	if (ssl == NULL) return recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
-	int ret, len = 0;
-	do {
-		ret = mbedtls_ssl_read(ssl, (unsigned char*)(buf), AEM_SMTP_SIZE_BUF);
-		if (ret > 0) len += ret;
-	} while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-
-	return len;
+	int ret;
+	do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, AEM_SMTP_SIZE_BUF);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	return ret;
 }
 
 static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
