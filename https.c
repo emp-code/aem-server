@@ -37,13 +37,20 @@
 
 #define AEM_NONCE_TIMEDIFF_MAX 3
 
-#define AEM_CIPHERSUITES {\
+#define AEM_HTTPS_CIPHERSUITES {\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,\
 MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,\
 MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,\
 MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
+
+#define AEM_HTTPS_CURVES {\
+MBEDTLS_ECP_DP_CURVE448,\
+MBEDTLS_ECP_DP_CURVE25519,\
+MBEDTLS_ECP_DP_SECP521R1,\
+MBEDTLS_ECP_DP_SECP384R1,\
+MBEDTLS_ECP_DP_NONE}
 
 // Server keypair for testing (Base64)
 // Public: D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo=
@@ -766,8 +773,10 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
 	mbedtls_ssl_conf_read_timeout(&conf, AEM_HTTPS_TIMEOUT);
-	const int cs[] = AEM_CIPHERSUITES;
+	const int cs[] = AEM_HTTPS_CIPHERSUITES;
 	mbedtls_ssl_conf_ciphersuites(&conf, cs);
+	const mbedtls_ecp_group_id ec[] = AEM_HTTPS_CURVES;
+	mbedtls_ssl_conf_curves(&conf, ec);
 
 	// Seed the RNG
 	mbedtls_ctr_drbg_context ctr_drbg;
