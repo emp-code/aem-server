@@ -152,7 +152,8 @@ void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeti
 
 static bool addressIsOurs(const char *addr, const size_t szAddr, const char *domain, const size_t szDomain) {
 	return (
-	   szAddr > (szDomain + 1)
+	   szAddr < AEM_SMTP_MAX_ADDRSIZE
+	&& szAddr > (szDomain + 1)
 	&& addr[szAddr - szDomain - 1] == '@'
 	&& strncasecmp(addr + szAddr - szDomain, domain, szDomain) == 0
 	);
