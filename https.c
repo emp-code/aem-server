@@ -824,19 +824,22 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 	if (ret > 0) {
 		const int reqType = getRequestType(req, ret, domain, lenDomain);
-		const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
-		const char * const ruEnd = strchr(reqUrl, ' ');
-		const size_t szReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
-		if (reqType == AEM_HTTPS_REQUEST_GET) {
-			handleGet(&ssl, (char*)reqUrl, szReqUrl, fileSet, domain, lenDomain);
-		} else if (reqType == AEM_HTTPS_REQUEST_POST) {
-			unsigned char *post = memmem(req + szReqUrl + 11, ret, "\r\n\r\n", 4);
-			if (post != NULL) {
-				post += 4;
-				const size_t szPost = ret - (post - req);
+		if (reqType != AEM_HTTPS_REQUEST_INVALID) {
+			const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
+			const char * const ruEnd = strchr(reqUrl, ' ');
+			const size_t szReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
-				handlePost(&ssl, reqUrl, szReqUrl, post, szPost, clientIp, seed, domain, lenDomain);
+			if (reqType == AEM_HTTPS_REQUEST_GET) {
+				handleGet(&ssl, (char*)reqUrl, szReqUrl, fileSet, domain, lenDomain);
+			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
+				unsigned char *post = memmem(req + szReqUrl + 11, ret, "\r\n\r\n", 4);
+				if (post != NULL) {
+					post += 4;
+					const size_t szPost = ret - (post - req);
+
+					handlePost(&ssl, reqUrl, szReqUrl, post, szPost, clientIp, seed, domain, lenDomain);
+				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");
 	}
