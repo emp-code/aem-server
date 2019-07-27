@@ -1,6 +1,6 @@
 #define AEM_SMTP_SIZE_BUF  16384
-#define AEM_SMTP_MAX_ADDRSIZE 100
-#define AEM_SMTP_MAX_TO_ADDR 10
+#define AEM_SMTP_MAX_ADDRSIZE 50 // Should be 37+szDomain
+#define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_TIMEOUT 30
 
 #define AEM_CIPHERSUITES_SMTP {\
@@ -72,6 +72,7 @@ static size_t smtp_addr(const size_t len, const char * const buf, char addr[AEM_
 
 	while (szAddr > 0 && buf[start - 1] != '<') {start++; szAddr--;}
 	if (szAddr < 1) return 0;
+
 	while (szAddr > 0 && buf[start + szAddr] != '>') szAddr--;
 	if (szAddr < 1) return 0;
 
@@ -146,9 +147,17 @@ void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeti
 	printf("[SMTP] Message:\n%.*s\n", (int)szMsgBody, msgBody);
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const size_t lenDomain, const char *domain) {
+static bool addressIsOurs(const char *addr, const size_t szAddr, const char *domain, const size_t szDomain) {
+	return (
+	   szAddr > (szDomain + 1)
+	&& addr[szAddr - szDomain - 1] == '@'
+	&& strncasecmp(addr + szAddr - szDomain, domain, szDomain) == 0
+	);
+}
+
+void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const size_t szDomain, const char *domain) {
 	puts("[SMTP] New connection");
-	if (!smtp_greet(sock, lenDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
+	if (!smtp_greet(sock, szDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
 
 	char buf[AEM_SMTP_SIZE_BUF + 1];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
@@ -157,7 +166,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	char greeting[szGreeting];
 	memcpy(greeting, buf + 5, szGreeting);
 
-	if (!smtp_helo(sock, lenDomain, domain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
+	if (!smtp_helo(sock, szDomain, domain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
 
@@ -223,15 +232,14 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		bytes = recv_aem(0, tls, buf); // EHLO
-		smtp_shlo(tls, lenDomain, domain);
+		smtp_shlo(tls, szDomain, domain);
 
 		bytes = recv_aem(0, tls, buf);
 	}
 
-	size_t szFrom = 0, szTo = 0, toCount = 0;
+	size_t szFrom = 0, szTo = 0;
 	char from[AEM_SMTP_MAX_ADDRSIZE];
-	char to[AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR];
-	bzero(to, AEM_SMTP_MAX_ADDRSIZE * AEM_SMTP_MAX_TO_ADDR + AEM_SMTP_MAX_TO_ADDR);
+	char to[AEM_SMTP_MAX_ADDRSIZE_TO];
 
 	char *body = NULL;
 	size_t szBody = 0;
@@ -261,11 +269,6 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				continue;
 			}
 
-			if (toCount > AEM_SMTP_MAX_TO_ADDR) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 102);
-			}
-
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
 			size_t szNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
 			if (szNewTo < 1) {
@@ -273,7 +276,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 103);
 			}
 
-			if (szNewTo < (lenDomain + 2) || newTo[szNewTo - lenDomain - 1] != '@' || strncasecmp(newTo + szNewTo - lenDomain, domain, lenDomain) != 0) {
+			if (!addressIsOurs(newTo, szNewTo, domain, szDomain)) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(sock, tls, clientIp, 104);
@@ -282,20 +285,27 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				continue;
 			}
 
-			if (toCount > 0) {
+			if ((szTo + 1 + szNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
+				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
+					tlsFree(tls, &conf, &ctr_drbg, &entropy);
+					return smtp_fail(sock, tls, clientIp, 104);
+				}
+
+				continue;
+			}
+
+			if (szTo > 0) {
 				to[szTo] = '\n';
 				szTo++;
 			}
 
 			memcpy(to + szTo, newTo, szNewTo);
 			szTo += szNewTo;
-			toCount++;
 		}
 
 		else if (strncasecmp(buf, "RSET", 4) == 0) {
 			szFrom = 0;
 			szTo = 0;
-			toCount = 0;
 		}
 
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
