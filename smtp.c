@@ -48,16 +48,15 @@ static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char buf[AEM_SMTP_
 	return ret;
 }
 
-static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
-	if (ssl == NULL && sock > 0) return send(sock, data, lenData, 0);
+static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t szData) {
+	if (ssl == NULL && sock > 0) return send(sock, data, szData, 0);
 
 	if (ssl == NULL) return -1;
 
 	size_t sent = 0;
-	while (sent < lenData) {
+	while (sent < szData) {
 		int ret;
-		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), (lenData - sent > AEM_SMTP_SIZE_BUF) ? AEM_SMTP_SIZE_BUF : lenData - sent);}
-		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), szData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
 		if (ret < 0) return ret;
 
