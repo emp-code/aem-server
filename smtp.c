@@ -348,6 +348,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 				szBody += bytes;
 
+				if (szBody >= AEM_SMTP_SIZE_BODY) {bytes = 0; break;}
 				if (szBody > 5 && memcmp(body + szBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
