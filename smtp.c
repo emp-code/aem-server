@@ -1,4 +1,5 @@
-#define AEM_SMTP_SIZE_BUF  16384
+#define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
+
 #define AEM_SMTP_MAX_ADDRSIZE 50 // Should be 37+szDomain
 #define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_TIMEOUT 30
@@ -11,15 +12,17 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,\
 MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 
+#define AEM_SMTP_SIZE_BODY 65536 // RFC5321: min. 64k; if changed, set the HLO responses and their lengths below also
+
 #define AEM_EHLO_RESPONSE_LEN 32
 #define AEM_EHLO_RESPONSE \
-"\r\n250-SIZE 15000" \
+"\r\n250-SIZE 65536" \
 "\r\n250 STARTTLS" \
 "\r\n"
 
 #define AEM_SHLO_RESPONSE_LEN 18
 #define AEM_SHLO_RESPONSE \
-"\r\n250 SIZE 15000" \
+"\r\n250 SIZE 65536" \
 "\r\n"
 
 #include <arpa/inet.h>
@@ -38,13 +41,13 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 
 #include "smtp.h"
 
-static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char buf[AEM_SMTP_SIZE_BUF]) {
+static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char *buf, const size_t maxSize) {
 	if (ssl == NULL && sock < 1) return -1;
 
-	if (ssl == NULL) return recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
+	if (ssl == NULL) return recv(sock, buf, maxSize, 0);
 
 	int ret;
-	do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, AEM_SMTP_SIZE_BUF);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 	return ret;
 }
 
@@ -159,8 +162,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	puts("[SMTP] New connection");
 	if (!smtp_greet(sock, szDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
 
-	char buf[AEM_SMTP_SIZE_BUF + 1];
-	int bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
+	char buf[AEM_SMTP_SIZE_CMD];
+	int bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
 	const size_t szGreeting = bytes - 7;
 	char greeting[szGreeting];
@@ -168,7 +171,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 	if (!smtp_helo(sock, szDomain, domain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
 
-	bytes = recv(sock, buf, AEM_SMTP_SIZE_BUF, 0);
+	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
 	mbedtls_ssl_context *tls = NULL;
 	mbedtls_ssl_context ssl;
@@ -231,10 +234,10 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 		}
 
-		bytes = recv_aem(0, tls, buf); // EHLO
+		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD); // EHLO
 		smtp_shlo(tls, szDomain, domain);
 
-		bytes = recv_aem(0, tls, buf);
+		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
 
 	size_t szFrom = 0, szTo = 0;
@@ -337,13 +340,12 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 107);
 			}
 
-			body = malloc(AEM_SMTP_SIZE_BUF + 1);
+			body = malloc(AEM_SMTP_SIZE_BODY);
 
 			while(1) {
-				bytes = recv_aem(sock, tls, buf);
+				bytes = recv_aem(sock, tls, body + szBody, AEM_SMTP_SIZE_BODY - szBody);
 				if (bytes < 1) break;
 
-				memcpy(body + szBody, buf, bytes);
 				szBody += bytes;
 
 				if (szBody > 5 && memcmp(body + szBody - 5, "\r\n.\r\n", 5) == 0) break;
@@ -367,7 +369,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 108);
 			}
 
-			bytes = recv_aem(sock, tls, buf);
+			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			continue;
 		}
 
@@ -376,7 +378,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			return smtp_fail(sock, tls, clientIp, 150);
 		}
 
-		bytes = recv_aem(sock, tls, buf);
+		bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
 
 	close(sock);
