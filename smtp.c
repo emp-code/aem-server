@@ -160,7 +160,6 @@ static bool addressIsOurs(const char *addr, const size_t szAddr, const char *dom
 }
 
 void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const size_t szDomain, const char *domain) {
-	puts("[SMTP] New connection");
 	if (!smtp_greet(sock, szDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
@@ -181,7 +180,6 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	mbedtls_entropy_context entropy;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
-		puts("[SMTP] StartTLS");
 		send(sock, "220 Ok\r\n", 8, 0);
 		tls = &ssl;
 
