@@ -251,7 +251,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	while(1) {
 		if (bytes < 4) {
 			struct in_addr ip_addr; ip_addr.s_addr = clientIp;
-			printf("[SMTP] Terminating received only %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
+			if (bytes == 0) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(ip_addr), (int)szGreeting, greeting);
+			else printf("[SMTP] Terminating: only received %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
 			break;
 		}
 
