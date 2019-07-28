@@ -52,11 +52,6 @@ MBEDTLS_ECP_DP_SECP521R1,\
 MBEDTLS_ECP_DP_SECP384R1,\
 MBEDTLS_ECP_DP_NONE}
 
-// Server keypair for testing (Base64)
-// Public: D00Yi5zQuaZ12UfTTu6N0RlSJzb0mP3BN91wzslJTVo=
-// Secret: tCpcTrVsxFRiL8z8+g1SclyHsfX1KSmYZLIA21cHROg=
-#define AEM_SERVER_SECRETKEY "\xb4\x2a\x5c\x4e\xb5\x6c\xc4\x54\x62\x2f\xcc\xfc\xfa\xd\x52\x72\x5c\x87\xb1\xf5\xf5\x29\x29\x98\x64\xb2\x0\xdb\x57\x7\x44\xe8"
-
 #define AEM_MAXMSGTOTALSIZE 100000 // Max total size of messages to send. TODO: Move this to config
 
 #define AEM_HTTPS_REQUEST_INVALID 0
@@ -570,7 +565,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, 186);
 }
 
-static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16]) {
+static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16], const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
 	unsigned char nonce[24];
@@ -581,7 +576,7 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 
 	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
 
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, (unsigned char*)AEM_SERVER_SECRETKEY);
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 
 	sodium_mprotect_readonly(decrypted);
@@ -711,14 +706,14 @@ static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t sz
 	if (szUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, szUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t szUrl, const unsigned char *post, const size_t szPost, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t szDomain) {
+static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t szUrl, const unsigned char *post, const size_t szPost, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t szDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
 	if (szUrl < 8) return;
 
 	if (szUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, szPost, clientIp, seed);
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t szDecrypted;
-	char *decrypted = openWebBox(post, szPost, upk, &szDecrypted, clientIp, seed);
+	char *decrypted = openWebBox(post, szPost, upk, &szDecrypted, clientIp, seed, ssk);
 	if (decrypted == NULL) return;
 
 	int64_t upk64;
@@ -760,7 +755,7 @@ int getRequestType(const unsigned char *haystack, const size_t szHaystack, const
 	return AEM_HTTPS_REQUEST_INVALID;
 }
 
-int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
+int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -838,7 +833,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 					post += 4;
 					const size_t szPost = ret - (post - req);
 
-					handlePost(&ssl, reqUrl, szReqUrl, post, szPost, clientIp, seed, domain, lenDomain);
+					handlePost(&ssl, reqUrl, szReqUrl, post, szPost, clientIp, seed, domain, lenDomain, ssk);
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");

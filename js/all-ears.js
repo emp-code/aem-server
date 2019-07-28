@@ -9,7 +9,7 @@ function AllEars() {
 	} catch(e) {return;}
 
 // Private
-	const _serverPkHex = "0f4d188b9cd0b9a675d947d34eee8dd119522736f498fdc137dd70cec9494d5a"; // Server public key in hex
+	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
 	const _lenAdminData = 9216 // 9 KiB, space for 1024 users' data

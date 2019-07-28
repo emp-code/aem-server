@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for accept4
+#define _GNU_SOURCE // for accept4, memmem
 
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -95,7 +95,7 @@ static int aem_countFiles(const char *path, const char *ext, const size_t extLen
 	return counter;
 }
 
-static struct aem_file *aem_loadFiles(const char *path, const char *ext, const size_t extLen, const int fileCount) {
+static struct aem_file *aem_loadFiles(const char *path, const char *ext, const size_t extLen, const int fileCount, const unsigned char *spk) {
 	if (fileCount < 1) return NULL;
 
 	DIR* dir = opendir(path);
@@ -124,6 +124,14 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 				close(fd);
 
 				if (readBytes == bytes) {
+					while (spk != NULL) {
+						char *spk_loc = memmem(tempData, bytes, "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._", 64);
+						if (spk_loc == NULL) break;
+						char hex[65];
+						sodium_bin2hex(hex, 65, spk, crypto_box_PUBLICKEYBYTES);
+						memcpy(spk_loc, hex, 64);
+					}
+
 					brotliCompress(&tempData, (size_t*)&bytes);
 
 					f[counter].filename = strdup(de->d_name);
@@ -224,10 +232,15 @@ static int receiveConnections_https(const int port, const char *domain, const si
 
 	printf("Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
-	struct aem_file *fileCss  = aem_loadFiles("css",  ".css",  4, numCss);
-	struct aem_file *fileHtml = aem_loadFiles("html", ".html", 5, numHtml);
-	struct aem_file *fileImg  = aem_loadFiles("img",  ".webp", 5, numImg);
-	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs);
+	// Keys for web API
+	unsigned char spk[crypto_box_PUBLICKEYBYTES];
+	unsigned char ssk[crypto_box_SECRETKEYBYTES];
+	crypto_box_keypair(spk, ssk);
+
+	struct aem_file *fileCss  = aem_loadFiles("css",  ".css",  4, numCss, NULL);
+	struct aem_file *fileHtml = aem_loadFiles("html", ".html", 5, numHtml, NULL);
+	struct aem_file *fileImg  = aem_loadFiles("img",  ".webp", 5, numImg, NULL);
+	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs, spk);
 
 	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
 	if (fileSet == NULL) {puts("Failed to allocate memory for fileSet"); return 1;}
@@ -257,7 +270,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 			if (pid < 0) {puts("ERROR: Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain);
+				respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain, ssk);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
