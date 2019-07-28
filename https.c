@@ -550,8 +550,8 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	encryptNonce(nonce, seed);
 
-	char data[187];
-	sprintf(data,
+	char data[186];
+	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
@@ -559,8 +559,9 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 		"Content-Length: 24\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-		"%.24s"
-	, nonce);
+	, 162);
+
+	memcpy(data + 162, nonce, 24);
 
 	sendData(ssl, data, 186);
 }
