@@ -83,7 +83,9 @@ function AllEars() {
 		}).then(function(ab) {
 			if (ab === false) {callback(false); return;}
 			callback(true, new Uint8Array(ab));
-		});
+		}).catch(() => {
+			callback(false);
+		})
 	}
 
 	var _FetchEncrypted = function(url, cleartext, nacl, callback) {
