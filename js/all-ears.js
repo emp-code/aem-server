@@ -252,10 +252,15 @@ function AllEars() {
 		_contactNote.splice(index, 1);
 	}
 
-	this.SetKeys = function(skey_hex) { nacl_factory.instantiate(function (nacl) {
-		if (typeof(skey_hex) !== "string" || skey_hex.length != 64) {_userKeys = null; return;}
+	this.SetKeys = function(skey_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		if (typeof(skey_hex) !== "string" || skey_hex.length != 64) {
+			_userKeys = null;
+			callback(false);
+			return;
+		}
 
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
+		callback(true);
 	}); }
 
 	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {

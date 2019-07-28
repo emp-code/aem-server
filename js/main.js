@@ -9,14 +9,19 @@ document.getElementById("txt_skey").onkeyup = function(e) {
 document.getElementById("btn_signin").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
 	if (!(txtSkey.reportValidity())) return;
-	ae.SetKeys(txtSkey.value);
 
-	ae.Login(function(success) {
+	ae.SetKeys(txtSkey.value, function(success) {
 		if (success) {
-			txtSkey.value = "";
-			loginSuccess();
+			ae.Login(function(success) {
+				if (success) {
+					txtSkey.value = "";
+					loginSuccess();
+				} else {
+					console.log("Failed to log in");
+				}
+			});
 		} else {
-			console.log("Failed to log in");
+			console.log("Invalid format for key");
 		}
 	});
 };
