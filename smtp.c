@@ -141,7 +141,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
+static void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
 	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
 	printf("[SMTP] IP=%s (%s)\n", inet_ntoa(ip_addr), (cs == 0) ? "insecure" : mbedtls_ssl_get_ciphersuite_name(cs));
 	printf("[SMTP] Greeting=%.*s\n", (int)szGreeting, greeting);
