@@ -233,14 +233,16 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	printf("Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
 	// Keys for web API
-	unsigned char spk[crypto_box_PUBLICKEYBYTES];
-	unsigned char ssk[crypto_box_SECRETKEYBYTES];
+	unsigned char *spk = malloc(crypto_box_PUBLICKEYBYTES);
+	unsigned char *ssk = sodium_malloc(crypto_box_SECRETKEYBYTES);
 	crypto_box_keypair(spk, ssk);
+	sodium_mprotect_readonly(ssk);
 
 	struct aem_file *fileCss  = aem_loadFiles("css",  ".css",  4, numCss, NULL);
 	struct aem_file *fileHtml = aem_loadFiles("html", ".html", 5, numHtml, NULL);
 	struct aem_file *fileImg  = aem_loadFiles("img",  ".webp", 5, numImg, NULL);
 	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs, spk);
+	free(spk);
 
 	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
 	if (fileSet == NULL) {puts("Failed to allocate memory for fileSet"); return 1;}
@@ -275,6 +277,8 @@ static int receiveConnections_https(const int port, const char *domain, const si
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
 	}
+
+	sodium_free(ssk);
 
 	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  sodium_free(fileCss[i].data);}
 	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); sodium_free(fileHtml[i].data);}
