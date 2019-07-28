@@ -276,13 +276,13 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			size_t szNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
 			if (szNewTo < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 103);
+				return smtp_fail(sock, tls, clientIp, 102);
 			}
 
 			if (!addressIsOurs(newTo, szNewTo, domain, szDomain)) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 104);
+					return smtp_fail(sock, tls, clientIp, 103);
 				}
 
 				continue;
