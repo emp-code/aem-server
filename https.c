@@ -613,11 +613,11 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 		"Content-Length: 26\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 143);
-	memcpy(data + 143, &hash, 8);
-	memcpy(data + 151, addr, 18);
+	, 162);
+	memcpy(data + 162, &hash, 8);
+	memcpy(data + 170, addr, 18);
 	free(addr);
-	sendData(ssl, data, 169);
+	sendData(ssl, data, 188);
 }
 
 static void respond_https_addr_del(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
