@@ -744,6 +744,7 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	const size_t lenReq = reqEnd - req;
+
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	const size_t lenHeader = 10 + lenDomain;
@@ -765,8 +766,23 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	|| (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r')
 	) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memcmp(req, "GET /", 5) == 0) return AEM_HTTPS_REQUEST_GET;
-	if (memcmp(req, "POST /web/", 10) == 0) return AEM_HTTPS_REQUEST_POST;
+	// Forbidden request headers
+	if (memmem(req, lenReq, "\r\nAuthorization:", 16) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, "\r\nCookie:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, "\r\nExpect:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, "\r\nRange:", 8) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+
+	if (memcmp(req, "GET /", 5) == 0) {
+		if (memmem(req, lenReq, "\r\nContent-Length:", 17) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+
+		return AEM_HTTPS_REQUEST_GET;
+	}
+
+	if (memcmp(req, "POST /web/", 10) == 0) {
+		if (memmem(req, lenReq, "\r\nContent-Length: ", 18) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+
+		return AEM_HTTPS_REQUEST_POST;
+	}
 
 	return AEM_HTTPS_REQUEST_INVALID;
 }
