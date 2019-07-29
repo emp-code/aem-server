@@ -187,7 +187,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 		int ret;
 		if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-			printf("[SMTP] mbedtls_ssl_config_defaults returned %d\n\n", ret);
+			printf("[SMTP] Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
 			mbedtls_ssl_config_free(conf);
 			mbedtls_ssl_free(ssl);
 			return;
@@ -201,7 +201,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		mbedtls_ctr_drbg_init(&ctr_drbg);
 		mbedtls_entropy_init(&entropy);
 		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
-			printf("[SMTP] mbedtls_ctr_drbg_seed returned %d\n", ret);
+			printf("[SMTP] Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -210,7 +210,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 		mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
 		if ((ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey)) != 0) {
-			printf("[SMTP] mbedtls_ssl_conf_own_cert returned %d\n", ret);
+			printf("[SMTP] Terminating: mbedtls_ssl_conf_own_cert returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -218,7 +218,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		mbedtls_ssl_init(tls);
 
 		if ((ret = mbedtls_ssl_setup(tls, &conf)) != 0) {
-			printf("[SMTP] mbedtls_ssl_setup returned %d\n", ret);
+			printf("[SMTP] Terminating: mbedtls_ssl_setup returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -230,7 +230,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 				char error_buf[100];
 				mbedtls_strerror(ret, error_buf, 100);
-				printf("[SMTP] mbedtls_ssl_handshake returned %d: %s\n", ret, error_buf);
+				printf("[SMTP] Terminating: mbedtls_ssl_handshake returned %d (%s)\n", ret, error_buf);
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return;
 			}
