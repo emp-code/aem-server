@@ -1,6 +1,6 @@
 #define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
 
-#define AEM_SMTP_MAX_ADDRSIZE 50 // Should be 37+szDomain
+#define AEM_SMTP_MAX_ADDRSIZE 50 // Should be 37+lenDomain
 #define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_TIMEOUT 30
 
@@ -51,15 +51,15 @@ static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char *buf, const s
 	return ret;
 }
 
-static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t szData) {
-	if (ssl == NULL && sock > 0) return send(sock, data, szData, 0);
+static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
+	if (ssl == NULL && sock > 0) return send(sock, data, lenData, 0);
 
 	if (ssl == NULL) return -1;
 
 	size_t sent = 0;
-	while (sent < szData) {
+	while (sent < lenData) {
 		int ret;
-		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), szData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
 		if (ret < 0) return ret;
 
@@ -71,20 +71,20 @@ static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const
 
 static size_t smtp_addr(const size_t len, const char * const buf, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
 	size_t start = 1;
-	size_t szAddr = len - 1;
+	size_t lenAddr = len - 1;
 
-	while (szAddr > 0 && buf[start - 1] != '<') {start++; szAddr--;}
-	if (szAddr < 1) return 0;
+	while (lenAddr > 0 && buf[start - 1] != '<') {start++; lenAddr--;}
+	if (lenAddr < 1) return 0;
 
-	while (szAddr > 0 && buf[start + szAddr] != '>') szAddr--;
-	if (szAddr < 1) return 0;
+	while (lenAddr > 0 && buf[start + lenAddr] != '>') lenAddr--;
+	if (lenAddr < 1) return 0;
 
-	if (szAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
-	memcpy(addr, buf + start, szAddr);
-	return szAddr;
+	if (lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
+	memcpy(addr, buf + start, lenAddr);
+	return lenAddr;
 }
 
-static bool smtp_greet(const int sock, const size_t lenDomain, const char *domain) {
+static bool smtp_greet(const int sock, const char *domain, const size_t lenDomain) {
 	const int lenGreet = 12 + lenDomain;
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
@@ -93,7 +93,7 @@ static bool smtp_greet(const int sock, const size_t lenDomain, const char *domai
 	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
 }
 
-static bool smtp_shlo(mbedtls_ssl_context *tls, const size_t lenDomain, const char *domain) {
+static bool smtp_shlo(mbedtls_ssl_context *tls, const char *domain, const size_t lenDomain) {
 	const ssize_t lenShlo = 4 + lenDomain + AEM_SHLO_RESPONSE_LEN;
 	char shlo[lenShlo];
 	memcpy(shlo, "250-", 4);
@@ -102,7 +102,7 @@ static bool smtp_shlo(mbedtls_ssl_context *tls, const size_t lenDomain, const ch
 	return (send_aem(0, tls, shlo, lenShlo) == lenShlo);
 }
 
-static bool smtp_helo(const int sock, const size_t lenDomain, const char *domain, const ssize_t bytes, const char *buf) {
+static bool smtp_helo(const int sock, const char *domain, const size_t lenDomain, const ssize_t bytes, const char *buf) {
 	if (bytes < 4) return false;
 
 	if (strncasecmp(buf, "EHLO", 4) == 0) {
@@ -141,35 +141,35 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-static void deliverMessage(const uint32_t clientIp, const int cs, const size_t szGreeting, const char *greeting, const size_t szFrom, const char *from, const size_t szTo, const char *to, const size_t szMsgBody, const char *msgBody) {
+static void deliverMessage(const uint32_t clientIp, const int cs, const size_t lenGreeting, const char *greeting, const size_t lenFrom, const char *from, const size_t lenTo, const char *to, const size_t lenMsgBody, const char *msgBody) {
 	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
 	printf("[SMTP] IP=%s (%s)\n", inet_ntoa(ip_addr), (cs == 0) ? "insecure" : mbedtls_ssl_get_ciphersuite_name(cs));
-	printf("[SMTP] Greeting=%.*s\n", (int)szGreeting, greeting);
-	printf("[SMTP] From=%.*s\n", (int)szFrom, from);
-	printf("[SMTP] To=%.*s\n", (int)szTo, to);
-	printf("[SMTP] Message:\n%.*s\n", (int)szMsgBody, msgBody);
+	printf("[SMTP] Greeting=%.*s\n", (int)lenGreeting, greeting);
+	printf("[SMTP] From=%.*s\n", (int)lenFrom, from);
+	printf("[SMTP] To=%.*s\n", (int)lenTo, to);
+	printf("[SMTP] Message:\n%.*s\n", (int)lenMsgBody, msgBody);
 }
 
-static bool addressIsOurs(const char *addr, const size_t szAddr, const char *domain, const size_t szDomain) {
+static bool addressIsOurs(const char *addr, const size_t lenAddr, const char *domain, const size_t lenDomain) {
 	return (
-	   szAddr < AEM_SMTP_MAX_ADDRSIZE
-	&& szAddr > (szDomain + 1)
-	&& addr[szAddr - szDomain - 1] == '@'
-	&& strncasecmp(addr + szAddr - szDomain, domain, szDomain) == 0
+	   lenAddr < AEM_SMTP_MAX_ADDRSIZE
+	&& lenAddr > (lenDomain + 1)
+	&& addr[lenAddr - lenDomain - 1] == '@'
+	&& strncasecmp(addr + lenAddr - lenDomain, domain, lenDomain) == 0
 	);
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const size_t szDomain, const char *domain) {
-	if (!smtp_greet(sock, szDomain, domain)) return smtp_fail(sock, NULL, clientIp, 0);
+void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t lenDomain) {
+	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(sock, NULL, clientIp, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
-	const size_t szGreeting = bytes - 7;
-	char greeting[szGreeting];
-	memcpy(greeting, buf + 5, szGreeting);
+	const size_t lenGreeting = bytes - 7;
+	char greeting[lenGreeting];
+	memcpy(greeting, buf + 5, lenGreeting);
 
-	if (!smtp_helo(sock, szDomain, domain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
+	if (!smtp_helo(sock, domain, lenDomain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
@@ -246,36 +246,36 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
-		smtp_shlo(tls, szDomain, domain);
+		smtp_shlo(tls, domain, lenDomain);
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
 
-	size_t szFrom = 0, szTo = 0;
+	size_t lenFrom = 0, lenTo = 0;
 	char from[AEM_SMTP_MAX_ADDRSIZE];
 	char to[AEM_SMTP_MAX_ADDRSIZE_TO];
 
 	char *body = NULL;
-	size_t szBody = 0;
+	size_t lenBody = 0;
 
 	while(1) {
 		if (bytes < 4) {
 			struct in_addr ip_addr; ip_addr.s_addr = clientIp;
-			if (bytes == 0) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(ip_addr), (int)szGreeting, greeting);
-			else printf("[SMTP] Terminating: only received %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)szGreeting, greeting);
+			if (bytes == 0) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(ip_addr), (int)lenGreeting, greeting);
+			else printf("[SMTP] Terminating: only received %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(ip_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			szFrom = smtp_addr(bytes - 10, buf + 10, from);
-			if (szFrom < 1) {
+			lenFrom = smtp_addr(bytes - 10, buf + 10, from);
+			if (lenFrom < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 100);
 			}
 		}
 
 		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
-			if (szFrom < 1) {
+			if (lenFrom < 1) {
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(sock, tls, clientIp, 101);
@@ -285,13 +285,13 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
-			size_t szNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
-			if (szNewTo < 1) {
+			size_t lenNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
+			if (lenNewTo < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 102);
 			}
 
-			if (!addressIsOurs(newTo, szNewTo, domain, szDomain)) {
+			if (!addressIsOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(sock, tls, clientIp, 103);
@@ -300,7 +300,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				continue;
 			}
 
-			if ((szTo + 1 + szNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
+			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(sock, tls, clientIp, 104);
@@ -309,18 +309,18 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				continue;
 			}
 
-			if (szTo > 0) {
-				to[szTo] = '\n';
-				szTo++;
+			if (lenTo > 0) {
+				to[lenTo] = '\n';
+				lenTo++;
 			}
 
-			memcpy(to + szTo, newTo, szNewTo);
-			szTo += szNewTo;
+			memcpy(to + lenTo, newTo, lenNewTo);
+			lenTo += lenNewTo;
 		}
 
 		else if (strncasecmp(buf, "RSET", 4) == 0) {
-			szFrom = 0;
-			szTo = 0;
+			lenFrom = 0;
+			lenTo = 0;
 		}
 
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
@@ -338,7 +338,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		else if (strncasecmp(buf, "DATA", 4) == 0) {
-			if (szFrom < 1 || szTo < 1) {
+			if (lenFrom < 1 || lenTo < 1) {
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(sock, tls, clientIp, 106);
@@ -355,21 +355,21 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			body = malloc(AEM_SMTP_SIZE_BODY);
 
 			while(1) {
-				bytes = recv_aem(sock, tls, body + szBody, AEM_SMTP_SIZE_BODY - szBody);
+				bytes = recv_aem(sock, tls, body + lenBody, AEM_SMTP_SIZE_BODY - lenBody);
 				if (bytes < 1) break;
 
-				szBody += bytes;
+				lenBody += bytes;
 
-				if (szBody >= AEM_SMTP_SIZE_BODY) {bytes = 0; break;}
-				if (szBody > 5 && memcmp(body + szBody - 5, "\r\n.\r\n", 5) == 0) break;
+				if (lenBody >= AEM_SMTP_SIZE_BODY) {bytes = 0; break;}
+				if (lenBody > 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(clientIp, cs, szGreeting, greeting, szFrom, from, szTo, to, szBody, body);
+			deliverMessage(clientIp, cs, lenGreeting, greeting, lenFrom, from, lenTo, to, lenBody, body);
 
-			szFrom = 0;
-			szTo = 0;
-			szBody = 0;
+			lenFrom = 0;
+			lenTo = 0;
+			lenBody = 0;
 			free(body);
 
 			if (bytes < 1) break; // nonstandard termination

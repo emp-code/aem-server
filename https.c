@@ -88,11 +88,11 @@ static void send204(mbedtls_ssl_context* ssl) {
 	, 142);
 }
 
-static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const size_t szName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
+static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
-		if (strlen(files[i].filename) == szName && memcmp(files[i].filename, name, szName) == 0) {reqNum = i; break;}
+		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {reqNum = i; break;}
 	}
 
 	if (reqNum < 0) return;
@@ -176,11 +176,11 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const
 }
 
 // Javascript, CSS, images etc
-static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const size_t szName, const int fileType, const struct aem_file files[], const int fileCount) {
+static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const int fileType, const struct aem_file files[], const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
-		if (strlen(files[i].filename) == szName && memcmp(files[i].filename, name, szName) == 0) {reqNum = i; break;}
+		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {reqNum = i; break;}
 	}
 
 	if (reqNum < 0) return;
@@ -329,11 +329,11 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	unsigned char *msgData = getUserMessages(upk64, &msgCount, lenMsg);
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
 
-	const size_t szBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
-	const size_t szHead = 141 + numDigits(szBody);
-	const size_t szResponse = szHead + szBody;
+	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
+	const size_t lenHead = 141 + numDigits(lenBody);
+	const size_t lenResponse = lenHead + lenBody;
 
-	char *data = malloc(szResponse);
+	char *data = malloc(lenResponse);
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -341,14 +341,14 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, szBody);
+	, lenBody);
 
-	memcpy(data + szHead + 0, &level,    1);
-	memcpy(data + szHead + 1, &msgCount, 1);
-	memcpy(data + szHead + 2, &lenAddr,  2);
-	memcpy(data + szHead + 4, &lenGk,    2);
+	memcpy(data + lenHead + 0, &level,    1);
+	memcpy(data + lenHead + 1, &msgCount, 1);
+	memcpy(data + lenHead + 2, &lenAddr,  2);
+	memcpy(data + lenHead + 4, &lenGk,    2);
 
-	size_t s = szHead + 6;
+	size_t s = lenHead + 6;
 	memcpy(data + s, noteData,  lenNote);  s += lenNote;
 	memcpy(data + s, addrData,  lenAddr);  s += lenAddr;
 	memcpy(data + s, gkData,    lenGk);    s += lenGk;
@@ -361,7 +361,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	if (level == 3) free(adminData);
 	free(msgData);
 
-	sendData(ssl, data, szResponse);
+	sendData(ssl, data, lenResponse);
 	free(data);
 }
 
@@ -695,65 +695,65 @@ static void respond_https_accountlevel(mbedtls_ssl_context *ssl, const int64_t u
 	if (ret == 0) send204(ssl);
 }
 
-static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t szUrl, const struct aem_fileSet *fileSet, const char *domain, const size_t szDomain) {
-	if (szUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, szDomain);
-	if (szUrl > 5 && memcmp(url + szUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, szUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, szDomain);
+static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
+	if (lenUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
+	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
-	if (szUrl == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-	if (szUrl == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
+	if (lenUrl == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
+	if (lenUrl == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 
-	if (szUrl > 4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, szUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
-	if (szUrl > 4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, szUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
-	if (szUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, szUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+	if (lenUrl > 4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+	if (lenUrl > 4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+	if (lenUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t szUrl, const unsigned char *post, const size_t szPost, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t szDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
-	if (szUrl < 8) return;
+static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t lenDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
+	if (lenUrl < 8) return;
 
-	if (szUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, szPost, clientIp, seed);
+	if (lenUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, lenPost, clientIp, seed);
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
-	size_t szDecrypted;
-	char *decrypted = openWebBox(post, szPost, upk, &szDecrypted, clientIp, seed, ssk);
+	size_t lenDecrypted;
+	char *decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, clientIp, seed, ssk);
 	if (decrypted == NULL) return;
 
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
 
-	if (szUrl == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, szDecrypted);
-	if (szUrl == 8 && memcmp(url, "web/note", 8) == 0) return respond_https_note(ssl, upk, &decrypted, szDecrypted);
+	if (lenUrl == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, lenDecrypted);
+	if (lenUrl == 8 && memcmp(url, "web/note", 8) == 0) return respond_https_note(ssl, upk, &decrypted, lenDecrypted);
 
-	if (szUrl == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, szDecrypted);
+	if (lenUrl == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
 
-	if (szUrl == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 12 && memcmp(url, "web/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, szDecrypted, (unsigned char*)"TestTestTestTest");
+	if (lenUrl == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "web/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, (unsigned char*)"TestTestTestTest");
 
-	if (szUrl == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, szDecrypted);
-	if (szUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, szDecrypted);
+	if (lenUrl == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }
 
-int getRequestType(const unsigned char *haystack, const size_t szHaystack, const char *domain, const size_t szDomain) {
-	if (szHaystack < 14) return AEM_HTTPS_REQUEST_INVALID;
+int getRequestType(const unsigned char *haystack, const size_t lenHaystack, const char *domain, const size_t lenDomain) {
+	if (lenHaystack < 14) return AEM_HTTPS_REQUEST_INVALID;
 
-	const size_t szHeader = 10 + szDomain;
-	char header[szHeader];
+	const size_t lenHeader = 10 + lenDomain;
+	char header[lenHeader];
 	memcpy(header, "\r\nHost: ", 8);
-	memcpy(header + 8, domain, szDomain);
-	memcpy(header + 8 + szDomain, "\r\n", 2);
+	memcpy(header + 8, domain, lenDomain);
+	memcpy(header + 8 + lenDomain, "\r\n", 2);
 
-	if (memmem(haystack, szHaystack, header, szHeader) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(haystack, lenHaystack, header, lenHeader) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(haystack, szHaystack, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(haystack, lenHaystack, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	const char * const ae = memmem(haystack, szHaystack, "\r\nAccept-Encoding: ", 19);
+	const char * const ae = memmem(haystack, lenHaystack, "\r\nAccept-Encoding: ", 19);
 	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	const size_t szAe = strspn(ae + 19, "abcdefghijklmnopqrstuvwxyz, ");
-	const char * const br = memmem(ae + 19, szAe, "br", 2);
+	const size_t lenAe = strspn(ae + 19, "abcdefghijklmnopqrstuvwxyz, ");
+	const char * const br = memmem(ae + 19, lenAe, "br", 2);
 	if (br == NULL
 	|| (*(br - 1) != ',' && *(br - 1) != ' ')
 	|| (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r')
@@ -833,17 +833,17 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		if (reqType != AEM_HTTPS_REQUEST_INVALID) {
 			const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
 			const char * const ruEnd = strchr(reqUrl, ' ');
-			const size_t szReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
+			const size_t lenReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
 			if (reqType == AEM_HTTPS_REQUEST_GET) {
-				handleGet(&ssl, (char*)reqUrl, szReqUrl, fileSet, domain, lenDomain);
+				handleGet(&ssl, (char*)reqUrl, lenReqUrl, fileSet, domain, lenDomain);
 			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
-				unsigned char *post = memmem(req + szReqUrl + 11, ret, "\r\n\r\n", 4);
+				unsigned char *post = memmem(req + lenReqUrl + 11, ret, "\r\n\r\n", 4);
 				if (post != NULL) {
 					post += 4;
-					const size_t szPost = ret - (post - req);
+					const size_t lenPost = ret - (post - req);
 
-					handlePost(&ssl, reqUrl, szReqUrl, post, szPost, clientIp, seed, domain, lenDomain, ssk);
+					handlePost(&ssl, reqUrl, lenReqUrl, post, lenPost, clientIp, seed, domain, lenDomain, ssk);
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");

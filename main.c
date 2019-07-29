@@ -66,14 +66,14 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-static void receiveConnections_http(const int port, const char *domain, const size_t szDomain) {
+static void receiveConnections_http(const int port, const char *domain, const size_t lenDomain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (initSocket(&sock, port) != 0) {puts("[Main] Failed to create HTTP socket"); return;}
 	if (dropRoot() != 0) {puts("[Main] dropRoot() failed"); return;}
 
 	while(1) {
 		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
-		respond_http(sockNew, domain, szDomain);
+		respond_http(sockNew, domain, lenDomain);
 	}
 }
 
@@ -295,7 +295,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	return 0;
 }
 
-static int receiveConnections_smtp(const int port, const size_t lenDomain, const char *domain) {
+static int receiveConnections_smtp(const int port, const char *domain, const size_t lenDomain) {
 	// Load the certificate
 	int fd = open("aem-https.crt", O_RDONLY);
 	if (fd < 0) return 1;
@@ -353,7 +353,7 @@ static int receiveConnections_smtp(const int port, const size_t lenDomain, const
 			if (pid < 0) {puts("ERROR: Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_smtp(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, lenDomain, domain);
+				respond_smtp(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, domain, lenDomain);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
@@ -391,7 +391,7 @@ int main() {
 
 	pid = fork();
 	if (pid < 0) return 1;
-	if (pid == 0) return receiveConnections_smtp(portSmtp, lenDomain, domain);
+	if (pid == 0) return receiveConnections_smtp(portSmtp, domain, lenDomain);
 
 	receiveConnections_http(portHttp, domain, lenDomain);
 
