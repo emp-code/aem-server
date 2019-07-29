@@ -744,6 +744,7 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	const size_t lenReq = reqEnd - req;
+	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	const size_t lenHeader = 10 + lenDomain;
 	char header[lenHeader];
