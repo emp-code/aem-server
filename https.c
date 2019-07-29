@@ -518,39 +518,41 @@ static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
 	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
 
-	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
-	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, post, crypto_box_PUBLICKEYBYTES);
-
-	int fd = open("/tmp/nonce.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-
-	if (fd < 0) {
-		if (errno != EEXIST) return;
-
-		fd = open("/tmp/nonce.aem", O_RDWR);
-		char ts_c[4];
-		if (pread(fd, ts_c, 4, 20) != 4) {close(fd); return;}
-		int32_t ts;
-		memcpy(&ts, ts_c, 4);
-
-		const int timeDiff = (int)time(NULL) - ts;
-		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); return;}
-	}
-
-	if (flock(fd, LOCK_EX) != 0) {close(fd); return;}
-
-	// Generate nonce
+	int64_t upk64;
+	memcpy(&upk64, post, 8);
 	unsigned char nonce[24];
-	const uint32_t ts = (uint32_t)time(NULL);
-	memcpy(nonce, &clientIp, 4); // Client IP. Protection against third parties intercepting the Box.
-	randombytes_buf(nonce + 4, 16);
-	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
+	if (upk64Exists(upk64)) {
+		int fd = open("/tmp/nonce.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 
-	const ssize_t bytesDone = write(fd, nonce, 24);
-	flock(fd, LOCK_UN);
-	close(fd);
-	if (bytesDone != 24) return;
+		if (fd < 0) {
+			if (errno != EEXIST) return;
 
-	encryptNonce(nonce, seed);
+			fd = open("/tmp/nonce.aem", O_RDWR);
+			char ts_c[4];
+			if (pread(fd, ts_c, 4, 20) != 4) {close(fd); return;}
+			int32_t ts;
+			memcpy(&ts, ts_c, 4);
+
+			const int timeDiff = (int)time(NULL) - ts;
+			if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); return;}
+		}
+
+		if (flock(fd, LOCK_EX) != 0) {close(fd); return;}
+
+		const uint32_t ts = (uint32_t)time(NULL);
+		memcpy(nonce, &clientIp, 4); // Client IP. Protection against third parties intercepting the Box.
+		randombytes_buf(nonce + 4, 16);
+		memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
+
+		const ssize_t bytesDone = write(fd, nonce, 24);
+		flock(fd, LOCK_UN);
+		close(fd);
+		if (bytesDone != 24) return;
+
+		encryptNonce(nonce, seed);
+	} else {
+		randombytes_buf(nonce, 24);
+	}
 
 	char data[186];
 	memcpy(data,

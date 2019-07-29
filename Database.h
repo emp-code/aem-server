@@ -1,6 +1,8 @@
 #ifndef AEM_DATABASE_H
 #define AEM_DATABASE_H
 
+#include <stdbool.h>
+
 #define AEM_NOTEDATA_LEN 5122 // 5 KiB + 2 bytes (16 bits) for length
 #define AEM_ADMINDATA_LEN 9216 // 9 KiB
 
@@ -10,6 +12,7 @@ int destroyAccount(const int64_t upk64);
 
 int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]);
 
+bool upk64Exists(const int64_t upk64);
 int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[32], const unsigned char hashKey[16]);
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk);
 int getAdminData(unsigned char ** const adminData);
