@@ -573,13 +573,17 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16], const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
+	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
+
+	int64_t upk64;
+	memcpy(&upk64, upk, 8);
+	if (!upk64Exists(upk64)) return NULL;
+
 	unsigned char nonce[24];
 	if (getUserNonce(post, nonce, clientIp, seed) != 0) return NULL;
 
 	char *decrypted = sodium_malloc(lenPost);
 	if (decrypted == NULL) return NULL;
-
-	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
 
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
