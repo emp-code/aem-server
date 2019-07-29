@@ -3,8 +3,8 @@
 
 #include "http.h"
 
-void respond_http(const int sock, const char * const domain, const size_t szDomain) {
-	char r[85 + szDomain];
+void respond_http(const int sock, const char * const domain, const size_t lenDomain) {
+	char r[85 + lenDomain];
 
 	memcpy(r,
 		"HTTP/1.1 301 aem\r\n"
@@ -14,9 +14,9 @@ void respond_http(const int sock, const char * const domain, const size_t szDoma
 		"Location: https://"
 	, 81);
 
-	memcpy(r + 81, domain, szDomain);
-	memcpy(r + 81 + szDomain, "\r\n\r\n", 4);
+	memcpy(r + 81, domain, lenDomain);
+	memcpy(r + 81 + lenDomain, "\r\n\r\n", 4);
 
-	write(sock, r, 85 + szDomain);
+	write(sock, r, 85 + lenDomain);
 	close(sock);
 }
