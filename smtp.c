@@ -188,8 +188,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		int ret;
 		if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
 			printf("[SMTP] Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
-			mbedtls_ssl_config_free(conf);
-			mbedtls_ssl_free(ssl);
+			mbedtls_ssl_config_free(&conf);
+			mbedtls_ssl_free(&ssl);
 			return;
 		}
 
@@ -236,7 +236,16 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 		}
 
-		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD); // EHLO
+		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
+		if (bytes == 0) {
+			puts("[SMTP] Terminating: Client closed connection after StartTLS");
+			tlsFree(tls, &conf, &ctr_drbg, &entropy);
+			return;
+		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
+			printf("[SMTP] Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", bytes, buf);
+			tlsFree(tls, &conf, &ctr_drbg, &entropy);
+			return;
+		}
 		smtp_shlo(tls, szDomain, domain);
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
