@@ -66,17 +66,15 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-static int receiveConnections_http(const int port, const char *domain) {
+static void receiveConnections_http(const int port, const char *domain, const size_t szDomain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, port) != 0) return 1;
-	if (dropRoot() != 0) return 1;
+	if (initSocket(&sock, port) != 0) {puts("[Main] Failed to create HTTP socket"); return;}
+	if (dropRoot() != 0) {puts("[Main] dropRoot() failed"); return;}
 
 	while(1) {
 		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
-		respond_http(sockNew, domain);
+		respond_http(sockNew, domain, szDomain);
 	}
-
-	return 0;
 }
 
 static int aem_countFiles(const char *path, const char *ext, const size_t extLen) {
@@ -395,7 +393,7 @@ int main() {
 	if (pid < 0) return 1;
 	if (pid == 0) return receiveConnections_smtp(portSmtp, lenDomain, domain);
 
-	receiveConnections_http(portHttp, domain);
+	receiveConnections_http(portHttp, domain, lenDomain);
 
 	return 0;
 }
