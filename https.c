@@ -750,6 +750,15 @@ int getRequestType(const unsigned char *haystack, const size_t szHaystack, const
 
 	if (memmem(haystack, szHaystack, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
+	const char * const ae = memmem(haystack, szHaystack, "\r\nAccept-Encoding: ", 19);
+	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	const size_t szAe = strspn(ae + 19, "abcdefghijklmnopqrstuvwxyz, ");
+	const char * const br = memmem(ae + 19, szAe, "br", 2);
+	if (br == NULL
+	|| (*(br - 1) != ',' && *(br - 1) != ' ')
+	|| (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r')
+	) return AEM_HTTPS_REQUEST_INVALID;
+
 	if (memcmp(haystack, "GET /", 5) == 0) return AEM_HTTPS_REQUEST_GET;
 	if (memcmp(haystack, "POST /web/", 10) == 0) return AEM_HTTPS_REQUEST_POST;
 
