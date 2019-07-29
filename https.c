@@ -737,8 +737,13 @@ static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t l
 	if (lenUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }
 
-int getRequestType(const unsigned char *haystack, const size_t lenHaystack, const char *domain, const size_t lenDomain) {
-	if (lenHaystack < 14) return AEM_HTTPS_REQUEST_INVALID;
+int getRequestType(const unsigned char *req, const size_t lenReqTotal, const char *domain, const size_t lenDomain) {
+	if (lenReqTotal < 14) return AEM_HTTPS_REQUEST_INVALID;
+
+	const unsigned char * const reqEnd = memmem(req, lenReqTotal, "\r\n\r\n", 4);
+	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
+
+	const size_t lenReq = reqEnd - req;
 
 	const size_t lenHeader = 10 + lenDomain;
 	char header[lenHeader];
@@ -746,11 +751,11 @@ int getRequestType(const unsigned char *haystack, const size_t lenHaystack, cons
 	memcpy(header + 8, domain, lenDomain);
 	memcpy(header + 8 + lenDomain, "\r\n", 2);
 
-	if (memmem(haystack, lenHaystack, header, lenHeader) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, header, lenHeader) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(haystack, lenHaystack, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	const char * const ae = memmem(haystack, lenHaystack, "\r\nAccept-Encoding: ", 19);
+	const char * const ae = memmem(req, lenReq, "\r\nAccept-Encoding: ", 19);
 	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
 	const size_t lenAe = strspn(ae + 19, "abcdefghijklmnopqrstuvwxyz, ");
 	const char * const br = memmem(ae + 19, lenAe, "br", 2);
@@ -759,8 +764,8 @@ int getRequestType(const unsigned char *haystack, const size_t lenHaystack, cons
 	|| (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r')
 	) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memcmp(haystack, "GET /", 5) == 0) return AEM_HTTPS_REQUEST_GET;
-	if (memcmp(haystack, "POST /web/", 10) == 0) return AEM_HTTPS_REQUEST_POST;
+	if (memcmp(req, "GET /", 5) == 0) return AEM_HTTPS_REQUEST_GET;
+	if (memcmp(req, "POST /web/", 10) == 0) return AEM_HTTPS_REQUEST_POST;
 
 	return AEM_HTTPS_REQUEST_INVALID;
 }
