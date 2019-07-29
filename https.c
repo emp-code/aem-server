@@ -82,10 +82,11 @@ static void send204(mbedtls_ssl_context* ssl) {
 		"HTTP/1.1 204 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 142);
+	, 161);
 }
 
 static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
@@ -330,7 +331,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
 
 	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
-	const size_t lenHead = 141 + numDigits(lenBody);
+	const size_t lenHead = 160 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 
 	char *data = malloc(lenResponse);
@@ -338,6 +339,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
@@ -602,11 +604,12 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 	const int64_t hash = addressToHash(addr, (unsigned char*)"TestTestTestTest");
 	if (addAddress(upk64, hash) != 0) return;
 
-	char data[169];
+	char data[188];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Connection: close\r\n"
 		"Content-Length: 26\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
