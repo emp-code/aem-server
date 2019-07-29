@@ -488,18 +488,20 @@ document.getElementById("btn_newaddress").onclick = function() {
 		return;
 	}
 
-	if (!(document.getElementById("txt_newaddress").reportValidity())) return;
+	const txtNewAddr = document.getElementById("txt_newaddress");
+	if (!(txtNewAddr.reportValidity())) return;
 
 	document.getElementById("btn_newaddress").disabled=true;
 	document.getElementById("btn_newshieldaddress").disabled=true;
 
-	ae.AddAddress(document.getElementById("txt_newaddress").value, function(success) {
+	ae.AddAddress(txtNewAddr.value, function(success) {
 		document.getElementById("btn_newaddress").disabled=false;
 		document.getElementById("btn_newshieldaddress").disabled=false;
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			addAddress(ae.GetAddressCount() - 1);
+			txtNewAddr.value = "";
 		} else {
 			console.log("Failed to add address");
 		}
