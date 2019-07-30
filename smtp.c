@@ -151,7 +151,8 @@ static void deliverMessage(const uint32_t clientIp, const int cs, const size_t l
 	if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+	if (ret != 0) {free(binTo); puts("[SMTP] Discarding email sent to nonexistent address"); return;}
 
 	size_t bodyLen = lenMsgBody;
 	unsigned char* boxSet = makeMsg_Ext(pk, binTo, clientIp, cs, msgBody, &bodyLen);
@@ -160,7 +161,7 @@ static void deliverMessage(const uint32_t clientIp, const int cs, const size_t l
 
 	int64_t upk64;
 	memcpy(&upk64, pk, 8);
-	const int ret = addUserMessage(upk64, boxSet, bsLen);
+	ret = addUserMessage(upk64, boxSet, bsLen);
 	free(boxSet);
 	free(binTo);
 
