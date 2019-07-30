@@ -150,12 +150,21 @@ static void deliverMessage(const uint32_t clientIp, const int cs, const size_t l
 	printf("[SMTP] Message:\n%.*s\n", (int)lenMsgBody, msgBody);
 }
 
+static bool isValidAemAddress(const char *c, const size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
+	}
+
+	return true;
+}
+
 static bool addressIsOurs(const char *addr, const size_t lenAddr, const char *domain, const size_t lenDomain) {
 	return (
 	   lenAddr < AEM_SMTP_MAX_ADDRSIZE
 	&& lenAddr > (lenDomain + 1)
 	&& addr[lenAddr - lenDomain - 1] == '@'
 	&& strncasecmp(addr + lenAddr - lenDomain, domain, lenDomain) == 0
+	&& isValidAemAddress(addr, lenAddr - lenDomain - 1)
 	);
 }
 
