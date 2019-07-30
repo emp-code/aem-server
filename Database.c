@@ -6,7 +6,7 @@
 #include <sodium.h>
 #include <sqlite3.h>
 
-#include "IntMsg.h"
+#include "Message.h"
 
 #include "Includes/SixBit.h"
 
@@ -197,7 +197,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 
 		if (totalSize + sz > maxSize) break;
 
-		const size_t msgLen = sz - AEM_INTMSG_HEADERSIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
+		const size_t msgLen = sz - AEM_HEADBOX_SIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
 		if ((msgLen - 2) % 1024 != 0) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
 		int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB

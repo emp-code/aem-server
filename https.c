@@ -23,7 +23,7 @@
 
 #include "Includes/SixBit.h"
 #include "Database.h"
-#include "IntMsg.h"
+#include "Message.h"
 
 #include "https.h"
 
@@ -420,8 +420,8 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	if (lenFrom == 36) BIT_SET(senderInfo, 7);
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, pk);
-	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen);
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 
 	int64_t upk64;
@@ -431,7 +431,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 
 	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
-		boxSet = aem_intMsg_makeBoxSet(binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen, sender_pk);
+		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen);
 		if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 
 		memcpy(&upk64, sender_pk, 8);
@@ -494,18 +494,18 @@ static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES) % 1026 != 0) return; // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
 
 	// HeadBox format for notes: [1B] SenderInfo (00001000), [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
-	unsigned char header[AEM_INTMSG_HEADERSIZE];
-	bzero(header, AEM_INTMSG_HEADERSIZE);
+	unsigned char header[AEM_HEADBOX_SIZE];
+	bzero(header, AEM_HEADBOX_SIZE);
 
 	BIT_SET(header[0], 5); // Bit 5: isTextNote
 	const uint32_t t = (uint32_t)time(NULL);
 	memcpy(header + 1, &t, 4);
 
-	const size_t bsLen = AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES + lenDecrypted;
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenDecrypted;
 	unsigned char *boxset = malloc(bsLen);
 
-	crypto_box_seal(boxset, header, AEM_INTMSG_HEADERSIZE, upk);
-	memcpy(boxset + AEM_INTMSG_HEADERSIZE + crypto_box_SEALBYTES, *decrypted, lenDecrypted);
+	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
+	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, *decrypted, lenDecrypted);
 
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
