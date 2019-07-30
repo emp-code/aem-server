@@ -32,12 +32,17 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sodium.h>
 
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
+
+#include "Includes/SixBit.h"
+#include "Database.h"
+#include "Message.h"
 
 #include "smtp.h"
 
@@ -142,12 +147,24 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 }
 
 static void deliverMessage(const uint32_t clientIp, const int cs, const size_t lenGreeting, const char *greeting, const size_t lenFrom, const char *from, const size_t lenTo, const char *to, const size_t lenMsgBody, const char *msgBody) {
-	struct in_addr ip_addr; ip_addr.s_addr = clientIp;
-	printf("[SMTP] IP=%s (%s)\n", inet_ntoa(ip_addr), (cs == 0) ? "insecure" : mbedtls_ssl_get_ciphersuite_name(cs));
-	printf("[SMTP] Greeting=%.*s\n", (int)lenGreeting, greeting);
-	printf("[SMTP] From=%.*s\n", (int)lenFrom, from);
-	printf("[SMTP] To=%.*s\n", (int)lenTo, to);
-	printf("[SMTP] Message:\n%.*s\n", (int)lenMsgBody, msgBody);
+	unsigned char *binTo = textToSixBit(to, lenTo, 18);
+	if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
+
+	unsigned char pk[crypto_box_PUBLICKEYBYTES];
+	getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+
+	size_t bodyLen = lenMsgBody;
+	unsigned char* boxSet = makeMsg_Ext(pk, binTo, clientIp, cs, msgBody, &bodyLen);
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	if (boxSet == NULL) {free(binTo); puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed"); return;}
+
+	int64_t upk64;
+	memcpy(&upk64, pk, 8);
+	const int ret = addUserMessage(upk64, boxSet, bsLen);
+	free(boxSet);
+	free(binTo);
+
+	if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
 }
 
 static bool isValidAemAddress(const char *c, const size_t len) {
