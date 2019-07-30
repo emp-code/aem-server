@@ -628,9 +628,9 @@ static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const int64_t upk64
 }
 
 static void respond_https_delmsg(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
-	int ids[lenDecrypted]; // 1 byte per ID
+	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
-		ids[i] = (unsigned char)((*decrypted)[i]);
+		ids[i] = (uint8_t)((*decrypted)[i]);
 	}
 
 	const int ret = deleteMessages(upk64, ids, (int)lenDecrypted);

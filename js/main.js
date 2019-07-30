@@ -244,6 +244,14 @@ function setAccountLevel(upk_hex, level) {
 	});
 }
 
+function clearMessages() {
+	const tblInbox = document.getElementById("tbody_inbox");
+	const tblSent = document.getElementById("tbody_sentbox");
+
+	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
+	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
+}
+
 function addIntMessages() {
 	const tblInbox = document.getElementById("tbody_inbox");
 	const tblSent = document.getElementById("tbody_sentbox");
@@ -475,7 +483,9 @@ function delMsgs(tblName, btnName) {
 
 	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
 		if (success) {
-			addMessages();
+			clearMessages();
+			addIntMessages();
+			addExtMessages();
 			document.getElementById(btnName).hidden=true;
 		} else {
 			console.log("Failed to delete messages");

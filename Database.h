@@ -20,7 +20,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 
 int addUserMessage(const int64_t upk64, const unsigned char *msgData, const size_t msgLen);
 
-int deleteMessages(const int64_t upk64, const int ids[], const int count);
+int deleteMessages(const int64_t upk64, const uint8_t ids[], const int count);
 int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *addrData, const size_t lenAddrData);
 int updateAddress(const int64_t upk64, const unsigned char *addrData, const size_t lenAddrData);
 int addAddress(const int64_t upk64, const int64_t hash);

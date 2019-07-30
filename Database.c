@@ -308,7 +308,7 @@ int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], cha
 	return 0;
 }
 
-int deleteMessages(const int64_t upk64, const int ids[], const int count) {
+int deleteMessages(const int64_t upk64, const uint8_t ids[], const int count) {
 	sqlite3 *db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
