@@ -20,24 +20,24 @@ function AllEars() {
 	const _maxAddressNormal = [0, 0, 3, 30, 250];
 	const _maxAddressShield = [0, 5, 25, 125, 250];
 
-	var _userKeys;
+	let _userKeys;
 
-	var _userLevel = 0;
-	var _userAddress = [];
-	var _intMsg = [];
-	var _textNote = [];
+	let _userLevel = 0;
+	let _userAddress = [];
+	let _intMsg = [];
+	let _textNote = [];
 
-	var _gkCountry = [];
-	var _gkDomain  = [];
-	var _gkAddress = [];
+	let _gkCountry = [];
+	let _gkDomain  = [];
+	let _gkAddress = [];
 
-	var _contactMail = [];
-	var _contactName = [];
-	var _contactNote = [];
+	let _contactMail = [];
+	let _contactName = [];
+	let _contactNote = [];
 
-	var _admin_userPkHex = [];
-	var _admin_userSpace = [];
-	var _admin_userLevel = [];
+	let _admin_userPkHex = [];
+	let _admin_userSpace = [];
+	let _admin_userLevel = [];
 
 	function _NewIntMsg(id, isSent, sml, ts, from, shield, to, title, body) {
 		this.id = id;
