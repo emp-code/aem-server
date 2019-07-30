@@ -25,6 +25,7 @@ function AllEars() {
 	let _userLevel = 0;
 	let _userAddress = [];
 	let _intMsg = [];
+	let _extMsg = [];
 	let _textNote = [];
 
 	let _gkCountry = [];
@@ -43,9 +44,19 @@ function AllEars() {
 		this.id = id;
 		this.isSent = isSent;
 		this.senderMemberLevel = sml;
-		this.timestamp = ts;
+		this.ts = ts;
 		this.from = from;
 		this.shield = shield;
+		this.to = to;
+		this.title = title;
+		this.body = body;
+	}
+
+	function _NewExtMsg(id, ts, ip, cs, from, to, title, body) {
+		this.id = id;
+		this.ts = ts;
+		this.cs = cs;
+		this.from = from;
 		this.to = to;
 		this.title = title;
 		this.body = body;
@@ -216,13 +227,22 @@ function AllEars() {
 	this.GetIntMsgCount = function() {return _intMsg.length;}
 	this.GetIntMsgId     = function(num) {return _intMsg[num].id;}
 	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;}
-	this.GetIntMsgTime   = function(num) {return _intMsg[num].timestamp;}
+	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;}
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;}
 	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;}
 	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;}
 	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;}
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
+
+	this.GetExtMsgCount = function() {return _extMsg.length;}
+	this.GetExtMsgId     = function(num) {return _extMsg[num].id;}
+	this.GetExtMsgTime   = function(num) {return _extMsg[num].ts;}
+	this.GetExtMsgCipher = function(num) {return "TODO";} // _extMsg[num].cs -> ciphersuite name
+	this.GetExtMsgFrom   = function(num) {return _extMsg[num].from;}
+	this.GetExtMsgTo     = function(num) {return _extMsg[num].to;}
+	this.GetExtMsgTitle  = function(num) {return _extMsg[num].title;}
+	this.GetExtMsgBody   = function(num) {return _extMsg[num].body;}
 
 	this.GetNoteCount = function() {return _textNote.length;}
 	this.GetNoteId = function(num) {return _textNote[num].id;}
@@ -355,9 +375,7 @@ function AllEars() {
 
 			// Message data
 			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
-			let skipMsg = 0;
-			for (let i = 0; i < msgCount - skipMsg; i++) {
-				// TODO: Detect message type and support extMsg
+			for (let i = 0; i < msgCount; i++) {
 				const msgId = byteArray[msgStart];
 				const msgKilos = byteArray[msgStart + 1] + 1;
 
@@ -365,7 +383,7 @@ function AllEars() {
 				const msgHeadBox = byteArray.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-				if (!_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) {
+				if (!_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 0,0 IntMsg
 					let im_sml = 0;
 					if (_BitTest(msgHead[0], 4)) im_sml++;
 					if (_BitTest(msgHead[0], 5)) im_sml += 2;
@@ -410,9 +428,37 @@ function AllEars() {
 					const im_body = msgBodyUtf8.slice(firstLf + 1);
 
 					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
-					msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
-				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {
-					// TextNote
+				} else if (_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 1,0 ExtMsg
+					let u32bytes = msgHead.slice(1, 5).buffer;
+					const em_ts = new Uint32Array(u32bytes)[0];
+
+					u32bytes = msgHead.slice(5, 9).buffer;
+					const em_ip = new Uint32Array(u32bytes)[0];
+
+					u32bytes = msgHead.slice(9, 13).buffer;
+					const em_cs = new Uint32Array(u32bytes)[0];
+
+					const em_to = _DecodeOwnAddress(msgHead, 23, nacl);
+
+					// BodyBox
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 91;
+
+					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
+					const em_title = "TODO-Title";
+					const em_from = "TODO-From";
+
+					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+					const em_body = msgBodyUtf8;
+
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_from, em_to, em_title, em_body));
+				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];
 
@@ -431,12 +477,9 @@ function AllEars() {
 						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
 					else
 						console.log("Received corrupted note");
+				} else console.log("Unsupported message type received");
 
-					msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
-					skipMsg++;
-					i--;
-					continue;
-				}
+				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 			}
 
 			callback(true);

@@ -244,7 +244,7 @@ function setAccountLevel(upk_hex, level) {
 	});
 }
 
-function addMessages() {
+function addIntMessages() {
 	const tblInbox = document.getElementById("tbody_inbox");
 	const tblSent = document.getElementById("tbody_sentbox");
 
@@ -316,6 +316,66 @@ function addMessages() {
 	}
 }
 
+function addExtMessages() {
+	const tblInbox = document.getElementById("tbody_inbox");
+	const tblSent = document.getElementById("tbody_sentbox");
+
+	for (let i = 0; i < ae.GetExtMsgCount(); i++) {
+		const table = tblInbox;
+
+		const row = table.insertRow(-1);
+		const cellTime  = row.insertCell(-1);
+		const cellTitle = row.insertCell(-1);
+		const cellFrom  = row.insertCell(-1);
+		const cellTo    = row.insertCell(-1);
+		const cellDel   = row.insertCell(-1);
+
+		cellTime.textContent = new Date(ae.GetExtMsgTime(i) * 1000).toLocaleString();
+		cellTitle.textContent = ae.GetExtMsgTitle(i);
+		cellFrom.textContent = ae.GetExtMsgFrom(i);
+
+		if (ae.GetExtMsgTo(i).length == 36) {
+			cellTo.textContent = ae.GetExtMsgTo(i).substr(0, 24);
+			cellTo.className = "mono";
+		} else {
+			cellTo.textContent = ae.GetExtMsgTo(i);
+		}
+
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">"
+
+		cellTitle.onclick = function() {
+			navMenu(-1);
+			document.getElementById("div_readmsg").hidden=false;
+
+			document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
+			document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);
+			document.getElementById("readmsg_to").textContent = ae.GetExtMsgTo(i);
+			document.getElementById("readmsg_body").textContent = ae.GetExtMsgBody(i);
+
+			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length == 36) ? "mono" : "";
+		};
+
+		cellDel.children[0].onchange = function() {
+			if (!cellDel.children[0].checked) {
+				let checked = false;
+				for (let i = 0; i < table.rows.length; i++) {
+					if (table.rows[i].cells[4].children[0].checked) {
+						checked = true;
+						break;
+					}
+				}
+
+				if (!checked) {
+					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=true;
+					return;
+				}
+			}
+
+			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
+		}
+	}
+}
+
 function loginSuccess() {
 	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
 	document.getElementById("div_login").hidden=true;
@@ -361,7 +421,8 @@ function loginSuccess() {
 	}
 
 	// Messages
-	addMessages();
+	addIntMessages();
+	addExtMessages();
 
 	// Notes
 	for (let i = 0; i < ae.GetNoteCount(); i++) {
