@@ -401,26 +401,8 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	memcpy(&sender_pk64, sender_pk, 8);
 	int memberLevel = getUserLevel(sender_pk64);
 
-	unsigned char senderInfo = '\0';
-	// Bits 0-1: member level
-	switch(memberLevel) {
-		case 3:
-			BIT_SET(senderInfo, 0);
-			BIT_SET(senderInfo, 1);
-			break;
-		case 2:
-			BIT_SET(senderInfo, 1);
-			break;
-		case 1:
-			BIT_SET(senderInfo, 0);
-			break;
-	}
-
-	// Bit 7: Address type. 0 = normal, 1 = Shield
-	if (lenFrom == 36) BIT_SET(senderInfo, 7);
-
 	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen);
+	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 
@@ -431,7 +413,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 
 	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
-		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, senderInfo, *decrypted + bodyBegin, &bodyLen);
+		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
 		if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
 
 		memcpy(&upk64, sender_pk, 8);
@@ -493,11 +475,13 @@ static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES) % 1026 != 0) return; // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
 
+	// TODO: Move to Message.c
 	// HeadBox format for notes: [1B] SenderInfo (00001000), [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
 	unsigned char header[AEM_HEADBOX_SIZE];
 	bzero(header, AEM_HEADBOX_SIZE);
 
-	BIT_SET(header[0], 5); // Bit 5: isTextNote
+	BIT_SET(header[0], 1); // type: TextNote
+
 	const uint32_t t = (uint32_t)time(NULL);
 	memcpy(header + 1, &t, 4);
 

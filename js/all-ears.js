@@ -365,7 +365,53 @@ function AllEars() {
 				const msgHeadBox = byteArray.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-				if (_BitTest(msgHead[0], 5)) {
+				if (!_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) {
+					let im_sml = 0;
+					if (_BitTest(msgHead[0], 4)) im_sml++;
+					if (_BitTest(msgHead[0], 5)) im_sml += 2;
+
+					const u32bytes = msgHead.slice(1, 5).buffer;
+					const im_ts = new Uint32Array(u32bytes)[0];
+
+					const im_shield = _BitTest(msgHead[0], 7);
+					const im_from_raw = msgHead.slice(5, 23);
+					const im_from = im_shield? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, null);
+
+					let im_isSent;
+					for (let j = 0; j < _userAddress.length; j++) {
+						im_isSent = true;
+
+						for (let k = 0; k < 18; k++) {
+							if (im_from_raw[k] != _userAddress[j].address[k]) {
+								im_isSent = false;
+								break;
+							}
+						}
+
+						if (im_isSent) break;
+					}
+
+					const im_to = im_isSent? _DecodeAddress(msgHead, 23, nacl) : _DecodeOwnAddress(msgHead, 23, nacl); //nacl.to_hex(msgHead.slice(23, 41))
+
+					// BodyBox
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 91;
+
+					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
+					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+					const firstLf = msgBodyUtf8.indexOf('\n');
+					const im_title = msgBodyUtf8.slice(0, firstLf);
+					const im_body = msgBodyUtf8.slice(firstLf + 1);
+
+					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
+					msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
+				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {
 					// TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];
@@ -391,52 +437,6 @@ function AllEars() {
 					i--;
 					continue;
 				}
-
-				let im_sml = 0;
-				if (_BitTest(msgHead[0], 0)) im_sml++;
-				if (_BitTest(msgHead[0], 1)) im_sml += 2;
-
-				const u32bytes = msgHead.slice(1, 5).buffer;
-				const im_ts = new Uint32Array(u32bytes)[0];
-
-				const im_shield = _BitTest(msgHead[0], 7);
-				const im_from_raw = msgHead.slice(5, 23);
-				const im_from = im_shield? nacl.to_hex(im_from_raw) : _DecodeAddress(msgHead, 5, null);
-
-				let im_isSent;
-				for (let j = 0; j < _userAddress.length; j++) {
-					im_isSent = true;
-
-					for (let k = 0; k < 18; k++) {
-						if (im_from_raw[k] != _userAddress[j].address[k]) {
-							im_isSent = false;
-							break;
-						}
-					}
-
-					if (im_isSent) break;
-				}
-
-				const im_to = im_isSent? _DecodeAddress(msgHead, 23, nacl) : _DecodeOwnAddress(msgHead, 23, nacl); //nacl.to_hex(msgHead.slice(23, 41))
-
-				// BodyBox
-				const bbSize = msgKilos * 1024 + 50;
-				const bbStart = msgStart + 91;
-
-				const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
-				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
-
-				const u16bytes = msgBodyFull.slice(0, 2).buffer;
-				const padAmount = new Uint16Array(u16bytes)[0];
-				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
-
-				const msgBodyUtf8 = nacl.decode_utf8(msgBody);
-				const firstLf = msgBodyUtf8.indexOf('\n');
-				const im_title = msgBodyUtf8.slice(0, firstLf);
-				const im_body = msgBodyUtf8.slice(firstLf + 1);
-
-				_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
-				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 			}
 
 			callback(true);

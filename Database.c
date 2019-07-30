@@ -81,7 +81,11 @@ int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[crypt
 	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
 
 	ret = sqlite3_step(query);
-	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
+	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {
+		sqlite3_finalize(query);
+		sqlite3_close_v2(db);
+		return -1;
+	}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), crypto_box_PUBLICKEYBYTES);
 
