@@ -69,7 +69,7 @@ function AllEars() {
 		this.useGatekeeper = gk;
 	}
 
-	var _FetchBinary = function(url, postData, callback) {
+	const _FetchBinary = function(url, postData, callback) {
 		fetch(url, {
 			method: "POST",
 			cache: "no-cache",
@@ -88,7 +88,7 @@ function AllEars() {
 		})
 	}
 
-	var _FetchEncrypted = function(url, cleartext, nacl, callback) {
+	const _FetchEncrypted = function(url, cleartext, nacl, callback) {
 		_FetchBinary("/web/nonce", _userKeys.boxPk, function(fetchOk, nonce) {
 			if (!fetchOk) {callback(false); return;}
 
@@ -101,26 +101,26 @@ function AllEars() {
 		});
 	}
 
-	var _BitSet = function(num, bit) {
+	const _BitSet = function(num, bit) {
 		return num | 1<<bit;
 	}
 
-	var _BitClear = function(num, bit) {
+	const _BitClear = function(num, bit) {
 		return num & ~(1<<bit);
 	}
 
-	var _BitTest = function(num, bit) {
+	const _BitTest = function(num, bit) {
 		return ((num>>bit) % 2 != 0);
 	}
 
-	var _GetBit = function(byteArray, bitNum) {
+	const _GetBit = function(byteArray, bitNum) {
 		const skipBytes = Math.floor(bitNum / 8.0);
 		const skipBits = bitNum % 8;
 
 		return _BitTest(byteArray[skipBytes], skipBits);
 	}
 
-	var _DecodeAddress = function(byteArray, start, nacl) {
+	const _DecodeAddress = function(byteArray, start, nacl) {
 		const sixBitTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 		const skip = start * 8;
 
@@ -147,7 +147,7 @@ function AllEars() {
 		return decoded.substring(0, end);
 	}
 
-	var _DecodeOwnAddress = function(byteArray, start, nacl) {
+	const _DecodeOwnAddress = function(byteArray, start, nacl) {
 		const decoded = _DecodeAddress(byteArray, start, null);
 
 		for (let i = 0; i < _userAddress.length; i++) {
@@ -159,7 +159,7 @@ function AllEars() {
 		return nacl.to_hex(byteArray.slice(start, start + 18));
 	}
 
-	var _GetAddressCount = function(isShield) {
+	const _GetAddressCount = function(isShield) {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
@@ -169,7 +169,7 @@ function AllEars() {
 		return count;
 	}
 
-	var _MakeAddrData = function() {
+	const _MakeAddrData = function() {
 		const addrData = new Uint8Array(_userAddress.length * 27);
 
 		for (let i = 0; i < _userAddress.length; i++) {
