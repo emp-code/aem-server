@@ -146,7 +146,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-static void deliverMessage(const uint32_t clientIp, const int cs, const size_t lenGreeting, const char *greeting, const size_t lenFrom, const char *from, const size_t lenTo, const char *to, const size_t lenMsgBody, const char *msgBody) {
+static void deliverMessage(const char *to, const size_t lenTo, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs) {
 	unsigned char *binTo = textToSixBit(to, lenTo, 18);
 	if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
@@ -392,7 +392,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(clientIp, cs, lenGreeting, greeting, lenFrom, from, lenTo, to, lenBody, body);
+			deliverMessage(to, lenTo - lenDomain - 1, from, lenFrom, body, lenBody, clientIp, cs);
 
 			lenFrom = 0;
 			lenTo = 0;
