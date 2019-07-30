@@ -277,7 +277,7 @@ int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], cha
 		if (*lf == '\n') lf++;
 
 		const size_t lenGksb = lenToSixBit(len);
-		unsigned char* gkSixBit = textToSixBit(lf, len);
+		unsigned char* gkSixBit = textToSixBit(lf, len, 0);
 		if (memchr(gkSixBit, '?', lenGksb) == NULL) {
 			sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
 			sqlite3_bind_int64(query, 1, gkHash(gkSixBit, lenGksb, upk64, hashKey));

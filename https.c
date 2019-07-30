@@ -368,7 +368,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 }
 
 static unsigned char *addr2bin(const char *c, const size_t len) {
-	if (len <= 24) return textToSixBit(c, len);
+	if (len <= 24) return textToSixBit(c, len, 18);
 	if (len != 36) return NULL;
 
 	// Shield addresses are encoded in hex
@@ -601,7 +601,7 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 		if (addr == NULL) return;
 		randombytes_buf(addr, 18);
 	} else {
-		addr = textToSixBit((*decrypted), lenDecrypted);
+		addr = textToSixBit((*decrypted), lenDecrypted, 18);
 		sodium_free(*decrypted);
 		if (addr == NULL) return;
 	}
