@@ -42,7 +42,7 @@ ExtMsg
 			4:
 			5:
 			6:
-			7:
+			7: Protocol (ESMTP if set, SMTP if not set)
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
 		[4B int32_t] Ciphersuite
@@ -51,6 +51,10 @@ ExtMsg
 
 	BodyBox:
 		[2B uint16_t] Amount of padding
+		[-- char*] SMTP Greeting
+		[1B char] Linebreak (\n)
+		[-- char*] From address (envelope)
+		[1B char] Linebreak (\n)
 		[-- char*] Message data
 
 TextNote
@@ -141,11 +145,12 @@ unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], co
 	return boxSet;
 }
 
-static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const uint32_t ip, const int32_t cs) {
+static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const uint32_t ip, const int32_t cs, const bool esmtp) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char infoByte = 0;
 	BIT_SET(infoByte, 0);
+	if (esmtp) BIT_SET(infoByte, 7);
 
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
@@ -161,8 +166,8 @@ static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLI
 	return ciphertext;
 }
 
-unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const uint32_t ip, const int32_t cs, const char *bodyText, size_t * const bodyLen) {
-	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs);
+unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen, const uint32_t ip, const int32_t cs, const bool esmtp) {
+	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, esmtp);
 	if (headBox == NULL) return NULL;
 
 	unsigned char *bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);

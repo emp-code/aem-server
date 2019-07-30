@@ -284,6 +284,8 @@ function addIntMessages() {
 		cellTitle.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden=false;
+			document.getElementById("readmsg_levelinfo").hidden = false;
+			document.getElementById("readmsg_greetinfo").hidden = true;
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
@@ -345,7 +347,13 @@ function addExtMessages() {
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
-			document.getElementById("div_readmsg").hidden=false;
+			document.getElementById("div_readmsg").hidden = false;
+			document.getElementById("readmsg_levelinfo").hidden = true;
+			document.getElementById("readmsg_greetinfo").hidden = false;
+			if (ae.GetExtMsgEsmtp(i))
+				document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i) + " (ESMTP)";
+			else
+				document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i) + " (SMTP)";
 
 			document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);

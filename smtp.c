@@ -74,7 +74,7 @@ static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const
 	return sent;
 }
 
-static size_t smtp_addr(const size_t len, const char * const buf, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
+static size_t smtp_addr(const char * const buf, const size_t len, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
 	size_t start = 1;
 	size_t lenAddr = len - 1;
 
@@ -107,7 +107,7 @@ static bool smtp_shlo(mbedtls_ssl_context *tls, const char *domain, const size_t
 	return (send_aem(0, tls, shlo, lenShlo) == lenShlo);
 }
 
-static bool smtp_helo(const int sock, const char *domain, const size_t lenDomain, const ssize_t bytes, const char *buf) {
+static bool smtp_helo(const int sock, const char *domain, const size_t lenDomain, const char *buf, const ssize_t bytes) {
 	if (bytes < 4) return false;
 
 	if (strncasecmp(buf, "EHLO", 4) == 0) {
@@ -146,7 +146,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-static void deliverMessage(const char *to, const size_t lenTo, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs) {
+static void deliverMessage(const char *to, const size_t lenTo, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const bool esmtp) {
 	unsigned char *binTo = textToSixBit(to, lenTo, 18);
 	if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
@@ -155,7 +155,7 @@ static void deliverMessage(const char *to, const size_t lenTo, const char *from,
 	if (ret != 0) {free(binTo); puts("[SMTP] Discarding email sent to nonexistent address"); return;}
 
 	size_t bodyLen = lenMsgBody;
-	unsigned char* boxSet = makeMsg_Ext(pk, binTo, clientIp, cs, msgBody, &bodyLen);
+	unsigned char* boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, clientIp, cs, esmtp);
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) {free(binTo); puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed"); return;}
 
@@ -192,11 +192,12 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	char buf[AEM_SMTP_SIZE_CMD];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
+	const bool esmtp = (buf[0] == 'E');
 	const size_t lenGreeting = bytes - 7;
 	char greeting[lenGreeting];
 	memcpy(greeting, buf + 5, lenGreeting);
 
-	if (!smtp_helo(sock, domain, lenDomain, bytes, buf)) return smtp_fail(sock, NULL, clientIp, 1);
+	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(sock, NULL, clientIp, 1);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
@@ -294,7 +295,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		}
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			lenFrom = smtp_addr(bytes - 10, buf + 10, from);
+			lenFrom = smtp_addr(buf + 10, bytes - 10, from);
 			if (lenFrom < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 100);
@@ -312,7 +313,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
-			size_t lenNewTo = smtp_addr(bytes - 8, buf + 8, newTo);
+			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
 			if (lenNewTo < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(sock, tls, clientIp, 102);
@@ -379,8 +380,16 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(sock, tls, clientIp, 107);
 			}
 
-			body = malloc(AEM_SMTP_SIZE_BODY);
+			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 2);
 
+			// Copy greeting and from address to body
+			memcpy(body, greeting, lenGreeting);
+			body[lenGreeting] = '\n';
+			memcpy(body + lenGreeting + 1, from, lenFrom);
+			body[lenGreeting + 1 + lenFrom] = '\n';
+			lenBody += lenGreeting + lenFrom + 2;
+
+			// Receive body
 			while(1) {
 				bytes = recv_aem(sock, tls, body + lenBody, AEM_SMTP_SIZE_BODY - lenBody);
 				if (bytes < 1) break;
@@ -392,7 +401,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(to, lenTo - lenDomain - 1, from, lenFrom, body, lenBody, clientIp, cs);
+			deliverMessage(to, lenTo - lenDomain - 1, from, lenFrom, body, lenBody, clientIp, cs, esmtp);
 
 			lenFrom = 0;
 			lenTo = 0;
