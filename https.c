@@ -34,7 +34,6 @@
 
 #define AEM_HTTPS_TIMEOUT 30
 #define AEM_HTTPS_MAXREQSIZE 8192
-#define AEM_NETINT_BUFLEN 4096
 
 #define AEM_NONCE_TIMEDIFF_MAX 30
 
@@ -66,14 +65,8 @@ static void sendData(mbedtls_ssl_context* ssl, const char * const data, const si
 
 	while (sent < lenData) {
 		int ret;
-		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), (lenData - sent > AEM_NETINT_BUFLEN) ? AEM_NETINT_BUFLEN : lenData - sent);}
-		while (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-
-		if (ret < 0) {
-			printf("[HTTPS] Failed transfer: %d\n", ret);
-			return;
-		}
-
+		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+		if (ret < 0) {printf("[HTTPS] Failed to send data: %d\n", ret); return;}
 		sent += ret;
 	}
 }
