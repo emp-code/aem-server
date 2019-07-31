@@ -360,8 +360,15 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	free(data);
 }
 
-static unsigned char *addr2bin(const char *c, const size_t len) {
-	if (len <= 24) return textToSixBit(c, len, 18);
+static unsigned char *addr2bin(char *c, const size_t len) {
+	if (len <= 24) {
+		for (size_t i = 0; i < lenDecrypted; i++) {
+			if (isupper(c[i])) c[i] = tolower(c[i]);
+		}
+
+		return textToSixBit(c, len, 18);
+	}
+
 	if (len != 36) return NULL;
 
 	// Shield addresses are encoded in hex
