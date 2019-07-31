@@ -143,31 +143,55 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-static void deliverMessage(const char *to, const size_t lenTo, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const unsigned char infoByte) {
-	unsigned char *binTo = textToSixBit(to, lenTo, 18);
-	if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
+void deliverMessage(char *to, const size_t lenToTotal, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const unsigned char infoByte) {
+	char *toStart = to;
+	const char *toEnd = to + lenToTotal;
 
-	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
-	if (ret != 0) {free(binTo); puts("[SMTP] Discarding email sent to nonexistent address"); return;}
+	while(1) {
+		char *nextTo = memchr(toStart, '\n', toEnd - toStart);
+		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
+		if (lenTo < 1) break;
 
-	// TODO
-	int32_t geoId = 0;
-	uint8_t attach = 0;
-	uint8_t spamByte = 0;
+		unsigned char *binTo = textToSixBit(toStart, lenTo, 18);
+		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
-	size_t bodyLen = lenMsgBody;
-	unsigned char* boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, clientIp, cs, geoId, attach, infoByte, spamByte);
-	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-	if (boxSet == NULL) {free(binTo); puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed"); return;}
+		unsigned char pk[crypto_box_PUBLICKEYBYTES];
+		int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+		if (ret != 0) {
+			free(binTo);
+			printf("[SMTP] Discarding email sent to nonexistent address: %.*s (%zd bytes)\n", (int)lenTo, toStart, lenTo);
+			if (nextTo == NULL) return;
+			toStart = nextTo + 1;
+			continue;
+		}
 
-	int64_t upk64;
-	memcpy(&upk64, pk, 8);
-	ret = addUserMessage(upk64, boxSet, bsLen);
-	free(boxSet);
-	free(binTo);
+		// TODO
+		int32_t geoId = 0;
+		uint8_t attach = 0;
+		uint8_t spamByte = 0;
 
-	if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
+		size_t bodyLen = lenMsgBody;
+		unsigned char *boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, clientIp, cs, geoId, attach, infoByte, spamByte);
+		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+
+		if (boxSet == NULL) {
+			free(binTo);
+			puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed");
+			toStart = nextTo + 1;
+			continue;
+		}
+
+		int64_t upk64;
+		memcpy(&upk64, pk, 8);
+		ret = addUserMessage(upk64, boxSet, bsLen);
+		free(boxSet);
+		free(binTo);
+		if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
+
+		if (nextTo == NULL) return;
+
+		toStart = nextTo + 1;
+	}
 }
 
 static bool isValidAemAddress(const char *c, const size_t len) {
@@ -333,6 +357,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				continue;
 			}
 
+			lenNewTo -= (lenDomain + 1);
+
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
@@ -420,7 +446,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (bytes >= 4 && memcmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(to, lenTo - lenDomain - 1, from, lenFrom, body, lenBody, clientIp, cs, infoByte);
+			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientIp, cs, infoByte);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);
