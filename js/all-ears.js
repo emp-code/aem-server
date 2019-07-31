@@ -52,7 +52,7 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, from, to, title, body) {
+	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, from, to, title, headers, body) {
 		this.id = id;
 		this.ts = ts;
 		this.cs = cs;
@@ -61,6 +61,7 @@ function AllEars() {
 		this.from = from;
 		this.to = to;
 		this.title = title;
+		this.headers = headers;
 		this.body = body;
 	}
 
@@ -238,14 +239,15 @@ function AllEars() {
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
 
 	this.GetExtMsgCount = function() {return _extMsg.length;}
-	this.GetExtMsgId     = function(num) {return _extMsg[num].id;}
-	this.GetExtMsgTime   = function(num) {return _extMsg[num].ts;}
-	this.GetExtMsgCipher = function(num) {return "TODO";} // _extMsg[num].cs -> ciphersuite name
-	this.GetExtMsgGreet  = function(num) {return _extMsg[num].greet;}
-	this.GetExtMsgFrom   = function(num) {return _extMsg[num].from;}
-	this.GetExtMsgTo     = function(num) {return _extMsg[num].to;}
-	this.GetExtMsgTitle  = function(num) {return _extMsg[num].title;}
-	this.GetExtMsgBody   = function(num) {return _extMsg[num].body;}
+	this.GetExtMsgId      = function(num) {return _extMsg[num].id;}
+	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;}
+	this.GetExtMsgCipher  = function(num) {return "TODO";} // _extMsg[num].cs -> ciphersuite name
+	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;}
+	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;}
+	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;}
+	this.GetExtMsgTitle   = function(num) {return _extMsg[num].title;}
+	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;}
+	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;}
 
 	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);} // Protocol Error
 	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);} // Invalid command used
@@ -467,13 +469,17 @@ function AllEars() {
 					const em_greet = msgBodyUtf8.slice(0, firstLf);
 					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
 					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-					const em_body = msgBodyUtf8.slice(secondLf + 1);
+					const body = msgBodyUtf8.slice(secondLf + 1);
 
-					const titleStart = em_body.indexOf("\nSubject: ");
-					const titleEnd = (titleStart < 1) ? -1 : em_body.slice(titleStart + 10).indexOf("\n");
-					const em_title = (titleStart < 1) ? "(Missing title)" : em_body.substr(titleStart + 10, titleEnd);
+					const titleStart = body.indexOf("\nSubject: ");
+					const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+					const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_from, em_to, em_title, em_body));
+					const headersEnd = body.indexOf("\r\n\r\n");
+					const em_headers = body.slice(0, headersEnd);
+					const em_body = body.slice(headersEnd + 4);
+
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_from, em_to, em_title, em_headers, em_body));
 				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];
