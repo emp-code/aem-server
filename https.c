@@ -586,6 +586,8 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 		if (addr == NULL) return;
 		randombytes_buf(addr, 18);
 	} else {
+		if (lenDecrypted > 24) return;
+
 		for (size_t i = 0; i < lenDecrypted; i++) {
 			if (isupper(*decrypted[i])) *decrypted[i] = tolower(*decrypted[i]);
 		}
