@@ -638,7 +638,7 @@ static void respond_https_delmsg(mbedtls_ssl_context *ssl, const int64_t upk64, 
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char hashKey[16]) {
+static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char * const hashKey) {
 	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
@@ -723,7 +723,7 @@ const char * const domain, const size_t lenDomain, const char *url, const size_t
 
 	if (lenUrl == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
 	if (lenUrl == 12 && memcmp(url, "web/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, (unsigned char*)"TestTestTestTest");
+	if (lenUrl == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, addrKey);
 
 	if (lenUrl == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
 	if (lenUrl == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
