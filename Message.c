@@ -160,7 +160,7 @@ const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, 
 	memcpy(plaintext + 5, &ip, 4);
 	memcpy(plaintext + 9, &cs, 4);
 	memcpy(plaintext + 13, &geoId, 4);
-	// 17-20 (4 bytes) unused
+	bzero(plaintext + 17, 4); // 17-20 (4 bytes) unused
 	plaintext[21] = attach;
 	plaintext[22] = spamByte;
 	memcpy(plaintext + 23, binTo, 18);
