@@ -462,14 +462,16 @@ function AllEars() {
 					const padAmount = new Uint16Array(u16bytes)[0];
 					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-					const em_title = "TODO-Title";
-
 					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
 					const firstLf = msgBodyUtf8.indexOf('\n');
 					const em_greet = msgBodyUtf8.slice(0, firstLf);
 					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
 					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
 					const em_body = msgBodyUtf8.slice(secondLf + 1);
+
+					const titleStart = em_body.indexOf("\nSubject: ");
+					const titleEnd = (titleStart < 1) ? -1 : em_body.slice(titleStart + 10).indexOf("\n");
+					const em_title = (titleStart < 1) ? "(Missing title)" : em_body.substr(titleStart + 10, titleEnd);
 
 					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_from, em_to, em_title, em_body));
 				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
