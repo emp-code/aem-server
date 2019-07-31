@@ -75,17 +75,14 @@ static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const
 }
 
 static size_t smtp_addr(const char * const buf, const size_t len, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
-	size_t start = 1;
-	size_t lenAddr = len - 1;
+	if (buf[0] != '<') return 0;
 
-	while (lenAddr > 0 && buf[start - 1] != '<') {start++; lenAddr--;}
-	if (lenAddr < 1) return 0;
+	size_t lenAddr = 0;
+	while (lenAddr < (len - 1) && buf[1 + lenAddr] != '>') lenAddr++;
 
-	while (lenAddr > 0 && buf[start + lenAddr] != '>') lenAddr--;
-	if (lenAddr < 1) return 0;
+	if (lenAddr < 1 || lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
 
-	if (lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
-	memcpy(addr, buf + start, lenAddr);
+	memcpy(addr, buf + 1, lenAddr);
 	return lenAddr;
 }
 
