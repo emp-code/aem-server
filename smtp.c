@@ -425,6 +425,10 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			deliverMessage(to, lenTo - lenDomain - 1, from, lenFrom, body, lenBody, clientIp, cs, infoByte);
 
+			sodium_memzero(from, lenFrom);
+			sodium_memzero(to, lenTo);
+			sodium_memzero(body, lenBody);
+
 			lenFrom = 0;
 			lenTo = 0;
 			lenBody = 0;
