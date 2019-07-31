@@ -126,11 +126,7 @@ static bool smtp_helo(const int sock, const char *domain, const size_t lenDomain
 	return false;
 }
 
-static void smtp_fail(const int sock, mbedtls_ssl_context *tls, const unsigned long ip, const int code) {
-	send_aem(sock, tls, "421 Bye\r\n", 9);
-	close(sock);
-
-	if (ip == 0) return;
+static void smtp_fail(const unsigned long ip, const int code) {
 	struct in_addr ip_addr; ip_addr.s_addr = ip;
 	printf("[SMTP] Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(ip_addr));
 }
@@ -212,7 +208,7 @@ static bool addressIsOurs(const char *addr, const size_t lenAddr, const char *do
 }
 
 void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const unsigned char * const addrKey, const unsigned char seed[16], const char *domain, const size_t lenDomain, const uint32_t clientIp) {
-	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(sock, NULL, clientIp, 0);
+	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientIp, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
 	int bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
@@ -223,7 +219,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	char greeting[lenGreeting];
 	memcpy(greeting, buf + 5, lenGreeting);
 
-	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(sock, NULL, clientIp, 1);
+	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientIp, 1);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
@@ -324,7 +320,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			lenFrom = smtp_addr(buf + 10, bytes - 10, from);
 			if (lenFrom < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 100);
+				return smtp_fail(clientIp, 100);
 			}
 		}
 
@@ -334,7 +330,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 101);
+					return smtp_fail(clientIp, 101);
 				}
 
 				continue;
@@ -344,13 +340,13 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
 			if (lenNewTo < 1) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 102);
+				return smtp_fail(clientIp, 102);
 			}
 
 			if (!addressIsOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 103);
+					return smtp_fail(clientIp, 103);
 				}
 
 				continue;
@@ -361,7 +357,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 104);
+					return smtp_fail(clientIp, 104);
 				}
 
 				continue;
@@ -388,7 +384,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 			if (send_aem(sock, tls, "252 Ok\r\n", 8) != 8) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 105);
+				return smtp_fail(clientIp, 105);
 			}
 
 			continue;
@@ -405,7 +401,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
-					return smtp_fail(sock, tls, clientIp, 106);
+					return smtp_fail(clientIp, 106);
 				}
 
 				continue;
@@ -413,7 +409,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 107);
+				return smtp_fail(clientIp, 107);
 			}
 
 			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 2);
@@ -438,7 +434,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 			if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 150);
+				return smtp_fail(clientIp, 150);
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -470,7 +466,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			// Unsupported commands
 			if (send_aem(sock, tls, "500 Ok\r\n", 8) != 8) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
-				return smtp_fail(sock, tls, clientIp, 108);
+				return smtp_fail(clientIp, 108);
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -479,12 +475,11 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 
 		if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return smtp_fail(sock, tls, clientIp, 150);
+			return smtp_fail(clientIp, 150);
 		}
 
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
 
-	close(sock);
 	tlsFree(tls, &conf, &ctr_drbg, &entropy);
 }

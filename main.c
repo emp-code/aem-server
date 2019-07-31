@@ -279,6 +279,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
 				respond_https(newSock, &srvcert, &pkey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
+				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
@@ -370,6 +371,7 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
 				respond_smtp(newSock, &srvcert, &pkey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
+				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
