@@ -116,7 +116,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 				// Files to be compressed
 				char *tempData = malloc(bytes);
-				if (tempData == NULL) {printf("Failed to allocate memory for loading %s. Quitting.\n", de->d_name); break;}
+				if (tempData == NULL) {printf("[Main HTTPS] Failed to allocate memory for loading %s. Quitting.\n", de->d_name); break;}
 
 				const ssize_t readBytes = pread(fd, tempData, bytes, 0);
 				close(fd);
@@ -141,7 +141,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 					sodium_mprotect_readonly(f[counter].data);
 					free(tempData);
 
-					printf("Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
+					printf("[Main HTTPS] Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
 				} else {
 					printf("Failed to load %s\n", de->d_name);
 					free(tempData);
@@ -160,9 +160,9 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 					f[counter].lenData = bytes;
 					f[counter].filename = strdup(de->d_name);
 
-					printf("Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
+					printf("[Main HTTPS] Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
 				} else {
-					printf("Failed to load %s\n", de->d_name);
+					printf("[Main HTTPS] Failed to load %s\n", de->d_name);
 					sodium_free(f[counter].data);
 				}
 			}
@@ -178,12 +178,12 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 
 static int receiveConnections_https(const int port, const char *domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
-		puts("Missing html/index.html - not loading web interface");
-		return -1;
+		puts("[Main HTTPS] Terminating: missing html/index.html");
+		return 1;
 	}
 
-	// Load the certificate
-	int fd = open("aem-https.crt", O_RDONLY);
+	// TLS Certificate
+	int fd = open("AllEars/TLS.crt", O_RDONLY);
 	if (fd < 0) return 1;
 	off_t lenFile = lseek(fd, 0, SEEK_END);
 
@@ -200,12 +200,12 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	if (ret != 0) {
 		char error_buf[100];
 		mbedtls_strerror(ret, error_buf, 100);
-		printf("ERROR: Loading server cert failed - mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		printf("[Main HTTPS] Failed to load TLS cert: mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
 		return 1;
 	}
 
-	// Load the private key
-	fd = open("aem-https.key", O_RDONLY);
+	// TLS Key
+	fd = open("AllEars/TLS.key", O_RDONLY);
 	if (fd < 0) return 1;
 	lenFile = lseek(fd, 0, SEEK_END);
 
@@ -218,7 +218,15 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	mbedtls_pk_init(&pkey);
 	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
 	free(key);
-	if (ret != 0) {printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
+	if (ret != 0) {printf("[Main HTTPS] Failed to load TLS key: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
+
+	// Address Key
+	unsigned char addrKey[crypto_pwhash_SALTBYTES];
+	fd = open("AllEars/Address.key", O_RDONLY);
+	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
+	readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
+	close(fd);
+	if (readBytes != crypto_pwhash_SALTBYTES) return 1;
 
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
@@ -228,7 +236,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	int numImg  = aem_countFiles("img",  ".webp", 5);
 	int numJs   = aem_countFiles("js",   ".js",   3);
 
-	printf("Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
+	printf("[Main HTTPS] Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
 	// Keys for web API
 	unsigned char *spk = malloc(crypto_box_PUBLICKEYBYTES);
@@ -243,7 +251,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	free(spk);
 
 	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
-	if (fileSet == NULL) {puts("Failed to allocate memory for fileSet"); return 1;}
+	if (fileSet == NULL) {puts("[Main HTTPS] Failed to allocate memory for fileSet"); return 1;}
 	fileSet->cssFiles  = fileCss;
 	fileSet->htmlFiles = fileHtml;
 	fileSet->imgFiles  = fileImg;
@@ -264,13 +272,13 @@ static int receiveConnections_https(const int port, const char *domain, const si
 			struct sockaddr_in clientAddr;
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-			if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
+			if (newSock < 0) {puts("[Main HTTPS] Failed to create socket for accepting connection"); break;}
 
 			const int pid = fork();
-			if (pid < 0) {puts("ERROR: Failed fork"); break;}
+			if (pid < 0) {puts("[Main HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, fileSet, domain, lenDomain, ssk);
+				respond_https(newSock, &srvcert, &pkey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
@@ -296,8 +304,8 @@ static int receiveConnections_https(const int port, const char *domain, const si
 }
 
 static int receiveConnections_smtp(const int port, const char *domain, const size_t lenDomain) {
-	// Load the certificate
-	int fd = open("aem-https.crt", O_RDONLY);
+	// TLS Certificate
+	int fd = open("AllEars/TLS.crt", O_RDONLY);
 	if (fd < 0) return 1;
 	off_t lenFile = lseek(fd, 0, SEEK_END);
 
@@ -314,12 +322,12 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 	if (ret != 0) {
 		char error_buf[100];
 		mbedtls_strerror(ret, error_buf, 100);
-		printf("ERROR: Loading server cert failed - mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		printf("[Main SMTP] Loading TLS cert failed: mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
 		return 1;
 	}
 
-	// Load the private key
-	fd = open("aem-https.key", O_RDONLY);
+	// TLS Key
+	fd = open("AllEars/TLS.key", O_RDONLY);
 	if (fd < 0) return 1;
 	lenFile = lseek(fd, 0, SEEK_END);
 
@@ -332,7 +340,15 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 	mbedtls_pk_init(&pkey);
 	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
 	free(key);
-	if (ret != 0) {printf("ERROR: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
+	if (ret != 0) {printf("[Main SMTP] Loading TLS key failed: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
+
+	// Address Key
+	unsigned char addrKey[crypto_pwhash_SALTBYTES];
+	fd = open("AllEars/Address.key", O_RDONLY);
+	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
+	readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
+	close(fd);
+	if (readBytes != crypto_pwhash_SALTBYTES) return 1;
 
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
@@ -347,13 +363,13 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 			struct sockaddr_in clientAddr;
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-			if (newSock < 0) {puts("ERROR: Failed to create socket for accepting connection"); break;}
+			if (newSock < 0) {puts("[Main SMTP] Failed to create socket for accepting connection"); break;}
 
 			const int pid = fork();
-			if (pid < 0) {puts("ERROR: Failed fork"); break;}
+			if (pid < 0) {puts("[Main SMTP] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_smtp(newSock, &srvcert, &pkey, clientAddr.sin_addr.s_addr, seed, domain, lenDomain);
+				respond_smtp(newSock, &srvcert, &pkey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}

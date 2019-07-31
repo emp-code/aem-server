@@ -143,7 +143,8 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const unsigned char infoByte) {
+static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
+const uint32_t clientIp, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
 	char *toStart = to;
 	const char *toEnd = to + lenToTotal;
 
@@ -156,7 +157,7 @@ static void deliverMessage(char * const to, const size_t lenToTotal, const char 
 		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
-		int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+		int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
 		if (ret != 0) {
 			puts("[SMTP] Discarding email sent to nonexistent address");
 			free(binTo);
@@ -210,7 +211,7 @@ static bool addressIsOurs(const char *addr, const size_t lenAddr, const char *do
 	);
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t lenDomain) {
+void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const unsigned char * const addrKey, const unsigned char seed[16], const char *domain, const size_t lenDomain, const uint32_t clientIp) {
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(sock, NULL, clientIp, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
@@ -444,7 +445,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			if (bytes >= 4 && memcmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientIp, cs, infoByte);
+			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientIp, cs, infoByte, addrKey);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);

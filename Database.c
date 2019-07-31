@@ -19,7 +19,7 @@
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
-static sqlite3 * openDb(const char * const path, const int flags) {
+static sqlite3 *openDb(const char * const path, const int flags) {
 	sqlite3 *db;
 	if (sqlite3_open_v2(path, &db, flags, NULL) != SQLITE_OK) return NULL;
 
@@ -30,17 +30,16 @@ static sqlite3 * openDb(const char * const path, const int flags) {
 	return db;
 }
 
-int64_t addressToHash(const unsigned char addr[18], const unsigned char hashKey[16]) {
+int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	unsigned char hash16[16];
-	crypto_generichash(hash16, 16, addr, 18, hashKey, 16);
-//	if (crypto_pwhash(hash16, 16, (char*)addr, 18, hashKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
+	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
 
 	int64_t result;
 	memcpy(&result, hash16, 8);
 	return result;
 }
 
-int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, const unsigned char hashKey[16]) {
+int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
 	unsigned char saltyKey[24];
 	memcpy(saltyKey, &upk64, 8);
 	memcpy(saltyKey + 8, hashKey, 16);
@@ -72,13 +71,13 @@ bool upk64Exists(const int64_t upk64) {
 	return retval;
 }
 
-int getPublicKeyFromAddress(const unsigned char addr[18], unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char hashKey[16]) {
+int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey) {
 	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT publickey FROM userdata WHERE upk64=(SELECT upk64 FROM address WHERE hash=?)", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, addressToHash(addr, hashKey));
+	sqlite3_bind_int64(query, 1, addressToHash(addr, addrKey));
 
 	ret = sqlite3_step(query);
 	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {
@@ -258,7 +257,7 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 }
 
 // Format: item1\nitem2\n...
-int updateGatekeeper(const unsigned char ownerPk[crypto_box_PUBLICKEYBYTES], char * const gkData, const size_t lenGkData, const unsigned char hashKey[16]) {
+int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey) {
 	if (lenGkData < 1) return -1;
 	if (gkData[lenGkData - 1] != '\n') return -1;
 

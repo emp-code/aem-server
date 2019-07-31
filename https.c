@@ -384,7 +384,8 @@ static unsigned char *addr2bin(const char *c, const size_t len) {
 	return binm;
 }
 
-static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *addrTo, const size_t lenTo, char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, unsigned char sender_pk[crypto_box_PUBLICKEYBYTES], const char senderCopy) {
+static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
+char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
 	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
@@ -393,7 +394,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 	if (binTo == NULL) {free(binFrom); return -1;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
+	int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
 	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) {free(binFrom); free(binTo); return -1;}
 
 	int64_t sender_pk64;
@@ -426,7 +427,7 @@ static int sendIntMsg(const char *addrFrom, const size_t lenFrom, const char *ad
 }
 
 // Message sending
-static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], const char *domain, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char * const upk, const char * const domain, char **decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -450,7 +451,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 
 	int ret;
 	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
+		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
 	} else {
 		const char *domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
@@ -576,7 +577,7 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 	return decrypted;
 }
 
-static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 	unsigned char *addr;
 	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
 		sodium_free(*decrypted);
@@ -589,7 +590,7 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 		if (addr == NULL) return;
 	}
 
-	const int64_t hash = addressToHash(addr, (unsigned char*)"TestTestTestTest");
+	const int64_t hash = addressToHash(addr, addrKey);
 	if (addAddress(upk64, hash) != 0) return;
 
 	char data[188];
@@ -698,7 +699,8 @@ static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t le
 	if (lenUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16], const char *domain, const size_t lenDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
+static void handlePost(mbedtls_ssl_context *ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
+const char * const domain, const size_t lenDomain, const char *url, const size_t lenUrl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp) {
 	if (lenUrl < 8) return;
 
 	if (lenUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, lenPost, clientIp, seed);
@@ -712,11 +714,11 @@ static void handlePost(mbedtls_ssl_context *ssl, const char *url, const size_t l
 	memcpy(&upk64, upk, 8);
 
 	if (lenUrl == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, lenDecrypted);
+	if (lenUrl == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, &decrypted, lenDecrypted, addrKey);
 	if (lenUrl == 8 && memcmp(url, "web/note", 8) == 0) return respond_https_note(ssl, upk, &decrypted, lenDecrypted);
 
 	if (lenUrl == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
 	if (lenUrl == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (lenUrl == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
@@ -778,7 +780,8 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	return AEM_HTTPS_REQUEST_INVALID;
 }
 
-int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const uint32_t clientIp, const unsigned char seed[16], const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain, const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
+int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const unsigned char * const ssk, const unsigned char * const addrKey,
+const unsigned char * const seed, const char *domain, const size_t lenDomain, const struct aem_fileSet *fileSet, const uint32_t clientIp) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -856,7 +859,7 @@ int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 					post += 4;
 					const size_t lenPost = ret - (post - req);
 
-					handlePost(&ssl, reqUrl, lenReqUrl, post, lenPost, clientIp, seed, domain, lenDomain, ssk);
+					handlePost(&ssl, ssk, addrKey, seed, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost, clientIp);
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");
