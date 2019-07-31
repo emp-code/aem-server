@@ -100,7 +100,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1179 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1160 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -125,7 +125,6 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const
 			"frame-src"       " 'none';"
 			"manifest-src"    " 'none';"
 			"media-src"       " 'none';"
-			"navigate-to"     " 'none';" // Use * to allow links
 			"object-src"      " 'none';"
 			"prefetch-src"    " 'none';"
 			"worker-src"      " 'none';"
@@ -167,7 +166,7 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const
 	, files[reqNum].lenData, domain, domain, domain, domain);
 
 	size_t lenData = strlen(data);
-//	printf("LenHeaders=%zd\n", lenData - AEM_LEN_DOMAIN * 4);
+//	printf("LenHeaders=%zd\n", lenData - lenDomain * 4);
 
 	memcpy(data + lenData, files[reqNum].data, files[reqNum].lenData);
 	lenData += files[reqNum].lenData;
