@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <math.h>
 
@@ -585,6 +586,10 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 		if (addr == NULL) return;
 		randombytes_buf(addr, 18);
 	} else {
+		for (size_t i = 0; i < lenDecrypted; i++) {
+			if (isupper(*decrypted[i])) *decrypted[i] = tolower(*decrypted[i]);
+		}
+
 		addr = textToSixBit((*decrypted), lenDecrypted, 18);
 		sodium_free(*decrypted);
 		if (addr == NULL) return;
