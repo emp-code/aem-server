@@ -149,6 +149,10 @@ const uint32_t clientIp, const int cs, const unsigned char infoByte, const unsig
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
+		for (size_t i = 0; i < lenTo; i++) {
+			if (isupper(toStart[i])) toStart[i] = tolower(toStart[i]);
+		}
+
 		unsigned char *binTo = textToSixBit(toStart, lenTo, 18);
 		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
