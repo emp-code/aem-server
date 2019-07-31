@@ -356,12 +356,18 @@ function addExtMessages() {
 		cellTitle.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden = false;
+
 			document.getElementById("readmsg_levelinfo").hidden = true;
-			document.getElementById("readmsg_greetinfo").hidden = false;
-			if (ae.GetExtMsgEsmtp(i))
-				document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i) + " (ESMTP)";
-			else
-				document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i) + " (SMTP)";
+			document.getElementById("readmsg_extmsg").hidden = false;
+			document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
+
+			let flagText = "";
+			if (ae.GetExtMsgFlagPExt(i)) flagText += "ESMTP ";
+			if (ae.GetExtMsgFlagQuit(i)) flagText += "QUIT ";
+			if (ae.GetExtMsgFlagRare(i)) flagText += "RARE ";
+			if (ae.GetExtMsgFlagFail(i)) flagText += "FAIL ";
+			if (ae.GetExtMsgFlagPErr(i)) flagText += "PERR ";
+			document.getElementById("readmsg_flags").textContent = flagText.trim();
 
 			document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);

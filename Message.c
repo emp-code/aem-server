@@ -16,7 +16,7 @@ IntMsg
 		[1B uint8_t] InfoByte
 			0: Message type (0)
 			1: Message type (0)
-			2:
+			2: (Reserved) (0)
 			3:
 			4: Sender membership level (+1 if set)
 			5: Sender membership level (+2 if set)
@@ -37,16 +37,19 @@ ExtMsg
 		[1B] InfoByte
 			0: Message type (1)
 			1: Message type (0)
-			2:
-			3:
-			4:
-			5:
-			6:
+			2: (Reserved) (0)
+			3: Protocol violation (commands out of order, etc)
+			4: Invalid commands received
+			5: Unusual commands (NOOP/RSET/etc) received
+			6: QUIT received
 			7: Protocol (ESMTP if set, SMTP if not set)
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
 		[4B int32_t] Ciphersuite
-		[10B] (unused)
+		[4B int32_t] GeoID
+		[4B] (unused)
+		[1B uint8_t] Number of attachements
+		[1B] SpamByte
 		[18B char*] AddressTo (24c SixBit)
 
 	BodyBox:
@@ -62,7 +65,7 @@ TextNote
 		[1B uint8_t] InfoByte
 			0: Message type (0)
 			1: Message type (1)
-			2:
+			2: (Reserved) (0)
 			3:
 			4:
 			5:
@@ -145,19 +148,21 @@ unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], co
 	return boxSet;
 }
 
-static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const uint32_t ip, const int32_t cs, const bool esmtp) {
+static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo,
+const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, uint8_t infoByte, const uint8_t spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	unsigned char infoByte = 0;
 	BIT_SET(infoByte, 0);
-	if (esmtp) BIT_SET(infoByte, 7);
 
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
 	memcpy(plaintext + 1, &ts, 4);
 	memcpy(plaintext + 5, &ip, 4);
 	memcpy(plaintext + 9, &cs, 4);
-	// 10 bytes unused
+	memcpy(plaintext + 13, &geoId, 4);
+	// 17-20 (4 bytes) unused
+	plaintext[21] = attach;
+	plaintext[22] = spamByte;
 	memcpy(plaintext + 23, binTo, 18);
 
 	unsigned char *ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
@@ -166,8 +171,9 @@ static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLI
 	return ciphertext;
 }
 
-unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen, const uint32_t ip, const int32_t cs, const bool esmtp) {
-	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, esmtp);
+unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen,
+const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
+	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, geoId, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
 	unsigned char *bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);

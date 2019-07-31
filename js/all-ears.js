@@ -52,12 +52,12 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewExtMsg(id, ts, ip, cs, greet, esmtp, from, to, title, body) {
+	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, from, to, title, body) {
 		this.id = id;
 		this.ts = ts;
 		this.cs = cs;
 		this.greet = greet;
-		this.esmtp = esmtp;
+		this.info = infobyte;
 		this.from = from;
 		this.to = to;
 		this.title = title;
@@ -242,11 +242,16 @@ function AllEars() {
 	this.GetExtMsgTime   = function(num) {return _extMsg[num].ts;}
 	this.GetExtMsgCipher = function(num) {return "TODO";} // _extMsg[num].cs -> ciphersuite name
 	this.GetExtMsgGreet  = function(num) {return _extMsg[num].greet;}
-	this.GetExtMsgEsmtp  = function(num) {return _extMsg[num].esmtp;}
 	this.GetExtMsgFrom   = function(num) {return _extMsg[num].from;}
 	this.GetExtMsgTo     = function(num) {return _extMsg[num].to;}
 	this.GetExtMsgTitle  = function(num) {return _extMsg[num].title;}
 	this.GetExtMsgBody   = function(num) {return _extMsg[num].body;}
+
+	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);} // Protocol Error
+	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);} // Invalid command used
+	this.GetExtMsgFlagRare = function(num) {return _BitTest(_extMsg[num].info, 5);} // Rare/unusual command used
+	this.GetExtMsgFlagQuit = function(num) {return _BitTest(_extMsg[num].info, 6);} // QUIT command issued
+	this.GetExtMsgFlagPExt = function(num) {return _BitTest(_extMsg[num].info, 7);} // Protocol Extended (ESMTP)
 
 	this.GetNoteCount = function() {return _textNote.length;}
 	this.GetNoteId = function(num) {return _textNote[num].id;}
@@ -433,8 +438,8 @@ function AllEars() {
 
 					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
 				} else if (_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 1,0 ExtMsg
-					const em_esmtp = _BitTest(msgHead[0], 7);
-					
+					const em_infobyte = msgHead[0];
+
 					let u32bytes = msgHead.slice(1, 5).buffer;
 					const em_ts = new Uint32Array(u32bytes)[0];
 
@@ -466,7 +471,7 @@ function AllEars() {
 					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
 					const em_body = msgBodyUtf8.slice(secondLf + 1);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_esmtp, em_from, em_to, em_title, em_body));
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_from, em_to, em_title, em_body));
 				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];
