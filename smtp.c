@@ -143,7 +143,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ssl_free(ssl);
 }
 
-void deliverMessage(char *to, const size_t lenToTotal, const char *from, const size_t lenFrom, const char *msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const unsigned char infoByte) {
+static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody, const uint32_t clientIp, const int cs, const unsigned char infoByte) {
 	char *toStart = to;
 	const char *toEnd = to + lenToTotal;
 
@@ -158,8 +158,8 @@ void deliverMessage(char *to, const size_t lenToTotal, const char *from, const s
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
 		int ret = getPublicKeyFromAddress(binTo, pk, (unsigned char*)"TestTestTestTest");
 		if (ret != 0) {
+			puts("[SMTP] Discarding email sent to nonexistent address");
 			free(binTo);
-			printf("[SMTP] Discarding email sent to nonexistent address: %.*s (%zd bytes)\n", (int)lenTo, toStart, lenTo);
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
 			continue;
@@ -173,9 +173,9 @@ void deliverMessage(char *to, const size_t lenToTotal, const char *from, const s
 		size_t bodyLen = lenMsgBody;
 		unsigned char *boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, clientIp, cs, geoId, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+		free(binTo);
 
 		if (boxSet == NULL) {
-			free(binTo);
 			puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed");
 			toStart = nextTo + 1;
 			continue;
@@ -185,11 +185,9 @@ void deliverMessage(char *to, const size_t lenToTotal, const char *from, const s
 		memcpy(&upk64, pk, 8);
 		ret = addUserMessage(upk64, boxSet, bsLen);
 		free(boxSet);
-		free(binTo);
 		if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
 
 		if (nextTo == NULL) return;
-
 		toStart = nextTo + 1;
 	}
 }
