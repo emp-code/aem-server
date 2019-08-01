@@ -12,17 +12,17 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,\
 MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 
-#define AEM_SMTP_SIZE_BODY 65536 // RFC5321: min. 64k; if changed, set the HLO responses and their lengths below also
+#define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 
-#define AEM_EHLO_RESPONSE_LEN 32
+#define AEM_EHLO_RESPONSE_LEN 33
 #define AEM_EHLO_RESPONSE \
-"\r\n250-SIZE 65536" \
+"\r\n250-SIZE 262144" \
 "\r\n250 STARTTLS" \
 "\r\n"
 
-#define AEM_SHLO_RESPONSE_LEN 18
+#define AEM_SHLO_RESPONSE_LEN 19
 #define AEM_SHLO_RESPONSE \
-"\r\n250 SIZE 65536" \
+"\r\n250 SIZE 262144" \
 "\r\n"
 
 #include <arpa/inet.h>
@@ -53,6 +53,7 @@ static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char *buf, const s
 
 	int ret;
 	do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+
 	return ret;
 }
 
