@@ -25,6 +25,10 @@
 #include "https.h"
 #include "smtp.h"
 
+#define AEM_PORT_HTTP 80
+#define AEM_PORT_HTTPS 443
+#define AEM_PORT_SMTP 25
+
 int dropRoot() {
 	if (getuid() != 0) return 1;
 
@@ -66,9 +70,9 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-static void receiveConnections_http(const int port, const char * const domain, const size_t lenDomain) {
+static void receiveConnections_http(const char * const domain, const size_t lenDomain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, port) != 0) {
+	if (initSocket(&sock, AEM_PORT_HTTP) != 0) {
 		puts("[Main.HTTP] Failed to create HTTP socket");
 		return;
 	}
@@ -241,7 +245,7 @@ static int loadAddrKey(unsigned char * const addrKey) {
 	return 1;
 }
 
-static int receiveConnections_https(const int port, const char *domain, const size_t lenDomain) {
+static int receiveConnections_https(const char *domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("[Main.HTTPS] Terminating: missing html/index.html");
 		return 1;
@@ -304,7 +308,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) ret = -2;
-	if (ret == 0) {if (initSocket(&sock, port) != 0) ret = -3;}
+	if (ret == 0) {if (initSocket(&sock, AEM_PORT_HTTPS) != 0) ret = -3;}
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
 
 	if (ret == 0) {
@@ -346,7 +350,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	return 0;
 }
 
-static int receiveConnections_smtp(const int port, const char *domain, const size_t lenDomain) {
+static int receiveConnections_smtp(const char *domain, const size_t lenDomain) {
 	mbedtls_x509_crt tlsCert;
 	int ret = loadTlsCert(&tlsCert);
 	if (ret < 0) {
@@ -373,7 +377,7 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) ret = -2;
-	if (ret == 0) {if (initSocket(&sock, port) != 0) ret = -3;}
+	if (ret == 0) {if (initSocket(&sock, AEM_PORT_SMTP) != 0) ret = -3;}
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
 
 	if (ret == 0) {
@@ -416,21 +420,16 @@ int main() {
 	// TODO config from file
 	const char *domain = "allears.test";
 	const size_t lenDomain = strlen(domain);
-	const int portHttp = 80;
-	const int portHttps = 443;
-	const int portSmtp = 25;
 
-	int pid;
+	int pid = fork();
+	if (pid < 0) return 1;
+	if (pid == 0) return receiveConnections_https(domain, lenDomain);
 
 	pid = fork();
 	if (pid < 0) return 1;
-	if (pid == 0) return receiveConnections_https(portHttps, domain, lenDomain);
+	if (pid == 0) return receiveConnections_smtp(domain, lenDomain);
 
-	pid = fork();
-	if (pid < 0) return 1;
-	if (pid == 0) return receiveConnections_smtp(portSmtp, domain, lenDomain);
-
-	receiveConnections_http(portHttp, domain, lenDomain);
+	receiveConnections_http(domain, lenDomain);
 
 	return 0;
 }
