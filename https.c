@@ -360,13 +360,17 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	free(data);
 }
 
-static unsigned char *addr2bin(char *c, const size_t len) {
+static unsigned char *addr2bin(const char * const c, const size_t len) {
 	if (len <= 24) {
-		for (size_t i = 0; i < lenDecrypted; i++) {
-			if (isupper(c[i])) c[i] = tolower(c[i]);
+		char d[len];
+		for (size_t i = 0; i < len; i++) {
+			if (isupper(c[i]))
+				d[i] = tolower(c[i]);
+			else
+				d[i] = c[i];
 		}
 
-		return textToSixBit(c, len, 18);
+		return textToSixBit(d, len, 18);
 	}
 
 	if (len != 36) return NULL;
