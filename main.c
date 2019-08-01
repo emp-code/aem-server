@@ -49,12 +49,12 @@ int dropRoot() {
 }
 
 // Allow restarting the server immediately after kill
-static void allowQuickRestart(const int* sock) {
+static void allowQuickRestart(const int * const sock) {
 	const int optval = 1;
 	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 }
 
-static int initSocket(const int *sock, const int port) {
+static int initSocket(const int * const sock, const int port) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
@@ -90,7 +90,7 @@ static void receiveConnections_http(const char * const domain, const size_t lenD
 	}
 }
 
-static int aem_countFiles(const char *path, const char *ext, const size_t extLen) {
+static int aem_countFiles(const char * const path, const char * const ext, const size_t extLen) {
 	DIR *dir = opendir(path);
 	if (dir == NULL) return 0;
 
@@ -106,7 +106,7 @@ static int aem_countFiles(const char *path, const char *ext, const size_t extLen
 	return counter;
 }
 
-static struct aem_file *aem_loadFiles(const char *path, const char *ext, const size_t extLen, const int fileCount, const unsigned char *spk) {
+static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount, const unsigned char * const spk) {
 	if (fileCount < 1) return NULL;
 
 	DIR* dir = opendir(path);
@@ -189,7 +189,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 	return f;
 }
 
-static int loadTlsCert(mbedtls_x509_crt *cert) {
+static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	const int fd = open("AllEars/TLS.crt", O_RDONLY);
 	if (fd < 0) return 1;
 	const off_t lenFile = lseek(fd, 0, SEEK_END);
@@ -211,7 +211,7 @@ static int loadTlsCert(mbedtls_x509_crt *cert) {
 
 }
 
-static int loadTlsKey(mbedtls_pk_context *key) {
+static int loadTlsKey(mbedtls_pk_context * const key) {
 	// TLS Key
 	const int fd = open("AllEars/TLS.key", O_RDONLY);
 	if (fd < 0) return 1;
@@ -245,7 +245,7 @@ static int loadAddrKey(unsigned char * const addrKey) {
 	return 1;
 }
 
-static int receiveConnections_https(const char *domain, const size_t lenDomain) {
+static int receiveConnections_https(const char * const domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("[Main.HTTPS] Terminating: missing html/index.html");
 		return 1;
@@ -350,7 +350,7 @@ static int receiveConnections_https(const char *domain, const size_t lenDomain) 
 	return 0;
 }
 
-static int receiveConnections_smtp(const char *domain, const size_t lenDomain) {
+static int receiveConnections_smtp(const char * const domain, const size_t lenDomain) {
 	mbedtls_x509_crt tlsCert;
 	int ret = loadTlsCert(&tlsCert);
 	if (ret < 0) {
@@ -418,7 +418,7 @@ int main() {
 	}
 
 	// TODO config from file
-	const char *domain = "allears.test";
+	const char * const domain = "allears.test";
 	const size_t lenDomain = strlen(domain);
 
 	int pid = fork();
