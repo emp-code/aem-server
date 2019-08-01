@@ -149,20 +149,20 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 					f[counter].lenData = bytes;
 
 					f[counter].data = sodium_malloc(bytes);
-					if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
+					if (f[counter].data == NULL) {printf("[Main.HTTPS] Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
 					memcpy(f[counter].data, tempData, bytes);
 					sodium_mprotect_readonly(f[counter].data);
 					free(tempData);
 
 					printf("[Main.HTTPS] Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
 				} else {
-					printf("Failed to load %s\n", de->d_name);
+					printf("[Main.HTTPS] Failed to load %s\n", de->d_name);
 					free(tempData);
 				}
 			} else {
 				// Files not to be compressed
 				f[counter].data = sodium_malloc(bytes);
-				if (f[counter].data == NULL) {printf("Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
+				if (f[counter].data == NULL) {printf("[Main.HTTPS] Failed to allocate memory (Sodium) for loading %s. Quitting.\n", de->d_name); break;}
 
 				const ssize_t readBytes = pread(fd, f[counter].data, bytes, 0);
 				close(fd);
