@@ -592,11 +592,15 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 	} else {
 		if (lenDecrypted > 24) return;
 
+		char d[lenDecrypted];
 		for (size_t i = 0; i < lenDecrypted; i++) {
-			if (isupper(*decrypted[i])) *decrypted[i] = tolower(*decrypted[i]);
+			if (isupper((*decrypted)[i]))
+				d[i] = tolower((*decrypted)[i]);
+			else
+				d[i] = (*decrypted)[i];
 		}
 
-		addr = textToSixBit((*decrypted), lenDecrypted, 18);
+		addr = textToSixBit(d, lenDecrypted, 18);
 		sodium_free(*decrypted);
 		if (addr == NULL) return;
 	}
