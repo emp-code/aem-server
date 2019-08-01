@@ -360,6 +360,7 @@ function addExtMessages() {
 			document.getElementById("readmsg_levelinfo").hidden = true;
 			document.getElementById("readmsg_extmsg").hidden = false;
 			document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
+			document.getElementById("readmsg_cs").textContent = ae.GetExtMsgCipher(i);
 
 			let flagText = "";
 			if (ae.GetExtMsgFlagPExt(i)) flagText += "ESMTP ";

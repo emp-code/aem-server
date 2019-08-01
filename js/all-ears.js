@@ -203,6 +203,21 @@ function AllEars() {
 		return addrData;
 	}
 
+	const _GetCiphersuite = function(cs) {
+		if (typeof(cs) !== "number") return "(error)";
+
+		switch(cs) {
+			case 0: return "TLS not used"
+			case 49196: return "ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
+			case 49200: return "ECDHE_RSA_WITH_AES_256_GCM_SHA384";
+			case 49195: return "ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
+			case 49199: return "ECDHE_RSA_WITH_AES_128_GCM_SHA256";
+			case 52393: return "ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256";
+			case 52392: return "ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
+			default: return "(Unknown ciphersuite value)";
+		}
+	}
+
 // Public
 	this.GetLevelMax = function() {return _maxLevel;}
 
@@ -241,7 +256,7 @@ function AllEars() {
 	this.GetExtMsgCount = function() {return _extMsg.length;}
 	this.GetExtMsgId      = function(num) {return _extMsg[num].id;}
 	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;}
-	this.GetExtMsgCipher  = function(num) {return "TODO";} // _extMsg[num].cs -> ciphersuite name
+	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);}
 	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;}
 	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;}
 	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;}
