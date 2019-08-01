@@ -176,57 +176,88 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 	return f;
 }
 
+static int loadTlsCert(mbedtls_x509_crt *cert) {
+	const int fd = open("AllEars/TLS.crt", O_RDONLY);
+	if (fd < 0) return 1;
+	const off_t lenFile = lseek(fd, 0, SEEK_END);
+
+	unsigned char *data = calloc(lenFile + 2, 1);
+	const ssize_t readBytes = pread(fd, data, lenFile, 0);
+	close(fd);
+	if (readBytes != lenFile) {free(data); return 2;}
+
+	mbedtls_x509_crt_init(cert);
+	const int ret = mbedtls_x509_crt_parse(cert, data, lenFile + 1);
+	free(data);
+	if (ret == 0) return 0;
+
+	char error_buf[100];
+	mbedtls_strerror(ret, error_buf, 100);
+	printf("[Main.Cert] mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+	return 1;
+
+}
+
+static int loadTlsKey(mbedtls_pk_context *key) {
+	// TLS Key
+	const int fd = open("AllEars/TLS.key", O_RDONLY);
+	if (fd < 0) return 1;
+	const off_t lenFile = lseek(fd, 0, SEEK_END);
+
+	unsigned char *data = calloc(lenFile + 2, 1);
+	const off_t readBytes = pread(fd, data, lenFile, 0);
+	close(fd);
+	if (readBytes != lenFile) {free(data); return 1;}
+
+	mbedtls_pk_init(key);
+	const int ret = mbedtls_pk_parse_key(key, data, lenFile + 2, NULL, 0);
+	free(data);
+	if (ret == 0) return 0;
+
+	char error_buf[100];
+	mbedtls_strerror(ret, error_buf, 100);
+	printf("[Main.Cert] mbedtls_pk_parse_key returned %d: %s\n", ret, error_buf);
+	return 1;
+}
+
+static int loadAddrKey(unsigned char * const addrKey) {
+	// Address Key
+	const int fd = open("AllEars/Address.key", O_RDONLY);
+	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
+	const off_t readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
+	close(fd);
+	if (readBytes == crypto_pwhash_SALTBYTES) return 0;
+
+	printf("[Main.AddrKey] pread returned: %ld\n", readBytes);
+	return 1;
+}
+
 static int receiveConnections_https(const int port, const char *domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("[Main HTTPS] Terminating: missing html/index.html");
 		return 1;
 	}
 
-	// TLS Certificate
-	int fd = open("AllEars/TLS.crt", O_RDONLY);
-	if (fd < 0) return 1;
-	off_t lenFile = lseek(fd, 0, SEEK_END);
-
-	unsigned char *cert = calloc(lenFile + 2, 1);
-	ssize_t readBytes = pread(fd, cert, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(cert); return 2;}
-
-	mbedtls_x509_crt srvcert;
-	mbedtls_x509_crt_init(&srvcert);
-	int ret = mbedtls_x509_crt_parse(&srvcert, cert, lenFile + 1);
-	free(cert);
-
-	if (ret != 0) {
-		char error_buf[100];
-		mbedtls_strerror(ret, error_buf, 100);
-		printf("[Main HTTPS] Failed to load TLS cert: mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+	mbedtls_x509_crt tlsCert;
+	int ret = loadTlsCert(&tlsCert);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load TLS certificate");
 		return 1;
 	}
 
-	// TLS Key
-	fd = open("AllEars/TLS.key", O_RDONLY);
-	if (fd < 0) return 1;
-	lenFile = lseek(fd, 0, SEEK_END);
+	mbedtls_pk_context tlsKey;
+	ret = loadTlsKey(&tlsKey);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load TLS key");
+		return 1;
+	}
 
-	unsigned char *key = calloc(lenFile + 2, 1);
-	readBytes = pread(fd, key, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(key); return 1;}
-
-	mbedtls_pk_context pkey;
-	mbedtls_pk_init(&pkey);
-	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
-	free(key);
-	if (ret != 0) {printf("[Main HTTPS] Failed to load TLS key: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
-
-	// Address Key
 	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	fd = open("AllEars/Address.key", O_RDONLY);
-	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
-	readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
-	close(fd);
-	if (readBytes != crypto_pwhash_SALTBYTES) return 1;
+	ret = loadAddrKey(addrKey);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load address key");
+		return 1;
+	}
 
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
@@ -278,7 +309,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 			if (pid < 0) {puts("[Main HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &srvcert, &pkey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
+				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
@@ -298,58 +329,33 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	sodium_free(fileJs);
 	sodium_free(fileSet);
 
-	mbedtls_x509_crt_free(&srvcert);
-	mbedtls_pk_free(&pkey);
+	mbedtls_x509_crt_free(&tlsCert);
+	mbedtls_pk_free(&tlsKey);
 	close(sock);
 	return 0;
 }
 
 static int receiveConnections_smtp(const int port, const char *domain, const size_t lenDomain) {
-	// TLS Certificate
-	int fd = open("AllEars/TLS.crt", O_RDONLY);
-	if (fd < 0) return 1;
-	off_t lenFile = lseek(fd, 0, SEEK_END);
-
-	unsigned char *cert = calloc(lenFile + 2, 1);
-	ssize_t readBytes = pread(fd, cert, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(cert); return 2;}
-
-	mbedtls_x509_crt srvcert;
-	mbedtls_x509_crt_init(&srvcert);
-	int ret = mbedtls_x509_crt_parse(&srvcert, cert, lenFile + 1);
-	free(cert);
-
-	if (ret != 0) {
-		char error_buf[100];
-		mbedtls_strerror(ret, error_buf, 100);
-		printf("[Main SMTP] Loading TLS cert failed: mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+	mbedtls_x509_crt tlsCert;
+	int ret = loadTlsCert(&tlsCert);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load TLS certificate");
 		return 1;
 	}
 
-	// TLS Key
-	fd = open("AllEars/TLS.key", O_RDONLY);
-	if (fd < 0) return 1;
-	lenFile = lseek(fd, 0, SEEK_END);
+	mbedtls_pk_context tlsKey;
+	ret = loadTlsKey(&tlsKey);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load TLS key");
+		return 1;
+	}
 
-	unsigned char *key = calloc(lenFile + 2, 1);
-	readBytes = pread(fd, key, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(key); return 1;}
-
-	mbedtls_pk_context pkey;
-	mbedtls_pk_init(&pkey);
-	ret = mbedtls_pk_parse_key(&pkey, key, lenFile + 2, NULL, 0);
-	free(key);
-	if (ret != 0) {printf("[Main SMTP] Loading TLS key failed: mbedtls_pk_parse_key returned %x\n", ret); return 1;}
-
-	// Address Key
 	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	fd = open("AllEars/Address.key", O_RDONLY);
-	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
-	readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
-	close(fd);
-	if (readBytes != crypto_pwhash_SALTBYTES) return 1;
+	ret = loadAddrKey(addrKey);
+	if (ret < 0) {
+		puts("[Main.HTTPS] Terminating: failed to load address key");
+		return 1;
+	}
 
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
@@ -370,15 +376,15 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 			if (pid < 0) {puts("[Main SMTP] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_smtp(newSock, &srvcert, &pkey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
+				respond_smtp(newSock, &tlsCert, &tlsKey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
 	}
 
-	mbedtls_x509_crt_free(&srvcert);
-	mbedtls_pk_free(&pkey);
+	mbedtls_x509_crt_free(&tlsCert);
+	mbedtls_pk_free(&tlsKey);
 	close(sock);
 	return 0;
 }
