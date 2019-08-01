@@ -66,10 +66,19 @@ static int initSocket(const int *sock, const int port) {
 	return 0;
 }
 
-static void receiveConnections_http(const int port, const char *domain, const size_t lenDomain) {
+static void receiveConnections_http(const int port, const char * const domain, const size_t lenDomain) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, port) != 0) {puts("[Main] Failed to create HTTP socket"); return;}
-	if (dropRoot() != 0) {puts("[Main] dropRoot() failed"); return;}
+	if (initSocket(&sock, port) != 0) {
+		puts("[Main.HTTP] Failed to create HTTP socket");
+		return;
+	}
+
+	if (dropRoot() != 0) {
+		puts("[Main.HTTP] dropRoot() failed");
+		return;
+	}
+
+	puts("[Main.HTTP] Ready");
 
 	while(1) {
 		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
@@ -116,7 +125,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 				// Files to be compressed
 				char *tempData = malloc(bytes);
-				if (tempData == NULL) {printf("[Main HTTPS] Failed to allocate memory for loading %s. Quitting.\n", de->d_name); break;}
+				if (tempData == NULL) {printf("[Main.HTTPS] Failed to allocate memory for loading %s. Quitting.\n", de->d_name); break;}
 
 				const ssize_t readBytes = pread(fd, tempData, bytes, 0);
 				close(fd);
@@ -141,7 +150,7 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 					sodium_mprotect_readonly(f[counter].data);
 					free(tempData);
 
-					printf("[Main HTTPS] Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
+					printf("[Main.HTTPS] Loaded %s (%zd bytes compressed)\n", f[counter].filename, f[counter].lenData);
 				} else {
 					printf("Failed to load %s\n", de->d_name);
 					free(tempData);
@@ -160,9 +169,9 @@ static struct aem_file *aem_loadFiles(const char *path, const char *ext, const s
 					f[counter].lenData = bytes;
 					f[counter].filename = strdup(de->d_name);
 
-					printf("[Main HTTPS] Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
+					printf("[Main.HTTPS] Loaded %s (%zd bytes)\n", f[counter].filename, f[counter].lenData);
 				} else {
-					printf("[Main HTTPS] Failed to load %s\n", de->d_name);
+					printf("[Main.HTTPS] Failed to load %s\n", de->d_name);
 					sodium_free(f[counter].data);
 				}
 			}
@@ -234,7 +243,7 @@ static int loadAddrKey(unsigned char * const addrKey) {
 
 static int receiveConnections_https(const int port, const char *domain, const size_t lenDomain) {
 	if (access("html/index.html", R_OK) == -1 ) {
-		puts("[Main HTTPS] Terminating: missing html/index.html");
+		puts("[Main.HTTPS] Terminating: missing html/index.html");
 		return 1;
 	}
 
@@ -267,7 +276,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	int numImg  = aem_countFiles("img",  ".webp", 5);
 	int numJs   = aem_countFiles("js",   ".js",   3);
 
-	printf("[Main HTTPS] Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
+	printf("[Main.HTTPS] Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
 	// Keys for web API
 	unsigned char *spk = malloc(crypto_box_PUBLICKEYBYTES);
@@ -282,7 +291,7 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	free(spk);
 
 	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
-	if (fileSet == NULL) {puts("[Main HTTPS] Failed to allocate memory for fileSet"); return 1;}
+	if (fileSet == NULL) {puts("[Main.HTTPS] Failed to allocate memory for fileSet"); return 1;}
 	fileSet->cssFiles  = fileCss;
 	fileSet->htmlFiles = fileHtml;
 	fileSet->imgFiles  = fileImg;
@@ -299,14 +308,16 @@ static int receiveConnections_https(const int port, const char *domain, const si
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
 
 	if (ret == 0) {
+		puts("[Main.HTTPS] Ready");
+
 		while(1) {
 			struct sockaddr_in clientAddr;
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-			if (newSock < 0) {puts("[Main HTTPS] Failed to create socket for accepting connection"); break;}
+			if (newSock < 0) {puts("[Main.HTTPS] Failed to create socket for accepting connection"); break;}
 
 			const int pid = fork();
-			if (pid < 0) {puts("[Main HTTPS] Failed fork"); break;}
+			if (pid < 0) {puts("[Main.HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
 				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
@@ -366,14 +377,16 @@ static int receiveConnections_smtp(const int port, const char *domain, const siz
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
 
 	if (ret == 0) {
+		puts("[Main.SMTP] Ready");
+
 		while(1) {
 			struct sockaddr_in clientAddr;
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-			if (newSock < 0) {puts("[Main SMTP] Failed to create socket for accepting connection"); break;}
+			if (newSock < 0) {puts("[Main.SMTP] Failed to create socket for accepting connection"); break;}
 
 			const int pid = fork();
-			if (pid < 0) {puts("[Main SMTP] Failed fork"); break;}
+			if (pid < 0) {puts("[Main.SMTP] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
 				respond_smtp(newSock, &tlsCert, &tlsKey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
@@ -396,7 +409,7 @@ int main() {
 	puts(">>> ae-mail: All-Ears Mail");
 
 	if (sodium_init() < 0) {
-		puts("Failed to initialize libsodium. Quitting.");
+		puts("[Main] Failed to initialize libsodium. Quitting.");
 		return 1;
 	}
 
