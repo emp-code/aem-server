@@ -326,6 +326,24 @@ function addIntMessages() {
 	}
 }
 
+function getCountryName(countryCode) {
+	const opts = document.getElementById("gatekeeper_country");
+
+	for (let i = 0; i < opts.length; i++) {
+		if (opts[i].value == countryCode) {
+			return opts[i].textContent;
+		}
+	}
+
+	return "Unknown countrycode: " + countryCode;
+}
+
+function getCountryFlag(countryCode) {
+	const regionalIndicator1 = 127462 + countryCode.codePointAt(0) - 65;
+	const regionalIndicator2 = 127462 + countryCode.codePointAt(1) - 65;
+	return "&#" + regionalIndicator1 + ";&#" + regionalIndicator2 + ";";
+}
+
 function addExtMessages() {
 	const tblInbox = document.getElementById("tbody_inbox");
 	const tblSent = document.getElementById("tbody_sentbox");
@@ -362,7 +380,9 @@ function addExtMessages() {
 			document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
 			document.getElementById("readmsg_cs").textContent = ae.GetExtMsgCipher(i);
 			document.getElementById("readmsg_ip").textContent = ae.GetExtMsgIp(i);
-			document.getElementById("readmsg_country").textContent = ae.GetExtMsgCountry(i);
+
+			const cc = ae.GetExtMsgCountry(i);
+			document.getElementById("readmsg_country").innerHTML = getCountryName(cc) + " " + getCountryFlag(cc);
 
 			let flagText = "";
 			if (ae.GetExtMsgFlagPExt(i)) flagText += "ESMTP ";
