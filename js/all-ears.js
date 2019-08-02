@@ -260,16 +260,13 @@ function AllEars() {
 	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;}
 	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);}
 	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;}
+	this.GetExtMsgIp      = function(num) {return "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];}
 	this.GetExtMsgCountry = function(num) {return _extMsg[num].countrycode;}
 	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;}
 	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;}
 	this.GetExtMsgTitle   = function(num) {return _extMsg[num].title;}
 	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;}
 	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;}
-	this.GetExtMsgIp      = function(num) {
-		let res = "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];
-		return res;
-	}
 
 	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);} // Protocol Error
 	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);} // Invalid command used
