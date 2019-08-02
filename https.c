@@ -220,37 +220,6 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-// Tracking Status Resource for DNT
-static void respond_https_tsr(mbedtls_ssl_context *ssl) {
-	const char data[] =
-	"HTTP/1.1 200 aem\r\n"
-	"Tk: N\r\n"
-	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-	"Connection: close\r\n"
-	"Content-Type: application/tracking-status+json\r\n"
-	"Content-Length: 16\r\n"
-	"\r\n"
-	"{\"tracking\": \"N\"}";
-
-	sendData(ssl, data, 195);
-}
-
-// robots.txt
-static void respond_https_robots(mbedtls_ssl_context *ssl) {
-	const char* data =
-	"HTTP/1.1 200 aem\r\n"
-	"Tk: N\r\n"
-	"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-	"Connection: close\r\n"
-	"Content-Type: text/plain; charset=utf-8\r\n"
-	"Content-Length: 26\r\n"
-	"\r\n"
-	"User-agent: *\r\n"
-	"Disallow: /";
-
-	sendData(ssl, data, 197);
-}
-
 static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) {
 	// Nonce is encrypted to protect against leaking server time etc
 	// One-way encryption (hashing) would work, but TEA guarantees no collision risk
@@ -705,9 +674,6 @@ static void respond_https_accountlevel(mbedtls_ssl_context *ssl, const int64_t u
 static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
 	if (lenUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
-
-	if (lenUrl == 15 && memcmp(url, ".well-known/dnt", 15) == 0) return respond_https_tsr(ssl);
-	if (lenUrl == 10 && memcmp(url, "robots.txt",      10) == 0) return respond_https_robots(ssl);
 
 	if (lenUrl > 4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
 	if (lenUrl > 4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
