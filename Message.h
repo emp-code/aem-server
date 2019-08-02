@@ -13,6 +13,6 @@
 
 unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binFrom, const unsigned char *binTo, const char *bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield);
 unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen,
-	const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte);
+	const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte);
 
 #endif

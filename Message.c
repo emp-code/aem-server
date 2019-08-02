@@ -46,8 +46,8 @@ ExtMsg
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
 		[4B int32_t] Ciphersuite
-		[4B int32_t] GeoID
-		[4B] (unused)
+		[6B] (unused)
+		[2B char*] ISO 3166-1 alpha-2 country code
 		[1B uint8_t] Number of attachements
 		[1B] SpamByte
 		[18B char*] AddressTo (24c SixBit)
@@ -149,7 +149,7 @@ unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], co
 }
 
 static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo,
-const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, uint8_t infoByte, const uint8_t spamByte) {
+const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, uint8_t infoByte, const uint8_t spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	BIT_SET(infoByte, 0);
@@ -159,8 +159,8 @@ const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, 
 	memcpy(plaintext + 1, &ts, 4);
 	memcpy(plaintext + 5, &ip, 4);
 	memcpy(plaintext + 9, &cs, 4);
-	memcpy(plaintext + 13, &geoId, 4);
-	bzero(plaintext + 17, 4); // 17-20 (4 bytes) unused
+	bzero(plaintext + 13, 6); // 13-18 (6 bytes) unused
+	memcpy(plaintext + 19, &countryCode, 2);
 	plaintext[21] = attach;
 	plaintext[22] = spamByte;
 	memcpy(plaintext + 23, binTo, 18);
@@ -172,8 +172,8 @@ const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, 
 }
 
 unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen,
-const uint32_t ip, const int32_t cs, const int32_t geoId, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
-	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, geoId, attach, infoByte, spamByte);
+const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
+	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
 	unsigned char *bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);

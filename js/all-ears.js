@@ -52,12 +52,14 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, from, to, title, headers, body) {
+	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, countrycode, from, to, title, headers, body) {
 		this.id = id;
 		this.ts = ts;
+		this.ip = ip;
 		this.cs = cs;
 		this.greet = greet;
 		this.info = infobyte;
+		this.countrycode = countrycode;
 		this.from = from;
 		this.to = to;
 		this.title = title;
@@ -258,11 +260,16 @@ function AllEars() {
 	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;}
 	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);}
 	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;}
+	this.GetExtMsgCountry = function(num) {return _extMsg[num].countrycode;}
 	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;}
 	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;}
 	this.GetExtMsgTitle   = function(num) {return _extMsg[num].title;}
 	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;}
 	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;}
+	this.GetExtMsgIp      = function(num) {
+		let res = "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];
+		return res;
+	}
 
 	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);} // Protocol Error
 	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);} // Invalid command used
@@ -460,11 +467,12 @@ function AllEars() {
 					let u32bytes = msgHead.slice(1, 5).buffer;
 					const em_ts = new Uint32Array(u32bytes)[0];
 
-					u32bytes = msgHead.slice(5, 9).buffer;
-					const em_ip = new Uint32Array(u32bytes)[0];
+					const em_ip = msgHead.slice(5, 9);
 
 					u32bytes = msgHead.slice(9, 13).buffer;
 					const em_cs = new Uint32Array(u32bytes)[0];
+
+					const em_countrycode = nacl.decode_utf8(msgHead.slice(19, 21));
 
 					const em_to = _DecodeOwnAddress(msgHead, 23, nacl);
 
@@ -494,7 +502,7 @@ function AllEars() {
 					const em_headers = body.slice(0, headersEnd);
 					const em_body = body.slice(headersEnd + 4);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_from, em_to, em_title, em_headers, em_body));
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];

@@ -393,7 +393,7 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 			if (pid < 0) {puts("[Main.SMTP] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_smtp(newSock, &tlsCert, &tlsKey, addrKey, seed, domain, lenDomain, clientAddr.sin_addr.s_addr);
+				respond_smtp(newSock, &tlsCert, &tlsKey, addrKey, seed, domain, lenDomain, &clientAddr);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
