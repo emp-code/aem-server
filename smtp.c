@@ -1,6 +1,6 @@
 #define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
 
-#define AEM_SMTP_MAX_ADDRSIZE 50 // Should be 37+lenDomain
+#define AEM_SMTP_MAX_ADDRSIZE 100
 #define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_TIMEOUT 30
 
