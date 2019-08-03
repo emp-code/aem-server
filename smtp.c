@@ -139,7 +139,7 @@ static bool smtp_shlo(mbedtls_ssl_context *tls, const char *domain, const size_t
 	return (send_aem(0, tls, shlo, lenShlo) == lenShlo);
 }
 
-static bool smtp_helo(const int sock, const char *domain, const size_t lenDomain, const char *buf, const ssize_t bytes) {
+static bool smtp_helo(const int sock, const char * const domain, const size_t lenDomain, const char * const buf, const ssize_t bytes) {
 	if (bytes < 4) return false;
 
 	if (strncasecmp(buf, "EHLO", 4) == 0) {
@@ -248,15 +248,15 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
-	int bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
+	ssize_t bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
+
+	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientAddr, 1);
 
 	uint8_t infoByte = 0;
 	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_ESMTP;
 	const size_t lenGreeting = bytes - 7;
 	char greeting[lenGreeting];
 	memcpy(greeting, buf + 5, lenGreeting);
-
-	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientAddr, 1);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
@@ -329,7 +329,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
-			printf("[SMTP] Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", bytes, buf);
+			printf("[SMTP] Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -348,7 +348,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 	while(1) {
 		if (bytes < 4) {
 			if (bytes == 0) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else printf("[SMTP] Terminating: only received %d bytes (IP: %s; greeting: %.*s)\n", bytes, inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			else printf("[SMTP] Terminating: invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
