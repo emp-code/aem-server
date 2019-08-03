@@ -644,6 +644,11 @@ function AllEars() {
 					else if (_intMsg[j].id > ids[i]) _intMsg[j].id -= 1;
 				}
 
+				for (let j = 0; j < _extMsg.length; j++) {
+					if (_extMsg[j].id == ids[i]) _extMsg.splice(j, 1);
+					else if (_extMsg[j].id > ids[i]) _extMsg[j].id -= 1;
+				}
+
 				for (let j = 0; j < _textNote.length; j++) {
 					if (ids[i] == _textNote[j].id) _textNote.splice(j, 1);
 					else if (ids[i] < _textNote[j].id) _textNote[j].id -= 1;

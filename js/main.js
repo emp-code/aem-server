@@ -412,12 +412,12 @@ function addExtMessages() {
 				}
 
 				if (!checked) {
-					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=true;
+					document.getElementById("btn_msgdel").hidden=true;
 					return;
 				}
 			}
 
-			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
+			document.getElementById("btn_msgdel").hidden=false;
 		}
 	}
 }
