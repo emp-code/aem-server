@@ -328,11 +328,17 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			puts("[SMTP] Terminating: Client closed connection after StartTLS");
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
+		} else if (bytes >= 4 && memcmp(buf, "QUIT", 4) == 0) {
+			puts("[SMTP] Terminating: Client closed connection cleanly after StartTLS");
+			send_aem(sock, tls, "221 Ok\r\n", 8);
+			tlsFree(tls, &conf, &ctr_drbg, &entropy);
+			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
 			printf("[SMTP] Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
+
 		smtp_shlo(tls, domain, lenDomain);
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
