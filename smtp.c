@@ -188,7 +188,12 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 		if (lenTo < 1) break;
 
 		unsigned char * const binTo = textToSixBit(toStart, lenTo, 18);
-		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
+		if (binTo == NULL) {
+			puts("[SMTP] Failed to deliver email: textToSixBit failed");
+			if (nextTo == NULL) return;
+			toStart = nextTo + 1;
+			continue;
+		}
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
 		int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
