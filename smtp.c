@@ -80,10 +80,10 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	return ret;
 }
 
-static int recv_aem(const int sock, mbedtls_ssl_context * const ssl, char * const buf, const size_t maxSize) {
-	if (ssl != NULL) {
+static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
+	if (tls != NULL) {
 		int ret;
-		do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		do {ret = mbedtls_ssl_read(tls, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		return ret;
 	}
 
@@ -92,13 +92,13 @@ static int recv_aem(const int sock, mbedtls_ssl_context * const ssl, char * cons
 	return -1;
 }
 
-static int send_aem(const int sock, mbedtls_ssl_context * const ssl, const char * const data, const size_t lenData) {
-	if (ssl != NULL) {
+static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
+	if (tls != NULL) {
 		size_t sent = 0;
 
 		while (sent < lenData) {
 			int ret;
-			do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+			do {ret = mbedtls_ssl_write(tls, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
 			if (ret < 0) return ret;
 
@@ -169,12 +169,12 @@ static void smtp_fail(const struct sockaddr_in * const clientAddr, const int cod
 	printf("[SMTP] Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
-static void tlsFree(mbedtls_ssl_context * const ssl, mbedtls_ssl_config * const conf, mbedtls_ctr_drbg_context * const ctr_drbg, mbedtls_entropy_context * const entropy) {
-	if (ssl == NULL) return;
-	mbedtls_entropy_free(entropy);
-	mbedtls_ctr_drbg_free(ctr_drbg);
+static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const conf, mbedtls_ctr_drbg_context * const ctr_drbg, mbedtls_entropy_context * const entropy) {
+	if (tls == NULL) return;
+	mbedtls_ssl_free(tls);
 	mbedtls_ssl_config_free(conf);
-	mbedtls_ssl_free(ssl);
+	mbedtls_ctr_drbg_free(ctr_drbg);
+	mbedtls_entropy_free(entropy);
 }
 
 static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
@@ -285,8 +285,8 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 		int ret;
 		if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
 			printf("[SMTP] Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
+			mbedtls_ssl_free(tls);
 			mbedtls_ssl_config_free(&conf);
-			mbedtls_ssl_free(&ssl);
 			return;
 		}
 
