@@ -254,7 +254,7 @@ static bool isAddressOurs(const char *addr, const size_t lenAddr, const char *do
 	);
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const unsigned char * const addrKey, const unsigned char seed[16], const char *domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
+void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const addrKey, const unsigned char * const seed, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
