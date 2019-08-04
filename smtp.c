@@ -349,7 +349,11 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			return;
 		}
 
-		smtp_shlo(tls, domain, lenDomain);
+		if (!smtp_shlo(tls, domain, lenDomain)) {
+			puts("[SMTP] Terminating: Failed to send greeting following StartTLS");
+			tlsFree(tls, &conf, &ctr_drbg, &entropy);
+			return;
+		}
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
