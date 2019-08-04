@@ -328,7 +328,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			puts("[SMTP] Terminating: Client closed connection after StartTLS");
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
-		} else if (bytes >= 4 && memcmp(buf, "QUIT", 4) == 0) {
+		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			puts("[SMTP] Terminating: Client closed connection cleanly after StartTLS");
 			send_aem(sock, tls, "221 Ok\r\n", 8);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
@@ -480,7 +480,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
-			if (bytes >= 4 && memcmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
+			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, infoByte, addrKey);
