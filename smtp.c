@@ -408,11 +408,11 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 				continue;
 			}
 
+			lenNewTo -= (lenDomain + 1);
+
 			for (size_t i = 0; i < lenNewTo; i++) {
 				if (isupper(newTo[i])) newTo[i] = tolower(newTo[i]);
 			}
-
-			lenNewTo -= (lenDomain + 1);
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
