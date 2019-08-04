@@ -180,10 +180,10 @@ static void tlsFree(mbedtls_ssl_context * const ssl, mbedtls_ssl_config * const 
 static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
 const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
 	char *toStart = to;
-	const char *toEnd = to + lenToTotal;
+	const char * const toEnd = to + lenToTotal;
 
 	while(1) {
-		char *nextTo = memchr(toStart, '\n', toEnd - toStart);
+		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
@@ -191,7 +191,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 			if (isupper(toStart[i])) toStart[i] = tolower(toStart[i]);
 		}
 
-		unsigned char *binTo = textToSixBit(toStart, lenTo, 18);
+		unsigned char * const binTo = textToSixBit(toStart, lenTo, 18);
 		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
@@ -209,7 +209,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 		const uint8_t spamByte = 0; // TODO
 
 		size_t bodyLen = lenMsgBody;
-		unsigned char *boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, geoId, attach, infoByte, spamByte);
+		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, geoId, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 		free(binTo);
 
