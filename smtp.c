@@ -231,21 +231,26 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 	}
 }
 
-static bool isValidAemAddress(const char *c, const size_t len) {
-	for (size_t i = 0; i < len; i++) {
-		if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
-	}
+static bool isAddressAem(const char *c, const size_t len) {
+	if (len <= 24) {
+		for (size_t i = 0; i < len; i++) {
+			if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
+		}
+	} else if (len == 36) {
+		for (size_t i = 0; i < len; i++) {
+			if (!isxdigit(c[i])) return false;
+		}
+	} else return false;
 
 	return true;
 }
 
-static bool addressIsOurs(const char *addr, const size_t lenAddr, const char *domain, const size_t lenDomain) {
+static bool isAddressOurs(const char *addr, const size_t lenAddr, const char *domain, const size_t lenDomain) {
 	return (
-	   lenAddr < AEM_SMTP_MAX_ADDRSIZE
-	&& lenAddr > (lenDomain + 1)
+	   lenAddr > (lenDomain + 1)
 	&& addr[lenAddr - lenDomain - 1] == '@'
 	&& strncasecmp(addr + lenAddr - lenDomain, domain, lenDomain) == 0
-	&& isValidAemAddress(addr, lenAddr - lenDomain - 1)
+	&& isAddressAem(addr, lenAddr - lenDomain - 1)
 	);
 }
 
@@ -390,7 +395,7 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				return smtp_fail(clientAddr, 102);
 			}
 
-			if (!addressIsOurs(newTo, lenNewTo, domain, lenDomain)) {
+			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 103);
