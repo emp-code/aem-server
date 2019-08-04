@@ -187,10 +187,6 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
-		for (size_t i = 0; i < lenTo; i++) {
-			if (isupper(toStart[i])) toStart[i] = tolower(toStart[i]);
-		}
-
 		unsigned char * const binTo = textToSixBit(toStart, lenTo, 18);
 		if (binTo == NULL) {puts("[SMTP] Failed to deliver email: textToSixBit failed"); return;}
 
@@ -396,6 +392,10 @@ void respond_smtp(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey,
 				}
 
 				continue;
+			}
+
+			for (size_t i = 0; i < lenNewTo; i++) {
+				if (isupper(newTo[i])) newTo[i] = tolower(newTo[i]);
 			}
 
 			lenNewTo -= (lenDomain + 1);
