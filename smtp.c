@@ -489,7 +489,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 				lenBody += bytes;
 
 				if (lenBody >= AEM_SMTP_SIZE_BODY) {bytes = 0; break;}
-				if (lenBody > 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
+				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
 			if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
