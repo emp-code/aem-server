@@ -80,36 +80,40 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	return ret;
 }
 
-static int recv_aem(const int sock, mbedtls_ssl_context *ssl, char *buf, const size_t maxSize) {
-	if (ssl == NULL && sock < 1) return -1;
-
-	if (ssl == NULL) return recv(sock, buf, maxSize, 0);
-
-	int ret;
-	do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-
-	return ret;
-}
-
-static int send_aem(const int sock, mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
-	if (ssl == NULL && sock > 0) return send(sock, data, lenData, 0);
-
-	if (ssl == NULL) return -1;
-
-	size_t sent = 0;
-	while (sent < lenData) {
+static int recv_aem(const int sock, mbedtls_ssl_context * const ssl, char * const buf, const size_t maxSize) {
+	if (ssl != NULL) {
 		int ret;
-		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-
-		if (ret < 0) return ret;
-
-		sent += ret;
+		do {ret = mbedtls_ssl_read(ssl, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		return ret;
 	}
 
-	return sent;
+	if (sock > 0) return recv(sock, buf, maxSize, 0);
+
+	return -1;
 }
 
-static size_t smtp_addr(const char * const buf, const size_t len, char addr[AEM_SMTP_MAX_ADDRSIZE]) {
+static int send_aem(const int sock, mbedtls_ssl_context * const ssl, const char * const data, const size_t lenData) {
+	if (ssl != NULL) {
+		size_t sent = 0;
+
+		while (sent < lenData) {
+			int ret;
+			do {ret = mbedtls_ssl_write(ssl, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+			if (ret < 0) return ret;
+
+			sent += ret;
+		}
+
+		return sent;
+	}
+
+	if (sock > 0) return send(sock, data, lenData, 0);
+
+	return -1;
+}
+
+static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
 	if (buf[0] != '<') return 0;
 
 	size_t lenAddr = 0;
@@ -121,7 +125,7 @@ static size_t smtp_addr(const char * const buf, const size_t len, char addr[AEM_
 	return lenAddr;
 }
 
-static bool smtp_greet(const int sock, const char *domain, const size_t lenDomain) {
+static bool smtp_greet(const int sock, const char * const domain, const size_t lenDomain) {
 	const int lenGreet = 12 + lenDomain;
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
@@ -130,7 +134,7 @@ static bool smtp_greet(const int sock, const char *domain, const size_t lenDomai
 	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
 }
 
-static bool smtp_shlo(mbedtls_ssl_context *tls, const char *domain, const size_t lenDomain) {
+static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain, const size_t lenDomain) {
 	const ssize_t lenShlo = 4 + lenDomain + AEM_SHLO_RESPONSE_LEN;
 	char shlo[lenShlo];
 	memcpy(shlo, "250-", 4);
@@ -165,7 +169,7 @@ static void smtp_fail(const struct sockaddr_in * const clientAddr, const int cod
 	printf("[SMTP] Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
-static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_ctr_drbg_context *ctr_drbg, mbedtls_entropy_context *entropy) {
+static void tlsFree(mbedtls_ssl_context * const ssl, mbedtls_ssl_config * const conf, mbedtls_ctr_drbg_context * const ctr_drbg, mbedtls_entropy_context * const entropy) {
 	if (ssl == NULL) return;
 	mbedtls_entropy_free(entropy);
 	mbedtls_ctr_drbg_free(ctr_drbg);
