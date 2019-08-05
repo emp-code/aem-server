@@ -29,7 +29,7 @@
 #define AEM_PORT_HTTPS 443
 #define AEM_PORT_SMTP 25
 
-int dropRoot() {
+static int dropRoot() {
 	if (getuid() != 0) return 1;
 
 	struct passwd* p = getpwnam("allears");
@@ -122,9 +122,9 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 			char filePath[strlen(path) + strlen(de->d_name) + 1];
 			sprintf(filePath, "%s/%s", path, de->d_name);
 
-			int fd = open(filePath, O_RDONLY);
+			const int fd = open(filePath, O_RDONLY);
 			if (fd < 0) {f[counter].lenData = 0; continue;}
-			off_t bytes = lseek(fd, 0, SEEK_END);
+			const off_t bytes = lseek(fd, 0, SEEK_END);
 
 			if (strcmp(ext, ".css") == 0 || strcmp(ext, ".html") == 0 || strcmp(ext, ".js") == 0) {
 				// Files to be compressed
@@ -136,7 +136,7 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 
 				if (readBytes == bytes) {
 					while (spk != NULL) {
-						char *spk_loc = memmem(tempData, bytes, "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._", 64);
+						char * const spk_loc = memmem(tempData, bytes, "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._", 64);
 						if (spk_loc == NULL) break;
 						char hex[65];
 						sodium_bin2hex(hex, 65, spk, crypto_box_PUBLICKEYBYTES);
@@ -194,7 +194,7 @@ static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	if (fd < 0) return 1;
 	const off_t lenFile = lseek(fd, 0, SEEK_END);
 
-	unsigned char *data = calloc(lenFile + 2, 1);
+	unsigned char * const data = calloc(lenFile + 2, 1);
 	const ssize_t readBytes = pread(fd, data, lenFile, 0);
 	close(fd);
 	if (readBytes != lenFile) {free(data); return 2;}
@@ -217,7 +217,7 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 	if (fd < 0) return 1;
 	const off_t lenFile = lseek(fd, 0, SEEK_END);
 
-	unsigned char *data = calloc(lenFile + 2, 1);
+	unsigned char * const data = calloc(lenFile + 2, 1);
 	const off_t readBytes = pread(fd, data, lenFile, 0);
 	close(fd);
 	if (readBytes != lenFile) {free(data); return 1;}
@@ -275,16 +275,16 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	unsigned char seed[16];
 	randombytes_buf(seed, 16);
 
-	int numCss  = aem_countFiles("css",  ".css",  4);
-	int numHtml = aem_countFiles("html", ".html", 5);
-	int numImg  = aem_countFiles("img",  ".webp", 5);
-	int numJs   = aem_countFiles("js",   ".js",   3);
+	const int numCss  = aem_countFiles("css",  ".css",  4);
+	const int numHtml = aem_countFiles("html", ".html", 5);
+	const int numImg  = aem_countFiles("img",  ".webp", 5);
+	const int numJs   = aem_countFiles("js",   ".js",   3);
 
 	printf("[Main.HTTPS] Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
 
 	// Keys for web API
-	unsigned char *spk = malloc(crypto_box_PUBLICKEYBYTES);
-	unsigned char *ssk = sodium_malloc(crypto_box_SECRETKEYBYTES);
+	unsigned char * const spk = malloc(crypto_box_PUBLICKEYBYTES);
+	unsigned char * const ssk = sodium_malloc(crypto_box_SECRETKEYBYTES);
 	crypto_box_keypair(spk, ssk);
 	sodium_mprotect_readonly(ssk);
 
