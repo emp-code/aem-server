@@ -76,11 +76,12 @@ static void send204(mbedtls_ssl_context* ssl) {
 		"HTTP/1.1 204 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 161);
+	, 199);
 }
 
 static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
@@ -198,11 +199,12 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const
 			return;
 	}
 
-	char headers[205 + mtLen];
+	char headers[243 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Connection: close\r\n"
 		"%s"
 		"Content-Type: %.*s\r\n"
@@ -293,7 +295,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
 
 	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
-	const size_t lenHead = 160 + numDigits(lenBody);
+	const size_t lenHead = 198 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 
 	char *data = malloc(lenResponse);
@@ -301,6 +303,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Connection: close\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
@@ -511,20 +514,21 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 
 	encryptNonce(nonce, seed);
 
-	char data[186];
+	char data[224];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 24\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 162);
+	, 200);
 
-	memcpy(data + 162, nonce, 24);
+	memcpy(data + 200, nonce, 24);
 
-	sendData(ssl, data, 186);
+	sendData(ssl, data, 224);
 }
 
 static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16], const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
@@ -577,20 +581,21 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 	const int64_t hash = addressToHash(addr, addrKey);
 	if (addAddress(upk64, hash) != 0) return;
 
-	char data[188];
+	char data[226];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=94672800\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 26\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 162);
-	memcpy(data + 162, &hash, 8);
-	memcpy(data + 170, addr, 18);
+	, 200);
+	memcpy(data + 200, &hash, 8);
+	memcpy(data + 208, addr, 18);
 	free(addr);
-	sendData(ssl, data, 188);
+	sendData(ssl, data, 226);
 }
 
 static void respond_https_addr_del(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
