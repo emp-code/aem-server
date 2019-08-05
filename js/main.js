@@ -293,7 +293,7 @@ function addIntMessages() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden=false;
 			document.getElementById("readmsg_levelinfo").hidden = false;
-			document.getElementById("readmsg_greetinfo").hidden = true;
+			document.getElementById("readmsg_extmsg").hidden = true;
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
