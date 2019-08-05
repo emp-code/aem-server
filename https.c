@@ -722,7 +722,7 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	const unsigned char * const reqEnd = memmem(req, lenReqTotal, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	const size_t lenReq = reqEnd - req;
+	const size_t lenReq = reqEnd - req + 2; // Include \r\n at end
 
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
@@ -738,12 +738,13 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 
 	const char * const ae = memmem(req, lenReq, "\r\nAccept-Encoding: ", 19);
 	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	const size_t lenAe = strspn(ae + 19, "abcdefghijklmnopqrstuvwxyz, ");
+	const size_t lenAe = strspn(ae + 19, "0123456789abcdefghijklmnopqrstuvwxyz, ");
 	const char * const br = memmem(ae + 19, lenAe, "br", 2);
-	if (br == NULL
-	|| (*(br - 1) != ',' && *(br - 1) != ' ')
-	|| (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r')
-	) return AEM_HTTPS_REQUEST_INVALID;
+	if (br == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return AEM_HTTPS_REQUEST_INVALID;
+
+	const char * const br1 = ae + (br - ae - 1); // br - 1
+	if (*br1 != ',' && *br1 != ' ') return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
 	if (memmem(req, lenReq, "\r\nAuthorization:", 16) != NULL) return AEM_HTTPS_REQUEST_INVALID;
