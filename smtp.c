@@ -187,9 +187,9 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
-		unsigned char * const binTo = textToSixBit(toStart, lenTo, 18);
+		unsigned char * const binTo = addr2bin(toStart, lenTo);
 		if (binTo == NULL) {
-			puts("[SMTP] Failed to deliver email: textToSixBit failed");
+			puts("[SMTP] Failed to deliver email: addr2bin failed");
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
 			continue;
