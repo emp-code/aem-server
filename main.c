@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <locale.h> // for setlocale
 
 #include <sodium.h>
 #include <mbedtls/error.h>
@@ -416,6 +417,8 @@ int main() {
 		puts("[Main] Failed to initialize libsodium. Quitting.");
 		return 1;
 	}
+
+	setlocale(LC_ALL, "C");
 
 	// TODO config from file
 	const char * const domain = "allears.test";
