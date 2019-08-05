@@ -245,9 +245,6 @@ static int numDigits(double number) {
 }
 
 static int getUserNonce(const unsigned char * const upk, unsigned char * const nonce, const uint32_t clientIp, const unsigned char * const seed) {
-	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
-	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
-
 	const int fd = open("/tmp/nonce.aem", O_RDWR);
 	if (fd < 0) return -1;
 	if (flock(fd, LOCK_EX) != 0) {close(fd); return -1;}
