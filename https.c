@@ -534,16 +534,7 @@ static void respond_https_addr_add(mbedtls_ssl_context * const ssl, const int64_
 		randombytes_buf(addr, 18);
 	} else {
 		if (lenDecrypted > 24) return;
-
-		char d[lenDecrypted];
-		for (size_t i = 0; i < lenDecrypted; i++) {
-			if (isupper((*decrypted)[i]))
-				d[i] = tolower((*decrypted)[i]);
-			else
-				d[i] = (*decrypted)[i];
-		}
-
-		addr = textToSixBit(d, lenDecrypted, 18);
+		addr = addr2bin(*decrypted, lenDecrypted);
 		sodium_free(*decrypted);
 		if (addr == NULL) return;
 	}
