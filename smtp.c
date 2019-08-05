@@ -231,7 +231,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 	}
 }
 
-static bool isAddressAem(const char *c, const size_t len) {
+static bool isAddressAem(const char * const c, const size_t len) {
 	if (len <= 24) {
 		for (size_t i = 0; i < len; i++) {
 			if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
@@ -245,7 +245,7 @@ static bool isAddressAem(const char *c, const size_t len) {
 	return true;
 }
 
-static bool isAddressOurs(const char *addr, const size_t lenAddr, const char *domain, const size_t lenDomain) {
+static bool isAddressOurs(const char * const addr, const size_t lenAddr, const char * const domain, const size_t lenDomain) {
 	return (
 	   lenAddr > (lenDomain + 1)
 	&& addr[lenAddr - lenDomain - 1] == '@'
