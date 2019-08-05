@@ -1,7 +1,7 @@
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
-#include <endian.h>
 #include <ctype.h>
 
 #include <sodium.h>
@@ -70,7 +70,7 @@ int64_t addressToHash(const unsigned char * const addr, const unsigned char * co
 	return result;
 }
 
-int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
+int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
 	unsigned char saltyKey[24];
 	memcpy(saltyKey, &upk64, 8);
 	memcpy(saltyKey + 8, hashKey, 16);
@@ -85,7 +85,7 @@ int64_t gkHash(const unsigned char *in, const size_t len, const int64_t upk64, c
 }
 
 bool upk64Exists(const int64_t upk64) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return false;
 
 	sqlite3_stmt *query;
@@ -103,7 +103,7 @@ bool upk64Exists(const int64_t upk64) {
 }
 
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -125,7 +125,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 }
 
 int getUserLevel(const int64_t upk64) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -143,7 +143,7 @@ int getUserLevel(const int64_t upk64) {
 }
 
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -175,13 +175,13 @@ int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** con
 }
 
 int getAdminData(unsigned char ** const adminData) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	*adminData = calloc(AEM_ADMINDATA_LEN, 1);
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT publickey, level FROM userdata LIMIT 1024", -1, &query, NULL);
+	const int ret = sqlite3_prepare_v2(db, "SELECT publickey, level FROM userdata LIMIT 1024", -1, &query, NULL);
 	if (ret != SQLITE_OK) return -1;
 
 	int userCount = 0;
@@ -212,16 +212,16 @@ int getAdminData(unsigned char ** const adminData) {
 }
 
 unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, const size_t maxSize) {
-	sqlite3 *db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READONLY);
+	sqlite3 * const db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READONLY);
 	if (db == NULL) return NULL;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT msg,row_number FROM (SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=? ORDER BY rowid DESC) JOIN msg ON msg.rowid=rowid LIMIT 255", -1, &query, NULL);
+	const int ret = sqlite3_prepare_v2(db, "SELECT msg,row_number FROM (SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=? ORDER BY rowid DESC) JOIN msg ON msg.rowid=rowid LIMIT 255", -1, &query, NULL);
 
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
 	sqlite3_bind_int64(query, 1, upk64);
 
-	unsigned char *data = calloc(maxSize, 1);
+	unsigned char * const data = calloc(maxSize, 1);
 	size_t totalSize = 0;
 	*msgCount = 0;
 
@@ -234,7 +234,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 		const size_t msgLen = sz - AEM_HEADBOX_SIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
 		if ((msgLen - 2) % 1024 != 0) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
-		int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
+		const int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
 		if (sizeFactor > 255) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
 		data[totalSize + 0] = sqlite3_column_int(query, 1);
@@ -249,8 +249,8 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 	return data;
 }
 
-int addUserMessage(const int64_t upk64, const unsigned char *msgData, const size_t msgLen) {
-	sqlite3 *db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
+int addUserMessage(const int64_t upk64, const unsigned char * const msgData, const size_t msgLen) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -264,8 +264,8 @@ int addUserMessage(const int64_t upk64, const unsigned char *msgData, const size
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *addrData, const size_t lenAddrData) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char * const addrData, const size_t lenAddrData) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -292,7 +292,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	if (lenGkData < 1) return -1;
 	if (gkData[lenGkData - 1] != '\n') return -1;
 
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	int64_t upk64;
@@ -304,14 +304,14 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	sqlite3_step(query);
 	sqlite3_finalize(query);
 
-	char *lf = gkData;
+	const char *lf = gkData;
 	while (lf != NULL) {
-		char *next = strchr(lf + 1, '\n');
+		char * const next = strchr(lf + 1, '\n');
 		const size_t len = next - lf - 1;
 		if (*lf == '\n') lf++;
 
 		const size_t lenGksb = lenToSixBit(len);
-		unsigned char* gkSixBit = textToSixBit(lf, len, 0);
+		unsigned char * const gkSixBit = textToSixBit(lf, len, 0);
 		if (memchr(gkSixBit, '?', lenGksb) == NULL) {
 			sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
 			sqlite3_bind_int64(query, 1, gkHash(gkSixBit, lenGksb, upk64, hashKey));
@@ -325,7 +325,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 		if (lenGkData - (next - gkData) < 2) break;
 	}
 
-	unsigned char *ciphertext = malloc(lenGkData + crypto_box_SEALBYTES);
+	unsigned char * const ciphertext = malloc(lenGkData + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, (unsigned char*)gkData, lenGkData, ownerPk);
 
 	sqlite3_prepare_v2(db, "UPDATE userdata SET gkdata=? WHERE upk64=?", -1, &query, NULL);
@@ -338,8 +338,8 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	return 0;
 }
 
-int deleteMessages(const int64_t upk64, const uint8_t ids[], const int count) {
-	sqlite3 *db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
+int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int count) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -384,8 +384,8 @@ int deleteMessages(const int64_t upk64, const uint8_t ids[], const int count) {
 	return 0;
 }
 
-int updateNoteData(const int64_t upk64, const unsigned char *noteData) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+int updateNoteData(const int64_t upk64, const unsigned char * const noteData) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -399,8 +399,8 @@ int updateNoteData(const int64_t upk64, const unsigned char *noteData) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int updateAddress(const int64_t upk64, const unsigned char *addrData, const size_t lenAddrData) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+int updateAddress(const int64_t upk64, const unsigned char * const addrData, const size_t lenAddrData) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -415,7 +415,7 @@ int updateAddress(const int64_t upk64, const unsigned char *addrData, const size
 }
 
 int addAddress(const int64_t upk64, const int64_t hash) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
@@ -429,8 +429,8 @@ int addAddress(const int64_t upk64, const int64_t hash) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+int addAccount(const unsigned char * const pk) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return false;
 
 	unsigned char zero[AEM_NOTEDATA_LEN];
@@ -461,10 +461,10 @@ int addAccount(const unsigned char pk[crypto_box_PUBLICKEYBYTES]) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int setAccountLevel(const char pk_hex[16], const int level) {
+int setAccountLevel(const char * const pk_hex, const int level) {
 	if (level < 0 || level > 3) return -1;
 
-	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return false;
 
 	sqlite3_stmt *query;
