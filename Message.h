@@ -11,8 +11,8 @@
 #define AEM_INFOBYTE_CMD_QUIT 64 // bit 6: QUIT issued
 #define AEM_INFOBYTE_ESMTP 128   // bit 7: ESMTP
 
-unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binFrom, const unsigned char *binTo, const char *bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield);
-unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen,
+unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield);
+unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen,
 	const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte);
 
 #endif

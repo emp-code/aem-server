@@ -79,11 +79,11 @@ TextNote
 		[-- char*] Message data
 */
 
-static unsigned char *msg_makeBodyBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const char *bodyText, size_t *bodyLen) {
+static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
 	const size_t bodyLenPadded = ceil(*bodyLen / (double)1024) * 1024;
 	const size_t padLen = bodyLenPadded - *bodyLen;
 
-	uint16_t padLen16 = padLen;
+	const uint16_t padLen16 = padLen;
 
 	unsigned char body[bodyLenPadded + 2];
 	memcpy(body, &padLen16, 2);
@@ -92,13 +92,13 @@ static unsigned char *msg_makeBodyBox(const unsigned char pk[crypto_box_PUBLICKE
 
 	*bodyLen = bodyLenPadded + 2;
 
-	unsigned char *ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
+	unsigned char * const ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, body, *bodyLen, pk);
 
 	return ciphertext;
 }
 
-static unsigned char *intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char adrFrom[18], const unsigned char adrTo[18], const int senderLevel, const bool senderShield) {
+static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const adrFrom, const unsigned char * const adrTo, const int senderLevel, const bool senderShield) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char infoByte = 0;
@@ -124,20 +124,20 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLI
 	memcpy(plaintext + 5, adrFrom, 18);
 	memcpy(plaintext + 23, adrTo, 18);
 
-	unsigned char *ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
+	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, plaintext, AEM_HEADBOX_SIZE, pk);
 	return ciphertext;
 }
 
-unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binFrom, const unsigned char *binTo, const char *bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield) {
-	unsigned char *headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel, senderShield);
+unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield) {
+	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel, senderShield);
 	if (headBox == NULL) return NULL;
 
-	unsigned char *bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
-	unsigned char *boxSet = malloc(bsLen);
+	unsigned char * const boxSet = malloc(bsLen);
 	if (boxSet == NULL) {free(headBox); free(bodyBox); return NULL;}
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
@@ -148,7 +148,7 @@ unsigned char *makeMsg_Int(const unsigned char pk[crypto_box_PUBLICKEYBYTES], co
 	return boxSet;
 }
 
-static unsigned char *extMsg_makeHeadBox(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo,
+static unsigned char *extMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const binTo,
 const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, uint8_t infoByte, const uint8_t spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
@@ -165,22 +165,22 @@ const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t at
 	plaintext[22] = spamByte;
 	memcpy(plaintext + 23, binTo, 18);
 
-	unsigned char *ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
+	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, plaintext, AEM_HEADBOX_SIZE, pk);
 
 	return ciphertext;
 }
 
-unsigned char *makeMsg_Ext(const unsigned char pk[crypto_box_PUBLICKEYBYTES], const unsigned char *binTo, const char *bodyText, size_t * const bodyLen,
+unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen,
 const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
-	unsigned char *headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, countryCode, attach, infoByte, spamByte);
+	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
-	unsigned char *bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
-	unsigned char *boxSet = malloc(bsLen);
+	unsigned char * const boxSet = malloc(bsLen);
 	if (boxSet == NULL) {free(headBox); free(bodyBox); return NULL;}
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
