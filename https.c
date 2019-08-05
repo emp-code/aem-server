@@ -52,7 +52,7 @@ MBEDTLS_ECP_DP_SECP521R1,\
 MBEDTLS_ECP_DP_SECP384R1,\
 MBEDTLS_ECP_DP_NONE}
 
-#define AEM_MAXMSGTOTALSIZE 100000 // Max total size of messages to send. TODO: Move this to config
+#define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Max size of inbox response. TODO: Move this to config
 
 #define AEM_HTTPS_REQUEST_INVALID 0
 #define AEM_HTTPS_REQUEST_GET 1
