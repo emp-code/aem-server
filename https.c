@@ -58,7 +58,7 @@ MBEDTLS_ECP_DP_NONE}
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
-static void sendData(mbedtls_ssl_context* ssl, const char * const data, const size_t lenData) {
+static void sendData(mbedtls_ssl_context * const ssl, const char * const data, const size_t lenData) {
 	size_t sent = 0;
 
 	while (sent < lenData) {
@@ -69,7 +69,7 @@ static void sendData(mbedtls_ssl_context* ssl, const char * const data, const si
 	}
 }
 
-static void send204(mbedtls_ssl_context* ssl) {
+static void send204(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
 		"HTTP/1.1 204 aem\r\n"
 		"Tk: N\r\n"
@@ -82,11 +82,14 @@ static void send204(mbedtls_ssl_context* ssl) {
 	, 199);
 }
 
-static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const struct aem_file files[], const int fileCount, const char *domain, const size_t lenDomain) {
+static void respond_https_html(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const struct aem_file * const files, const int fileCount, const char * const domain, const size_t lenDomain) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
-		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {reqNum = i; break;}
+		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {
+			reqNum = i;
+			break;
+		}
 	}
 
 	if (reqNum < 0) return;
@@ -158,25 +161,26 @@ static void respond_https_html(mbedtls_ssl_context *ssl, const char *name, const
 		"\r\n"
 	, files[reqNum].lenData, domain, domain, domain, domain);
 
-	size_t lenData = strlen(data);
-//	printf("LenHeaders=%zd\n", lenData - lenDomain * 4);
+	size_t lenHeaders = strlen(data);
+	memcpy(data + lenHeaders, files[reqNum].data, files[reqNum].lenData);
 
-	memcpy(data + lenData, files[reqNum].data, files[reqNum].lenData);
-	lenData += files[reqNum].lenData;
-	data[lenData] = '\0';
-
-	sendData(ssl, data, lenData);
+	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
 // Javascript, CSS, images etc
-static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const size_t lenName, const int fileType, const struct aem_file files[], const int fileCount) {
+static void respond_https_file(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const int fileType, const struct aem_file * const files, const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
-		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {reqNum = i; break;}
+		if (strlen(files[i].filename) == lenName && memcmp(files[i].filename, name, lenName) == 0) {
+			reqNum = i;
+			break;
+		}
 	}
 
 	if (reqNum < 0) return;
+
+	if (files[reqNum].lenData > 999999) return;
 
 	char *mediatype;
 	int mtLen;
@@ -197,7 +201,7 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const
 			return;
 	}
 
-	char headers[243 + mtLen];
+	char headers[244 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -220,7 +224,7 @@ static void respond_https_file(mbedtls_ssl_context *ssl, const char *name, const
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-static void encryptNonce(unsigned char nonce[24], const unsigned char seed[16]) {
+static void encryptNonce(unsigned char * const nonce, const unsigned char * const seed) {
 	// Nonce is encrypted to protect against leaking server time etc
 	// One-way encryption (hashing) would work, but TEA guarantees no collision risk
 	mbedtls_xtea_context tea;
@@ -240,11 +244,11 @@ static int numDigits(double number) {
 	return digits;
 }
 
-static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned char nonce[24], const uint32_t clientIp, const unsigned char seed[16]) {
+static int getUserNonce(const unsigned char * const upk, unsigned char * const nonce, const uint32_t clientIp, const unsigned char * const seed) {
 	char upk_hex[crypto_box_PUBLICKEYBYTES * 2 + 1];
 	sodium_bin2hex(upk_hex, crypto_box_PUBLICKEYBYTES * 2 + 1, upk, crypto_box_PUBLICKEYBYTES);
 
-	int fd = open("/tmp/nonce.aem", O_RDWR);
+	const int fd = open("/tmp/nonce.aem", O_RDWR);
 	if (fd < 0) return -1;
 	if (flock(fd, LOCK_EX) != 0) {close(fd); return -1;}
 
@@ -252,7 +256,7 @@ static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsi
 	if (bytesDone == 24) bytesDone = pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
 	flock(fd, LOCK_UN);
 	close(fd);
-	int ret = unlink("/tmp/nonce.aem");
+	const int ret = unlink("/tmp/nonce.aem");
 	if (bytesDone != 24 || ret != 0) return -1;
 
 	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
@@ -268,7 +272,7 @@ static int getUserNonce(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsi
 
 // Web login (get settings and messages)
 // TODO: Support multiple pages
-static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_login(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17 || memcmp(*decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
 
@@ -281,7 +285,7 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	uint8_t msgCount;
 	uint8_t level;
 
-	int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
+	const int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
 	if (ret != 0) return;
 
 	const size_t lenAdmin = (level == 3) ? AEM_ADMINDATA_LEN : 0;
@@ -289,14 +293,14 @@ static void respond_https_login(mbedtls_ssl_context *ssl, const int64_t upk64, c
 	if (level == 3) getAdminData(&adminData);
 
 	const size_t lenMsg = (level == 3) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
-	unsigned char *msgData = getUserMessages(upk64, &msgCount, lenMsg);
+	unsigned char * const msgData = getUserMessages(upk64, &msgCount, lenMsg);
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
 
 	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
 	const size_t lenHead = 198 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 
-	char *data = malloc(lenResponse);
+	char * const data = malloc(lenResponse);
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -354,27 +358,27 @@ static unsigned char *addr2bin(const char * const c, const size_t len) {
 	size_t binLen;
 	sodium_hex2bin(bin, 18, c, 36, NULL, &binLen, NULL);
 	if (binLen != 18) return NULL;
-	unsigned char* binm = malloc(18);
+	unsigned char * const binm = malloc(18);
 	memcpy(binm, bin, 18);
 	return binm;
 }
 
 static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
-char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
+char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
-	unsigned char *binFrom = addr2bin(addrFrom, lenFrom);
+	unsigned char * const binFrom = addr2bin(addrFrom, lenFrom);
 	if (binFrom == NULL) return -1;
-	unsigned char *binTo = addr2bin(addrTo, lenTo);
+	unsigned char * const binTo = addr2bin(addrTo, lenTo);
 	if (binTo == NULL) {free(binFrom); return -1;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
+	const int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
 	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) {free(binFrom); free(binTo); return -1;}
 
 	int64_t sender_pk64;
 	memcpy(&sender_pk64, sender_pk, 8);
-	int memberLevel = getUserLevel(sender_pk64);
+	const int memberLevel = getUserLevel(sender_pk64);
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
 	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
@@ -402,7 +406,7 @@ char **decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsig
 }
 
 // Message sending
-static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char * const upk, const char * const domain, char **decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
+static void respond_https_send(mbedtls_ssl_context * const ssl, const unsigned char * const upk, const char * const domain, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -428,7 +432,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char * c
 	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
 		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
 	} else {
-		const char *domainAt = strchr(addrTo, '@');
+		const char * const domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
 			sodium_free(*decrypted);
 			return;
@@ -447,7 +451,7 @@ static void respond_https_send(mbedtls_ssl_context *ssl, const unsigned char * c
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted) {
+static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES) % 1026 != 0) return; // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
 
 	// TODO: Move to Message.c
@@ -461,7 +465,7 @@ static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 	memcpy(header + 1, &t, 4);
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenDecrypted;
-	unsigned char *boxset = malloc(bsLen);
+	unsigned char * const boxset = malloc(bsLen);
 
 	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
 	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, *decrypted, lenDecrypted);
@@ -474,7 +478,7 @@ static void respond_https_note(mbedtls_ssl_context *ssl, unsigned char upk[crypt
 	send204(ssl);
 }
 
-static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp, const unsigned char seed[16]) {
+static void respond_https_nonce(mbedtls_ssl_context * const ssl, const unsigned char * const post, const size_t lenPost, const uint32_t clientIp, const unsigned char * const seed) {
 	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
 
 	int64_t upk64;
@@ -529,7 +533,7 @@ static void respond_https_nonce(mbedtls_ssl_context *ssl, const unsigned char *p
 	sendData(ssl, data, 224);
 }
 
-static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigned char *upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char seed[16], const unsigned char ssk[crypto_box_SECRETKEYBYTES]) {
+static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char * const seed, const unsigned char * const ssk) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
 	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
@@ -541,7 +545,7 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 	unsigned char nonce[24];
 	if (getUserNonce(post, nonce, clientIp, seed) != 0) return NULL;
 
-	char *decrypted = sodium_malloc(lenPost);
+	char * const decrypted = sodium_malloc(lenPost);
 	if (decrypted == NULL) return NULL;
 
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, ssk);
@@ -553,7 +557,7 @@ static char *openWebBox(const unsigned char *post, const size_t lenPost, unsigne
 	return decrypted;
 }
 
-static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
+static void respond_https_addr_add(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 	unsigned char *addr;
 	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
 		sodium_free(*decrypted);
@@ -596,7 +600,7 @@ static void respond_https_addr_add(mbedtls_ssl_context *ssl, const int64_t upk64
 	sendData(ssl, data, 226);
 }
 
-static void respond_https_addr_del(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_addr_del(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 9) {free(*decrypted); return;}
 	int64_t hash;
 	memcpy(&hash, *decrypted, 8);
@@ -606,7 +610,7 @@ static void respond_https_addr_del(mbedtls_ssl_context *ssl, const int64_t upk64
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_addr_upd(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 1) {free(*decrypted); return;}
 
 	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
@@ -614,7 +618,7 @@ static void respond_https_addr_upd(mbedtls_ssl_context *ssl, const int64_t upk64
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_delmsg(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_delmsg(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
 		ids[i] = (uint8_t)((*decrypted)[i]);
@@ -625,13 +629,13 @@ static void respond_https_delmsg(mbedtls_ssl_context *ssl, const int64_t upk64, 
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_gatekeeper(mbedtls_ssl_context *ssl, const unsigned char upk[crypto_box_PUBLICKEYBYTES], char **decrypted, const size_t lenDecrypted, const unsigned char * const hashKey) {
+static void respond_https_gatekeeper(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const hashKey) {
 	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_notedata(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_notedata(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) return;
 
 	const int ret = updateNoteData(upk64, (unsigned char*)*decrypted);
@@ -639,7 +643,7 @@ static void respond_https_notedata(mbedtls_ssl_context *ssl, const int64_t upk64
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_addaccount(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_addaccount(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
@@ -648,7 +652,7 @@ static void respond_https_addaccount(mbedtls_ssl_context *ssl, const int64_t upk
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_destroyaccount(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
 
@@ -664,7 +668,7 @@ static void respond_https_destroyaccount(mbedtls_ssl_context *ssl, const int64_t
 	if (destroyAccount(delete_upk64) == 0) send204(ssl);
 }
 
-static void respond_https_accountlevel(mbedtls_ssl_context *ssl, const int64_t upk64, char **decrypted, const size_t lenDecrypted) {
+static void respond_https_accountlevel(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
 	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
@@ -674,7 +678,7 @@ static void respond_https_accountlevel(mbedtls_ssl_context *ssl, const int64_t u
 	if (ret == 0) send204(ssl);
 }
 
-static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t lenUrl, const struct aem_fileSet *fileSet, const char *domain, const size_t lenDomain) {
+static void handleGet(mbedtls_ssl_context * const ssl, const char * const url, const size_t lenUrl, const struct aem_fileSet * const fileSet, const char * const domain, const size_t lenDomain) {
 	if (lenUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
@@ -683,15 +687,15 @@ static void handleGet(mbedtls_ssl_context *ssl, const char *url, const size_t le
 	if (lenUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-static void handlePost(mbedtls_ssl_context *ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
-const char * const domain, const size_t lenDomain, const char *url, const size_t lenUrl, const unsigned char *post, const size_t lenPost, const uint32_t clientIp) {
+static void handlePost(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
+const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost, const uint32_t clientIp) {
 	if (lenUrl < 8) return;
 
 	if (lenUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, lenPost, clientIp, seed);
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
-	char *decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, clientIp, seed, ssk);
+	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, clientIp, seed, ssk);
 	if (decrypted == NULL) return;
 
 	int64_t upk64;
@@ -714,7 +718,7 @@ const char * const domain, const size_t lenDomain, const char *url, const size_t
 	if (lenUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }
 
-int getRequestType(const unsigned char *req, const size_t lenReqTotal, const char *domain, const size_t lenDomain) {
+int getRequestType(const unsigned char * const req, const size_t lenReqTotal, const char * const domain, const size_t lenDomain) {
 	if (lenReqTotal < 14) return AEM_HTTPS_REQUEST_INVALID;
 
 	const unsigned char * const reqEnd = memmem(req, lenReqTotal, "\r\n\r\n", 4);
@@ -765,8 +769,8 @@ int getRequestType(const unsigned char *req, const size_t lenReqTotal, const cha
 	return AEM_HTTPS_REQUEST_INVALID;
 }
 
-int respond_https(int sock, mbedtls_x509_crt *srvcert, mbedtls_pk_context *pkey, const unsigned char * const ssk, const unsigned char * const addrKey,
-const unsigned char * const seed, const char *domain, const size_t lenDomain, const struct aem_fileSet *fileSet, const uint32_t clientIp) {
+int respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const unsigned char * const addrKey,
+const unsigned char * const seed, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet, const uint32_t clientIp) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -825,7 +829,7 @@ const unsigned char * const seed, const char *domain, const size_t lenDomain, co
 		}
 	}
 
-	unsigned char *req = malloc(AEM_HTTPS_MAXREQSIZE);
+	unsigned char * const req = malloc(AEM_HTTPS_MAXREQSIZE);
 	do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
 	if (ret > 0) {
