@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <endian.h>
+#include <ctype.h>
 
 #include <sodium.h>
 #include <sqlite3.h>
@@ -28,6 +29,36 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 	sqlite3_busy_timeout(db, AEM_DB_BUSY_TIMEOUT);
 
 	return db;
+}
+
+unsigned char *addr2bin(const char * const c, const size_t len) {
+	if (len <= 24) {
+		char d[len];
+		for (size_t i = 0; i < len; i++) {
+			if (isupper(c[i]))
+				d[i] = tolower(c[i]);
+			else
+				d[i] = c[i];
+		}
+
+		return textToSixBit(d, len, 18);
+		return textToSixBit(d, len, 18);
+	}
+
+	if (len != 36) return NULL;
+
+	// Shield addresses are encoded in hex
+	for (int i = 0; i < 36; i++) {
+		if (!((c[i] >= '0' && c[i] <= '9') || (c[i] >= 'a' && c[i] <= 'f'))) return NULL;
+	}
+
+	unsigned char bin[18];
+	size_t binLen;
+	sodium_hex2bin(bin, 18, c, 36, NULL, &binLen, NULL);
+	if (binLen != 18) return NULL;
+	unsigned char * const binm = malloc(18);
+	memcpy(binm, bin, 18);
+	return binm;
 }
 
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {

@@ -331,35 +331,6 @@ static void respond_https_login(mbedtls_ssl_context * const ssl, const int64_t u
 	free(data);
 }
 
-static unsigned char *addr2bin(const char * const c, const size_t len) {
-	if (len <= 24) {
-		char d[len];
-		for (size_t i = 0; i < len; i++) {
-			if (isupper(c[i]))
-				d[i] = tolower(c[i]);
-			else
-				d[i] = c[i];
-		}
-
-		return textToSixBit(d, len, 18);
-	}
-
-	if (len != 36) return NULL;
-
-	// Shield addresses are encoded in hex
-	for (int i = 0; i < 36; i++) {
-		if (!((c[i] >= '0' && c[i] <= '9') || (c[i] >= 'a' && c[i] <= 'f'))) return NULL;
-	}
-
-	unsigned char bin[18];
-	size_t binLen;
-	sodium_hex2bin(bin, 18, c, 36, NULL, &binLen, NULL);
-	if (binLen != 18) return NULL;
-	unsigned char * const binm = malloc(18);
-	memcpy(binm, bin, 18);
-	return binm;
-}
-
 static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
