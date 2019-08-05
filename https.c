@@ -1,7 +1,6 @@
 #define _GNU_SOURCE // for memmem
 
 #include <string.h>
-#include <strings.h>
 #include <stdio.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -9,7 +8,6 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <math.h>
 
 #include <sodium.h>
 
