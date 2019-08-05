@@ -37,11 +37,12 @@ unsigned char *addr2bin(const char * const c, const size_t len) {
 		for (size_t i = 0; i < len; i++) {
 			if (isupper(c[i]))
 				d[i] = tolower(c[i]);
-			else
+			else if (isalnum(c[i]) || c[i] == '.' || c[i] == '-')
 				d[i] = c[i];
+			else
+				return NULL;
 		}
 
-		return textToSixBit(d, len, 18);
 		return textToSixBit(d, len, 18);
 	}
 
