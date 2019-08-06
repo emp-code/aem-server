@@ -408,10 +408,10 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 }
 
 int main() {
-	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent zombie processes
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("ERROR: signal failed"); return 4;} // Prevent writing to closed/invalid sockets from ending the process
+	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent zombie processes
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent writing to closed/invalid sockets from ending the process
 
-	puts(">>> ae-mail: All-Ears Mail");
+	puts("[Main] All-Ears Mail");
 
 	if (sodium_init() < 0) {
 		puts("[Main] Failed to initialize libsodium. Quitting.");
