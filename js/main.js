@@ -361,13 +361,7 @@ function addExtMessages() {
 		cellTime.textContent = new Date(ae.GetExtMsgTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetExtMsgTitle(i);
 		cellFrom.textContent = ae.GetExtMsgFrom(i);
-
-		if (ae.GetExtMsgTo(i).length == 36) {
-			cellTo.textContent = ae.GetExtMsgTo(i).substr(0, 24);
-			cellTo.className = "mono";
-		} else {
-			cellTo.textContent = ae.GetExtMsgTo(i);
-		}
+		cellTo.textContent = ae.GetExtMsgTo(i);
 
 		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">"
 
