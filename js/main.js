@@ -278,6 +278,7 @@ function addIntMessages() {
 			cellTo.className = "mono";
 		} else {
 			cellTo.textContent = ae.GetIntMsgTo(i);
+			cellTo.className = "";
 		}
 
 		if (ae.GetIntMsgShield(i)) {
@@ -285,6 +286,7 @@ function addIntMessages() {
 			cellFrom.className = "mono";
 		} else {
 			cellFrom.textContent = ae.GetIntMsgFrom(i);
+			cellFrom.className = "";
 		}
 
 		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">"
@@ -362,6 +364,8 @@ function addExtMessages() {
 		cellTitle.textContent = ae.GetExtMsgTitle(i);
 		cellFrom.textContent = ae.GetExtMsgFrom(i);
 		cellTo.textContent = ae.GetExtMsgTo(i);
+
+		cellFrom.className = "";
 
 		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">"
 
