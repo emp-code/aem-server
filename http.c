@@ -1,9 +1,12 @@
 #include <string.h>
 #include <unistd.h>
+#include <sys/socket.h>
 
 #include "http.h"
 
 void respond_http(const int sock, const char * const domain, const size_t lenDomain) {
+	shutdown(sock, SHUT_RD);
+
 	char r[115 + lenDomain];
 
 	memcpy(r,
