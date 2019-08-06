@@ -33,7 +33,7 @@
 static int dropRoot() {
 	if (getuid() != 0) return 1;
 
-	struct passwd* p = getpwnam("allears");
+	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
 	if ((int)p->pw_uid != (int)p->pw_gid) return 2;
 
@@ -92,13 +92,13 @@ static void receiveConnections_http(const char * const domain, const size_t lenD
 }
 
 static int aem_countFiles(const char * const path, const char * const ext, const size_t extLen) {
-	DIR *dir = opendir(path);
+	DIR * const dir = opendir(path);
 	if (dir == NULL) return 0;
 
 	int counter = 0;
 
 	while(1) {
-		struct dirent *de = readdir(dir);
+		const struct dirent * const de = readdir(dir);
 		if (de == NULL) break;
 		if (memcmp(de->d_name + strlen(de->d_name) - extLen, ext, extLen) == 0) counter++;
 	}
@@ -110,13 +110,13 @@ static int aem_countFiles(const char * const path, const char * const ext, const
 static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount, const unsigned char * const spk) {
 	if (fileCount < 1) return NULL;
 
-	DIR* dir = opendir(path);
+	DIR * const dir = opendir(path);
 	if (dir == NULL) return NULL;
 
-	struct aem_file *f = sodium_allocarray(fileCount, sizeof(struct aem_file));
+	struct aem_file * const f = sodium_allocarray(fileCount, sizeof(struct aem_file));
 
 	for (int counter = 0; counter < fileCount;) {
-		struct dirent *de = readdir(dir);
+		const struct dirent * const de = readdir(dir);
 		if (de == NULL) {f[counter].lenData = 0; break;}
 
 		if (memcmp(de->d_name + strlen(de->d_name) - extLen, ext, extLen) == 0) {
@@ -289,13 +289,13 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	crypto_box_keypair(spk, ssk);
 	sodium_mprotect_readonly(ssk);
 
-	struct aem_file *fileCss  = aem_loadFiles("css",  ".css",  4, numCss, NULL);
-	struct aem_file *fileHtml = aem_loadFiles("html", ".html", 5, numHtml, NULL);
-	struct aem_file *fileImg  = aem_loadFiles("img",  ".webp", 5, numImg, NULL);
-	struct aem_file *fileJs   = aem_loadFiles("js",   ".js",   3, numJs, spk);
+	struct aem_file * const fileCss  = aem_loadFiles("css",  ".css",  4, numCss, NULL);
+	struct aem_file * const fileHtml = aem_loadFiles("html", ".html", 5, numHtml, NULL);
+	struct aem_file * const fileImg  = aem_loadFiles("img",  ".webp", 5, numImg, NULL);
+	struct aem_file * const fileJs   = aem_loadFiles("js",   ".js",   3, numJs, spk);
 	free(spk);
 
-	struct aem_fileSet *fileSet = sodium_malloc(sizeof(struct aem_fileSet));
+	struct aem_fileSet * const fileSet = sodium_malloc(sizeof(struct aem_fileSet));
 	if (fileSet == NULL) {puts("[Main.HTTPS] Failed to allocate memory for fileSet"); return 1;}
 	fileSet->cssFiles  = fileCss;
 	fileSet->htmlFiles = fileHtml;
