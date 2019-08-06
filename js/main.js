@@ -396,6 +396,7 @@ function addExtMessages() {
 			document.getElementById("readmsg_body").textContent = ae.GetExtMsgBody(i);
 			document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
 
+			document.getElementById("readmsg_from").className = "";
 			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length == 36) ? "mono" : "";
 		};
 
