@@ -31,8 +31,6 @@
 #define AEM_PORT_SMTP 25
 
 static int dropRoot() {
-	if (getuid() != 0) return 1;
-
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
 	if ((int)p->pw_uid != (int)p->pw_gid) return 2;
@@ -408,6 +406,11 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 }
 
 int main() {
+	if (getuid() != 0) {
+		puts("[Main] Terminating: All-Ears must be started as root");
+		return 1;
+	}
+
 	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent zombie processes
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent writing to closed/invalid sockets from ending the process
 
