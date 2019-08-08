@@ -14,17 +14,19 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 
 #define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 
-#define AEM_EHLO_RESPONSE_LEN 47
+#define AEM_EHLO_RESPONSE_LEN 61
 #define AEM_EHLO_RESPONSE \
 "\r\n250-SIZE 262144" \
 "\r\n250-STARTTLS" \
-"\r\n250 8BITMIME" \
+"\r\n250-8BITMIME" \
+"\r\n250 SMTPUTF8" \
 "\r\n"
 
-#define AEM_SHLO_RESPONSE_LEN 33
+#define AEM_SHLO_RESPONSE_LEN 47
 #define AEM_SHLO_RESPONSE \
 "\r\n250-SIZE 262144" \
-"\r\n250 8BITMIME" \
+"\r\n250-8BITMIME" \
+"\r\n250 SMTPUTF8" \
 "\r\n"
 
 #include <arpa/inet.h>
