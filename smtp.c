@@ -47,6 +47,7 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 
+#include "Includes/Brotli.h"
 #include "Includes/QuotedPrintable.h"
 #include "Includes/SixBit.h"
 
@@ -564,6 +565,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 
 			body[lenBody] = '\0';
 			processMessage(&body, &lenBody);
+			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, infoByte, addrKey);

@@ -482,7 +482,10 @@ function AllEars() {
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
 					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
+					const msgBodyBrU8 = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+					const msgBodyBrI8 = new Int8Array(msgBodyBrU8);
+					const msgBody = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
 
 					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
 					const firstLf = msgBodyUtf8.indexOf('\n');
