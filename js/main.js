@@ -362,8 +362,14 @@ function addExtMessages() {
 
 		cellTime.textContent = new Date(ae.GetExtMsgTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetExtMsgTitle(i);
-		cellFrom.textContent = ae.GetExtMsgFrom(i);
 		cellTo.textContent = ae.GetExtMsgTo(i);
+
+		const cc = ae.GetExtMsgCountry(i);
+		cellFrom.innerHTML = getCountryFlag(cc);
+
+		const fromText = document.createElement("span");
+		fromText.textContent = " " + ae.GetExtMsgFrom(i);
+		cellFrom.appendChild(fromText);
 
 		cellFrom.className = "";
 
@@ -379,7 +385,6 @@ function addExtMessages() {
 			document.getElementById("readmsg_cs").textContent = ae.GetExtMsgCipher(i);
 			document.getElementById("readmsg_ip").textContent = ae.GetExtMsgIp(i);
 
-			const cc = ae.GetExtMsgCountry(i);
 			document.getElementById("readmsg_country").innerHTML = getCountryName(cc) + " " + getCountryFlag(cc);
 
 			let flagText = "";
