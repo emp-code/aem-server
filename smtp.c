@@ -244,8 +244,9 @@ static void processMessage(char * const * const data, size_t *lenData) {
 	if (headersEnd == NULL) return;
 
 	const size_t lenHeaders = headersEnd - *data;
-	const char *qpHeader = strcasestr(*data, "Content-Transfer-Encoding: Quoted-Printable\r\n");
-	if (qpHeader != NULL) {
+
+	const char *qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+	if (qpHeader != NULL && qpHeader < headersEnd) {
 		char *msg = *data + lenHeaders + 4;
 		const size_t lenOld = *lenData - lenHeaders - 4;
 		const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
