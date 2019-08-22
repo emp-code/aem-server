@@ -4,7 +4,7 @@
 
 // Returns length of decoded string
 int decodeQuotedPrintable(char * const * const data, size_t lenData) {
-	char *c = strchr(*data, '=');
+	char *c = memchr(*data, '=', lenData);
 
 	while (c != NULL) {
 		if (c[1] == '\n') {
@@ -27,7 +27,7 @@ int decodeQuotedPrintable(char * const * const data, size_t lenData) {
 			lenData -= 2;
 		} else *c = '?'; // Invalid encoding
 
-		c = strchr(*data, '=');
+		c = memchr(*data, '=', lenData);
 	}
 
 	return lenData;
