@@ -46,6 +46,7 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include "mbedtls/ssl.h"
 
 #include "Includes/SixBit.h"
+
 #include "Database.h"
 #include "Message.h"
 
@@ -476,7 +477,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 				return smtp_fail(clientAddr, 107);
 			}
 
-			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 2);
+			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 3);
 
 			// Copy greeting and from address to body
 			memcpy(body, greeting, lenGreeting);
@@ -503,6 +504,8 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
+
+			body[lenBody] = '\0';
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, infoByte, addrKey);
