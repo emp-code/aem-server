@@ -383,12 +383,12 @@ function addExtMessages() {
 			document.getElementById("readmsg_country").innerHTML = getCountryName(cc) + " " + getCountryFlag(cc);
 
 			let flagText = "";
-			if (ae.GetExtMsgFlagPExt(i)) flagText += "ESMTP ";
-			if (ae.GetExtMsgFlagQuit(i)) flagText += "QUIT ";
-			if (ae.GetExtMsgFlagRare(i)) flagText += "RARE ";
-			if (ae.GetExtMsgFlagFail(i)) flagText += "FAIL ";
-			if (ae.GetExtMsgFlagPErr(i)) flagText += "PERR ";
-			document.getElementById("readmsg_flags").textContent = flagText.trim();
+			if (!ae.GetExtMsgFlagPExt(i)) flagText += "<abbr title=\"The sender did not use the Extended (ESMTP) protocol\">SMTP</abbr> ";
+			if (!ae.GetExtMsgFlagQuit(i)) flagText += "<abbr title=\"The sender did not issue the required QUIT command\">QUIT</abbr> ";
+			if (ae.GetExtMsgFlagRare(i)) flagText += "<abbr title=\"The sender issued unusual command(s)\">RARE</abbr> ";
+			if (ae.GetExtMsgFlagFail(i)) flagText += "<abbr title=\"The sender issued invalid command(s)\">FAIL</abbr> ";
+			if (ae.GetExtMsgFlagPErr(i)) flagText += "<abbr title=\"The sender violated the protocol\">PROT</abbr> ";
+			document.getElementById("readmsg_flags").innerHTML = flagText.trim();
 
 			document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
 			document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);
