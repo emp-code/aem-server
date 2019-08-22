@@ -245,12 +245,51 @@ static void processMessage(char * const * const data, size_t *lenData) {
 
 	const size_t lenHeaders = headersEnd - *data;
 
-	const char *qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
-	if (qpHeader != NULL && qpHeader < headersEnd) {
-		char *msg = *data + lenHeaders + 4;
-		const size_t lenOld = *lenData - lenHeaders - 4;
-		const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
-		*lenData -= (lenOld - lenNew);
+	const char *mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
+	if (mpHeader != NULL) {
+		const char * const mpEnd = strpbrk(mpHeader + 25, "\r\n");
+		if (mpEnd == NULL) return;
+
+		char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
+		if (boundaryBegin == NULL || boundaryBegin > mpEnd) return;
+		boundaryBegin += 10;
+
+		char *boundaryEnd = strchr(boundaryBegin, '"');
+		if (boundaryEnd == NULL) return;
+		const size_t lenBoundary = boundaryEnd - boundaryBegin;
+
+		char boundary[lenBoundary + 1];
+		memcpy(boundary, boundaryBegin, lenBoundary);
+		boundary[lenBoundary] = '\0';
+
+		char *bound = strstr(headersEnd + 4, boundary);
+		while (bound != NULL) {
+			bound += lenBoundary;
+
+			char *boundaryEnd = strstr(bound, boundary);
+			if (boundaryEnd == NULL) break;
+
+			char *boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
+			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
+
+			const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
+				char *msg = boundaryHeaderEnd + 4;
+				const size_t lenOld = boundaryEnd - msg;
+				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, (*data + *lenData) - msg);
+				*lenData -= (lenOld - lenNew);
+			}
+
+			bound = boundaryEnd;
+		}
+	} else {
+		const char *qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+		if (qpHeader != NULL && qpHeader < headersEnd) {
+			char *msg = *data + lenHeaders + 4;
+			const size_t lenOld = *lenData - lenHeaders - 4;
+			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, lenOld);
+			*lenData -= (lenOld - lenNew);
+		}
 	}
 }
 
