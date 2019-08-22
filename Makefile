@@ -14,7 +14,7 @@ Database.o: Database.c
 Message.o: Message.c
 http.o: http.c
 https.o: https.c Includes/SixBit.h Database.h Message.h
-smtp.o: smtp.c
+smtp.o: smtp.c Includes/SixBit.h
 
 .PHONY: clean
 clean:
