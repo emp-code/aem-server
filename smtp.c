@@ -29,6 +29,8 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 "\r\n250 SMTPUTF8" \
 "\r\n"
 
+#define _GNU_SOURCE // for strcasestr
+
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -45,6 +47,7 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 
+#include "Includes/QuotedPrintable.h"
 #include "Includes/SixBit.h"
 
 #include "Database.h"
@@ -233,6 +236,20 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 
 		if (nextTo == NULL) return;
 		toStart = nextTo + 1;
+	}
+}
+
+static void processMessage(char * const * const data, size_t *lenData) {
+	const char *headersEnd = strstr(*data, "\r\n\r\n");
+	if (headersEnd == NULL) return;
+
+	const size_t lenHeaders = headersEnd - *data;
+	const char *qpHeader = strcasestr(*data, "Content-Transfer-Encoding: Quoted-Printable\r\n");
+	if (qpHeader != NULL) {
+		char *msg = *data + lenHeaders + 4;
+		const size_t lenOld = *lenData - lenHeaders - 4;
+		const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
+		*lenData -= (lenOld - lenNew);
 	}
 }
 
@@ -506,6 +523,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			body[lenBody] = '\0';
+			processMessage(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, infoByte, addrKey);
