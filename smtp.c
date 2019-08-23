@@ -273,9 +273,9 @@ static void processMessage(char * const * const data, size_t *lenData) {
 			char *boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
 			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
 
-			const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
 			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
-				char *msg = boundaryHeaderEnd + 4;
+				char * const msg = boundaryHeaderEnd + 4;
 				const size_t lenOld = boundaryEnd - msg;
 				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, (*data + *lenData) - msg);
 				*lenData -= (lenOld - lenNew);
