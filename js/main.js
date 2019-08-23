@@ -40,9 +40,13 @@ function addAddress(num) {
 	if (ae.IsAddressShield(num)) cellAddr.className="mono";
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk2.innerHTML = ae.IsAddressSharePk(num)      ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+
+	if (ae.IsUserAdmin())
+		cellChk2.innerHTML = "<input type=\"checkbox\" checked=\"checked\" readonly=\"readonly\" disabled=\"disabled\">";
+	else
+		cellChk2.innerHTML = ae.IsAddressSharePk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
 	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
 	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
