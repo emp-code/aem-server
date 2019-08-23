@@ -1,9 +1,15 @@
 #include <stdlib.h>
+#include <stdbool.h>
+#include <ctype.h>
 #include <string.h>
 
 #include "Base64.h"
 
 const unsigned char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+bool isBase64Char(const char c) {
+	return (isalnum(c) || c == '+' || c == '/' || c == '=');
+}
 
 unsigned char *b64Decode(const unsigned char * const src, const size_t srcLen, size_t * const outLen) {
 	unsigned char dtable[256];
