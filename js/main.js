@@ -365,7 +365,7 @@ function addExtMessages() {
 		cellTo.textContent = ae.GetExtMsgTo(i);
 
 		const cc = ae.GetExtMsgCountry(i);
-		cellFrom.innerHTML = getCountryFlag(cc);
+		cellFrom.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
 
 		const fromText = document.createElement("span");
 		fromText.textContent = " " + ae.GetExtMsgFrom(i);
