@@ -241,8 +241,53 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 	}
 }
 
+void decodeEncodedWord(char * const * const data, size_t *lenData) {
+	const char * const headersEnd = strstr(*data, "\r\n\r\n");
+	if (headersEnd == NULL) return;
+
+	const size_t searchLen = headersEnd - *data;
+	char *ew = memmem(*data, searchLen, "=?", 2);
+
+	while (ew != NULL) {
+		char *charsetEnd = strchr(ew + 2, '?');
+		if (charsetEnd == NULL || charsetEnd[2] != '?') break;
+
+		char *ewEnd = strstr(charsetEnd + 2, "?=");
+		if (ewEnd == NULL) break;
+
+		if (charsetEnd[1] == 'Q' || charsetEnd[1] == 'q') {
+			char * const qpBegin = charsetEnd + 3;
+
+			const size_t lenQpBegin = *lenData - (qpBegin - *data);
+			const size_t lenQp = ewEnd - qpBegin;
+
+			const int lenDqp = decodeQuotedPrintable(&qpBegin, lenQp, lenQpBegin);
+
+			memmove(ew, qpBegin, lenQpBegin - (lenQp - lenDqp));
+			memmove(ew + lenDqp, ew + lenDqp + 2, lenQpBegin - lenQp - 2);
+
+			*lenData -= (qpBegin - ew) + (lenQp - lenDqp) + 2;
+			(*data)[*lenData] = '\0';
+		} else if (charsetEnd[1] == 'B' || charsetEnd[1] == 'b') {
+			char * const b64Begin = charsetEnd + 3;
+			const size_t lenB64 = ewEnd - b64Begin;
+
+			size_t lenDec;
+			unsigned char *dec = b64Decode((unsigned char*)b64Begin, lenB64, &lenDec);
+
+			memcpy(ew, dec, lenDec);
+			memmove(ew + lenDec, ewEnd + 2, *lenData - ((ewEnd + 2) - *data));
+			free(dec);
+
+			*lenData -= (ewEnd + 2) - (ew + lenDec);
+			(*data)[*lenData] = '\0';
+		} else break;
+
+		ew = memmem(*data, searchLen, "=?", 2);
+	}
+}
+
 // TODO: Convert non-UTF8 to UTF8
-// TODO: Decode Encoded-Word headers (Subject)
 static void processMessage(char * const * const data, size_t *lenData) {
 	const char *headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
@@ -611,6 +656,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			body[lenBody] = '\0';
+			decodeEncodedWord(&body, &lenBody);
 			processMessage(&body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
