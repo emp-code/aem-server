@@ -14,7 +14,7 @@ bool isBase64Char(const char c) {
 unsigned char *b64Decode(const unsigned char * const src, const size_t srcLen, size_t * const outLen) {
 	unsigned char dtable[256];
 	memset(dtable, 0x80, 256);
-	for (int i = 0; i < 66; i++) dtable[b64Table[i]] = (unsigned char)i;
+	for (int i = 0; i < 64; i++) dtable[b64Table[i]] = (unsigned char)i;
 	dtable['='] = 0;
 
 	size_t count = 0;
