@@ -47,6 +47,7 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 
+#include "Includes/Base64.h"
 #include "Includes/Brotli.h"
 #include "Includes/QuotedPrintable.h"
 #include "Includes/SixBit.h"
@@ -240,6 +241,8 @@ const struct sockaddr_in * const sockAddr, const int cs, const unsigned char inf
 	}
 }
 
+// TODO: Convert non-UTF8 to UTF8
+// TODO: Decode Encoded-Word headers (Subject)
 static void processMessage(char * const * const data, size_t *lenData) {
 	const char *headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
@@ -279,6 +282,28 @@ static void processMessage(char * const * const data, size_t *lenData) {
 				const size_t lenOld = boundaryEnd - msg;
 				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, (*data + *lenData) - msg);
 				*lenData -= (lenOld - lenNew);
+				(*data)[*lenData] = '\0';
+			} else {
+				const char * const b64Header = strcasestr(bound, "\r\nContent-Transfer-Encoding: Base64\r\n");
+				if (b64Header != NULL && b64Header < boundaryHeaderEnd) {
+					char *msg = boundaryHeaderEnd + 4;
+
+					while (msg < boundaryEnd && isspace(*msg)) msg++;
+					while (msg < boundaryEnd && !isBase64Char(*(boundaryEnd - 1))) boundaryEnd--;
+					if (msg >= boundaryEnd) break;
+					const size_t lenOld = boundaryEnd - msg;
+
+					size_t lenDecoded;
+					unsigned char * const decoded = b64Decode((unsigned char*)msg, lenOld, &lenDecoded);
+					if (decoded == NULL) break;
+
+					memcpy(msg, decoded, lenDecoded);
+					memmove(msg + lenDecoded, msg + lenOld, ((*data) + *lenData) - (msg + lenOld));
+					free(decoded);
+
+					*lenData -= (lenOld - lenDecoded);
+					(*data)[*lenData] = '\0';
+				}
 			}
 
 			bound = boundaryEnd;
@@ -290,6 +315,28 @@ static void processMessage(char * const * const data, size_t *lenData) {
 			const size_t lenOld = *lenData - lenHeaders - 4;
 			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, lenOld);
 			*lenData -= (lenOld - lenNew);
+		} else {
+			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: Base64\r\n");
+			if (b64Header != NULL && b64Header < headersEnd) {
+				char *msg = *data + lenHeaders + 4;
+				char *msgEnd = *data + *lenData;
+
+				while (msg < msgEnd && isspace(*msg)) msg++;
+				while (msg < msgEnd && !isBase64Char(*(msgEnd - 1))) msgEnd--;
+				if (msg >= msgEnd) return;
+				const size_t lenOld = msgEnd - msg;
+
+				size_t lenDecoded;
+				unsigned char * const decoded = b64Decode((unsigned char*)msg, lenOld, &lenDecoded);
+				if (decoded == NULL) return;
+
+				memcpy(msg, decoded, lenDecoded);
+				memmove(msg + lenDecoded, msg + lenOld, ((*data) + *lenData) - (msg + lenOld));
+				free(decoded);
+
+				*lenData -= (lenOld - lenDecoded);
+				(*data)[*lenData] = '\0';
+			}
 		}
 	}
 }
