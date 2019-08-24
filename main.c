@@ -314,16 +314,14 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 		puts("[Main.HTTPS] Ready");
 
 		while(1) {
-			struct sockaddr_in clientAddr;
-			unsigned int clen = sizeof(clientAddr);
-			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("[Main.HTTPS] Failed to create socket for accepting connection"); break;}
 
 			const int pid = fork();
 			if (pid < 0) {puts("[Main.HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, seed, domain, lenDomain, fileSet, clientAddr.sin_addr.s_addr);
+				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, seed, domain, lenDomain, fileSet);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one

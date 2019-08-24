@@ -403,7 +403,7 @@ static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * 
 	send204(ssl);
 }
 
-static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char * const seed, const unsigned char * const ssk) {
+static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const seed, const unsigned char * const ssk) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -550,12 +550,12 @@ static void handleGet(mbedtls_ssl_context * const ssl, const char * const url, c
 }
 
 static void handlePost(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
-const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost, const uint32_t clientIp) {
+const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost) {
 	if (lenUrl < 8) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
-	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, clientIp, seed, ssk);
+	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, seed, ssk);
 	if (decrypted == NULL) return;
 
 	int64_t upk64;
@@ -630,7 +630,7 @@ int getRequestType(const unsigned char * const req, const size_t lenReqTotal, co
 }
 
 int respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const unsigned char * const addrKey,
-const unsigned char * const seed, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet, const uint32_t clientIp) {
+const unsigned char * const seed, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
 	// Setting up the SSL
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -708,7 +708,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 					post += 4;
 					const size_t lenPost = ret - (post - req);
 
-					handlePost(&ssl, ssk, addrKey, seed, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost, clientIp);
+					handlePost(&ssl, ssk, addrKey, seed, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");
