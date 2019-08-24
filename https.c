@@ -403,7 +403,7 @@ static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * 
 	send204(ssl);
 }
 
-static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const seed, const unsigned char * const ssk) {
+static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -549,13 +549,13 @@ static void handleGet(mbedtls_ssl_context * const ssl, const char * const url, c
 	if (lenUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-static void handlePost(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
+static void handlePost(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey,
 const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost) {
 	if (lenUrl < 8) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
-	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, seed, ssk);
+	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
 	if (decrypted == NULL) return;
 
 	int64_t upk64;
@@ -708,7 +708,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 					post += 4;
 					const size_t lenPost = ret - (post - req);
 
-					handlePost(&ssl, ssk, addrKey, seed, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
+					handlePost(&ssl, ssk, addrKey, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");
