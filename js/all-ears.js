@@ -105,16 +105,19 @@ function AllEars() {
 	}
 
 	const _FetchEncrypted = function(url, cleartext, nacl, callback) {
-		_FetchBinary("/web/nonce", _userKeys.boxPk, function(fetchOk, nonce) {
-			if (!fetchOk) {callback(false); return;}
+		let nonce = new Uint8Array(24);
+		window.crypto.getRandomValues(nonce);
 
-			const postBox = nacl.crypto_box(cleartext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
-			const postMsg = new Uint8Array(_userKeys.boxPk.length + postBox.length);
-			postMsg.set(_userKeys.boxPk);
-			postMsg.set(postBox, _userKeys.boxPk.length);
+		// postBox: the encrypted data to be sent
+		const postBox = nacl.crypto_box(cleartext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
 
-			_FetchBinary(url, postMsg, callback);
-		});
+		// postMsg: Nonce + User Public Key + postBox
+		const postMsg = new Uint8Array(24 + _userKeys.boxPk.length + postBox.length);
+		postMsg.set(nonce);
+		postMsg.set(_userKeys.boxPk, 24);
+		postMsg.set(postBox, 24 + _userKeys.boxPk.length);
+
+		_FetchBinary(url, postMsg, callback);
 	}
 
 	const _BitSet = function(num, bit) {

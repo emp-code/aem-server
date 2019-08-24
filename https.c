@@ -2,9 +2,6 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -16,7 +13,6 @@
 #include "mbedtls/error.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
-#include "mbedtls/xtea.h"
 
 #include "aem_file.h"
 
@@ -32,8 +28,6 @@
 
 #define AEM_HTTPS_TIMEOUT 30
 #define AEM_HTTPS_MAXREQSIZE 8192
-
-#define AEM_NONCE_TIMEDIFF_MAX 30
 
 #define AEM_HTTPS_CIPHERSUITES {\
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,\
@@ -224,47 +218,10 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-static void encryptNonce(unsigned char * const nonce, const unsigned char * const seed) {
-	// Nonce is encrypted to protect against leaking server time etc
-	// One-way encryption (hashing) would work, but TEA guarantees no collision risk
-	mbedtls_xtea_context tea;
-	mbedtls_xtea_init(&tea);
-	mbedtls_xtea_setup(&tea, seed);
-
-	unsigned char nonce_encrypted[24];
-	mbedtls_xtea_crypt_ecb(&tea, MBEDTLS_XTEA_ENCRYPT, nonce, nonce_encrypted); // Bytes 1-8
-	mbedtls_xtea_crypt_ecb(&tea, MBEDTLS_XTEA_ENCRYPT, nonce + 8, nonce_encrypted + 8); // Bytes 9-16
-	mbedtls_xtea_crypt_ecb(&tea, MBEDTLS_XTEA_ENCRYPT, nonce + 16, nonce_encrypted + 16); // Bytes 17-24
-	memcpy(nonce, nonce_encrypted, 24);
-}
-
 static int numDigits(double number) {
 	int digits = 0;
 	while (number > 1) {number /= 10; digits++;}
 	return digits;
-}
-
-static int getUserNonce(const unsigned char * const upk, unsigned char * const nonce, const uint32_t clientIp, const unsigned char * const seed) {
-	const int fd = open("/tmp/nonce.aem", O_RDWR);
-	if (fd < 0) return -1;
-	if (flock(fd, LOCK_EX) != 0) {close(fd); return -1;}
-
-	ssize_t bytesDone = read(fd, nonce, 24);
-	if (bytesDone == 24) bytesDone = pwrite(fd, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 24, 0);
-	flock(fd, LOCK_UN);
-	close(fd);
-	const int ret = unlink("/tmp/nonce.aem");
-	if (bytesDone != 24 || ret != 0) return -1;
-
-	memcpy(nonce, &clientIp, 4); // Box will not open if current IP differs from the one that requested the nonce
-
-	int32_t ts;
-	memcpy(&ts, nonce + 20, 4);
-	const int timeDiff = (int)time(NULL) - ts;
-	if (timeDiff < 0 || timeDiff > AEM_NONCE_TIMEDIFF_MAX) return - 1;
-
-	encryptNonce(nonce, seed);
-	return 0;
 }
 
 // Web login (get settings and messages)
@@ -446,81 +403,27 @@ static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * 
 	send204(ssl);
 }
 
-static void respond_https_nonce(mbedtls_ssl_context * const ssl, const unsigned char * const post, const size_t lenPost, const uint32_t clientIp, const unsigned char * const seed) {
-	if (lenPost != crypto_box_PUBLICKEYBYTES) return;
-
-	int64_t upk64;
-	memcpy(&upk64, post, 8);
-	unsigned char nonce[24];
-
-	if (!upk64Exists(upk64)) return;
-
-	int fd = open("/tmp/nonce.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-
-	if (fd < 0) {
-		if (errno != EEXIST) return;
-
-		fd = open("/tmp/nonce.aem", O_RDWR);
-		char ts_c[4];
-		if (pread(fd, ts_c, 4, 20) != 4) {close(fd); return;}
-		int32_t ts;
-		memcpy(&ts, ts_c, 4);
-
-		const int timeDiff = (int)time(NULL) - ts;
-		if (timeDiff >= 0 && timeDiff < AEM_NONCE_TIMEDIFF_MAX) {close(fd); return;}
-	}
-
-	if (flock(fd, LOCK_EX) != 0) {close(fd); return;}
-
-	const uint32_t ts = (uint32_t)time(NULL);
-	memcpy(nonce, &clientIp, 4); // Client IP. Protection against third parties intercepting the Box.
-	randombytes_buf(nonce + 4, 16);
-	memcpy(nonce + 20, &ts, 4); // Timestamp. Protection against replay attacks.
-
-	const ssize_t bytesDone = write(fd, nonce, 24);
-	flock(fd, LOCK_UN);
-	close(fd);
-	if (bytesDone != 24) return;
-
-	encryptNonce(nonce, seed);
-
-	char data[224];
-	memcpy(data,
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=94672800\r\n"
-		"Connection: close\r\n"
-		"Content-Length: 24\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 200);
-
-	memcpy(data + 200, nonce, 24);
-
-	sendData(ssl, data, 224);
-}
-
 static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const int32_t clientIp, const unsigned char * const seed, const unsigned char * const ssk) {
 	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
 
-	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
+	unsigned char nonce[crypto_box_NONCEBYTES];
+	memcpy(nonce, post, crypto_box_NONCEBYTES);
+
+	memcpy(upk, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
 	if (!upk64Exists(upk64)) return NULL;
 
-	unsigned char nonce[24];
-	if (getUserNonce(post, nonce, clientIp, seed) != 0) return NULL;
-
 	char * const decrypted = sodium_malloc(lenPost);
 	if (decrypted == NULL) return NULL;
 
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + crypto_box_PUBLICKEYBYTES, lenPost - crypto_box_PUBLICKEYBYTES, nonce, upk, ssk);
+	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, lenPost - skipBytes, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 
 	sodium_mprotect_readonly(decrypted);
-	*lenDecrypted = lenPost - crypto_box_PUBLICKEYBYTES - crypto_box_MACBYTES;
+	*lenDecrypted = lenPost - skipBytes - crypto_box_MACBYTES;
 
 	return decrypted;
 }
@@ -649,8 +552,6 @@ static void handleGet(mbedtls_ssl_context * const ssl, const char * const url, c
 static void handlePost(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const unsigned char * const seed,
 const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost, const uint32_t clientIp) {
 	if (lenUrl < 8) return;
-
-	if (lenUrl == 9 && memcmp(url, "web/nonce", 9) == 0) return respond_https_nonce(ssl, post, lenPost, clientIp, seed);
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
