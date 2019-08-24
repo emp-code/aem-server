@@ -432,7 +432,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 	mbedtls_entropy_context entropy;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
-		send(sock, "220 Ok\r\n", 8, 0);
+		send(sock, "220 aem\r\n", 9, 0);
 		tls = &ssl;
 
 		mbedtls_ssl_config_init(&conf);
@@ -495,7 +495,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			puts("[SMTP] Terminating: Client closed connection cleanly after StartTLS");
-			send_aem(sock, tls, "221 Ok\r\n", 8);
+			send_aem(sock, tls, "221 aem\r\n", 9);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
@@ -539,7 +539,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			if (lenFrom < 1) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
-				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
+				if (send_aem(sock, tls, "503 aem\r\n", 9) != 9) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 101);
 				}
@@ -555,7 +555,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			}
 
 			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
-				if (send_aem(sock, tls, "550 Ok\r\n", 8) != 8) {
+				if (send_aem(sock, tls, "550 aem\r\n", 9) != 9) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 103);
 				}
@@ -570,7 +570,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			}
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
-				if (send_aem(sock, tls, "452 Ok\r\n", 8) != 8) { // Too many recipients
+				if (send_aem(sock, tls, "452 aem\r\n", 9) != 9) { // Too many recipients
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 104);
 				}
@@ -597,7 +597,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
 			infoByte |= AEM_INFOBYTE_CMD_RARE;
 
-			if (send_aem(sock, tls, "252 Ok\r\n", 8) != 8) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
+			if (send_aem(sock, tls, "252 aem\r\n", 9) != 9) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 105);
 			}
@@ -606,7 +606,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 		}
 
 		else if (strncasecmp(buf, "QUIT", 4) == 0) {
-			send_aem(sock, tls, "221 Ok\r\n", 8);
+			send_aem(sock, tls, "221 aem\r\n", 9);
 			break;
 		}
 
@@ -614,7 +614,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			if (lenFrom < 1 || lenTo < 1) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
-				if (send_aem(sock, tls, "503 Ok\r\n", 8) != 8) {
+				if (send_aem(sock, tls, "503 aem\r\n", 9) != 9) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 106);
 				}
@@ -622,7 +622,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 				continue;
 			}
 
-			if (send_aem(sock, tls, "354 Ok\r\n", 8) != 8) {
+			if (send_aem(sock, tls, "354 aem\r\n", 9) != 9) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 107);
 			}
@@ -647,7 +647,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
-			if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
+			if (send_aem(sock, tls, "250 aem\r\n", 9) != 9) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 150);
 			}
@@ -684,7 +684,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			infoByte |= AEM_INFOBYTE_CMD_FAIL;
 
 			// Unsupported commands
-			if (send_aem(sock, tls, "500 Ok\r\n", 8) != 8) {
+			if (send_aem(sock, tls, "500 aem\r\n", 9) != 9) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 108);
 			}
@@ -693,7 +693,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 			continue;
 		}
 
-		if (send_aem(sock, tls, "250 Ok\r\n", 8) != 8) {
+		if (send_aem(sock, tls, "250 aem\r\n", 9) != 9) {
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return smtp_fail(clientAddr, 150);
 		}
