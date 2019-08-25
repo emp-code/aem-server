@@ -544,16 +544,17 @@ function AllEars() {
 	// Notes are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
 	this.SaveNote = function(title, body, callback) { nacl_factory.instantiate(function (nacl) {
 		const txt = title + '\n' + body;
-		const lenTxt = txt.length;
+		const lenTxt = new Blob([txt]).size;
 		if (lenTxt > (256 * 1024)) {callback(false); return;}
 
-		const paddedLen = Math.ceil(txt.length / 1024.0) * 1024;
+		// First two bytes store that padding length
+		const paddedLen = Math.ceil(lenTxt / 1024.0) * 1024;
 		const u16pad = new Uint16Array([paddedLen - lenTxt]);
 		const u8pad = new Uint8Array(u16pad.buffer);
 
 		const u8data = new Uint8Array(paddedLen + 2);
 		u8data.set(u8pad);
-		u8data.set(nacl.encode_utf8(txt.padEnd(paddedLen)), 2);
+		u8data.set(nacl.encode_utf8(txt), 2);
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk, _userKeys.boxSk);
 
