@@ -401,7 +401,9 @@ static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * 
 }
 
 static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
-	if (lenPost <= crypto_box_PUBLICKEYBYTES) return NULL;
+	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
+
+	if (lenPost <= skipBytes) return NULL;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
 	memcpy(nonce, post, crypto_box_NONCEBYTES);
@@ -415,7 +417,6 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 	char * const decrypted = sodium_malloc(lenPost);
 	if (decrypted == NULL) return NULL;
 
-	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, lenPost - skipBytes, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 
