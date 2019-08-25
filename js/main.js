@@ -297,7 +297,8 @@ function addIntMessages() {
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
-			document.getElementById("div_readmsg").hidden=false;
+			document.getElementById("div_readmsg").hidden = false;
+			document.getElementById("readmsg_head").hidden = false;
 			document.getElementById("readmsg_levelinfo").hidden = false;
 			document.getElementById("readmsg_extmsg").hidden = true;
 
@@ -382,7 +383,7 @@ function addExtMessages() {
 		cellTitle.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden = false;
-
+			document.getElementById("readmsg_head").hidden = false;
 			document.getElementById("readmsg_levelinfo").hidden = true;
 			document.getElementById("readmsg_extmsg").hidden = false;
 			document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
@@ -500,6 +501,15 @@ function loginSuccess() {
 					console.log("Failed to delete note");
 				}
 			});
+		}
+
+		cellTitle.onclick = function() {
+			navMenu(-1);
+			document.getElementById("div_readmsg").hidden = false;
+			document.getElementById("readmsg_head").hidden = true;
+
+			document.getElementById("readmsg_title").textContent = ae.GetNoteTitle(i);
+			document.getElementById("readmsg_body").textContent = ae.GetNoteBody(i);
 		}
 	}
 
