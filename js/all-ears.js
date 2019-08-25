@@ -558,7 +558,7 @@ function AllEars() {
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk, _userKeys.boxSk);
 
-		_FetchEncrypted("/web/note", sealbox, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/web/textnote", sealbox, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));

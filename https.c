@@ -373,7 +373,7 @@ static void respond_https_send(mbedtls_ssl_context * const ssl, const unsigned c
 	if (ret == 0) send204(ssl);
 }
 
-static void respond_https_note(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+static void respond_https_textnote(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES) % 1026 != 0) return; // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
 
 	// TODO: Move to Message.c
@@ -559,9 +559,9 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
 
-	if (lenUrl == 9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
-	if (lenUrl == 8 && memcmp(url, "web/note", 8) == 0) return respond_https_note(ssl, upk, &decrypted, lenDecrypted);
+	if (lenUrl ==  9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl == 12 && memcmp(url, "web/textnote", 12) == 0) return respond_https_textnote(ssl, upk, &decrypted, lenDecrypted);
 
 	if (lenUrl == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
 	if (lenUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
