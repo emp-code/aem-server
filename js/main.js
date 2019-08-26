@@ -58,7 +58,7 @@ function addAddress(num) {
 
 	const opt = document.createElement("option");
 	opt.value = cellAddr.textContent;
-	opt.textContent = cellAddr.textContent + "@allears.test";
+	opt.textContent = cellAddr.textContent + "@" + document.domain;
 	document.getElementById("send_from").appendChild(opt);
 }
 
