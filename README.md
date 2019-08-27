@@ -45,7 +45,7 @@ Messages exist in four types:
 * IntMsg (Internal Message), mail sent to another user on the service
 * ExtMsg (External Message), email
 * Text Notes created by the user
-* Files uploaded by the user (planned)
+* Files uploaded by the user
 
 It is impossible to tell which type a message is without decryption using the user's secret key.
 

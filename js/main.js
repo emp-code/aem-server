@@ -431,6 +431,52 @@ function addExtMessages() {
 	}
 }
 
+function addFileNote(num, allowDelete) {
+	const table = document.getElementById("tbody_filenotes");
+
+	const row = table.insertRow(-1);
+	const cellTime = row.insertCell(-1);
+	const cellName = row.insertCell(-1);
+	const cellType = row.insertCell(-1);
+	const cellBtnD = row.insertCell(-1);
+	const cellBtnX = row.insertCell(-1);
+
+	cellTime.textContent = new Date(ae.GetFileTime(num) * 1000).toLocaleString();
+	cellName.textContent = ae.GetFileName(num);
+	cellType.textContent = ae.GetFileType(num);
+	cellBtnD.innerHTML = "<button type=\"button\">D</button>";
+	if (allowDelete)
+		cellBtnX.innerHTML = "<button type=\"button\">X</button>";
+	else
+		cellBtnX.innerHTML = "<button type=\"button\" disabled=\"disabled\" title=\"Reload page to delete\">X</button>";
+
+	cellBtnD.children[0].onclick = function() {
+		const parentRow = this.parentElement.parentElement;
+		const fileBlob = ae.GetFileBlob(parentRow.rowIndex - 1);
+
+		const a = document.getElementById("a_filedl");
+		const objectUrl = URL.createObjectURL(fileBlob);
+		a.href = objectUrl;
+		a.download = ae.GetFileName(parentRow.rowIndex - 1);
+		a.click();
+
+		a.href = "";
+		a.download = "";
+		URL.revokeObjectURL(objectUrl);
+	}
+
+	cellBtnX.children[0].onclick = function() {
+		const parentRow = this.parentElement.parentElement;
+		ae.DeleteMessages([ae.GetFileId(parentRow.rowIndex - 1)], function(success) {
+			if (success) {
+				table.deleteRow(parentRow.rowIndex - 1);
+			} else {
+				console.log("Failed to delete note");
+			}
+		});
+	}
+}
+
 function loginSuccess() {
 	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
 	document.getElementById("div_login").hidden=true;
@@ -511,6 +557,11 @@ function loginSuccess() {
 			document.getElementById("readmsg_title").textContent = ae.GetNoteTitle(i);
 			document.getElementById("readmsg_body").textContent = ae.GetNoteBody(i);
 		}
+	}
+
+	// Files
+	for (let i = 0; i < ae.GetFileCount(); i++) {
+		addFileNote(i, true);
 	}
 
 	if (ae.IsUserAdmin()) {
@@ -758,6 +809,29 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 	});
 
 	btn.disabled = "";
+};
+
+document.getElementById("btn_uploadfile").onclick = function() {
+	this.disabled = "disabled;"
+	const fileSelector = document.getElementById("upfile");
+	const f = fileSelector.files[0];
+
+	let reader = new FileReader();
+	reader.onload = function(e) {
+		const u8data = new Uint8Array(reader.result);
+		ae.SaveFile(u8data, f.name, f.type, f.size, function(success) {
+			if (success) {
+				addFileNote(ae.GetFileCount() - 1, false);
+				fileSelector.value = "";
+			} else {
+				console.log("File upload failed.");
+			}
+		});
+
+		document.getElementById("btn_uploadfile").disabled = "";
+	}
+
+	reader.readAsArrayBuffer(f);
 };
 
 function genKeys() {

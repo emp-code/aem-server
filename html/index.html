@@ -126,24 +126,21 @@
 							<thead>
 								<tr>
 									<th>Time</th>
-									<th>Filename</th>
+									<th>Name</th>
+									<th>Type</th>
 									<th>Download</th>
 									<th>Delete</th>
 								</tr>
 							</thead>
-							<tbody>
-								<tr>
-									<td>2000-01-01T00:00:00Z</td>
-									<td>Example.bin</td>
-									<td><button type="button" autocomplete="off">D</button></td>
-									<td><button type="button" autocomplete="off">X</button></td>
-								</tr>
+							<tbody id="tbody_filenotes">
 							</tbody>
 						</table>
 
 						<div class="topmargin">
 							<input id="upfile" type="file"> <button type="button" autocomplete="off" id="btn_uploadfile">Add</button>
 						</div>
+
+						<a id="a_filedl" hidden></a>
 					</div>
 
 					<div id="div_newtextnote" hidden>

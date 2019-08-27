@@ -27,6 +27,7 @@ function AllEars() {
 	let _intMsg = [];
 	let _extMsg = [];
 	let _textNote = [];
+	let _fileNote = [];
 
 	let _gkCountry = [];
 	let _gkDomain  = [];
@@ -72,6 +73,14 @@ function AllEars() {
 		this.timestamp = ts;
 		this.title = title;
 		this.body = body;
+	}
+
+	function _NewFileNote(id, ts, fileData, fileName, fileType) {
+		this.id = id;
+		this.timestamp = ts;
+		this.fileData = fileData;
+		this.fileName = fileName;
+		this.fileType = fileType;
 	}
 
 	function _NewAddress(addr, hash, decoded, isShield, accInt, spk, accExt, gk) {
@@ -282,6 +291,13 @@ function AllEars() {
 	this.GetNoteTime = function(num) {return _textNote[num].timestamp;}
 	this.GetNoteTitle = function(num) {return _textNote[num].title;}
 	this.GetNoteBody = function(num) {return _textNote[num].body;}
+
+	this.GetFileCount = function() {return _fileNote.length;}
+	this.GetFileId   = function(num) {return _fileNote[num].id;}
+	this.GetFileTime = function(num) {return _fileNote[num].timestamp;}
+	this.GetFileName = function(num) {return _fileNote[num].fileName;}
+	this.GetFileType = function(num) {return _fileNote[num].fileType;}
+	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].fileData.buffer], {type : _fileNote[num].fileType});}
 
 	this.GetGatekeeperCountry = function() {return _gkCountry;}
 	this.GetGatekeeperDomain  = function() {return _gkDomain;}
@@ -524,8 +540,29 @@ function AllEars() {
 					if (ln > 0)
 						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
 					else
-						console.log("Received corrupted note");
-				} else console.log("Unsupported message type received");
+						console.log("Received corrupted TextNote");
+				} else { // 1,1 FileNote
+					const u32bytes = msgHead.slice(1, 5).buffer;
+					const note_ts = new Uint32Array(u32bytes)[0];
+
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 91;
+
+					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
+					const lenFn = msgBody[0];
+					const fileName = nacl.decode_utf8(msgBody.slice(1, 1 + lenFn));
+
+					const lenFt = msgBody[1 + lenFn];
+					const fileType = nacl.decode_utf8(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
+
+					_fileNote.push(new _NewFileNote(msgId, note_ts, msgBody.slice(2 + lenFn + lenFt), fileName, fileType));
+				}
 
 				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
 			}
@@ -547,7 +584,7 @@ function AllEars() {
 		const lenTxt = new Blob([txt]).size;
 		if (lenTxt > (256 * 1024)) {callback(false); return;}
 
-		// First two bytes store that padding length
+		// First two bytes store the padding length
 		const paddedLen = Math.ceil(lenTxt / 1024.0) * 1024;
 		const u16pad = new Uint16Array([paddedLen - lenTxt]);
 		const u8pad = new Uint8Array(u16pad.buffer);
@@ -562,6 +599,41 @@ function AllEars() {
 			if (!fetchOk) {callback(false); return;}
 
 			_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));
+			callback(true);
+		});
+	}); }
+
+	// Files are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
+	this.SaveFile = function(fileData, fileName, fileType, fileSize, callback) { nacl_factory.instantiate(function (nacl) {
+		const lenFn = (new Blob([fileName]).size);
+		const lenFt = (new Blob([fileType]).size);
+		if (lenFn > 255 || lenFt > 255) {callback(false); return;}
+
+		fileSize += lenFn + lenFt + 2;
+		if (fileSize > (256 * 1024)) {callback(false); return;}
+
+		// First two bytes store the padding length
+		const paddedLen = Math.ceil(fileSize / 1024.0) * 1024;
+		const u16pad = new Uint16Array([paddedLen - fileSize]);
+		const u8pad = new Uint8Array(u16pad.buffer);
+
+		const u8data = new Uint8Array(paddedLen + 2);
+		u8data.set(u8pad);
+
+		u8data[2] = lenFn;
+		u8data.set(nacl.encode_utf8(fileName), 3);
+
+		u8data[3 + lenFn] = lenFt;
+		u8data.set(nacl.encode_utf8(fileType), 4 + lenFn);
+
+		u8data.set(fileData, 4 + lenFn + lenFt);
+
+		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
+
+		_FetchEncrypted("/web/filenote", sealbox, nacl, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileName, fileType));
 			callback(true);
 		});
 	}); }
@@ -659,6 +731,11 @@ function AllEars() {
 				for (let j = 0; j < _textNote.length; j++) {
 					if (ids[i] == _textNote[j].id) _textNote.splice(j, 1);
 					else if (ids[i] < _textNote[j].id) _textNote[j].id -= 1;
+				}
+
+				for (let j = 0; j < _fileNote.length; j++) {
+					if (ids[i] == _fileNote[j].id) _fileNote.splice(j, 1);
+					else if (ids[i] < _fileNote[j].id) _fileNote[j].id -= 1;
 				}
 			}
 
