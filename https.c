@@ -46,9 +46,9 @@ MBEDTLS_ECP_DP_NONE}
 
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Max size of inbox response. TODO: Move this to config
 
-#define AEM_HTTPS_REQUEST_INVALID 0
-#define AEM_HTTPS_REQUEST_GET 1
-#define AEM_HTTPS_REQUEST_POST 2
+#define AEM_HTTPS_REQUEST_INVALID -1
+#define AEM_HTTPS_REQUEST_GET 0
+// POST: body size (Content-Length)
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
@@ -621,9 +621,11 @@ int getRequestType(const unsigned char * const req, const size_t lenReqTotal, co
 	}
 
 	if (memcmp(req, "POST /web/", 10) == 0) {
-		if (memmem(req, lenReq, "\r\nContent-Length: ", 18) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+		const char * const cl = memmem(req, lenReq, "\r\nContent-Length: ", 18);
+		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-		return AEM_HTTPS_REQUEST_POST;
+		const int lenPost = strtol(cl + 18, NULL, 10);
+		return (lenPost < 1) ? AEM_HTTPS_REQUEST_INVALID : lenPost;
 	}
 
 	return AEM_HTTPS_REQUEST_INVALID;
@@ -690,25 +692,39 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 	}
 
 	unsigned char * const req = malloc(AEM_HTTPS_MAXREQSIZE);
-	do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	int lenReq;
+	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
-	if (ret > 0) {
-		const int reqType = getRequestType(req, ret, domain, lenDomain);
+	if (lenReq > 0) {
+		const int lenReqBody = getRequestType(req, lenReq, domain, lenDomain);
 
-		if (reqType != AEM_HTTPS_REQUEST_INVALID) {
-			const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
+		if (lenReqBody >= AEM_HTTPS_REQUEST_GET) {
+			const char * const reqUrl = (char*)(req + ((lenReqBody == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
 			const char * const ruEnd = strchr(reqUrl, ' ');
 			const size_t lenReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
-			if (reqType == AEM_HTTPS_REQUEST_GET) {
+			if (lenReqBody == AEM_HTTPS_REQUEST_GET) {
 				handleGet(&ssl, (char*)reqUrl, lenReqUrl, fileSet, domain, lenDomain);
-			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
-				unsigned char *post = memmem(req + lenReqUrl + 11, ret, "\r\n\r\n", 4);
+			} else { // POST
+				const unsigned char *post = memmem(req + lenReqUrl + 11, lenReq, "\r\n\r\n", 4);
+
 				if (post != NULL) {
 					post += 4;
-					const size_t lenPost = ret - (post - req);
 
-					handlePost(&ssl, ssk, addrKey, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
+					if ((post - req) + lenReqBody < AEM_HTTPS_MAXREQSIZE) {
+						int lenPost = lenReq - (post - req);
+
+						ret = 1;
+
+						while (lenPost < lenReqBody) {
+							do {ret = mbedtls_ssl_read(&ssl, req + lenReq, AEM_HTTPS_MAXREQSIZE - lenReq);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+							lenPost += ret;
+							lenReq += ret;
+						}
+
+						if (ret > 0)
+							handlePost(&ssl, ssk, addrKey, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
+					}
 				}
 			}
 		} else puts("[HTTPS] Invalid connection attempt");
