@@ -90,7 +90,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1160 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1298 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -103,7 +103,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 		"Content-Security-Policy:"
 			"connect-src"     " https://%s/web/;"
 			"img-src"         " https://%s/img/;"
-			"script-src"      " https://%s/js/;"
+			"script-src"      " https://%s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
 			"style-src"       " https://%s/css/;"
 
 			"base-uri"        " 'none';"
