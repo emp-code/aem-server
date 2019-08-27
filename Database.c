@@ -15,8 +15,8 @@
 
 #define AEM_DB_BUSY_TIMEOUT 15000 // milliseconds
 
-#define AEM_PATH_DB_MESSAGES "/Data/Messages.aed"
-#define AEM_PATH_DB_USERS  "/Data/Users.aed"
+#define AEM_PATH_DB_MESSAGES "/Messages.aed"
+#define AEM_PATH_DB_USERS  "/Users.aed"
 
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
