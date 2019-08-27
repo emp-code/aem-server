@@ -77,7 +77,7 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	int16_t ret = 0;
 	if (result.found_entry) {
 		MMDB_entry_data_s entry_data;
-		const int status = MMDB_get_value(&result.entry, &entry_data, "country", "iso_code", NULL);
+		status = MMDB_get_value(&result.entry, &entry_data, "country", "iso_code", NULL);
 
 		if (status == MMDB_SUCCESS) {
 			memcpy(&ret, entry_data.utf8_string, 2);
@@ -249,10 +249,10 @@ void decodeEncodedWord(char * const * const data, size_t *lenData) {
 	char *ew = memmem(*data, searchLen, "=?", 2);
 
 	while (ew != NULL) {
-		char *charsetEnd = strchr(ew + 2, '?');
+		char * const charsetEnd = strchr(ew + 2, '?');
 		if (charsetEnd == NULL || charsetEnd[2] != '?') break;
 
-		char *ewEnd = strstr(charsetEnd + 2, "?=");
+		const char * const ewEnd = strstr(charsetEnd + 2, "?=");
 		if (ewEnd == NULL) break;
 
 		if (charsetEnd[1] == 'Q' || charsetEnd[1] == 'q') {
@@ -269,11 +269,11 @@ void decodeEncodedWord(char * const * const data, size_t *lenData) {
 			*lenData -= (qpBegin - ew) + (lenQp - lenDqp) + 2;
 			(*data)[*lenData] = '\0';
 		} else if (charsetEnd[1] == 'B' || charsetEnd[1] == 'b') {
-			char * const b64Begin = charsetEnd + 3;
+			const char * const b64Begin = charsetEnd + 3;
 			const size_t lenB64 = ewEnd - b64Begin;
 
 			size_t lenDec;
-			unsigned char *dec = b64Decode((unsigned char*)b64Begin, lenB64, &lenDec);
+			unsigned char * const dec = b64Decode((unsigned char*)b64Begin, lenB64, &lenDec);
 
 			memcpy(ew, dec, lenDec);
 			memmove(ew + lenDec, ewEnd + 2, *lenData - ((ewEnd + 2) - *data));
@@ -289,17 +289,17 @@ void decodeEncodedWord(char * const * const data, size_t *lenData) {
 
 // TODO: Convert non-UTF8 to UTF8
 static void processMessage(char * const * const data, size_t *lenData) {
-	const char *headersEnd = strstr(*data, "\r\n\r\n");
+	const char * const headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
 
 	const size_t lenHeaders = headersEnd - *data;
 
-	const char *mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
+	const char * const mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
 	if (mpHeader != NULL) {
 		const char * const mpEnd = strpbrk(mpHeader + 25, "\r\n");
 		if (mpEnd == NULL) return;
 
-		char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
+		const char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
 		if (boundaryBegin == NULL || boundaryBegin > mpEnd) return;
 		boundaryBegin += 10;
 
@@ -315,10 +315,10 @@ static void processMessage(char * const * const data, size_t *lenData) {
 		while (bound != NULL) {
 			bound += lenBoundary;
 
-			char *boundaryEnd = strstr(bound, boundary);
+			boundaryEnd = strstr(bound, boundary);
 			if (boundaryEnd == NULL) break;
 
-			char *boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
+			char * const boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
 			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
 
 			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
@@ -354,9 +354,9 @@ static void processMessage(char * const * const data, size_t *lenData) {
 			bound = boundaryEnd;
 		}
 	} else {
-		const char *qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+		const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
 		if (qpHeader != NULL && qpHeader < headersEnd) {
-			char *msg = *data + lenHeaders + 4;
+			char * const msg = *data + lenHeaders + 4;
 			const size_t lenOld = *lenData - lenHeaders - 4;
 			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, lenOld);
 			*lenData -= (lenOld - lenNew);
@@ -364,7 +364,7 @@ static void processMessage(char * const * const data, size_t *lenData) {
 			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: Base64\r\n");
 			if (b64Header != NULL && b64Header < headersEnd) {
 				char *msg = *data + lenHeaders + 4;
-				char *msgEnd = *data + *lenData;
+				const char *msgEnd = *data + *lenData;
 
 				while (msg < msgEnd && isspace(*msg)) msg++;
 				while (msg < msgEnd && !isBase64Char(*(msgEnd - 1))) msgEnd--;
@@ -490,11 +490,11 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
-			puts("[SMTP] Terminating: Client closed connection after StartTLS");
+			printf("[SMTP] Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
-			puts("[SMTP] Terminating: Client closed connection cleanly after StartTLS");
+			printf("[SMTP] Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			send_aem(sock, tls, "221 aem\r\n", 9);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
