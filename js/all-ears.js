@@ -638,7 +638,7 @@ function AllEars() {
 		_FetchEncrypted("/web/filenote", sealbox, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileName, fileType));
+			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileData.length, fileName, fileType));
 			callback(true);
 		});
 	}); }
