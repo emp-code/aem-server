@@ -337,19 +337,20 @@ function AllEars() {
 	}); }
 
 	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
 			if (!fetchOk) {callback(false); return;}
 
-			_userLevel = byteArray[0];
-			const msgCount = byteArray[1];
-			const addrDataSize = new Uint16Array(byteArray.slice(2, 4).buffer)[0];
-			const gkDataSize   = new Uint16Array(byteArray.slice(4, 6).buffer)[0];
+			_userLevel = loginData[0];
+			const msgCount = loginData[1];
+			const addrDataSize = new Uint16Array(loginData.slice(2, 4).buffer)[0];
+			const gkDataSize   = new Uint16Array(loginData.slice(4, 6).buffer)[0];
 
 			// Note Data
-			const noteData = nacl.crypto_box_seal_open(byteArray.slice(6, 6 + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
+			const noteDataStart = 6;
+			const noteData = nacl.crypto_box_seal_open(loginData.slice(noteDataStart, noteDataStart + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
 			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
-			const contactSet = nacl.decode_utf8(noteData.slice(2)).split('\n');
 
+			const contactSet = nacl.decode_utf8(noteData.slice(2)).split('\n');
 			for (let i = 0; i < (contactSet.length - 1); i += 3) {
 				_contactMail.push(contactSet[i]);
 				_contactName.push(contactSet[i + 1]);
@@ -357,9 +358,8 @@ function AllEars() {
 			}
 
 			// Address data
-			const addrData = nacl.crypto_box_seal_open(byteArray.slice(6 + _lenNoteData, 6 + _lenNoteData + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
-
-			while (_userAddress.length > 0) _userAddress.pop();
+			const addrDataStart = 6 + _lenNoteData;
+			const addrData = nacl.crypto_box_seal_open(loginData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
 				const isShield      = _BitTest(addrData[i * 27], 0);
@@ -375,7 +375,8 @@ function AllEars() {
 			}
 
 			// Gatekeeper data
-			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(byteArray.slice(6 + _lenNoteData + addrDataSize, 6 + _lenNoteData + addrDataSize + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkDataStart = 6 + _lenNoteData + addrDataSize;
+			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(loginData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
 			let gkCountDomain = 0;
@@ -397,26 +398,26 @@ function AllEars() {
 			// Admin data
 			const lenAdmin = (_userLevel == _maxLevel) ? _lenAdminData : 0;
 			if (_userLevel == _maxLevel) {
-				const adminStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
+				const adminDataStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
 
 				for (let i = 0; i < (_lenAdminData / 9); i++) {
-					const pos = (adminStart + i * 9);
-					const newPk = byteArray.slice(pos, pos + 8);
+					const pos = (adminDataStart + i * 9);
+					const newPk = loginData.slice(pos, pos + 8);
 
 					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
 					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
 
 					let newLevel = 0;
-					if (_BitTest(byteArray[pos + 8], 0)) newLevel += 1;
-					if (_BitTest(byteArray[pos + 8], 1)) newLevel += 2;
+					if (_BitTest(loginData[pos + 8], 0)) newLevel += 1;
+					if (_BitTest(loginData[pos + 8], 1)) newLevel += 2;
 
 					let newSpace = 0;
-					if (_BitTest(byteArray[pos + 8], 2)) newLevel += 1;
-					if (_BitTest(byteArray[pos + 8], 3)) newLevel += 2;
-					if (_BitTest(byteArray[pos + 8], 4)) newLevel += 4;
-					if (_BitTest(byteArray[pos + 8], 5)) newLevel += 8;
-					if (_BitTest(byteArray[pos + 8], 6)) newLevel += 16;
-					if (_BitTest(byteArray[pos + 8], 7)) newLevel += 32;
+					if (_BitTest(loginData[pos + 8], 2)) newLevel += 1;
+					if (_BitTest(loginData[pos + 8], 3)) newLevel += 2;
+					if (_BitTest(loginData[pos + 8], 4)) newLevel += 4;
+					if (_BitTest(loginData[pos + 8], 5)) newLevel += 8;
+					if (_BitTest(loginData[pos + 8], 6)) newLevel += 16;
+					if (_BitTest(loginData[pos + 8], 7)) newLevel += 32;
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
@@ -427,11 +428,11 @@ function AllEars() {
 			// Message data
 			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
 			for (let i = 0; i < msgCount; i++) {
-				const msgId = byteArray[msgStart];
-				const msgKilos = byteArray[msgStart + 1] + 1;
+				const msgId = loginData[msgStart];
+				const msgKilos = loginData[msgStart + 1] + 1;
 
 				// HeadBox
-				const msgHeadBox = byteArray.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
+				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				if (!_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 0,0 IntMsg
@@ -466,7 +467,7 @@ function AllEars() {
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
-					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
@@ -498,7 +499,7 @@ function AllEars() {
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
-					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
@@ -531,7 +532,7 @@ function AllEars() {
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
-					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
@@ -550,7 +551,7 @@ function AllEars() {
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
-					const msgBodyBox = byteArray.slice(bbStart, bbStart + bbSize);
+					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
