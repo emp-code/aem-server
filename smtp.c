@@ -409,7 +409,7 @@ static bool isAddressOurs(const char * const addr, const size_t lenAddr, const c
 	);
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const addrKey, const unsigned char * const seed, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
+void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
@@ -452,7 +452,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 
 		mbedtls_ctr_drbg_init(&ctr_drbg);
 		mbedtls_entropy_init(&entropy);
-		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, seed, 16)) != 0) {
+		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char*)"All-Ears Mail SMTP", 18)) != 0) {
 			printf("[SMTP] Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
@@ -460,8 +460,8 @@ void respond_smtp(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context
 
 		mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
-		mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
-		if ((ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey)) != 0) {
+		mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
+		if ((ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey)) != 0) {
 			printf("[SMTP] Terminating: mbedtls_ssl_conf_own_cert returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
