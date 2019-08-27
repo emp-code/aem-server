@@ -149,7 +149,8 @@
 						<br>
 						<textarea id="txt_newnote_body" required class="topmargin" placeholder="Contents"></textarea>
 						<br>
-						<button type="button" autocomplete="off" id="btn_newnote_save" class="topmargin">Save</button> <button type="button" autocomplete="off" id="btn_newnote_cancel" class="topmargin">Discard</button>
+						<button type="button" autocomplete="off" id="btn_newnote_save" class="topmargin">Save</button>
+						<button type="button" autocomplete="off" id="btn_newnote_cancel" class="topmargin">Discard</button>
 					</div>
 				</div>
 
@@ -188,7 +189,8 @@
 						<div class="topmargin">
 							Using <span id="addr_use_normal">?</span> out of <span id="addr_max_normal">?</span> normal addresses
 							<br>
-							<input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required autocomplete="off" placeholder="new-address"> <button type="button" autocomplete="off" id="btn_newaddress">Register</button>
+							<input type="text" id="txt_newaddress" pattern="[0-9a-z.-]{1,24}" maxlength="24" required autocomplete="off" placeholder="new-address">
+							<button type="button" autocomplete="off" id="btn_newaddress">Register</button>
 						</div>
 
 						<div class="topmargin">
@@ -457,11 +459,21 @@
 
 						<div class="center bold topmargin">Forbidden domains</div>
 						<div><select id="gatekeeper_domain" size="8"></select></div>
-						<div class="flex"><input id="txt_gkdomain" type="text" pattern="[0-9a-z.-]{1,100}\.[a-z.]{2,50}"> <button type="button" autocomplete="off" id="btn_gkdomain_add">Add</button> <button type="button" autocomplete="off" id="btn_gkdomain_del">Del</button></div>
+
+						<div class="flex">
+							<input id="txt_gkdomain" type="text" pattern="[0-9a-z.-]{1,100}\.[a-z.]{2,50}">
+							<button type="button" autocomplete="off" id="btn_gkdomain_add">Add</button>
+							<button type="button" autocomplete="off" id="btn_gkdomain_del">Del</button>
+						</div>
 
 						<div class="center bold topmargin">Forbidden senders</div>
 						<div><select id="gatekeeper_addr" size="8"></select></div>
-						<div class="flex"><input id="txt_gkaddr" type="email" required> <button type="button" autocomplete="off" id="btn_gkaddr_add">Add</button> <button type="button" autocomplete="off" id="btn_gkaddr_del">Del</button></div>
+
+						<div class="flex">
+							<input id="txt_gkaddr" type="email" required>
+							<button type="button" autocomplete="off" id="btn_gkaddr_add">Add</button>
+							<button type="button" autocomplete="off" id="btn_gkaddr_del">Del</button>
+						</div>
 
 						<div class="center topmargin">
 							<button type="button" autocomplete="off" id="btn_savegkdata" hidden>Save changes</button>
@@ -485,7 +497,8 @@
 					</table>
 
 					<div class="topmargin">
-						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" autocomplete="off" placeholder="Public key in hex"> <button type="button" autocomplete="off" id="btn_admin_addaccount">Add</button>
+						<input id="txt_newacc_pkey" type="text" class="mono" size="64" maxlength="64" required pattern="[0-9a-f]{64}" autocomplete="off" placeholder="Public key in hex">
+						<button type="button" autocomplete="off" id="btn_admin_addaccount">Add</button>
 					</div>
 				</div>
 
@@ -523,7 +536,9 @@
 			</div>
 		</main>
 
-		<footer>Powered by All-Ears Mail (License: <abbr title="GNU Affero General Public License">AGPL</abbr>; <a rel="noopener" href="https://github.com/emp-code/ae-mail">Source</a>)</footer>
+		<footer>
+			Powered by All-Ears Mail (License: <abbr title="GNU Affero General Public License">AGPL</abbr>; <a rel="noopener" href="https://github.com/emp-code/ae-mail">Source</a>)
+		</footer>
 
 		<script src="https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js" integrity="sha384-D02d+8Zt5n4/7mnD+GctnXcW7NBcKHdgDsl3msmWdkOG3094pdP0ceN/4c/zChml" crossorigin="anonymous"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js" integrity="sha384-fEJkA7t1b4OIYQw6u7izunAHNluh0eYg/VYfyLpbii1Uy5ll6C7/lm17ouWa0rYV" crossorigin="anonymous"></script>
