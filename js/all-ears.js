@@ -556,7 +556,7 @@ function AllEars() {
 		u8data.set(u8pad);
 		u8data.set(nacl.encode_utf8(txt), 2);
 
-		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk, _userKeys.boxSk);
+		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
 
 		_FetchEncrypted("/web/textnote", sealbox, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
