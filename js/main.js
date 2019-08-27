@@ -436,12 +436,19 @@ function addFileNote(num, allowDelete) {
 
 	const row = table.insertRow(-1);
 	const cellTime = row.insertCell(-1);
+	const cellSize = row.insertCell(-1);
 	const cellName = row.insertCell(-1);
 	const cellType = row.insertCell(-1);
 	const cellBtnD = row.insertCell(-1);
 	const cellBtnX = row.insertCell(-1);
 
+	let fileSize = ae.GetFileSize(num);
+	let sizeUnit = "B";
+	if (fileSize > 1023) {fileSize /= 1024; sizeUnit = "K";}
+	if (fileSize > 1023) {fileSize /= 1024; sizeUnit = "M";}
+
 	cellTime.textContent = new Date(ae.GetFileTime(num) * 1000).toLocaleString();
+	cellSize.textContent = fileSize + sizeUnit;
 	cellName.textContent = ae.GetFileName(num);
 	cellType.textContent = ae.GetFileType(num);
 	cellBtnD.innerHTML = "<button type=\"button\">D</button>";

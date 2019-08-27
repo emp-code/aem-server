@@ -75,10 +75,11 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewFileNote(id, ts, fileData, fileName, fileType) {
+	function _NewFileNote(id, ts, fileData, fileSize, fileName, fileType) {
 		this.id = id;
 		this.timestamp = ts;
 		this.fileData = fileData;
+		this.fileSize = fileSize;
 		this.fileName = fileName;
 		this.fileType = fileType;
 	}
@@ -297,6 +298,7 @@ function AllEars() {
 	this.GetFileTime = function(num) {return _fileNote[num].timestamp;}
 	this.GetFileName = function(num) {return _fileNote[num].fileName;}
 	this.GetFileType = function(num) {return _fileNote[num].fileType;}
+	this.GetFileSize = function(num) {return _fileNote[num].fileSize;}
 	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].fileData.buffer], {type : _fileNote[num].fileType});}
 
 	this.GetGatekeeperCountry = function() {return _gkCountry;}
@@ -561,7 +563,9 @@ function AllEars() {
 					const lenFt = msgBody[1 + lenFn];
 					const fileType = nacl.decode_utf8(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
 
-					_fileNote.push(new _NewFileNote(msgId, note_ts, msgBody.slice(2 + lenFn + lenFt), fileName, fileType));
+					const fileData = msgBody.slice(2 + lenFn + lenFt);
+
+					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
 				}
 
 				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
