@@ -416,6 +416,8 @@ static bool isAddressAem(const char * const c, const size_t len) {
 }
 
 static bool isAddressOurs(const char * const addr, const size_t lenAddr, const char * const domain, const size_t lenDomain) {
+	if (addr == NULL || lenAddr < 1 || domain == NULL || lenDomain < 1) return false;
+
 	return (
 	   lenAddr > (lenDomain + 1)
 	&& addr[lenAddr - lenDomain - 1] == '@'
