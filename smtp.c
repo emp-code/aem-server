@@ -103,6 +103,8 @@ static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * cons
 }
 
 static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
+	if (data == NULL || lenData < 1) return -1;
+
 	if (tls != NULL) {
 		size_t sent = 0;
 
