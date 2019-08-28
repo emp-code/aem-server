@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -Wno-unused-parameter -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result
+CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result
 objects = main.o http.o https.o smtp.o Includes/Base64.o Includes/Brotli.o Includes/QuotedPrintable.o Includes/SixBit.o Message.o Database.o
 
 ae-mail: $(objects)
