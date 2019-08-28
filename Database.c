@@ -183,7 +183,7 @@ int getAdminData(unsigned char ** const adminData) {
 
 	sqlite3_stmt *query;
 	const int ret = sqlite3_prepare_v2(db, "SELECT publickey, level FROM userdata LIMIT 1024", -1, &query, NULL);
-	if (ret != SQLITE_OK) return -1;
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	int userCount = 0;
 	while (sqlite3_step(query) == SQLITE_ROW) {
