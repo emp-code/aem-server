@@ -93,8 +93,9 @@ static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char
 	*bodyLen = bodyLenPadded + 2;
 
 	unsigned char * const ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
-	crypto_box_seal(ciphertext, body, *bodyLen, pk);
+	if (ciphertext == NULL) return NULL;
 
+	crypto_box_seal(ciphertext, body, *bodyLen, pk);
 	return ciphertext;
 }
 
@@ -125,6 +126,8 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 	memcpy(plaintext + 23, adrTo, 18);
 
 	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
+	if (ciphertext == NULL) return NULL;
+
 	crypto_box_seal(ciphertext, plaintext, AEM_HEADBOX_SIZE, pk);
 	return ciphertext;
 }
@@ -147,7 +150,6 @@ unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char *
 
 	return boxSet;
 }
-
 static unsigned char *extMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const binTo,
 const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, uint8_t infoByte, const uint8_t spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -166,8 +168,9 @@ const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t at
 	memcpy(plaintext + 23, binTo, 18);
 
 	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
-	crypto_box_seal(ciphertext, plaintext, AEM_HEADBOX_SIZE, pk);
+	if (ciphertext == NULL) return NULL:
 
+	crypto_box_seal(ciphertext, plaintext, AEM_HEADBOX_SIZE, pk);
 	return ciphertext;
 }
 
