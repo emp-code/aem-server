@@ -187,8 +187,8 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 	mbedtls_entropy_free(entropy);
 }
 
-static void deliverMessage(char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
-	char *toStart = to;
+static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
+	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
 	while(1) {
