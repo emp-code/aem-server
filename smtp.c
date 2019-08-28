@@ -187,8 +187,7 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 	mbedtls_entropy_free(entropy);
 }
 
-static void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
-const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
+static void deliverMessage(char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
 	char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
@@ -661,7 +660,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, infoByte, addrKey);
+			deliverMessage(to, lenTo, body, lenBody, clientAddr, cs, infoByte, addrKey);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);
