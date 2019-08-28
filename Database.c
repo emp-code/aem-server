@@ -35,6 +35,8 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 }
 
 unsigned char *addr2bin(const char * const c, const size_t len) {
+	if (c == NULL || len < 1) return NULL;
+
 	if (len <= 24) {
 		char d[len];
 		for (size_t i = 0; i < len; i++) {
