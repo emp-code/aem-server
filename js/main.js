@@ -499,7 +499,6 @@ function loginSuccess() {
 	}
 
 	// Addresses
-	const select=document.getElementById("send_from");
 	for (let i = 0; i < ae.GetAddressCount(); i++) {
 		addAddress(i);
 	}
