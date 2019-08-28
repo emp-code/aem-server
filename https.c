@@ -514,19 +514,15 @@ static void respond_https_addaccount(mbedtls_ssl_context * const ssl, const int6
 }
 
 static void respond_https_destroyaccount(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
-	unsigned char bin[8];
-	const int ret = sodium_hex2bin(bin, 8, *decrypted, 16, NULL, NULL, NULL);
+	unsigned char targetPk[8];
+	const int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
 	sodium_free(*decrypted);
-
 	if (ret != 0) return;
 
-	int64_t delete_upk64;
-	memcpy(&delete_upk64, bin, 8);
-
-	if (destroyAccount(delete_upk64) == 0) send204(ssl);
+	if (destroyAccount(*((int64_t*)targetPk)) == 0) send204(ssl);
 }
 
 static void respond_https_accountlevel(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
