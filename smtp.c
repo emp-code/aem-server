@@ -239,6 +239,8 @@ static void deliverMessage(const char * const to, const size_t lenToTotal, const
 }
 
 void decodeEncodedWord(char * const * const data, size_t * const lenData) {
+	if (data == NULL || lenData == NULL || *lenData < 1) return;
+
 	const char * const headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
 
