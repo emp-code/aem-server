@@ -388,12 +388,12 @@ int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int cou
 
 	for (int i = 0; i < rowCount; i++) {
 		ret = sqlite3_prepare_v2(db, "DELETE FROM msg WHERE rowid=? AND upk64=?", -1, &query, NULL);
-		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
-
-		sqlite3_bind_int(query, 1, rowIds[i]);
-		sqlite3_bind_int64(query, 2, upk64);
-		sqlite3_step(query);
-		sqlite3_finalize(query);
+		if (ret == SQLITE_OK) {
+			sqlite3_bind_int(query, 1, rowIds[i]);
+			sqlite3_bind_int64(query, 2, upk64);
+			sqlite3_step(query);
+			sqlite3_finalize(query);
+		}
 	}
 
 	sqlite3_close_v2(db);
