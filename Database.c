@@ -108,6 +108,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT publickey FROM userdata WHERE upk64=(SELECT upk64 FROM address WHERE hash=?)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 	sqlite3_bind_int64(query, 1, addressToHash(addr, addrKey));
 
 	ret = sqlite3_step(query);
