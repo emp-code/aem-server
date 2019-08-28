@@ -207,11 +207,9 @@ static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	mbedtls_strerror(ret, error_buf, 100);
 	printf("[Main.Cert] mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
 	return 1;
-
 }
 
 static int loadTlsKey(mbedtls_pk_context * const key) {
-	// TLS Key
 	const int fd = open("AllEars/TLS.key", O_RDONLY);
 	if (fd < 0) return 1;
 	const off_t lenFile = lseek(fd, 0, SEEK_END);
@@ -233,9 +231,9 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 }
 
 static int loadAddrKey(unsigned char * const addrKey) {
-	// Address Key
 	const int fd = open("AllEars/Address.key", O_RDONLY);
 	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
+
 	const off_t readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
 	close(fd);
 	if (readBytes == crypto_pwhash_SALTBYTES) return 0;
