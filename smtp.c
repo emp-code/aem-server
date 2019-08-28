@@ -285,7 +285,7 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 }
 
 // TODO: Convert non-UTF8 to UTF8
-static void processMessage(char * const * const data, size_t *lenData) {
+static void processMessage(char * const * const data, size_t * const lenData) {
 	const char * const headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
 
