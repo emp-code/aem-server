@@ -914,6 +914,6 @@ b[1].onclick = function() {navNotesMenu(1);};
 b[2].onclick = function() {navNotesMenu(2);};
 b[3].onclick = function() {navNotesMenu(3);};
 
-gatekeeper_country.onchange = function() {
+document.getElementByid("gatekeeper_country").onchange = function() {
 	document.getElementById("btn_savegkdata").hidden=false;
 };
