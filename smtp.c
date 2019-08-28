@@ -188,6 +188,8 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 }
 
 static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
+	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL || addrKey == NULL) return;
+
 	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
