@@ -331,14 +331,13 @@ function deleteAddress(addr) {
 
 	ae.DeleteAddress(addressToDelete, function(success) {
 		if (success) {
-			console.log("Address #" + addressToDelete + " deleted.");
 			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
 			document.getElementById("send_from").remove(addressToDelete);
 
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 		} else {
-			console.log("Address failed to delete.");
+			console.log("Failed to delete address");
 		}
 
 		btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
@@ -620,10 +619,9 @@ document.getElementById("btn_contact_add").onclick = function() {
 document.getElementById("btn_savenotes").onclick = function() {
 	ae.SaveNoteData(function(success) {
 		if (success) {
-			console.log("Note data saved successfully");
 			document.getElementById("btn_savenotes").hidden = true;
 		} else {
-			console.log("Note data failed to save");
+			console.log("Failed to save note data");
 		}
 	});
 };
@@ -756,10 +754,9 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 
 	ae.SaveAddressData(function(success) {
 		if (success) {
-			console.log("Address data saved");
 			document.getElementById("btn_saveaddrdata").hidden = true;
 		} else {
-			console.log("Address data failed to save");
+			console.log("Failed to save address data");
 		}
 	});
 };
@@ -814,7 +811,7 @@ document.getElementById("btn_savegkdata").onclick = function() {
 		if (success) {
 			document.getElementById("btn_savegkdata").hidden = true;
 		} else {
-			console.log("Gatekeeper update failed;");
+			console.log("Failed to update Gatekeeper data");
 		}
 	});
 };
@@ -852,7 +849,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 				addFileNote(ae.GetFileCount() - 1, false);
 				fileSelector.value = "";
 			} else {
-				console.log("File upload failed.");
+				console.log("Failed to upload file");
 			}
 		});
 
