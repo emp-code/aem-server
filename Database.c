@@ -13,6 +13,9 @@
 
 #include "Database.h"
 
+#define AEM_ADDRESS_ARGON2_OPSLIMIT 3
+#define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
+
 #define AEM_DB_BUSY_TIMEOUT 15000 // milliseconds
 
 #define AEM_PATH_DB_MESSAGES "/Messages.aed"
@@ -64,7 +67,7 @@ unsigned char *addr2bin(const char * const c, const size_t len) {
 
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	unsigned char hash16[16];
-	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
+	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
 
 	int64_t result;
 	memcpy(&result, hash16, 8);
