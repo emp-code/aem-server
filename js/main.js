@@ -1,6 +1,6 @@
 "use strict";
 
-const ae=new AllEars();
+const ae = new AllEars();
 
 document.getElementById("txt_skey").onkeyup = function(e) {
 	if (e.key === "Enter") document.getElementById("btn_signin").click();
@@ -36,8 +36,8 @@ function addAddress(num) {
 	const cellChk4 = row.insertCell(-1);
 	const cellBtnD = row.insertCell(-1);
 
-	cellAddr.textContent=ae.GetAddress(num);
-	if (ae.IsAddressShield(num)) cellAddr.className="mono";
+	cellAddr.textContent = ae.GetAddress(num);
+	if (ae.IsAddressShield(num)) cellAddr.className = "mono";
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
@@ -48,10 +48,10 @@ function addAddress(num) {
 	else
 		cellChk2.innerHTML = ae.IsAddressSharePk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
-	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
-	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
-	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
-	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden=false;};
+	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
 
 	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
@@ -64,18 +64,18 @@ function addAddress(num) {
 
 function deleteAddress(addr) {
 	const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (let i = 0; i < btns.length; i++) btns[i].disabled=true;
+	for (let i = 0; i < btns.length; i++) btns[i].disabled = true;
 
 	let addressToDelete = -1;
 
 	for (let i = 0; i < ae.GetAddressCount(); i++) {
-		if (addr == ae.GetAddress(i)) {
+		if (addr === ae.GetAddress(i)) {
 			addressToDelete = i;
 			break;
 		}
 	}
 
-	if (addressToDelete == -1) return;
+	if (addressToDelete === -1) return;
 
 	ae.DeleteAddress(addressToDelete, function(success) {
 		if (success) {
@@ -90,7 +90,7 @@ function deleteAddress(addr) {
 		}
 
 		const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-		for (let i = 0; i < btns.length; i++) btns[i].disabled=false;
+		for (let i = 0; i < btns.length; i++) btns[i].disabled = false;
 
 	});
 }
@@ -100,14 +100,14 @@ function deleteContact(email) {
 	const rows = tbl.rows;
 
 	for (let i = 0; i < rows.length; i++) {
-		if (email == rows[i].cells[0].textContent) {
+		if (email === rows[i].cells[0].textContent) {
 			ae.DeleteContact(i);
 			tbl.deleteRow(i);
 			break;
 		}
 	}
 
-	document.getElementById("btn_savenotes").hidden=false;
+	document.getElementById("btn_savenotes").hidden = false;
 }
 
 function addContactToTable(mail, name, note) {
@@ -149,8 +149,8 @@ function addRowAdmin(num) {
 	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
 
 	cellPk.className = "mono";
-	if (ae.Admin_GetUserLevel(num) == ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
-	if (ae.Admin_GetUserLevel(num) == 0) cellBtnMn.children[0].disabled = "disabled";
+	if (ae.Admin_GetUserLevel(num) === ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
+	if (ae.Admin_GetUserLevel(num) === 0) cellBtnMn.children[0].disabled = "disabled";
 
 	const pkHex = ae.Admin_GetUserPkHex(num);
 	const currentLevel = ae.Admin_GetUserLevel(num);
@@ -171,14 +171,14 @@ document.getElementById("btn_contact_add").onclick = function() {
 	txtName.value = "";
 	txtNote.value = "";
 
-	document.getElementById("btn_savenotes").hidden=false;
+	document.getElementById("btn_savenotes").hidden = false;
 };
 
 document.getElementById("btn_savenotes").onclick = function() {
 	ae.SaveNoteData(function(success) {
 		if (success) {
 			console.log("Note data saved successfully");
-			document.getElementById("btn_savenotes").hidden=true;
+			document.getElementById("btn_savenotes").hidden = true;
 		} else {
 			console.log("Note data failed to save");
 		}
@@ -191,13 +191,13 @@ function destroyAccount(upk_hex) {
 	let rowid = -1;
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		if (upk_hex == tbl.rows[i].cells[0].textContent) {
+		if (upk_hex === tbl.rows[i].cells[0].textContent) {
 			rowid = i;
 			break;
 		}
 	}
 
-	if (rowid == -1) return;
+	if (rowid === -1) return;
 
 	ae.DestroyAccount(rowid, function(success) {
 		if (success) {
@@ -214,13 +214,13 @@ function setAccountLevel(upk_hex, level) {
 	let rowid = -1;
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		if (tbl.rows[i].cells[0].textContent == upk_hex) {
+		if (tbl.rows[i].cells[0].textContent === upk_hex) {
 			rowid = i;
 			break;
 		}
 	}
 
-	if (rowid == -1) return;
+	if (rowid === -1) return;
 
 	ae.SetAccountLevel(rowid, level, function(success) {
 		if (!success) {
@@ -230,10 +230,10 @@ function setAccountLevel(upk_hex, level) {
 
 		tbl.rows[rowid].cells[2].textContent = level;
 
-		if (level == 0) {
+		if (level === 0) {
 			tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
 			tbl.rows[rowid].cells[3].children[0].disabled = "";
-		} else if (level == ae.GetLevelMax()) {
+		} else if (level === ae.GetLevelMax()) {
 			tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
 			tbl.rows[rowid].cells[4].children[0].disabled = "";
 		} else {
@@ -277,7 +277,7 @@ function addIntMessages() {
 		cellTime.textContent = new Date(ae.GetIntMsgTime(i) * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
 
-		if (ae.GetIntMsgTo(i).length == 36) {
+		if (ae.GetIntMsgTo(i).length === 36) {
 			cellTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
 			cellTo.className = "mono";
 		} else {
@@ -309,7 +309,7 @@ function addIntMessages() {
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
 			document.getElementById("readmsg_from").className = (ae.GetIntMsgShield(i)) ? "mono" : "";
-			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length == 36) ? "mono" : "";
+			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
 		};
 
 		cellDel.children[0].onchange = function() {
@@ -323,12 +323,12 @@ function addIntMessages() {
 				}
 
 				if (!checked) {
-					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=true;
+					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = true;
 					return;
 				}
 			}
 
-			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
+			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = false;
 		};
 	}
 }
@@ -337,7 +337,7 @@ function getCountryName(countryCode) {
 	const opts = document.getElementById("gatekeeper_country");
 
 	for (let i = 0; i < opts.length; i++) {
-		if (opts[i].value == countryCode) {
+		if (opts[i].value === countryCode) {
 			return opts[i].textContent;
 		}
 	}
@@ -407,7 +407,7 @@ function addExtMessages() {
 			document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
 
 			document.getElementById("readmsg_from").className = "";
-			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length == 36) ? "mono" : "";
+			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 36) ? "mono" : "";
 		};
 
 		cellDel.children[0].onchange = function() {
@@ -421,12 +421,12 @@ function addExtMessages() {
 				}
 
 				if (!checked) {
-					document.getElementById("btn_msgdel").hidden=true;
+					document.getElementById("btn_msgdel").hidden = true;
 					return;
 				}
 			}
 
-			document.getElementById("btn_msgdel").hidden=false;
+			document.getElementById("btn_msgdel").hidden = false;
 		};
 	}
 }
@@ -485,9 +485,9 @@ function addFileNote(num, allowDelete) {
 }
 
 function loginSuccess() {
-	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden=true;
-	document.getElementById("div_login").hidden=true;
-	document.getElementById("div_loggedin").hidden=false;
+	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden = true;
+	document.getElementById("div_login").hidden = true;
+	document.getElementById("div_loggedin").hidden = false;
 
 	// Contacts
 	for (let i = 0; i < ae.GetContactCount(); i++) {
@@ -520,8 +520,8 @@ function loginSuccess() {
 		const opts = document.getElementById("gatekeeper_country");
 
 		for (let j = 0; j < opts.length; j++) {
-			if (opts[j].value == gkList[i]) {
-				opts[j].selected="selected";
+			if (opts[j].value === gkList[i]) {
+				opts[j].selected = "selected";
 				break;
 			}
 		}
@@ -591,7 +591,7 @@ function delMsgs(tblName, btnName) {
 			clearMessages();
 			addIntMessages();
 			addExtMessages();
-			document.getElementById(btnName).hidden=true;
+			document.getElementById(btnName).hidden = true;
 		} else {
 			console.log("Failed to delete messages");
 		}
@@ -607,19 +607,19 @@ document.getElementById("btn_sentdel").onclick = function() {
 };
 
 document.getElementById("btn_send").onclick = function() {
-	const scopy=document.getElementById("send_copy");
-	const sfrom=document.getElementById("send_from");
-	const stitle=document.getElementById("send_title");
-	const sto=document.getElementById("send_to");
-	const sbody=document.getElementById("send_body");
+	const scopy = document.getElementById("send_copy");
+	const sfrom = document.getElementById("send_from");
+	const stitle = document.getElementById("send_title");
+	const sto = document.getElementById("send_to");
+	const sbody = document.getElementById("send_body");
 
 	if (!(stitle.reportValidity()) || !(sto.reportValidity()) || !(sbody.reportValidity())) return;
 
 	ae.Send(scopy.checked, sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
-			stitle.value="";
-			sto.value="";
-			sbody.value="";
+			stitle.value = "";
+			sto.value = "";
+			sbody.value = "";
 		} else {
 			console.log("Failed to send message");
 		}
@@ -627,15 +627,15 @@ document.getElementById("btn_send").onclick = function() {
 };
 
 document.getElementById("btn_notenew").onclick = function() {
-	document.getElementById("div_notes_texts").hidden=true;
-	document.getElementById("div_newtextnote").hidden=false;
+	document.getElementById("div_notes_texts").hidden = true;
+	document.getElementById("div_newtextnote").hidden = false;
 };
 
 document.getElementById("btn_newnote_cancel").onclick = function() {
 	document.getElementById("txt_newnote_title").value = "";
 	document.getElementById("txt_newnote_body").value = "";
-	document.getElementById("div_notes_texts").hidden=false;
-	document.getElementById("div_newtextnote").hidden=true;
+	document.getElementById("div_notes_texts").hidden = false;
+	document.getElementById("div_newtextnote").hidden = true;
 };
 
 document.getElementById("btn_newnote_save").onclick = function() {
@@ -658,8 +658,8 @@ document.getElementById("btn_newnote_save").onclick = function() {
 
 			document.getElementById("txt_newnote_title").value = "";
 			document.getElementById("txt_newnote_body").value = "";
-			document.getElementById("div_notes_texts").hidden=false;
-			document.getElementById("div_newtextnote").hidden=true;
+			document.getElementById("div_notes_texts").hidden = false;
+			document.getElementById("div_newtextnote").hidden = true;
 		} else {
 			console.log("Failed to save note");
 		}
@@ -675,12 +675,12 @@ document.getElementById("btn_newaddress").onclick = function() {
 	const txtNewAddr = document.getElementById("txt_newaddress");
 	if (!(txtNewAddr.reportValidity())) return;
 
-	document.getElementById("btn_newaddress").disabled=true;
-	document.getElementById("btn_newshieldaddress").disabled=true;
+	document.getElementById("btn_newaddress").disabled = true;
+	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddAddress(txtNewAddr.value, function(success) {
-		document.getElementById("btn_newaddress").disabled=false;
-		document.getElementById("btn_newshieldaddress").disabled=false;
+		document.getElementById("btn_newaddress").disabled = false;
+		document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -698,12 +698,12 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 		return;
 	}
 
-	document.getElementById("btn_newaddress").disabled=true;
-	document.getElementById("btn_newshieldaddress").disabled=true;
+	document.getElementById("btn_newaddress").disabled = true;
+	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddShieldAddress(function(success) {
-		document.getElementById("btn_newaddress").disabled=false;
-		document.getElementById("btn_newshieldaddress").disabled=false;
+		document.getElementById("btn_newaddress").disabled = false;
+		document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
@@ -727,7 +727,7 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	ae.SaveAddressData(function(success) {
 		if (success) {
 			console.log("Address data saved");
-			document.getElementById("btn_saveaddrdata").hidden=true;
+			document.getElementById("btn_saveaddrdata").hidden = true;
 		} else {
 			console.log("Address data failed to save");
 		}
@@ -749,7 +749,7 @@ document.getElementById("btn_gkdomain_add").onclick = function() {
 
 	addOpt(select, txt.value);
 	txt.value = "";
-	document.getElementById("btn_savegkdata").hidden=false;
+	document.getElementById("btn_savegkdata").hidden = false;
 };
 
 document.getElementById("btn_gkaddr_add").onclick = function() {
@@ -760,19 +760,19 @@ document.getElementById("btn_gkaddr_add").onclick = function() {
 
 	addOpt(select, txt.value);
 	txt.value = "";
-	document.getElementById("btn_savegkdata").hidden=false;
+	document.getElementById("btn_savegkdata").hidden = false;
 };
 
 document.getElementById("btn_gkdomain_del").onclick = function() {
 	const select = document.getElementById("gatekeeper_domain");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
-	document.getElementById("btn_savegkdata").hidden=false;
+	document.getElementById("btn_savegkdata").hidden = false;
 };
 
 document.getElementById("btn_gkaddr_del").onclick = function() {
 	const select = document.getElementById("gatekeeper_addr");
 	if (select.selectedIndex >= 0) select.remove(select.selectedIndex);
-	document.getElementById("btn_savegkdata").hidden=false;
+	document.getElementById("btn_savegkdata").hidden = false;
 };
 
 document.getElementById("btn_savegkdata").onclick = function() {
@@ -789,8 +789,7 @@ document.getElementById("btn_savegkdata").onclick = function() {
 
 	ae.SaveGatekeeperData(blocklist, function(success) {
 		if (success) {
-			console.log("Gatekeeper update succeeded");
-			document.getElementById("btn_savegkdata").hidden=true;
+			document.getElementById("btn_savegkdata").hidden = true;
 		} else {
 			console.log("Gatekeeper update failed;");
 		}
@@ -850,18 +849,18 @@ function genKeys() {
 // Menu
 // Main Menu
 function navMenu(num) {
-	document.getElementById("div_readmsg").hidden=true;
+	document.getElementById("div_readmsg").hidden = true;
 
 	const b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
 	const d = document.getElementsByClassName("maindiv");
 
 	for (let i = 0; i < 5; i++) {
 		if (i == num) {
-			b[i].disabled=true;
-			d[i].hidden=false;
+			b[i].disabled = true;
+			d[i].hidden = false;
 		} else {
-			b[i].disabled=false;
-			d[i].hidden=true;
+			b[i].disabled = false;
+			d[i].hidden = true;
 		}
 	}
 }
@@ -875,30 +874,30 @@ function navNotesMenu(num) {
 
 	for (let i = 0; i < 4; i++) {
 		if (i == num) {
-			b[i].disabled=true;
-			d[i].hidden=false;
+			b[i].disabled = true;
+			d[i].hidden = false;
 		} else {
-			b[i].disabled=false;
-			d[i].hidden=true;
+			b[i].disabled = false;
+			d[i].hidden = true;
 		}
 	}
 }
 
 // Prefs menu
 document.getElementById("btn_prefs_gatekeeper").onclick = function() {
-	document.getElementById("btn_prefs_addresses").disabled=false;
-	document.getElementById("btn_prefs_gatekeeper").disabled=true;
-	document.getElementById("div_prefs_gatekeeper").hidden=false;
-	document.getElementById("div_prefs_addresses").hidden=true;
+	document.getElementById("btn_prefs_addresses").disabled = false;
+	document.getElementById("btn_prefs_gatekeeper").disabled = true;
+	document.getElementById("div_prefs_gatekeeper").hidden = false;
+	document.getElementById("div_prefs_addresses").hidden = true;
 
 	document.getElementById("div_prefs_gatekeeper").style.width = getComputedStyle(document.getElementById("gatekeeper_country")).width;
 };
 
 document.getElementById("btn_prefs_addresses").onclick = function() {
-	document.getElementById("btn_prefs_addresses").disabled=true;
-	document.getElementById("btn_prefs_gatekeeper").disabled=false;
-	document.getElementById("div_prefs_gatekeeper").hidden=true;
-	document.getElementById("div_prefs_addresses").hidden=false;
+	document.getElementById("btn_prefs_addresses").disabled = true;
+	document.getElementById("btn_prefs_gatekeeper").disabled = false;
+	document.getElementById("div_prefs_gatekeeper").hidden = true;
+	document.getElementById("div_prefs_addresses").hidden = false;
 };
 
 let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
@@ -914,6 +913,6 @@ b[1].onclick = function() {navNotesMenu(1);};
 b[2].onclick = function() {navNotesMenu(2);};
 b[3].onclick = function() {navNotesMenu(3);};
 
-document.getElementByid("gatekeeper_country").onchange = function() {
-	document.getElementById("btn_savegkdata").hidden=false;
+document.getElementById("gatekeeper_country").onchange = function() {
+	document.getElementById("btn_savegkdata").hidden = false;
 };

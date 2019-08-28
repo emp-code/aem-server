@@ -5,7 +5,7 @@ function AllEars() {
 		if (!window.isSecureContext) return;
 		if (window.self !== window.top) return;
 		if (document.compatMode == "BackCompat") return;
-		if (document.characterSet != "UTF-8") return;
+		if (document.characterSet !== "UTF-8") return;
 	} catch(e) {return;}
 
 // Private
@@ -192,7 +192,7 @@ function AllEars() {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (_userAddress[i].isShield == isShield) count++;
+			if (_userAddress[i].isShield === isShield) count++;
 		}
 
 		return count;
@@ -252,7 +252,7 @@ function AllEars() {
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);};
 	this.GetAddressCountShield = function() {return _GetAddressCount(true);};
 
-	this.IsUserAdmin = function() {return (_userLevel == _maxLevel);};
+	this.IsUserAdmin = function() {return (_userLevel === _maxLevel);};
 	this.GetUserLevel = function() {return _userLevel;};
 	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];};
 	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];};
@@ -326,13 +326,13 @@ function AllEars() {
 	};
 
 	this.SetKeys = function(skey_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		if (typeof(skey_hex) !== "string" || skey_hex.length != 64) {
+		if (typeof(skey_hex) !== "string" || skey_hex.length !== 64) {
 			_userKeys = null;
 			callback(false);
 			return;
 		}
 
-		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
+		_userKeys = nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 		callback(true);
 	}); };
 
@@ -396,8 +396,8 @@ function AllEars() {
 			}
 
 			// Admin data
-			const lenAdmin = (_userLevel == _maxLevel) ? _lenAdminData : 0;
-			if (_userLevel == _maxLevel) {
+			const lenAdmin = (_userLevel === _maxLevel) ? _lenAdminData : 0;
+			if (_userLevel === _maxLevel) {
 				const adminDataStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
 
 				for (let i = 0; i < (_lenAdminData / 9); i++) {
