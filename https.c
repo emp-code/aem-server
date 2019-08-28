@@ -616,8 +616,13 @@ int getRequestType(const unsigned char * const req, const size_t lenReqTotal, co
 	if (memmem(req, lenReq, "\r\nExpect:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (memmem(req, lenReq, "\r\nRange:", 8) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
+	// These are only for preflighted requests which All-Ears doesn't use
+	if (memmem(req, lenReq, "\r\nAccess-Control-Request-Method:", 32) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, "\r\nAccess-Control-Request-Headers:", 33) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+
 	if (memcmp(req, "GET /", 5) == 0) {
 		if (memmem(req, lenReq, "\r\nContent-Length:", 17) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (memmem(req, lenReq, "\r\nOrigin:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
