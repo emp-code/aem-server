@@ -229,9 +229,7 @@ static void deliverMessage(const char * const to, const size_t lenToTotal, const
 			continue;
 		}
 
-		int64_t upk64;
-		memcpy(&upk64, pk, 8);
-		ret = addUserMessage(upk64, boxSet, bsLen);
+		ret = addUserMessage(*((int64_t*)pk), boxSet, bsLen);
 		free(boxSet);
 		if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
 
