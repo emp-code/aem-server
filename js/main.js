@@ -584,7 +584,7 @@ function genKeys() {
 
 document.getElementById("btn_signin").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
-	if (!(txtSkey.reportValidity())) return;
+	if (!txtSkey.reportValidity()) return;
 
 	ae.SetKeys(txtSkey.value, function(successSetKeys) {
 		if (successSetKeys) {
@@ -643,7 +643,7 @@ document.getElementById("btn_send").onclick = function() {
 	const sto = document.getElementById("send_to");
 	const sbody = document.getElementById("send_body");
 
-	if (!(stitle.reportValidity()) || !(sto.reportValidity()) || !(sbody.reportValidity())) return;
+	if (!stitle.reportValidity() || !sto.reportValidity() || !sbody.reportValidity()) return;
 
 	ae.Send(scopy.checked, sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
 		if (success) {
@@ -672,7 +672,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 	const txtTitle = document.getElementById("txt_newnote_title");
 	const txtBody = document.getElementById("txt_newnote_body");
 
-	if (!(txtTitle.reportValidity()) || !(txtBody.reportValidity())) return;
+	if (!txtTitle.reportValidity() || !txtBody.reportValidity()) return;
 
 	ae.SaveNote(txtTitle.value, txtBody.value, function(success) {
 		if (success) {
@@ -703,7 +703,7 @@ document.getElementById("btn_newaddress").onclick = function() {
 	}
 
 	const txtNewAddr = document.getElementById("txt_newaddress");
-	if (!(txtNewAddr.reportValidity())) return;
+	if (!txtNewAddr.reportValidity()) return;
 
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
@@ -768,7 +768,7 @@ document.getElementById("btn_gkdomain_add").onclick = function() {
 	const select = document.getElementById("gatekeeper_domain");
 	const txt = document.getElementById("txt_gkdomain");
 
-	if (!(txt.reportValidity())) return;
+	if (!txt.reportValidity()) return;
 
 	addOpt(select, txt.value);
 	txt.value = "";
@@ -779,7 +779,7 @@ document.getElementById("btn_gkaddr_add").onclick = function() {
 	const select = document.getElementById("gatekeeper_addr");
 	const txt = document.getElementById("txt_gkaddr");
 
-	if (!(txt.reportValidity())) return;
+	if (!txt.reportValidity()) return;
 
 	addOpt(select, txt.value);
 	txt.value = "";
@@ -822,7 +822,7 @@ document.getElementById("btn_savegkdata").onclick = function() {
 document.getElementById("btn_admin_addaccount").onclick = function() {
 	const txtPkey = document.getElementById("txt_newacc_pkey");
 
-	if (!(txtPkey.reportValidity())) return;
+	if (!txtPkey.reportValidity()) return;
 
 	const btn = document.getElementById("btn_admin_addaccount");
 	btn.disabled = "disabled";
