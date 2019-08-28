@@ -68,10 +68,7 @@ unsigned char *addr2bin(const char * const c, const size_t len) {
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	unsigned char hash16[16];
 	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
-
-	int64_t result;
-	memcpy(&result, hash16, 8);
-	return result;
+	return *((int64_t*)hash16);
 }
 
 int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
@@ -82,10 +79,7 @@ int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t u
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, in, len, saltyKey, 24);
 //	if (crypto_pwhash(hash16, 16, (char*)in, len, saltyKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
-
-	int64_t result;
-	memcpy(&result, hash16, 8);
-	return result;
+	return *((int64_t*)hash16);
 }
 
 bool upk64Exists(const int64_t upk64) {
