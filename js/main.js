@@ -2,10 +2,6 @@
 
 const ae = new AllEars();
 
-document.getElementById("txt_skey").onkeyup = function(e) {
-	if (e.key === "Enter") document.getElementById("btn_signin").click();
-};
-
 function navMenu(num) {
 	document.getElementById("div_readmsg").hidden = true;
 
@@ -837,13 +833,14 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 };
 
 document.getElementById("btn_uploadfile").onclick = function() {
-	this.disabled = "disabled;";
+	this.disabled = "disabled";
 	const fileSelector = document.getElementById("upfile");
 	const f = fileSelector.files[0];
 
 	const reader = new FileReader();
 	reader.onload = function(e) {
 		const u8data = new Uint8Array(reader.result);
+
 		ae.SaveFile(u8data, f.name, f.type, f.size, function(success) {
 			if (success) {
 				addFileNote(ae.GetFileCount() - 1, false);
@@ -860,16 +857,16 @@ document.getElementById("btn_uploadfile").onclick = function() {
 };
 
 function navNotesMenu(num) {
-	const b = document.getElementById("div_notes").getElementsByTagName("button");
-	const d = document.getElementById("div_notes").getElementsByTagName("div");
+	const btns = document.getElementById("div_notes").getElementsByTagName("button");
+	const divs = document.getElementById("div_notes").getElementsByTagName("div");
 
 	for (let i = 0; i < 4; i++) {
 		if (i === num) {
-			b[i].disabled = true;
-			d[i].hidden = false;
+			btns[i].disabled = true;
+			divs[i].hidden = false;
 		} else {
-			b[i].disabled = false;
-			d[i].hidden = true;
+			btns[i].disabled = false;
+			divs[i].hidden = true;
 		}
 	}
 }
@@ -890,21 +887,25 @@ document.getElementById("btn_prefs_addresses").onclick = function() {
 	document.getElementById("div_prefs_addresses").hidden = false;
 };
 
-let b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
-b[0].onclick = function() {navMenu(0);};
-b[1].onclick = function() {navMenu(1);};
-b[2].onclick = function() {navMenu(2);};
-b[3].onclick = function() {navMenu(3);};
-b[4].onclick = function() {navMenu(4);};
+let btns = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
+btns[0].onclick = function() {navMenu(0);};
+btns[1].onclick = function() {navMenu(1);};
+btns[2].onclick = function() {navMenu(2);};
+btns[3].onclick = function() {navMenu(3);};
+btns[4].onclick = function() {navMenu(4);};
 
-b = document.getElementById("div_notes").getElementsByTagName("button");
-b[0].onclick = function() {navNotesMenu(0);};
-b[1].onclick = function() {navNotesMenu(1);};
-b[2].onclick = function() {navNotesMenu(2);};
-b[3].onclick = function() {navNotesMenu(3);};
+btns = document.getElementById("div_notes").getElementsByTagName("button");
+btns[0].onclick = function() {navNotesMenu(0);};
+btns[1].onclick = function() {navNotesMenu(1);};
+btns[2].onclick = function() {navNotesMenu(2);};
+btns[3].onclick = function() {navNotesMenu(3);};
 
 document.getElementById("gatekeeper_country").onchange = function() {
 	document.getElementById("btn_savegkdata").hidden = false;
+};
+
+document.getElementById("txt_skey").onkeyup = function(e) {
+	if (e.key === "Enter") document.getElementById("btn_signin").click();
 };
 
 navMenu(0);
