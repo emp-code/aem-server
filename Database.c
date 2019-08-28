@@ -131,7 +131,7 @@ int getUserLevel(const int64_t upk64) {
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT level FROM userdata WHERE upk64=?", -1, &query, NULL);
-	if (ret != SQLITE_OK) return -1;
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, upk64);
 	if (sqlite3_step(query) != SQLITE_ROW) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
