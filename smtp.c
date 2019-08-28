@@ -58,6 +58,8 @@ MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256}
 #include "smtp.h"
 
 static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
+	if (sockAddr == NULL) return 0;
+
 	MMDB_s mmdb;
 	int status = MMDB_open("/GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
 
