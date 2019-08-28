@@ -580,60 +580,62 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	if (lenUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }
 
-int getRequestType(const unsigned char * const req, const size_t lenReqTotal, const char * const domain, const size_t lenDomain) {
-	if (lenReqTotal < 14) return AEM_HTTPS_REQUEST_INVALID;
+int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
+	if (lenReq < 14) return AEM_HTTPS_REQUEST_INVALID;
 
-	const unsigned char * const reqEnd = memmem(req, lenReqTotal, "\r\n\r\n", 4);
+	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	const size_t lenReq = reqEnd - req + 2; // Include \r\n at end
-
+	lenReq = reqEnd - req + 2; // Include \r\n at end
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	reqEnd[2] = '\0';
 
 	const size_t lenHeader = 10 + lenDomain;
 	char header[lenHeader];
 	memcpy(header, "\r\nHost: ", 8);
 	memcpy(header + 8, domain, lenDomain);
 	memcpy(header + 8 + lenDomain, "\r\n", 2);
+	if (strcasestr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(req, lenReq, header, lenHeader) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, " HTTP/1.1\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(req, lenReq, " HTTP/1.1\r\n", 11) == NULL) return AEM_HTTPS_REQUEST_INVALID;
-
-	const char * const ae = memmem(req, lenReq, "\r\nAccept-Encoding: ", 19);
+	// Brotli compression support is required
+	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
 	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	const size_t lenAe = strspn(ae + 19, "0123456789abcdefghijklmnopqrstuvwxyz, ");
-	const char * const br = memmem(ae + 19, lenAe, "br", 2);
-	if (br == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	const char * const aeEnd = strpbrk(ae + 19, "\r\n");
+	const char * const br = strcasestr(ae + 19, "br");
+	if (br == NULL || br > aeEnd) return AEM_HTTPS_REQUEST_INVALID;
 	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return AEM_HTTPS_REQUEST_INVALID;
-
 	const char * const br1 = ae + (br - ae - 1); // br - 1
 	if (*br1 != ',' && *br1 != ' ') return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
-	if (memmem(req, lenReq, "\r\nAuthorization:", 16) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (memmem(req, lenReq, "\r\nCookie:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (memmem(req, lenReq, "\r\nExpect:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (memmem(req, lenReq, "\r\nRange:", 8) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nAuthorization:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nCookie:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nExpect:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nRange:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// These are only for preflighted requests which All-Ears doesn't use
-	if (memmem(req, lenReq, "\r\nAccess-Control-Request-Method:", 32) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (memmem(req, lenReq, "\r\nAccess-Control-Request-Headers:", 33) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nAccess-Control-Request-Method:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memcmp(req, "GET /", 5) == 0) {
-		if (memmem(req, lenReq, "\r\nContent-Length:", 17) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-		if (memmem(req, lenReq, "\r\nOrigin:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-		if (memmem(req, lenReq, "\r\nX-Requested-With:", 19) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (strcasestr(req, "\r\nContent-Length:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (strcasestr(req, "\r\nOrigin:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (strcasestr(req, "\r\nX-Requested-With:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
 
 	if (memcmp(req, "POST /web/", 10) == 0) {
-		const char * const cl = memmem(req, lenReq, "\r\nContent-Length: ", 18);
+		const char * const cl = strcasestr(req, "\r\nContent-Length: ");
 		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 		const int lenPost = strtol(cl + 18, NULL, 10);
-		return (lenPost < 1) ? AEM_HTTPS_REQUEST_INVALID : lenPost;
+		if (lenPost < 1) return AEM_HTTPS_REQUEST_INVALID;
+
+		reqEnd[2] = '\r';
+		return lenPost;
 	}
 
 	return AEM_HTTPS_REQUEST_INVALID;
@@ -704,7 +706,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
 	if (lenReq > 0) {
-		const int lenReqBody = getRequestType(req, lenReq, domain, lenDomain);
+		const int lenReqBody = getRequestType((char*)req, lenReq, domain, lenDomain);
 
 		if (lenReqBody >= AEM_HTTPS_REQUEST_GET) {
 			const char * const reqUrl = (char*)(req + ((lenReqBody == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
