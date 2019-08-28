@@ -12,7 +12,7 @@ function AllEars() {
 	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
-	const _lenAdminData = 9216 // 9 KiB, space for 1024 users' data
+	const _lenAdminData = 9216; // 9 KiB, space for 1024 users' data
 	const _maxLevel = 3;
 
 	// These are just informational, the server enforces the real limits
@@ -111,8 +111,8 @@ function AllEars() {
 			callback(true, new Uint8Array(ab));
 		}).catch(() => {
 			callback(false);
-		})
-	}
+		});
+	};
 
 	const _FetchEncrypted = function(url, cleartext, nacl, callback) {
 		let nonce = new Uint8Array(24);
@@ -128,26 +128,26 @@ function AllEars() {
 		postMsg.set(postBox, 24 + _userKeys.boxPk.length);
 
 		_FetchBinary(url, postMsg, callback);
-	}
+	};
 
 	const _BitSet = function(num, bit) {
 		return num | 1<<bit;
-	}
+	};
 
 	const _BitClear = function(num, bit) {
 		return num & ~(1<<bit);
-	}
+	};
 
 	const _BitTest = function(num, bit) {
 		return ((num>>bit) % 2 != 0);
-	}
+	};
 
 	const _GetBit = function(byteArray, bitNum) {
 		const skipBytes = Math.floor(bitNum / 8.0);
 		const skipBits = bitNum % 8;
 
 		return _BitTest(byteArray[skipBytes], skipBits);
-	}
+	};
 
 	const _DecodeAddress = function(byteArray, start, nacl) {
 		const sixBitTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
@@ -174,7 +174,7 @@ function AllEars() {
 		if (end == -1) return decoded;
 
 		return decoded.substring(0, end);
-	}
+	};
 
 	const _DecodeOwnAddress = function(byteArray, start, nacl) {
 		const decoded = _DecodeAddress(byteArray, start, null);
@@ -186,7 +186,7 @@ function AllEars() {
 		}
 
 		return nacl.to_hex(byteArray.slice(start, start + 18));
-	}
+	};
 
 	const _GetAddressCount = function(isShield) {
 		let count = 0;
@@ -196,7 +196,7 @@ function AllEars() {
 		}
 
 		return count;
-	}
+	};
 
 	const _MakeAddrData = function() {
 		const addrData = new Uint8Array(_userAddress.length * 27);
@@ -216,13 +216,13 @@ function AllEars() {
 		}
 
 		return addrData;
-	}
+	};
 
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(error)";
 
 		switch(cs) {
-			case 0: return "TLS not used"
+			case 0: return "TLS not used";
 			case 49196: return "ECDHE_ECDSA_WITH_AES_256_GCM_SHA384";
 			case 49200: return "ECDHE_RSA_WITH_AES_256_GCM_SHA384";
 			case 49195: return "ECDHE_ECDSA_WITH_AES_128_GCM_SHA256";
@@ -231,89 +231,89 @@ function AllEars() {
 			case 52392: return "ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256";
 			default: return "(Unknown ciphersuite value)";
 		}
-	}
+	};
 
 // Public
-	this.GetLevelMax = function() {return _maxLevel;}
+	this.GetLevelMax = function() {return _maxLevel;};
 
-	this.GetAddress = function(num) {return _userAddress[num].decoded;}
-	this.IsAddressShield = function(num) {return _userAddress[num].isShield;}
-	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;}
-	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;}
-	this.IsAddressSharePk      = function(num) {return _userAddress[num].sharePk;}
-	this.IsAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;}
+	this.GetAddress = function(num) {return _userAddress[num].decoded;};
+	this.IsAddressShield = function(num) {return _userAddress[num].isShield;};
+	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;};
+	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;};
+	this.IsAddressSharePk      = function(num) {return _userAddress[num].sharePk;};
+	this.IsAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;};
 
-	this.SetAddressAcceptIntMsg = function(num, val) {_userAddress[num].acceptIntMsg = val;}
-	this.SetAddressAcceptExtMsg = function(num, val) {_userAddress[num].acceptExtMsg = val;}
-	this.SetAddressSharePk      = function(num, val) {_userAddress[num].sharePk = val;}
-	this.SetAddressGatekeeper   = function(num, val) {_userAddress[num].useGatekeeper = val;}
+	this.SetAddressAcceptIntMsg = function(num, val) {_userAddress[num].acceptIntMsg = val;};
+	this.SetAddressAcceptExtMsg = function(num, val) {_userAddress[num].acceptExtMsg = val;};
+	this.SetAddressSharePk      = function(num, val) {_userAddress[num].sharePk = val;};
+	this.SetAddressGatekeeper   = function(num, val) {_userAddress[num].useGatekeeper = val;};
 
-	this.GetAddressCount = function() {return _userAddress.length;}
-	this.GetAddressCountNormal = function() {return _GetAddressCount(false);}
-	this.GetAddressCountShield = function() {return _GetAddressCount(true);}
+	this.GetAddressCount = function() {return _userAddress.length;};
+	this.GetAddressCountNormal = function() {return _GetAddressCount(false);};
+	this.GetAddressCountShield = function() {return _GetAddressCount(true);};
 
-	this.IsUserAdmin = function() {return (_userLevel == _maxLevel);}
-	this.GetUserLevel = function() {return _userLevel;}
-	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];}
-	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];}
+	this.IsUserAdmin = function() {return (_userLevel == _maxLevel);};
+	this.GetUserLevel = function() {return _userLevel;};
+	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];};
+	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];};
 
-	this.GetIntMsgCount = function() {return _intMsg.length;}
-	this.GetIntMsgId     = function(num) {return _intMsg[num].id;}
-	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;}
-	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;}
-	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;}
-	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;}
-	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;}
-	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;}
-	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;}
-	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;}
+	this.GetIntMsgCount = function() {return _intMsg.length;};
+	this.GetIntMsgId     = function(num) {return _intMsg[num].id;};
+	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
+	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
+	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
+	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;};
+	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;};
+	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;};
+	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;};
+	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;};
 
-	this.GetExtMsgCount = function() {return _extMsg.length;}
-	this.GetExtMsgId      = function(num) {return _extMsg[num].id;}
-	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;}
-	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);}
-	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;}
-	this.GetExtMsgIp      = function(num) {return "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];}
-	this.GetExtMsgCountry = function(num) {return _extMsg[num].countrycode;}
-	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;}
-	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;}
-	this.GetExtMsgTitle   = function(num) {return _extMsg[num].title;}
-	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;}
-	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;}
+	this.GetExtMsgCount = function() {return _extMsg.length;};
+	this.GetExtMsgId      = function(num) {return _extMsg[num].id;};
+	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;};
+	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);};
+	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;};
+	this.GetExtMsgIp      = function(num) {return "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];};
+	this.GetExtMsgCountry = function(num) {return _extMsg[num].countrycode;};
+	this.GetExtMsgFrom    = function(num) {return _extMsg[num].from;};
+	this.GetExtMsgTo      = function(num) {return _extMsg[num].to;};
+	this.GetExtMsgTitle   = function(num) {return _extMsg[num].title;};
+	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;};
+	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;};
 
-	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);} // Protocol Error
-	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);} // Invalid command used
-	this.GetExtMsgFlagRare = function(num) {return _BitTest(_extMsg[num].info, 5);} // Rare/unusual command used
-	this.GetExtMsgFlagQuit = function(num) {return _BitTest(_extMsg[num].info, 6);} // QUIT command issued
-	this.GetExtMsgFlagPExt = function(num) {return _BitTest(_extMsg[num].info, 7);} // Protocol Extended (ESMTP)
+	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);}; // Protocol Error
+	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);}; // Invalid command used
+	this.GetExtMsgFlagRare = function(num) {return _BitTest(_extMsg[num].info, 5);}; // Rare/unusual command used
+	this.GetExtMsgFlagQuit = function(num) {return _BitTest(_extMsg[num].info, 6);}; // QUIT command issued
+	this.GetExtMsgFlagPExt = function(num) {return _BitTest(_extMsg[num].info, 7);}; // Protocol Extended (ESMTP)
 
-	this.GetNoteCount = function() {return _textNote.length;}
-	this.GetNoteId = function(num) {return _textNote[num].id;}
-	this.GetNoteTime = function(num) {return _textNote[num].timestamp;}
-	this.GetNoteTitle = function(num) {return _textNote[num].title;}
-	this.GetNoteBody = function(num) {return _textNote[num].body;}
+	this.GetNoteCount = function() {return _textNote.length;};
+	this.GetNoteId = function(num) {return _textNote[num].id;};
+	this.GetNoteTime = function(num) {return _textNote[num].timestamp;};
+	this.GetNoteTitle = function(num) {return _textNote[num].title;};
+	this.GetNoteBody = function(num) {return _textNote[num].body;};
 
-	this.GetFileCount = function() {return _fileNote.length;}
-	this.GetFileId   = function(num) {return _fileNote[num].id;}
-	this.GetFileTime = function(num) {return _fileNote[num].timestamp;}
-	this.GetFileName = function(num) {return _fileNote[num].fileName;}
-	this.GetFileType = function(num) {return _fileNote[num].fileType;}
-	this.GetFileSize = function(num) {return _fileNote[num].fileSize;}
-	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].fileData.buffer], {type : _fileNote[num].fileType});}
+	this.GetFileCount = function() {return _fileNote.length;};
+	this.GetFileId   = function(num) {return _fileNote[num].id;};
+	this.GetFileTime = function(num) {return _fileNote[num].timestamp;};
+	this.GetFileName = function(num) {return _fileNote[num].fileName;};
+	this.GetFileType = function(num) {return _fileNote[num].fileType;};
+	this.GetFileSize = function(num) {return _fileNote[num].fileSize;};
+	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].fileData.buffer], {type : _fileNote[num].fileType});};
 
-	this.GetGatekeeperCountry = function() {return _gkCountry;}
-	this.GetGatekeeperDomain  = function() {return _gkDomain;}
-	this.GetGatekeeperAddress = function() {return _gkAddress;}
+	this.GetGatekeeperCountry = function() {return _gkCountry;};
+	this.GetGatekeeperDomain  = function() {return _gkDomain;};
+	this.GetGatekeeperAddress = function() {return _gkAddress;};
 
-	this.Admin_GetUserCount = function() {return _admin_userPkHex.length;}
-	this.Admin_GetUserPkHex = function(num) {return _admin_userPkHex[num];}
-	this.Admin_GetUserSpace = function(num) {return _admin_userSpace[num];}
-	this.Admin_GetUserLevel = function(num) {return _admin_userLevel[num];}
+	this.Admin_GetUserCount = function() {return _admin_userPkHex.length;};
+	this.Admin_GetUserPkHex = function(num) {return _admin_userPkHex[num];};
+	this.Admin_GetUserSpace = function(num) {return _admin_userSpace[num];};
+	this.Admin_GetUserLevel = function(num) {return _admin_userLevel[num];};
 
-	this.GetContactCount = function() {return _contactMail.length;}
-	this.GetContactMail = function(num) {return _contactMail[num];}
-	this.GetContactName = function(num) {return _contactName[num];}
-	this.GetContactNote = function(num) {return _contactNote[num];}
+	this.GetContactCount = function() {return _contactMail.length;};
+	this.GetContactMail = function(num) {return _contactMail[num];};
+	this.GetContactName = function(num) {return _contactName[num];};
+	this.GetContactNote = function(num) {return _contactNote[num];};
 	this.AddContact = function(mail, name, note) {
 		_contactMail.push(mail);
 		_contactName.push(name);
@@ -323,7 +323,7 @@ function AllEars() {
 		_contactMail.splice(index, 1);
 		_contactName.splice(index, 1);
 		_contactNote.splice(index, 1);
-	}
+	};
 
 	this.SetKeys = function(skey_hex, callback) { nacl_factory.instantiate(function (nacl) {
 		if (typeof(skey_hex) !== "string" || skey_hex.length != 64) {
@@ -334,7 +334,7 @@ function AllEars() {
 
 		_userKeys=nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
 		callback(true);
-	}); }
+	}); };
 
 	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
@@ -574,14 +574,14 @@ function AllEars() {
 
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.Send = function(senderCopy, msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
 		const sc = senderCopy? "Y" : "N";
 		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
 		_FetchEncrypted("/web/send", cleartext, nacl, function(fetchOk) {callback(fetchOk);});
-	}); }
+	}); };
 
 	// Notes are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
 	this.SaveNote = function(title, body, callback) { nacl_factory.instantiate(function (nacl) {
@@ -606,7 +606,7 @@ function AllEars() {
 			_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));
 			callback(true);
 		});
-	}); }
+	}); };
 
 	// Files are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
 	this.SaveFile = function(fileData, fileName, fileType, fileSize, callback) { nacl_factory.instantiate(function (nacl) {
@@ -641,7 +641,7 @@ function AllEars() {
 			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileData.length, fileName, fileType));
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
 		const hash = _userAddress[num].hash;
@@ -653,7 +653,7 @@ function AllEars() {
 		postData.set(boxAddrData, 8);
 
 		_FetchEncrypted("/web/addr/del", postData, nacl, function(fetchOk) {callback(fetchOk);});
-	}); }
+	}); };
 
 	this.AddAddress = function(addr, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/addr/add", nacl.encode_utf8(addr), nacl, function(fetchOk, byteArray) {
@@ -664,7 +664,7 @@ function AllEars() {
 
 			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
-	}); }
+	}); };
 
 	this.AddShieldAddress = function(callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(fetchOk, byteArray) {
@@ -675,20 +675,20 @@ function AllEars() {
 
 			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
-	}); }
+	}); };
 
 	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
 		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
 		_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
-	}); }
+	}); };
 
 	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
 		let gkText = "";
 		for (let i = 0; i < lst.length; i++) gkText += lst[i] + '\n';
 
 		_FetchEncrypted("/web/gatekeeper", nacl.encode_utf8(gkText), nacl, function(fetchOk) {callback(fetchOk);});
-	}); }
+	}); };
 
 	this.SaveNoteData = function(callback) { nacl_factory.instantiate(function (nacl) {
 		let noteText = "";
@@ -708,7 +708,7 @@ function AllEars() {
 		noteData[1] = n >> 8 & 0xff;
 
 		_FetchEncrypted("/web/notedata", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
-	}); }
+	}); };
 
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
 		const delCount = ids.length;
@@ -746,7 +746,7 @@ function AllEars() {
 
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/addaccount", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
@@ -757,7 +757,7 @@ function AllEars() {
 			_admin_userSpace.push(0);
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.DestroyAccount = function(num, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(_admin_userPkHex[num]), nacl, function(fetchOk, byteArray) {
@@ -768,7 +768,7 @@ function AllEars() {
 			_admin_userSpace.splice(num, 1);
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("/web/accountlevel", nacl.encode_utf8(_admin_userPkHex[num] + level), nacl, function(fetchOk, byteArray) {
@@ -777,10 +777,10 @@ function AllEars() {
 			_admin_userLevel[num] = level;
 			callback(true);
 		});
-	}); }
+	}); };
 
 	this.NewKeys = function(callback) { nacl_factory.instantiate(function (nacl) {
 		const newKeys = nacl.crypto_box_keypair();
 		callback(nacl.to_hex(newKeys.boxPk), nacl.to_hex(newKeys.boxSk));
-	}); }
+	}); };
 }

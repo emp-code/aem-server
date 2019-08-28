@@ -4,7 +4,7 @@ const ae=new AllEars();
 
 document.getElementById("txt_skey").onkeyup = function(e) {
 	if (e.key === "Enter") document.getElementById("btn_signin").click();
-}
+};
 
 document.getElementById("btn_signin").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
@@ -127,7 +127,7 @@ function addContactToTable(mail, name, note) {
 	cellNote.textContent = note;
 	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 
-	cellBtnD.onclick = function() {deleteContact(mail)};
+	cellBtnD.onclick = function() {deleteContact(mail);};
 }
 
 function addRowAdmin(num) {
@@ -154,9 +154,9 @@ function addRowAdmin(num) {
 
 	const pkHex = ae.Admin_GetUserPkHex(num);
 	const currentLevel = ae.Admin_GetUserLevel(num);
-	cellBtnPl.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1)};
-	cellBtnMn.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1)};
-	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex)};
+	cellBtnPl.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
+	cellBtnMn.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
+	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex);};
 }
 
 document.getElementById("btn_contact_add").onclick = function() {
@@ -186,7 +186,7 @@ document.getElementById("btn_savenotes").onclick = function() {
 };
 
 function destroyAccount(upk_hex) {
-	const tbl = document.getElementById("tbody_admin")
+	const tbl = document.getElementById("tbody_admin");
 
 	let rowid = -1;
 
@@ -209,7 +209,7 @@ function destroyAccount(upk_hex) {
 }
 
 function setAccountLevel(upk_hex, level) {
-	const tbl = document.getElementById("tbody_admin")
+	const tbl = document.getElementById("tbody_admin");
 
 	let rowid = -1;
 
@@ -243,8 +243,8 @@ function setAccountLevel(upk_hex, level) {
 
 		const pkHex = ae.Admin_GetUserPkHex(rowid);
 		const currentLevel = ae.Admin_GetUserLevel(rowid);
-		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1)};
-		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1)};
+		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
+		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
 	});
 }
 
@@ -293,7 +293,7 @@ function addIntMessages() {
 			cellFrom.className = "";
 		}
 
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">"
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
@@ -329,7 +329,7 @@ function addIntMessages() {
 			}
 
 			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden=false;
-		}
+		};
 	}
 }
 
@@ -378,7 +378,7 @@ function addExtMessages() {
 
 		cellFrom.className = "";
 
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">"
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
@@ -427,7 +427,7 @@ function addExtMessages() {
 			}
 
 			document.getElementById("btn_msgdel").hidden=false;
-		}
+		};
 	}
 }
 
@@ -470,7 +470,7 @@ function addFileNote(num, allowDelete) {
 		a.href = "";
 		a.download = "";
 		URL.revokeObjectURL(objectUrl);
-	}
+	};
 
 	cellBtnX.children[0].onclick = function() {
 		const parentRow = this.parentElement.parentElement;
@@ -481,7 +481,7 @@ function addFileNote(num, allowDelete) {
 				console.log("Failed to delete note");
 			}
 		});
-	}
+	};
 }
 
 function loginSuccess() {
@@ -553,7 +553,7 @@ function loginSuccess() {
 					console.log("Failed to delete note");
 				}
 			});
-		}
+		};
 
 		cellTitle.onclick = function() {
 			navMenu(-1);
@@ -562,7 +562,7 @@ function loginSuccess() {
 
 			document.getElementById("readmsg_title").textContent = ae.GetNoteTitle(i);
 			document.getElementById("readmsg_body").textContent = ae.GetNoteBody(i);
-		}
+		};
 	}
 
 	// Files
@@ -610,8 +610,8 @@ document.getElementById("btn_send").onclick = function() {
 	const scopy=document.getElementById("send_copy");
 	const sfrom=document.getElementById("send_from");
 	const stitle=document.getElementById("send_title");
-	const sto=document.getElementById("send_to")
-	const sbody=document.getElementById("send_body")
+	const sto=document.getElementById("send_to");
+	const sbody=document.getElementById("send_body");
 
 	if (!(stitle.reportValidity()) || !(sto.reportValidity()) || !(sbody.reportValidity())) return;
 
@@ -629,14 +629,14 @@ document.getElementById("btn_send").onclick = function() {
 document.getElementById("btn_notenew").onclick = function() {
 	document.getElementById("div_notes_texts").hidden=true;
 	document.getElementById("div_newtextnote").hidden=false;
-}
+};
 
 document.getElementById("btn_newnote_cancel").onclick = function() {
 	document.getElementById("txt_newnote_title").value = "";
 	document.getElementById("txt_newnote_body").value = "";
 	document.getElementById("div_notes_texts").hidden=false;
 	document.getElementById("div_newtextnote").hidden=true;
-}
+};
 
 document.getElementById("btn_newnote_save").onclick = function() {
 	const txtTitle = document.getElementById("txt_newnote_title");
@@ -664,7 +664,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 			console.log("Failed to save note");
 		}
 	});
-}
+};
 
 document.getElementById("btn_newaddress").onclick = function() {
 	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) {
@@ -709,13 +709,13 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 			addAddress(ae.GetAddressCount() - 1);
 		} else {
-			console.log("Failed to add Shield address")
+			console.log("Failed to add Shield address");
 		}
 	});
 };
 
 document.getElementById("btn_saveaddrdata").onclick = function() {
-	const tbl = document.getElementById("tbody_opt_addr")
+	const tbl = document.getElementById("tbody_opt_addr");
 
 	for (let i = 0; i < tbl.rows.length; i++) {
 		ae.SetAddressAcceptIntMsg(i, tbl.rows[i].cells[1].firstChild.checked);
@@ -792,7 +792,7 @@ document.getElementById("btn_savegkdata").onclick = function() {
 			console.log("Gatekeeper update succeeded");
 			document.getElementById("btn_savegkdata").hidden=true;
 		} else {
-			console.log("Gatekeeper update failed;")
+			console.log("Gatekeeper update failed;");
 		}
 	});
 };
@@ -818,7 +818,7 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 };
 
 document.getElementById("btn_uploadfile").onclick = function() {
-	this.disabled = "disabled;"
+	this.disabled = "disabled;";
 	const fileSelector = document.getElementById("upfile");
 	const f = fileSelector.files[0];
 
@@ -835,7 +835,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 		});
 
 		document.getElementById("btn_uploadfile").disabled = "";
-	}
+	};
 
 	reader.readAsArrayBuffer(f);
 };
