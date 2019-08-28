@@ -154,7 +154,7 @@ static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain
 }
 
 static bool smtp_helo(const int sock, const char * const domain, const size_t lenDomain, const char * const buf, const ssize_t bytes) {
-	if (bytes < 4) return false;
+	if (domain == NULL || lenDomain < 1 || buf == NULL || bytes < 4) return false;
 
 	if (strncasecmp(buf, "EHLO", 4) == 0) {
 		const ssize_t lenHelo = 4 + lenDomain + AEM_EHLO_RESPONSE_LEN;
