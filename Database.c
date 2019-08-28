@@ -91,6 +91,7 @@ bool upk64Exists(const int64_t upk64) {
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM userdata WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return false;}
+
 	sqlite3_bind_int64(query, 1, upk64);
 
 	ret = sqlite3_step(query);
@@ -109,6 +110,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT publickey FROM userdata WHERE upk64=(SELECT upk64 FROM address WHERE hash=?)", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int64(query, 1, addressToHash(addr, addrKey));
 
 	ret = sqlite3_step(query);
@@ -218,8 +220,8 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 
 	sqlite3_stmt *query;
 	const int ret = sqlite3_prepare_v2(db, "SELECT msg,row_number FROM (SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=? ORDER BY rowid DESC) JOIN msg ON msg.rowid=rowid LIMIT 255", -1, &query, NULL);
-
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
+
 	sqlite3_bind_int64(query, 1, upk64);
 
 	unsigned char * const data = calloc(maxSize, 1);
@@ -273,14 +275,17 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "DELETE FROM address WHERE hash=? AND upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int64(query, 1, hash);
 	sqlite3_bind_int64(query, 2, upk64);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
-	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
 
 	ret = sqlite3_prepare_v2(db, "UPDATE userdata SET addrdata=? WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
 	sqlite3_bind_int64(query, 2, upk64);
 
@@ -302,7 +307,9 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	memcpy(&upk64, ownerPk, 8);
 
 	sqlite3_stmt *query;
-	sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_step(query);
 	sqlite3_finalize(query);
@@ -316,7 +323,9 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 		const size_t lenGksb = lenToSixBit(len);
 		unsigned char * const gkSixBit = textToSixBit(lf, len, 0);
 		if (memchr(gkSixBit, '?', lenGksb) == NULL) {
-			sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
+			ret = sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
+			if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 			sqlite3_bind_int64(query, 1, gkHash(gkSixBit, lenGksb, upk64, hashKey));
 			sqlite3_bind_int64(query, 2, upk64);
 			sqlite3_step(query);
@@ -331,7 +340,9 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	unsigned char * const ciphertext = malloc(lenGkData + crypto_box_SEALBYTES);
 	crypto_box_seal(ciphertext, (unsigned char*)gkData, lenGkData, ownerPk);
 
-	sqlite3_prepare_v2(db, "UPDATE userdata SET gkdata=? WHERE upk64=?", -1, &query, NULL);
+	ret = sqlite3_prepare_v2(db, "UPDATE userdata SET gkdata=? WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_blob(query, 1, ciphertext, lenGkData + crypto_box_SEALBYTES, free);
 	sqlite3_bind_int64(query, 2, upk64);
 	sqlite3_step(query);
@@ -377,6 +388,8 @@ int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int cou
 
 	for (int i = 0; i < rowCount; i++) {
 		ret = sqlite3_prepare_v2(db, "DELETE FROM msg WHERE rowid=? AND upk64=?", -1, &query, NULL);
+		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 		sqlite3_bind_int(query, 1, rowIds[i]);
 		sqlite3_bind_int64(query, 2, upk64);
 		sqlite3_step(query);
@@ -393,6 +406,8 @@ int updateNoteData(const int64_t upk64, const unsigned char * const noteData) {
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "UPDATE userdata SET notedata=? WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_blob(query, 1, noteData, AEM_NOTEDATA_LEN + crypto_box_SEALBYTES, SQLITE_STATIC);
 	sqlite3_bind_int64(query, 2, upk64);
 
@@ -408,6 +423,8 @@ int updateAddress(const int64_t upk64, const unsigned char * const addrData, con
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "UPDATE userdata SET addrdata=? WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
 	sqlite3_bind_int64(query, 2, upk64);
 
@@ -423,6 +440,8 @@ int addAddress(const int64_t upk64, const int64_t hash) {
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int64(query, 1, hash);
 	sqlite3_bind_int64(query, 2, upk64);
 
@@ -446,7 +465,7 @@ int addAccount(const unsigned char * const pk) {
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata) VALUES (?,?,?,?,?,?)", -1, &query, NULL);
-	if (ret != SQLITE_OK) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	int64_t upk64;
 	memcpy(&upk64, pk, 8);
@@ -471,7 +490,9 @@ int setAccountLevel(const int64_t upk64, const int level) {
 	if (db == NULL) return false;
 
 	sqlite3_stmt *query;
-	sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE upk64=?", -1, &query, NULL);
+	const int ret = sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int(query, 1, level);
 	sqlite3_bind_int64(query, 2, upk64);
 
@@ -489,31 +510,39 @@ int destroyAccount(const int64_t upk64) {
 
 	sqlite3_stmt *query;
 
-	sqlite3_prepare_v2(db, "DELETE FROM userdata WHERE upk64=?", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, upk64);
-	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
-	sqlite3_finalize(query);
+	int ret = sqlite3_prepare_v2(db, "DELETE FROM userdata WHERE upk64=?", -1, &query, NULL);
+	if (ret == SQLITE_OK) {
+		sqlite3_bind_int64(query, 1, upk64);
+		if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+		sqlite3_finalize(query);
+	} else retval = -1;
 
-	sqlite3_prepare_v2(db, "DELETE FROM address WHERE upk64=?", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, upk64);
-	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
-	sqlite3_finalize(query);
+	ret = sqlite3_prepare_v2(db, "DELETE FROM address WHERE upk64=?", -1, &query, NULL);
+	if (ret == SQLITE_OK) {
+		sqlite3_bind_int64(query, 1, upk64);
+		if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+		sqlite3_finalize(query);
+	} else retval = -1;
 
-	sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, upk64);
-	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
-	sqlite3_finalize(query);
+	ret = sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
+	if (ret == SQLITE_OK) {
+		sqlite3_bind_int64(query, 1, upk64);
+		if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+		sqlite3_finalize(query);
+	} else retval = -1;
 
 	sqlite3_close_v2(db);
 
 	db = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
-	sqlite3_prepare_v2(db, "DELETE FROM msg WHERE upk64=?", -1, &query, NULL);
-	sqlite3_bind_int64(query, 1, upk64);
-	if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	ret = sqlite3_prepare_v2(db, "DELETE FROM msg WHERE upk64=?", -1, &query, NULL);
+	if (ret == SQLITE_OK) {
+		sqlite3_bind_int64(query, 1, upk64);
+		if (sqlite3_step(query) != SQLITE_DONE) retval = -1;
+	} else retval = -1;
+
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-
 	return retval;
 }
