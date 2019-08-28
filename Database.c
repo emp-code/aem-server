@@ -437,7 +437,7 @@ int addAccount(const unsigned char * const pk) {
 	unsigned char ciphertext_notedata[AEM_NOTEDATA_LEN + crypto_box_SEALBYTES];
 	unsigned char ciphertext_empty[crypto_box_SEALBYTES];
 	crypto_box_seal(ciphertext_notedata, zero, AEM_NOTEDATA_LEN, pk);
-	crypto_box_seal(ciphertext_empty, NULL, 0, pk);
+	crypto_box_seal(ciphertext_empty, (unsigned char*)"", 0, pk);
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata) VALUES (?,?,?,?,?,?)", -1, &query, NULL);
