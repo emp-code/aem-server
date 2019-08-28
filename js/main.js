@@ -51,7 +51,9 @@ function addExtMessages() {
 		const cellTo    = row.insertCell(-1);
 		const cellDel   = row.insertCell(-1);
 
-		cellTime.textContent = new Date(ae.GetExtMsgTime(i) * 1000).toLocaleString();
+		const ts = ae.GetExtMsgTime(i);
+		cellTime.setAttribute("data-ts", ts);
+		cellTime.textContent = new Date(ts * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetExtMsgTitle(i);
 		cellTo.textContent = ae.GetExtMsgTo(i);
 
@@ -121,21 +123,29 @@ function addIntMessages() {
 	const tblInbox = document.getElementById("tbody_inbox");
 	const tblSent = document.getElementById("tbody_sentbox");
 
-	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
-	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
-
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const isSent = ae.GetIntMsgIsSent(i);
 		const table = isSent? tblSent : tblInbox;
 
-		const row = table.insertRow(-1);
+		let rowNum = -1;
+
+		for (let j = table.rows.length - 1; j >= 0; j--) {
+			if (table.rows[j].cells[0].getAttribute("data-ts") > ae.GetIntMsgTime(i)) {
+				rowNum = j + 1;
+				break;
+			}
+		}
+
+		const row = table.insertRow(rowNum);
 		const cellTime  = row.insertCell(-1);
 		const cellTitle = row.insertCell(-1);
 		const cellFrom  = row.insertCell(-1);
 		const cellTo    = row.insertCell(-1);
 		const cellDel   = row.insertCell(-1);
 
-		cellTime.textContent = new Date(ae.GetIntMsgTime(i) * 1000).toLocaleString();
+		const ts = ae.GetIntMsgTime(i);
+		cellTime.setAttribute("data-ts", ts);
+		cellTime.textContent = new Date(ts * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetIntMsgTitle(i);
 
 		if (ae.GetIntMsgTo(i).length === 36) {
@@ -397,8 +407,8 @@ function delMsgs(tblName, btnName) {
 	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
 		if (success) {
 			clearMessages();
-			addIntMessages();
 			addExtMessages();
+			addIntMessages();
 			document.getElementById(btnName).hidden = true;
 		} else {
 			console.log("Failed to delete messages");
@@ -521,8 +531,8 @@ function loginSuccess() {
 	}
 
 	// Messages
-	addIntMessages();
 	addExtMessages();
+	addIntMessages();
 
 	// Notes
 	for (let i = 0; i < ae.GetNoteCount(); i++) {
