@@ -534,8 +534,13 @@ static void respond_https_accountlevel(mbedtls_ssl_context * const ssl, const in
 	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
-	const int ret = setAccountLevel(*decrypted, level);
+
+	unsigned char targetPk[8];
+	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
 	sodium_free(*decrypted);
+	if (ret != 0) return;
+
+	ret = setAccountLevel(*((int64_t*)targetPk), level);
 	if (ret == 0) send204(ssl);
 }
 

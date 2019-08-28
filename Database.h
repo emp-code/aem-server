@@ -9,7 +9,7 @@
 unsigned char *addr2bin(const char * const c, const size_t len);
 
 int addAccount(const unsigned char * const pk);
-int setAccountLevel(const char * const pk_hex, const int level);
+int setAccountLevel(const int64_t upk64, const int level);
 int destroyAccount(const int64_t upk64);
 
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey);

@@ -459,16 +459,16 @@ int addAccount(const unsigned char * const pk) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int setAccountLevel(const char * const pk_hex, const int level) {
+int setAccountLevel(const int64_t upk64, const int level) {
 	if (level < 0 || level > 3) return -1;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return false;
 
 	sqlite3_stmt *query;
-	sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE lower(substr(hex(publickey), 1, 16))=?", -1, &query, NULL);
+	sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE upk64=?", -1, &query, NULL);
 	sqlite3_bind_int(query, 1, level);
-	sqlite3_bind_text(query, 2, pk_hex, 16, SQLITE_STATIC);
+	sqlite3_bind_int64(query, 2, upk64);
 
 	const int retval = (sqlite3_step(query) == SQLITE_DONE) ? 0 : -1;
 	sqlite3_finalize(query);
