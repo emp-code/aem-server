@@ -6,330 +6,20 @@ document.getElementById("txt_skey").onkeyup = function(e) {
 	if (e.key === "Enter") document.getElementById("btn_signin").click();
 };
 
-document.getElementById("btn_signin").onclick = function() {
-	const txtSkey = document.getElementById('txt_skey');
-	if (!(txtSkey.reportValidity())) return;
+function navMenu(num) {
+	document.getElementById("div_readmsg").hidden = true;
 
-	ae.SetKeys(txtSkey.value, function(success) {
-		if (success) {
-			ae.Login(function(success) {
-				if (success) {
-					txtSkey.value = "";
-					loginSuccess();
-				} else {
-					console.log("Failed to log in");
-				}
-			});
+	const b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
+	const d = document.getElementsByClassName("maindiv");
+
+	for (let i = 0; i < 5; i++) {
+		if (i === num) {
+			b[i].disabled = true;
+			d[i].hidden = false;
 		} else {
-			console.log("Invalid format for key");
+			b[i].disabled = false;
+			d[i].hidden = true;
 		}
-	});
-};
-
-function addAddress(num) {
-	const addrTable = document.getElementById("tbody_opt_addr");
-	const row = addrTable.insertRow(-1);
-	const cellAddr = row.insertCell(-1);
-	const cellChk1 = row.insertCell(-1);
-	const cellChk2 = row.insertCell(-1);
-	const cellChk3 = row.insertCell(-1);
-	const cellChk4 = row.insertCell(-1);
-	const cellBtnD = row.insertCell(-1);
-
-	cellAddr.textContent = ae.GetAddress(num);
-	if (ae.IsAddressShield(num)) cellAddr.className = "mono";
-
-	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-
-	if (ae.IsUserAdmin())
-		cellChk2.innerHTML = "<input type=\"checkbox\" checked=\"checked\" readonly=\"readonly\" disabled=\"disabled\">";
-	else
-		cellChk2.innerHTML = ae.IsAddressSharePk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-
-	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
-	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
-	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
-	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
-
-	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
-	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
-
-	const opt = document.createElement("option");
-	opt.value = cellAddr.textContent;
-	opt.textContent = cellAddr.textContent + "@" + document.domain;
-	document.getElementById("send_from").appendChild(opt);
-}
-
-function deleteAddress(addr) {
-	const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-	for (let i = 0; i < btns.length; i++) btns[i].disabled = true;
-
-	let addressToDelete = -1;
-
-	for (let i = 0; i < ae.GetAddressCount(); i++) {
-		if (addr === ae.GetAddress(i)) {
-			addressToDelete = i;
-			break;
-		}
-	}
-
-	if (addressToDelete === -1) return;
-
-	ae.DeleteAddress(addressToDelete, function(success) {
-		if (success) {
-			console.log("Address #" + addressToDelete + " deleted.");
-			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
-			document.getElementById("send_from").remove(addressToDelete);
-
-			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
-			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-		} else {
-			console.log("Address failed to delete.");
-		}
-
-		const btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
-		for (let i = 0; i < btns.length; i++) btns[i].disabled = false;
-
-	});
-}
-
-function deleteContact(email) {
-	const tbl = document.getElementById("tbody_notes_contact");
-	const rows = tbl.rows;
-
-	for (let i = 0; i < rows.length; i++) {
-		if (email === rows[i].cells[0].textContent) {
-			ae.DeleteContact(i);
-			tbl.deleteRow(i);
-			break;
-		}
-	}
-
-	document.getElementById("btn_savenotes").hidden = false;
-}
-
-function addContactToTable(mail, name, note) {
-	const contactTable = document.getElementById("tbody_notes_contact");
-	const row = contactTable.insertRow(-1);
-	const cellMail = row.insertCell(-1);
-	const cellName = row.insertCell(-1);
-	const cellNote = row.insertCell(-1);
-	const cellBtnD = row.insertCell(-1);
-
-	cellMail.className = "left";
-	cellName.className = "left";
-	cellNote.className = "left";
-
-	cellMail.textContent = mail;
-	cellName.textContent = name;
-	cellNote.textContent = note;
-	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
-
-	cellBtnD.onclick = function() {deleteContact(mail);};
-}
-
-function addRowAdmin(num) {
-	const table = document.getElementById("tbody_admin");
-
-	const row = table.insertRow(-1);
-	const cellPk = row.insertCell(-1);
-	const cellMb = row.insertCell(-1);
-	const cellLv = row.insertCell(-1);
-	const cellBtnPl = row.insertCell(-1);
-	const cellBtnMn = row.insertCell(-1);
-	const cellBtnDe = row.insertCell(-1);
-
-	cellPk.textContent = ae.Admin_GetUserPkHex(num);
-	cellMb.textContent = ae.Admin_GetUserSpace(num);
-	cellLv.textContent = ae.Admin_GetUserLevel(num);
-	cellBtnPl.innerHTML = "<button type=\"button\">+</button>";
-	cellBtnMn.innerHTML = "<button type=\"button\">-</button>";
-	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
-
-	cellPk.className = "mono";
-	if (ae.Admin_GetUserLevel(num) === ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
-	if (ae.Admin_GetUserLevel(num) === 0) cellBtnMn.children[0].disabled = "disabled";
-
-	const pkHex = ae.Admin_GetUserPkHex(num);
-	const currentLevel = ae.Admin_GetUserLevel(num);
-	cellBtnPl.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
-	cellBtnMn.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
-	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex);};
-}
-
-document.getElementById("btn_contact_add").onclick = function() {
-	const txtMail = document.getElementById("txt_newcontact_mail");
-	const txtName = document.getElementById("txt_newcontact_name");
-	const txtNote = document.getElementById("txt_newcontact_note");
-
-	addContactToTable(txtMail.value, txtName.value, txtNote.value);
-	ae.AddContact(txtMail.value, txtName.value, txtNote.value);
-
-	txtMail.value = "";
-	txtName.value = "";
-	txtNote.value = "";
-
-	document.getElementById("btn_savenotes").hidden = false;
-};
-
-document.getElementById("btn_savenotes").onclick = function() {
-	ae.SaveNoteData(function(success) {
-		if (success) {
-			console.log("Note data saved successfully");
-			document.getElementById("btn_savenotes").hidden = true;
-		} else {
-			console.log("Note data failed to save");
-		}
-	});
-};
-
-function destroyAccount(upk_hex) {
-	const tbl = document.getElementById("tbody_admin");
-
-	let rowid = -1;
-
-	for (let i = 0; i < tbl.rows.length; i++) {
-		if (upk_hex === tbl.rows[i].cells[0].textContent) {
-			rowid = i;
-			break;
-		}
-	}
-
-	if (rowid === -1) return;
-
-	ae.DestroyAccount(rowid, function(success) {
-		if (success) {
-			tbl.deleteRow(rowid);
-		} else {
-			console.log("Failed to destroy account");
-		}
-	});
-}
-
-function setAccountLevel(upk_hex, level) {
-	const tbl = document.getElementById("tbody_admin");
-
-	let rowid = -1;
-
-	for (let i = 0; i < tbl.rows.length; i++) {
-		if (tbl.rows[i].cells[0].textContent === upk_hex) {
-			rowid = i;
-			break;
-		}
-	}
-
-	if (rowid === -1) return;
-
-	ae.SetAccountLevel(rowid, level, function(success) {
-		if (!success) {
-			console.log("Failed to set account level");
-			return;
-		}
-
-		tbl.rows[rowid].cells[2].textContent = level;
-
-		if (level === 0) {
-			tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
-			tbl.rows[rowid].cells[3].children[0].disabled = "";
-		} else if (level === ae.GetLevelMax()) {
-			tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
-			tbl.rows[rowid].cells[4].children[0].disabled = "";
-		} else {
-			tbl.rows[rowid].cells[3].children[0].disabled = "";
-			tbl.rows[rowid].cells[4].children[0].disabled = "";
-		}
-
-		const pkHex = ae.Admin_GetUserPkHex(rowid);
-		const currentLevel = ae.Admin_GetUserLevel(rowid);
-		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
-		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
-	});
-}
-
-function clearMessages() {
-	const tblInbox = document.getElementById("tbody_inbox");
-	const tblSent = document.getElementById("tbody_sentbox");
-
-	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
-	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
-}
-
-function addIntMessages() {
-	const tblInbox = document.getElementById("tbody_inbox");
-	const tblSent = document.getElementById("tbody_sentbox");
-
-	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
-	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
-
-	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
-		const isSent = ae.GetIntMsgIsSent(i);
-		const table = isSent? tblSent : tblInbox;
-
-		const row = table.insertRow(-1);
-		const cellTime  = row.insertCell(-1);
-		const cellTitle = row.insertCell(-1);
-		const cellFrom  = row.insertCell(-1);
-		const cellTo    = row.insertCell(-1);
-		const cellDel   = row.insertCell(-1);
-
-		cellTime.textContent = new Date(ae.GetIntMsgTime(i) * 1000).toLocaleString();
-		cellTitle.textContent = ae.GetIntMsgTitle(i);
-
-		if (ae.GetIntMsgTo(i).length === 36) {
-			cellTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
-			cellTo.className = "mono";
-		} else {
-			cellTo.textContent = ae.GetIntMsgTo(i);
-			cellTo.className = "";
-		}
-
-		if (ae.GetIntMsgShield(i)) {
-			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
-			cellFrom.className = "mono";
-		} else {
-			cellFrom.textContent = ae.GetIntMsgFrom(i);
-			cellFrom.className = "";
-		}
-
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
-
-		cellTitle.onclick = function() {
-			navMenu(-1);
-			document.getElementById("div_readmsg").hidden = false;
-			document.getElementById("readmsg_head").hidden = false;
-			document.getElementById("readmsg_levelinfo").hidden = false;
-			document.getElementById("readmsg_extmsg").hidden = true;
-
-			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
-			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
-			document.getElementById("readmsg_to").textContent = ae.GetIntMsgTo(i);
-			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
-			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
-
-			document.getElementById("readmsg_from").className = (ae.GetIntMsgShield(i)) ? "mono" : "";
-			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
-		};
-
-		cellDel.children[0].onchange = function() {
-			if (!cellDel.children[0].checked) {
-				let checked = false;
-				for (let i = 0; i < table.rows.length; i++) {
-					if (table.rows[i].cells[4].children[0].checked) {
-						checked = true;
-						break;
-					}
-				}
-
-				if (!checked) {
-					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = true;
-					return;
-				}
-			}
-
-			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = false;
-		};
 	}
 }
 
@@ -413,8 +103,8 @@ function addExtMessages() {
 		cellDel.children[0].onchange = function() {
 			if (!cellDel.children[0].checked) {
 				let checked = false;
-				for (let i = 0; i < table.rows.length; i++) {
-					if (table.rows[i].cells[4].children[0].checked) {
+				for (let j = 0; j < table.rows.length; j++) {
+					if (table.rows[j].cells[4].children[0].checked) {
 						checked = true;
 						break;
 					}
@@ -427,6 +117,83 @@ function addExtMessages() {
 			}
 
 			document.getElementById("btn_msgdel").hidden = false;
+		};
+	}
+}
+
+function addIntMessages() {
+	const tblInbox = document.getElementById("tbody_inbox");
+	const tblSent = document.getElementById("tbody_sentbox");
+
+	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
+	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
+
+	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
+		const isSent = ae.GetIntMsgIsSent(i);
+		const table = isSent? tblSent : tblInbox;
+
+		const row = table.insertRow(-1);
+		const cellTime  = row.insertCell(-1);
+		const cellTitle = row.insertCell(-1);
+		const cellFrom  = row.insertCell(-1);
+		const cellTo    = row.insertCell(-1);
+		const cellDel   = row.insertCell(-1);
+
+		cellTime.textContent = new Date(ae.GetIntMsgTime(i) * 1000).toLocaleString();
+		cellTitle.textContent = ae.GetIntMsgTitle(i);
+
+		if (ae.GetIntMsgTo(i).length === 36) {
+			cellTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
+			cellTo.className = "mono";
+		} else {
+			cellTo.textContent = ae.GetIntMsgTo(i);
+			cellTo.className = "";
+		}
+
+		if (ae.GetIntMsgShield(i)) {
+			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
+			cellFrom.className = "mono";
+		} else {
+			cellFrom.textContent = ae.GetIntMsgFrom(i);
+			cellFrom.className = "";
+		}
+
+		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
+
+		cellTitle.onclick = function() {
+			navMenu(-1);
+			document.getElementById("div_readmsg").hidden = false;
+			document.getElementById("readmsg_head").hidden = false;
+			document.getElementById("readmsg_levelinfo").hidden = false;
+			document.getElementById("readmsg_extmsg").hidden = true;
+
+			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
+			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
+			document.getElementById("readmsg_to").textContent = ae.GetIntMsgTo(i);
+			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
+			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
+
+			document.getElementById("readmsg_from").className = (ae.GetIntMsgShield(i)) ? "mono" : "";
+			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
+		};
+
+		cellDel.children[0].onchange = function() {
+			if (!cellDel.children[0].checked) {
+				let checked = false;
+				for (let j = 0; j < table.rows.length; j++) {
+					if (table.rows[j].cells[4].children[0].checked) {
+						checked = true;
+						break;
+					}
+				}
+
+				if (!checked) {
+					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = true;
+					return;
+				}
+			}
+
+			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = false;
 		};
 	}
 }
@@ -482,6 +249,237 @@ function addFileNote(num, allowDelete) {
 			}
 		});
 	};
+}
+
+function destroyAccount(upk_hex) {
+	const tbl = document.getElementById("tbody_admin");
+
+	let rowid = -1;
+
+	for (let i = 0; i < tbl.rows.length; i++) {
+		if (upk_hex === tbl.rows[i].cells[0].textContent) {
+			rowid = i;
+			break;
+		}
+	}
+
+	if (rowid === -1) return;
+
+	ae.DestroyAccount(rowid, function(success) {
+		if (success) {
+			tbl.deleteRow(rowid);
+		} else {
+			console.log("Failed to destroy account");
+		}
+	});
+}
+
+function setAccountLevel(upk_hex, level) {
+	const tbl = document.getElementById("tbody_admin");
+
+	let rowid = -1;
+
+	for (let i = 0; i < tbl.rows.length; i++) {
+		if (tbl.rows[i].cells[0].textContent === upk_hex) {
+			rowid = i;
+			break;
+		}
+	}
+
+	if (rowid === -1) return;
+
+	ae.SetAccountLevel(rowid, level, function(success) {
+		if (!success) {
+			console.log("Failed to set account level");
+			return;
+		}
+
+		tbl.rows[rowid].cells[2].textContent = level;
+
+		if (level === 0) {
+			tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[3].children[0].disabled = "";
+		} else if (level === ae.GetLevelMax()) {
+			tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[4].children[0].disabled = "";
+		} else {
+			tbl.rows[rowid].cells[3].children[0].disabled = "";
+			tbl.rows[rowid].cells[4].children[0].disabled = "";
+		}
+
+		const pkHex = ae.Admin_GetUserPkHex(rowid);
+		const currentLevel = ae.Admin_GetUserLevel(rowid);
+		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
+		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
+	});
+}
+
+function deleteAddress(addr) {
+	let btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+	for (let i = 0; i < btns.length; i++) btns[i].disabled = true;
+
+	let addressToDelete = -1;
+
+	for (let i = 0; i < ae.GetAddressCount(); i++) {
+		if (addr === ae.GetAddress(i)) {
+			addressToDelete = i;
+			break;
+		}
+	}
+
+	if (addressToDelete === -1) return;
+
+	ae.DeleteAddress(addressToDelete, function(success) {
+		if (success) {
+			console.log("Address #" + addressToDelete + " deleted.");
+			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
+			document.getElementById("send_from").remove(addressToDelete);
+
+			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+		} else {
+			console.log("Address failed to delete.");
+		}
+
+		btns = document.getElementById("tbody_opt_addr").getElementsByTagName("button");
+		for (let i = 0; i < btns.length; i++) btns[i].disabled = false;
+	});
+}
+
+function addAddress(num) {
+	const addrTable = document.getElementById("tbody_opt_addr");
+	const row = addrTable.insertRow(-1);
+	const cellAddr = row.insertCell(-1);
+	const cellChk1 = row.insertCell(-1);
+	const cellChk2 = row.insertCell(-1);
+	const cellChk3 = row.insertCell(-1);
+	const cellChk4 = row.insertCell(-1);
+	const cellBtnD = row.insertCell(-1);
+
+	cellAddr.textContent = ae.GetAddress(num);
+	if (ae.IsAddressShield(num)) cellAddr.className = "mono";
+
+	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+
+	if (ae.IsUserAdmin())
+		cellChk2.innerHTML = "<input type=\"checkbox\" checked=\"checked\" readonly=\"readonly\" disabled=\"disabled\">";
+	else
+		cellChk2.innerHTML = ae.IsAddressSharePk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+
+	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
+
+	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
+	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
+
+	const opt = document.createElement("option");
+	opt.value = cellAddr.textContent;
+	opt.textContent = cellAddr.textContent + "@" + document.domain;
+	document.getElementById("send_from").appendChild(opt);
+}
+
+function clearMessages() {
+	const tblInbox = document.getElementById("tbody_inbox");
+	const tblSent = document.getElementById("tbody_sentbox");
+
+	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
+	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
+}
+
+function delMsgs(tblName, btnName) {
+	const tbl = document.getElementById(tblName);
+	const ids = [];
+
+	for (let i = 0; i < tbl.rows.length; i++) {
+		const checkbox = tbl.rows[i].cells[4].children[0];
+		if (checkbox.checked) ids.push(checkbox.getAttribute("data-id"));
+	}
+
+	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
+		if (success) {
+			clearMessages();
+			addIntMessages();
+			addExtMessages();
+			document.getElementById(btnName).hidden = true;
+		} else {
+			console.log("Failed to delete messages");
+		}
+	});
+}
+
+function deleteContact(email) {
+	const tbl = document.getElementById("tbody_notes_contact");
+	const rows = tbl.rows;
+
+	for (let i = 0; i < rows.length; i++) {
+		if (email === rows[i].cells[0].textContent) {
+			ae.DeleteContact(i);
+			tbl.deleteRow(i);
+			break;
+		}
+	}
+
+	document.getElementById("btn_savenotes").hidden = false;
+}
+
+function addContactToTable(mail, name, note) {
+	const contactTable = document.getElementById("tbody_notes_contact");
+	const row = contactTable.insertRow(-1);
+	const cellMail = row.insertCell(-1);
+	const cellName = row.insertCell(-1);
+	const cellNote = row.insertCell(-1);
+	const cellBtnD = row.insertCell(-1);
+
+	cellMail.className = "left";
+	cellName.className = "left";
+	cellNote.className = "left";
+
+	cellMail.textContent = mail;
+	cellName.textContent = name;
+	cellNote.textContent = note;
+	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
+
+	cellBtnD.onclick = function() {deleteContact(mail);};
+}
+
+function addRowAdmin(num) {
+	const table = document.getElementById("tbody_admin");
+
+	const row = table.insertRow(-1);
+	const cellPk = row.insertCell(-1);
+	const cellMb = row.insertCell(-1);
+	const cellLv = row.insertCell(-1);
+	const cellBtnPl = row.insertCell(-1);
+	const cellBtnMn = row.insertCell(-1);
+	const cellBtnDe = row.insertCell(-1);
+
+	cellPk.textContent = ae.Admin_GetUserPkHex(num);
+	cellMb.textContent = ae.Admin_GetUserSpace(num);
+	cellLv.textContent = ae.Admin_GetUserLevel(num);
+	cellBtnPl.innerHTML = "<button type=\"button\">+</button>";
+	cellBtnMn.innerHTML = "<button type=\"button\">-</button>";
+	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
+
+	cellPk.className = "mono";
+	if (ae.Admin_GetUserLevel(num) === ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
+	if (ae.Admin_GetUserLevel(num) === 0) cellBtnMn.children[0].disabled = "disabled";
+
+	const pkHex = ae.Admin_GetUserPkHex(num);
+	const currentLevel = ae.Admin_GetUserLevel(num);
+	cellBtnPl.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
+	cellBtnMn.children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
+	cellBtnDe.children[0].onclick = function() {destroyAccount(pkHex);};
+}
+
+function addOpt(select, val) {
+	const opt = document.createElement("option");
+	opt.value = val;
+	opt.textContent = val;
+	select.appendChild(opt);
 }
 
 function loginSuccess() {
@@ -577,26 +575,58 @@ function loginSuccess() {
 	}
 }
 
-function delMsgs(tblName, btnName) {
-	const tbl = document.getElementById(tblName);
-	let ids = [];
-
-	for (let i = 0; i < tbl.rows.length; i++) {
-		const checkbox = tbl.rows[i].cells[4].children[0];
-		if (checkbox.checked) ids.push(checkbox.getAttribute("data-id"));
-	}
-
-	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
-		if (success) {
-			clearMessages();
-			addIntMessages();
-			addExtMessages();
-			document.getElementById(btnName).hidden = true;
-		} else {
-			console.log("Failed to delete messages");
-		}
+function genKeys() {
+	ae.NewKeys(function(pk, sk) {
+		console.log("Public=" + pk);
+		console.log("Secret=" + sk);
 	});
 }
+
+document.getElementById("btn_signin").onclick = function() {
+	const txtSkey = document.getElementById('txt_skey');
+	if (!(txtSkey.reportValidity())) return;
+
+	ae.SetKeys(txtSkey.value, function(successSetKeys) {
+		if (successSetKeys) {
+			ae.Login(function(successLogin) {
+				if (successLogin) {
+					txtSkey.value = "";
+					loginSuccess();
+				} else {
+					console.log("Failed to log in");
+				}
+			});
+		} else {
+			console.log("Invalid format for key");
+		}
+	});
+};
+
+document.getElementById("btn_contact_add").onclick = function() {
+	const txtMail = document.getElementById("txt_newcontact_mail");
+	const txtName = document.getElementById("txt_newcontact_name");
+	const txtNote = document.getElementById("txt_newcontact_note");
+
+	addContactToTable(txtMail.value, txtName.value, txtNote.value);
+	ae.AddContact(txtMail.value, txtName.value, txtNote.value);
+
+	txtMail.value = "";
+	txtName.value = "";
+	txtNote.value = "";
+
+	document.getElementById("btn_savenotes").hidden = false;
+};
+
+document.getElementById("btn_savenotes").onclick = function() {
+	ae.SaveNoteData(function(success) {
+		if (success) {
+			console.log("Note data saved successfully");
+			document.getElementById("btn_savenotes").hidden = true;
+		} else {
+			console.log("Note data failed to save");
+		}
+	});
+};
 
 document.getElementById("btn_msgdel").onclick = function() {
 	delMsgs("tbody_inbox", "btn_msgdel");
@@ -734,13 +764,6 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	});
 };
 
-function addOpt(select, val) {
-	const opt = document.createElement("option");
-	opt.value = val;
-	opt.textContent = val;
-	select.appendChild(opt);
-}
-
 document.getElementById("btn_gkdomain_add").onclick = function() {
 	const select = document.getElementById("gatekeeper_domain");
 	const txt = document.getElementById("txt_gkdomain");
@@ -776,7 +799,7 @@ document.getElementById("btn_gkaddr_del").onclick = function() {
 };
 
 document.getElementById("btn_savegkdata").onclick = function() {
-	let blocklist = [];
+	const blocklist = [];
 
 	let opts = document.getElementById("gatekeeper_country").selectedOptions;
 	for (let i = 0; i < opts.length; i++) blocklist.push(opts[i].value);
@@ -821,7 +844,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 	const fileSelector = document.getElementById("upfile");
 	const f = fileSelector.files[0];
 
-	let reader = new FileReader();
+	const reader = new FileReader();
 	reader.onload = function(e) {
 		const u8data = new Uint8Array(reader.result);
 		ae.SaveFile(u8data, f.name, f.type, f.size, function(success) {
@@ -839,41 +862,12 @@ document.getElementById("btn_uploadfile").onclick = function() {
 	reader.readAsArrayBuffer(f);
 };
 
-function genKeys() {
-	ae.NewKeys(function(pk, sk) {
-		console.log("Public=" + pk);
-		console.log("Secret=" + sk);
-	});
-}
-
-// Menu
-// Main Menu
-function navMenu(num) {
-	document.getElementById("div_readmsg").hidden = true;
-
-	const b = document.getElementsByTagName("nav")[0].getElementsByTagName("button");
-	const d = document.getElementsByClassName("maindiv");
-
-	for (let i = 0; i < 5; i++) {
-		if (i == num) {
-			b[i].disabled = true;
-			d[i].hidden = false;
-		} else {
-			b[i].disabled = false;
-			d[i].hidden = true;
-		}
-	}
-}
-
-navMenu(0);
-
-// Notes Menu
 function navNotesMenu(num) {
 	const b = document.getElementById("div_notes").getElementsByTagName("button");
 	const d = document.getElementById("div_notes").getElementsByTagName("div");
 
 	for (let i = 0; i < 4; i++) {
-		if (i == num) {
+		if (i === num) {
 			b[i].disabled = true;
 			d[i].hidden = false;
 		} else {
@@ -883,7 +877,6 @@ function navNotesMenu(num) {
 	}
 }
 
-// Prefs menu
 document.getElementById("btn_prefs_gatekeeper").onclick = function() {
 	document.getElementById("btn_prefs_addresses").disabled = false;
 	document.getElementById("btn_prefs_gatekeeper").disabled = true;
@@ -916,3 +909,5 @@ b[3].onclick = function() {navNotesMenu(3);};
 document.getElementById("gatekeeper_country").onchange = function() {
 	document.getElementById("btn_savegkdata").hidden = false;
 };
+
+navMenu(0);

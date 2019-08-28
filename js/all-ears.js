@@ -8,7 +8,7 @@ function AllEars() {
 		if (document.characterSet !== "UTF-8") return;
 	} catch(e) {return;}
 
-// Private
+// Private Variables
 	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
@@ -40,6 +40,16 @@ function AllEars() {
 	let _admin_userPkHex = [];
 	let _admin_userSpace = [];
 	let _admin_userLevel = [];
+
+// Private Functions
+	const _BitSet = function(num, bit) {return num | 1<<bit;};
+	const _BitClear = function(num, bit) {return num & ~(1<<bit);};
+	const _BitTest = function(num, bit) {return ((num>>bit) % 2 != 0);};
+	const _GetBit = function(byteArray, bitNum) {
+		const skipBytes = Math.floor(bitNum / 8.0);
+		const skipBits = bitNum % 8;
+		return _BitTest(byteArray[skipBytes], skipBits);
+	};
 
 	function _NewIntMsg(id, isSent, sml, ts, from, shield, to, title, body) {
 		this.id = id;
@@ -130,25 +140,6 @@ function AllEars() {
 		_FetchBinary(url, postMsg, callback);
 	};
 
-	const _BitSet = function(num, bit) {
-		return num | 1<<bit;
-	};
-
-	const _BitClear = function(num, bit) {
-		return num & ~(1<<bit);
-	};
-
-	const _BitTest = function(num, bit) {
-		return ((num>>bit) % 2 != 0);
-	};
-
-	const _GetBit = function(byteArray, bitNum) {
-		const skipBytes = Math.floor(bitNum / 8.0);
-		const skipBits = bitNum % 8;
-
-		return _BitTest(byteArray[skipBytes], skipBits);
-	};
-
 	const _DecodeAddress = function(byteArray, start, nacl) {
 		const sixBitTable = "|0123456789abcdefghijklmnopqrstuvwxyz.-@????????????????????????";
 		const skip = start * 8;
@@ -167,7 +158,7 @@ function AllEars() {
 
 			if (nacl != null && sixBitTable[num] == '?') return nacl.to_hex(byteArray.slice(start, start + 18));
 
-			decoded = decoded + sixBitTable[num];
+			decoded += sixBitTable[num];
 		}
 
 		const end = decoded.indexOf('|');
