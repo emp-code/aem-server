@@ -91,6 +91,8 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 }
 
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
+	if (buf == NULL || maxSize < 1) return -1;
+
 	if (tls != NULL) {
 		int ret;
 		do {ret = mbedtls_ssl_read(tls, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
