@@ -400,6 +400,8 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 }
 
 static bool isAddressAem(const char * const c, const size_t len) {
+	if (c == NULL || len < 1) return false;
+
 	if (len <= 24) {
 		for (size_t i = 0; i < len; i++) {
 			if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
