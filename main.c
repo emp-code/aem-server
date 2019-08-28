@@ -189,18 +189,8 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 }
 
 static int loadTlsCert(mbedtls_x509_crt * const cert) {
-	const int fd = open("AllEars/TLS.crt", O_RDONLY);
-	if (fd < 0) return 1;
-	const off_t lenFile = lseek(fd, 0, SEEK_END);
-
-	unsigned char * const data = calloc(lenFile + 2, 1);
-	const ssize_t readBytes = pread(fd, data, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(data); return 2;}
-
 	mbedtls_x509_crt_init(cert);
-	const int ret = mbedtls_x509_crt_parse(cert, data, lenFile + 1);
-	free(data);
+	const int ret = mbedtls_x509_crt_parse_file(cert, "AllEars/TLS.crt");
 	if (ret == 0) return 0;
 
 	char error_buf[100];
@@ -210,18 +200,8 @@ static int loadTlsCert(mbedtls_x509_crt * const cert) {
 }
 
 static int loadTlsKey(mbedtls_pk_context * const key) {
-	const int fd = open("AllEars/TLS.key", O_RDONLY);
-	if (fd < 0) return 1;
-	const off_t lenFile = lseek(fd, 0, SEEK_END);
-
-	unsigned char * const data = calloc(lenFile + 2, 1);
-	const off_t readBytes = pread(fd, data, lenFile, 0);
-	close(fd);
-	if (readBytes != lenFile) {free(data); return 1;}
-
 	mbedtls_pk_init(key);
-	const int ret = mbedtls_pk_parse_key(key, data, lenFile + 2, NULL, 0);
-	free(data);
+	const int ret = mbedtls_pk_parse_keyfile(key, "AllEars/TLS.key", NULL);
 	if (ret == 0) return 0;
 
 	char error_buf[100];
@@ -249,21 +229,13 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	}
 
 	mbedtls_x509_crt tlsCert;
-	int ret = loadTlsCert(&tlsCert);
-	if (ret < 0) {
-		puts("[Main.HTTPS] Terminating: failed to load TLS certificate");
-		return 1;
-	}
+	if (loadTlsCert(&tlsCert) < 0) return 1;
 
 	mbedtls_pk_context tlsKey;
-	ret = loadTlsKey(&tlsKey);
-	if (ret < 0) {
-		puts("[Main.HTTPS] Terminating: failed to load TLS key");
-		return 1;
-	}
+	if (loadTlsKey(&tlsKey) < 0) return 1;
 
 	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	ret = loadAddrKey(addrKey);
+	int ret = loadAddrKey(addrKey);
 	if (ret < 0) {
 		puts("[Main.HTTPS] Terminating: failed to load address key");
 		return 1;
@@ -347,21 +319,13 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 
 static int receiveConnections_smtp(const char * const domain, const size_t lenDomain) {
 	mbedtls_x509_crt tlsCert;
-	int ret = loadTlsCert(&tlsCert);
-	if (ret < 0) {
-		puts("[Main.HTTPS] Terminating: failed to load TLS certificate");
-		return 1;
-	}
+	if (loadTlsCert(&tlsCert) < 0) return 1;
 
 	mbedtls_pk_context tlsKey;
-	ret = loadTlsKey(&tlsKey);
-	if (ret < 0) {
-		puts("[Main.HTTPS] Terminating: failed to load TLS key");
-		return 1;
-	}
+	if (loadTlsKey(&tlsKey) < 0) return 1;
 
 	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	ret = loadAddrKey(addrKey);
+	int ret = loadAddrKey(addrKey);
 	if (ret < 0) {
 		puts("[Main.HTTPS] Terminating: failed to load address key");
 		return 1;
