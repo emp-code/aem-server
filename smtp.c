@@ -427,6 +427,8 @@ static bool isAddressOurs(const char * const addr, const size_t lenAddr, const c
 }
 
 void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
+	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || addrKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
+
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
