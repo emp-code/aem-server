@@ -195,7 +195,7 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 			return;
 	}
 
-	char headers[244 + mtLen];
+	char headers[287 + mtLen];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -206,6 +206,7 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 		"Content-Type: %.*s\r\n"
 		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
+		"Cross-Origin-Resource-Policy: same-origin\r\n"
 		"\r\n"
 	, (fileType == AEM_FILETYPE_CSS || fileType == AEM_FILETYPE_JS) ? "Content-Encoding: br\r\n" : "", mtLen, mediatype, files[reqNum].lenData);
 
