@@ -145,6 +145,8 @@ static bool smtp_greet(const int sock, const char * const domain, const size_t l
 }
 
 static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain, const size_t lenDomain) {
+	if (tls == NULL || domain == NULL || lenDomain < 1) return false;
+
 	const ssize_t lenShlo = 4 + lenDomain + AEM_SHLO_RESPONSE_LEN;
 	char shlo[lenShlo];
 	memcpy(shlo, "250-", 4);
