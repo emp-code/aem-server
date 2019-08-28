@@ -124,7 +124,7 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 }
 
 static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
-	if (buf[0] != '<') return 0;
+	if (buf == NULL || len < 1 || addr == NULL || buf[0] != '<') return 0;
 
 	size_t lenAddr = 0;
 	while (lenAddr < (len - 1) && buf[1 + lenAddr] != '>') lenAddr++;
