@@ -256,6 +256,8 @@ int addUserMessage(const int64_t upk64, const unsigned char * const msgData, con
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "INSERT INTO msg (upk64, msg) VALUES (?, ?)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
 	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_bind_blob(query, 2, msgData, msgLen, SQLITE_STATIC);
 
