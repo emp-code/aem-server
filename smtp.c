@@ -136,6 +136,8 @@ static size_t smtp_addr(const char * const buf, const size_t len, char * const a
 }
 
 static bool smtp_greet(const int sock, const char * const domain, const size_t lenDomain) {
+	if (domain == NULL || lenDomain < 1) return false;
+
 	const int lenGreet = 12 + lenDomain;
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
