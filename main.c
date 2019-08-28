@@ -106,7 +106,7 @@ static int aem_countFiles(const char * const path, const char * const ext, const
 }
 
 static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount, const unsigned char * const spk) {
-	if (fileCount < 1) return NULL;
+	if (path == NULL || ext == NULL || extLen < 1 || fileCount < 1) return NULL;
 
 	DIR * const dir = opendir(path);
 	if (dir == NULL) return NULL;
