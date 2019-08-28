@@ -238,7 +238,7 @@ static void deliverMessage(const char * const to, const size_t lenToTotal, const
 	}
 }
 
-void decodeEncodedWord(char * const * const data, size_t *lenData) {
+void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 	const char * const headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
 
@@ -300,7 +300,7 @@ static void processMessage(char * const * const data, size_t *lenData) {
 		if (boundaryBegin == NULL || boundaryBegin > mpEnd) return;
 		boundaryBegin += 10;
 
-		char *boundaryEnd = strchr(boundaryBegin, '"');
+		const char *boundaryEnd = strchr(boundaryBegin, '"');
 		if (boundaryEnd == NULL) return;
 		const size_t lenBoundary = boundaryEnd - boundaryBegin;
 
@@ -308,7 +308,7 @@ static void processMessage(char * const * const data, size_t *lenData) {
 		memcpy(boundary, boundaryBegin, lenBoundary);
 		boundary[lenBoundary] = '\0';
 
-		char *bound = strstr(headersEnd + 4, boundary);
+		const char *bound = strstr(headersEnd + 4, boundary);
 		while (bound != NULL) {
 			bound += lenBoundary;
 
