@@ -90,7 +90,7 @@ bool upk64Exists(const int64_t upk64) {
 
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM userdata WHERE upk64=?", -1, &query, NULL);
-	if (ret != SQLITE_OK) return false;
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return false;}
 	sqlite3_bind_int64(query, 1, upk64);
 
 	ret = sqlite3_step(query);
