@@ -623,6 +623,7 @@ int getRequestType(const unsigned char * const req, const size_t lenReqTotal, co
 	if (memcmp(req, "GET /", 5) == 0) {
 		if (memmem(req, lenReq, "\r\nContent-Length:", 17) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 		if (memmem(req, lenReq, "\r\nOrigin:", 9) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (memmem(req, lenReq, "\r\nX-Requested-With:", 19) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
