@@ -108,7 +108,7 @@ function AllEars() {
 	const _FetchBinary = function(url, postData, callback) {
 		fetch(url, {
 			method: "POST",
-			cache: "no-cache",
+			cache: "no-store",
 			credentials: "omit",
 			mode: "same-origin",
 			redirect: "error",
