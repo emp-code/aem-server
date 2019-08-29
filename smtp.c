@@ -537,13 +537,11 @@ static bool isAddressOurs(const char * const addr, const size_t lenAddr, const c
 	);
 }
 
-static uint8_t getTlsVersion(mbedtls_ssl_context * const tls) {
+static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
 
 	const char * const c = mbedtls_ssl_get_version(tls);
-	if (c == NULL) return 0;
-	if (strlen(c) != 7) return 0;
-	if (memcmp(c, "TLSv1.", 6) != 0) return 0;
+	if (c == NULL || strlen(c) != 7 || memcmp(c, "TLSv1.", 6) != 0) return 0;
 
 	switch(c[6]) {
 		case '0': return 1;
