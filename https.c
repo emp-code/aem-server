@@ -664,6 +664,8 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 	mbedtls_ssl_conf_ciphersuites(&conf, cs);
 	const mbedtls_ecp_group_id ec[] = AEM_HTTPS_CURVES;
 	mbedtls_ssl_conf_curves(&conf, ec);
+	const int hsh[] = {MBEDTLS_SSL_HASH_SHA512, MBEDTLS_MD_NONE};
+	mbedtls_ssl_conf_sig_hashes(&conf, hsh);
 
 	// Seed the RNG
 	mbedtls_ctr_drbg_context ctr_drbg;
