@@ -614,12 +614,17 @@ int getRequestType(char * const req, size_t lenReq, const char * const domain, c
 	if (strcasestr(req, "\r\nCookie:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (strcasestr(req, "\r\nExpect:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (strcasestr(req, "\r\nRange:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strcasestr(req, "\r\nSec-Fetch-Site: same-site") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// These are only for preflighted requests which All-Ears doesn't use
 	if (strcasestr(req, "\r\nAccess-Control-Request-Method:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memcmp(req, "GET /", 5) == 0) {
+		if (strcasestr(req, "\r\nSec-Fetch-Mode: cors") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (strcasestr(req, "\r\nSec-Fetch-Mode: websocket") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+		if (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL) return AEM_HTTPS_REQUEST_INVALID;
+
 		if (strcasestr(req, "\r\nContent-Length:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 		if (strcasestr(req, "\r\nOrigin:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
 		if (strcasestr(req, "\r\nX-Requested-With:") != NULL) return AEM_HTTPS_REQUEST_INVALID;
