@@ -546,7 +546,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			return;
 		}
 
-		mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
+		mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
 		mbedtls_ssl_conf_read_timeout(&conf, AEM_SMTP_TIMEOUT);
 		const int cs[] = AEM_CIPHERSUITES_SMTP;
 		mbedtls_ssl_conf_ciphersuites(&conf, cs);
