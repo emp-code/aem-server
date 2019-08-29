@@ -406,7 +406,7 @@ int main() {
 	puts("[Main] All-Ears Mail");
 
 	if (sodium_init() < 0) {
-		puts("[Main] Failed to initialize libsodium. Quitting.");
+		puts("[Main] Terminating: Failed to initialize libsodium");
 		return 1;
 	}
 
