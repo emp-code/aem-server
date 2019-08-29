@@ -63,11 +63,12 @@ function AllEars() {
 		this.body = body;
 	}
 
-	function _NewExtMsg(id, ts, ip, cs, greet, infobyte, countrycode, from, to, title, headers, body) {
+	function _NewExtMsg(id, ts, ip, cs, tlsver, greet, infobyte, countrycode, from, to, title, headers, body) {
 		this.id = id;
 		this.ts = ts;
 		this.ip = ip;
 		this.cs = cs;
+		this.tlsver = tlsver;
 		this.greet = greet;
 		this.info = infobyte;
 		this.countrycode = countrycode;
@@ -212,7 +213,7 @@ function AllEars() {
 		if (typeof(cs) !== "number") return "(error)";
 
 		switch(cs) {
-			case 0: return "TLS not used";
+			case 0: return "";
 			case 0x67:   return "DHE_RSA_WITH_AES_128_CBC_SHA256";
 			case 0xC09E: return "DHE_RSA_WITH_AES_128_CCM";
 			case 0xC0A2: return "DHE_RSA_WITH_AES_128_CCM_8";
@@ -332,6 +333,16 @@ function AllEars() {
 		}
 	};
 
+	const _GetTlsVersion = function(tlsver) {
+		switch (tlsver) {
+			case 0: return "(No TLS)";
+			case 1: return "TLSv1.0";
+			case 2: return "TLSv1.1";
+			case 3: return "TLSv1.2";
+			case 3: return "TLSv1.3";
+		}
+	}
+
 // Public
 	this.GetLevelMax = function() {return _maxLevel;};
 
@@ -370,7 +381,7 @@ function AllEars() {
 	this.GetExtMsgCount = function() {return _extMsg.length;};
 	this.GetExtMsgId      = function(num) {return _extMsg[num].id;};
 	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;};
-	this.GetExtMsgCipher  = function(num) {return _GetCiphersuite(_extMsg[num].cs);};
+	this.GetExtMsgTLS     = function(num) {return _GetTlsVersion(_extMsg[num].tlsver) + " " + _GetCiphersuite(_extMsg[num].cs);};
 	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;};
 	this.GetExtMsgIp      = function(num) {return "" + _extMsg[num].ip[0] + "." + _extMsg[num].ip[1] + "." + _extMsg[num].ip[2] + "." + _extMsg[num].ip[3];};
 	this.GetExtMsgCountry = function(num) {return _extMsg[num].countrycode;};
@@ -589,6 +600,7 @@ function AllEars() {
 
 					u32bytes = msgHead.slice(9, 13).buffer;
 					const em_cs = new Uint32Array(u32bytes)[0];
+					const em_tlsver = msgHead[13];
 
 					const em_countrycode = nacl.decode_utf8(msgHead.slice(19, 21));
 
@@ -623,7 +635,7 @@ function AllEars() {
 					const em_headers = body.slice(0, headersEnd);
 					const em_body = body.slice(headersEnd + 4);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];

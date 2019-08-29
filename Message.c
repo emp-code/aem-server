@@ -45,8 +45,9 @@ ExtMsg
 			7: Protocol (ESMTP if set, SMTP if not set)
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
-		[4B int32_t] Ciphersuite
-		[6B] (unused)
+		[4B int32_t] TLS ciphersuite
+		[1B uint8_t] TLS version
+		[5B] (unused)
 		[2B char*] ISO 3166-1 alpha-2 country code
 		[1B uint8_t] Number of attachements
 		[1B] SpamByte
@@ -150,8 +151,9 @@ unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char *
 
 	return boxSet;
 }
+
 static unsigned char *extMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const binTo, const uint32_t ip,
-const int32_t cs, const int16_t countryCode, const unsigned char attach, unsigned char infoByte, const unsigned char spamByte) {
+const int32_t cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigned char attach, unsigned char infoByte, const unsigned char spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	BIT_SET(infoByte, 0);
@@ -161,7 +163,8 @@ const int32_t cs, const int16_t countryCode, const unsigned char attach, unsigne
 	memcpy(plaintext + 1, &ts, 4);
 	memcpy(plaintext + 5, &ip, 4);
 	memcpy(plaintext + 9, &cs, 4);
-	bzero(plaintext + 13, 6); // 13-18 (6 bytes) unused
+	plaintext[13] = tlsVersion;
+	bzero(plaintext + 14, 5); // 14-18 (5 bytes) unused
 	memcpy(plaintext + 19, &countryCode, 2);
 	plaintext[21] = attach;
 	plaintext[22] = spamByte;
@@ -175,8 +178,8 @@ const int32_t cs, const int16_t countryCode, const unsigned char attach, unsigne
 }
 
 unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen,
-const uint32_t ip, const int32_t cs, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
-	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, countryCode, attach, infoByte, spamByte);
+const uint32_t ip, const int32_t cs, const uint8_t tlsVersion, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
+	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, tlsVersion, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
 	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);

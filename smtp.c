@@ -307,7 +307,8 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 	mbedtls_entropy_free(entropy);
 }
 
-static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const unsigned char infoByte, const unsigned char * const addrKey) {
+static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr,
+const int32_t cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsigned char * const addrKey) {
 	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL || addrKey == NULL) return;
 
 	const char *toStart = to;
@@ -341,7 +342,7 @@ static void deliverMessage(const char * const to, const size_t lenToTotal, const
 		const uint8_t spamByte = 0; // TODO
 
 		size_t bodyLen = lenMsgBody;
-		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, geoId, attach, infoByte, spamByte);
+		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 		free(binTo);
 
@@ -534,6 +535,21 @@ static bool isAddressOurs(const char * const addr, const size_t lenAddr, const c
 	&& strncasecmp(addr + lenAddr - lenDomain, domain, lenDomain) == 0
 	&& isAddressAem(addr, lenAddr - lenDomain - 1)
 	);
+}
+
+static uint8_t getTlsVersion(mbedtls_ssl_context * const tls) {
+	const char * const c = mbedtls_ssl_get_version(tls);
+	if (strlen(c) != 7) return 0;
+	if (memcmp(c, "TLSv1.", 6) != 0) return 0;
+
+	switch(c[6]) {
+		case '0': return 1;
+		case '1': return 2;
+		case '2': return 3;
+		case '3': return 4;
+	}
+
+	return 0;
 }
 
 void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
@@ -790,8 +806,9 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			processMessage(&body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
-			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			deliverMessage(to, lenTo, body, lenBody, clientAddr, cs, infoByte, addrKey);
+			const int32_t cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
+			const uint8_t tlsVersion = getTlsVersion(tls);
+			deliverMessage(to, lenTo, body, lenBody, clientAddr, cs, tlsVersion, infoByte, addrKey);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);
