@@ -212,6 +212,7 @@ function AllEars() {
 		if (typeof(cs) !== "number") return "(error)";
 
 		switch(cs) {
+			case 0: return "TLS not used";
 			case 0x67:   return "DHE_RSA_WITH_AES_128_CBC_SHA256";
 			case 0xC09E: return "DHE_RSA_WITH_AES_128_CCM";
 			case 0xC0A2: return "DHE_RSA_WITH_AES_128_CCM_8";
@@ -327,7 +328,7 @@ function AllEars() {
 			case 0x0A:   return "RSA_WITH_3DES_EDE_CBC_SHA";
 			case 0x05:   return "RSA_WITH_RC4_128_SHA";
 			case 0x04:   return "RSA_WITH_RC4_128_MD5";
-			default: return "(Unknown ciphersuite value)";
+			default: return "(Unknown ciphersuite value: " + cs + ")";
 		}
 	};
 
