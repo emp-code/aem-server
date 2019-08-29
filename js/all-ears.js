@@ -110,7 +110,6 @@ function AllEars() {
 			method: "POST",
 			cache: "no-store",
 			credentials: "omit",
-			mode: "same-origin",
 			redirect: "error",
 			referrer: "no-referrer",
 			body: postData
