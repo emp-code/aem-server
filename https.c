@@ -590,11 +590,10 @@ int getRequestType(char * const req, size_t lenReq, const char * const domain, c
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	reqEnd[2] = '\0';
 
-	const size_t lenHeader = 10 + lenDomain;
-	char header[lenHeader];
+	char header[11 + lenDomain];
 	memcpy(header, "\r\nHost: ", 8);
 	memcpy(header + 8, domain, lenDomain);
-	memcpy(header + 8 + lenDomain, "\r\n", 2);
+	strcpy(header + 8 + lenDomain, "\r\n");
 	if (strcasestr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (strcasestr(req, " HTTP/1.1\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
