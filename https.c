@@ -101,10 +101,10 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy:"
-			"connect-src"     " https://%s/web/;"
-			"img-src"         " https://%s/img/;"
-			"script-src"      " https://%s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
-			"style-src"       " https://%s/css/;"
+			"connect-src"     " https://%.*s/web/;"
+			"img-src"         " https://%.*s/img/;"
+			"script-src"      " https://%.*s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
+			"style-src"       " https://%.*s/css/;"
 
 			"base-uri"        " 'none';"
 			"child-src"       " 'none';"
@@ -153,7 +153,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, files[reqNum].lenData, domain, domain, domain, domain);
+	, files[reqNum].lenData, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain);
 
 	size_t lenHeaders = strlen(data);
 	memcpy(data + lenHeaders, files[reqNum].data, files[reqNum].lenData);

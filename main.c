@@ -362,6 +362,38 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 	return 0;
 }
 
+char *getDomainInfo(mbedtls_x509_crt * const cert) {
+	char certInfo[1000];
+	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
+
+	char *c = strstr(certInfo, "\nAEM_subject name");
+	if (c == NULL) return NULL;
+	c += 17;
+
+	char * const end = strchr(c, '\n');
+	*end = '\0';
+
+	c = strstr(c, ": CN=");
+	if (c == NULL) return NULL;
+	return strdup(c + 5);
+}
+
+size_t getDomainLenFromCert(mbedtls_x509_crt * const cert) {
+	char * const c = getDomainInfo(cert);
+	if (c == NULL) return 0;
+	const size_t s = strlen(c);
+	free(c);
+	return s;
+}
+
+int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * const cert) {
+	char * const c = getDomainInfo(cert);
+	if (c == NULL) return -1;
+	memcpy(dom, c, len);
+	free(c);
+	return 0;
+}
+
 int main() {
 	if (getuid() != 0) {
 		puts("[Main] Terminating: All-Ears must be started as root");
@@ -380,10 +412,27 @@ int main() {
 
 	setlocale(LC_ALL, "C");
 
-	// TODO config from file
-	const char * const domain = "allears.test";
-	const size_t lenDomain = strlen(domain);
+	// Get domain from TLS certificate
+	mbedtls_x509_crt cert;
+	mbedtls_x509_crt_init(&cert);
+	int ret = mbedtls_x509_crt_parse_file(&cert, "AllEars/TLS.crt");
 
+	if (ret != 0) {
+		char error_buf[100];
+		mbedtls_strerror(ret, error_buf, 100);
+		printf("[Main.Cert] mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		return 1;
+	}
+
+	const size_t lenDomain = getDomainLenFromCert(&cert);
+	char domain[lenDomain];
+	ret = getDomainFromCert(domain, lenDomain, &cert);
+	mbedtls_x509_crt_free(&cert);
+	if (ret != 0) {puts("[Main] Terminating: Failed to get domain from certificate"); return 1;}
+
+	printf("[Main] Domain detected as '%.*s'\n", (int)lenDomain, domain);
+
+	// Start server processes
 	int pid = fork();
 	if (pid < 0) return 1;
 	if (pid == 0) return receiveConnections_https(domain, lenDomain);
