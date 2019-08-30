@@ -442,7 +442,7 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 			char * const boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
 			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
 
-			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: quoted-printable\r\n");
 			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
 				char * const msg = boundaryHeaderEnd + 4;
 				const size_t lenOld = boundaryEnd - msg;
@@ -450,7 +450,7 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 				*lenData -= (lenOld - lenNew);
 				(*data)[*lenData] = '\0';
 			} else {
-				const char * const b64Header = strcasestr(bound, "\r\nContent-Transfer-Encoding: Base64\r\n");
+				const char * const b64Header = strcasestr(bound, "\r\nContent-Transfer-Encoding: base64\r\n");
 				if (b64Header != NULL && b64Header < boundaryHeaderEnd) {
 					char *msg = boundaryHeaderEnd + 4;
 
@@ -475,14 +475,14 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 			bound = boundaryEnd;
 		}
 	} else {
-		const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: Quoted-Printable\r\n");
+		const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: quoted-printable\r\n");
 		if (qpHeader != NULL && qpHeader < headersEnd) {
 			char * const msg = *data + lenHeaders + 4;
 			const size_t lenOld = *lenData - lenHeaders - 4;
 			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, lenOld);
 			*lenData -= (lenOld - lenNew);
 		} else {
-			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: Base64\r\n");
+			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: base64\r\n");
 			if (b64Header != NULL && b64Header < headersEnd) {
 				char *msg = *data + lenHeaders + 4;
 				const char *msgEnd = *data + *lenData;
