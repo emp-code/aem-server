@@ -420,11 +420,8 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 
 	const char * const mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
 	if (mpHeader != NULL) {
-		const char * const mpEnd = strpbrk(mpHeader + 25, "\r\n");
-		if (mpEnd == NULL) return;
-
 		const char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
-		if (boundaryBegin == NULL || boundaryBegin > mpEnd) return;
+		if (boundaryBegin == NULL || boundaryBegin > headersEnd) return;
 		boundaryBegin += 10;
 
 		const char *boundaryEnd = strchr(boundaryBegin, '"');
