@@ -113,7 +113,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy:"
-			"connect-src"     " https://%.*s/web/;"
+			"connect-src"     " https://%.*s/api/;"
 			"img-src"         " https://%.*s/img/;"
 			"script-src"      " https://%.*s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
 			"style-src"       " https://%.*s/css/;"
@@ -574,22 +574,22 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
 
-	if (lenUrl ==  9 && memcmp(url, "web/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl ==  8 && memcmp(url, "web/send", 8) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
-	if (lenUrl == 12 && memcmp(url, "web/textnote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, false);
-	if (lenUrl == 12 && memcmp(url, "web/filenote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, true);
+	if (lenUrl ==  9 && memcmp(url, "api/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "api/send", 8) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl == 12 && memcmp(url, "api/textnote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, false);
+	if (lenUrl == 12 && memcmp(url, "api/filenote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, true);
 
-	if (lenUrl == 12 && memcmp(url, "web/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "web/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
-	if (lenUrl == 12 && memcmp(url, "web/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "api/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "api/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl == 12 && memcmp(url, "api/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
 
-	if (lenUrl == 10 && memcmp(url, "web/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "web/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 14 && memcmp(url, "web/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl == 10 && memcmp(url, "api/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "api/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 14 && memcmp(url, "api/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, addrKey);
 
-	if (lenUrl == 14 && memcmp(url, "web/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 16 && memcmp(url, "web/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 18 && memcmp(url, "web/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 14 && memcmp(url, "api/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 16 && memcmp(url, "api/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 18 && memcmp(url, "api/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }
 
 int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
@@ -643,7 +643,7 @@ int getRequestType(char * const req, size_t lenReq, const char * const domain, c
 		return AEM_HTTPS_REQUEST_GET;
 	}
 
-	if (memcmp(req, "POST /web/", 10) == 0) {
+	if (memcmp(req, "POST /api/", 10) == 0) {
 		const char * const cl = strcasestr(req, "\r\nContent-Length: ");
 		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 

@@ -447,7 +447,7 @@ function AllEars() {
 	}); };
 
 	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
+		_FetchEncrypted("/api/login", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
 			if (!fetchOk) {callback(false); return;}
 
 			_userLevel = loginData[0];
@@ -691,7 +691,7 @@ function AllEars() {
 		const sc = senderCopy? "Y" : "N";
 		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
-		_FetchEncrypted("/web/send", cleartext, nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/send", cleartext, nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	// Notes are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
@@ -711,7 +711,7 @@ function AllEars() {
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
 
-		_FetchEncrypted("/web/textnote", sealbox, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/textnote", sealbox, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));
@@ -746,7 +746,7 @@ function AllEars() {
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
 
-		_FetchEncrypted("/web/filenote", sealbox, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/filenote", sealbox, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileData.length, fileName, fileType));
@@ -763,42 +763,42 @@ function AllEars() {
 		postData.set(hash);
 		postData.set(boxAddrData, 8);
 
-		_FetchEncrypted("/web/addr/del", postData, nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/addr/del", postData, nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	this.AddAddress = function(addr, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/addr/add", nacl.encode_utf8(addr), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/addr/add", nacl.encode_utf8(addr), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true));
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
-			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
 	}); };
 
 	this.AddShieldAddress = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), nacl.to_hex(byteArray.slice(8)), true, false, false, false, true));
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
-			_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
 	}); };
 
 	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
 		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
-		_FetchEncrypted("/web/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
 		let gkText = "";
 		for (let i = 0; i < lst.length; i++) gkText += lst[i] + '\n';
 
-		_FetchEncrypted("/web/gatekeeper", nacl.encode_utf8(gkText), nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/gatekeeper", nacl.encode_utf8(gkText), nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	this.SaveNoteData = function(callback) { nacl_factory.instantiate(function (nacl) {
@@ -818,7 +818,7 @@ function AllEars() {
 		noteData[0] = n & 0xff;
 		noteData[1] = n >> 8 & 0xff;
 
-		_FetchEncrypted("/web/notedata", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/notedata", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
@@ -830,7 +830,7 @@ function AllEars() {
 			data[i] = ids[i];
 		}
 
-		_FetchEncrypted("/web/delmsg", data, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/delmsg", data, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < delCount; i++) {
@@ -860,7 +860,7 @@ function AllEars() {
 	}); };
 
 	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/addaccount", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/addaccount", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userPkHex.push(pk_hex.substr(0, 16));
@@ -871,7 +871,7 @@ function AllEars() {
 	}); };
 
 	this.DestroyAccount = function(num, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/destroyaccount", nacl.encode_utf8(_admin_userPkHex[num]), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/destroyaccount", nacl.encode_utf8(_admin_userPkHex[num]), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userPkHex.splice(num, 1);
@@ -882,7 +882,7 @@ function AllEars() {
 	}); };
 
 	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("/web/accountlevel", nacl.encode_utf8(_admin_userPkHex[num] + level), nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("/api/accountlevel", nacl.encode_utf8(_admin_userPkHex[num] + level), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userLevel[num] = level;
