@@ -210,10 +210,11 @@ function AllEars() {
 	};
 
 	const _GetCiphersuite = function(cs) {
-		if (typeof(cs) !== "number") return "(error)";
+		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
 		switch(cs) {
 			case 0: return "";
+			case 1: return "(Error saving ciphersuite value)";
 			case 0x67:   return "DHE_RSA_WITH_AES_128_CBC_SHA256";
 			case 0xC09E: return "DHE_RSA_WITH_AES_128_CCM";
 			case 0xC0A2: return "DHE_RSA_WITH_AES_128_CCM_8";
@@ -593,14 +594,14 @@ function AllEars() {
 				} else if (_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 1,0 ExtMsg
 					const em_infobyte = msgHead[0];
 
-					let u32bytes = msgHead.slice(1, 5).buffer;
+					const u32bytes = msgHead.slice(1, 5).buffer;
 					const em_ts = new Uint32Array(u32bytes)[0];
 
 					const em_ip = msgHead.slice(5, 9);
 
-					u32bytes = msgHead.slice(9, 13).buffer;
-					const em_cs = new Uint32Array(u32bytes)[0];
-					const em_tlsver = msgHead[13];
+					let u16bytes = msgHead.slice(9, 11).buffer;
+					const em_cs = new Uint16Array(u16bytes)[0];
+					const em_tlsver = msgHead[11];
 
 					const em_countrycode = nacl.decode_utf8(msgHead.slice(19, 21));
 
@@ -613,7 +614,7 @@ function AllEars() {
 					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
 					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					u16bytes = msgBodyFull.slice(0, 2).buffer;
 					const padAmount = new Uint16Array(u16bytes)[0];
 
 					const msgBodyBrU8 = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
