@@ -284,7 +284,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	while (lf != NULL) {
 		char * const next = strchr(lf + 1, '\n');
 		if (next == NULL) break;
-		const size_t len = next - lf - 1;
+		const size_t len = next - lf - (lf == gkData ? 0 : 1);
 		if (*lf == '\n') lf++;
 
 		ret = sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
