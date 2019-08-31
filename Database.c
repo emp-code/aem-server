@@ -283,6 +283,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	const char *lf = gkData;
 	while (lf != NULL) {
 		char * const next = strchr(lf + 1, '\n');
+		if (next == NULL) break;
 		const size_t len = next - lf - 1;
 		if (*lf == '\n') lf++;
 
