@@ -299,11 +299,11 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 		if (lenGkData - (next - gkData) < 2) break;
 	}
 
-	unsigned char * const ciphertext = malloc(lenGkData + crypto_box_SEALBYTES);
-	crypto_box_seal(ciphertext, (unsigned char*)gkData, lenGkData, ownerPk);
-
 	ret = sqlite3_prepare_v2(db, "UPDATE userdata SET gkdata=? WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	unsigned char * const ciphertext = malloc(lenGkData + crypto_box_SEALBYTES);
+	crypto_box_seal(ciphertext, (unsigned char*)gkData, lenGkData, ownerPk);
 
 	sqlite3_bind_blob(query, 1, ciphertext, lenGkData + crypto_box_SEALBYTES, free);
 	sqlite3_bind_int64(query, 2, upk64);
