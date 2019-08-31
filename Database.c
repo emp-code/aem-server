@@ -270,12 +270,11 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
-	int64_t upk64;
-	memcpy(&upk64, ownerPk, 8);
-
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	const int64_t upk64 = *((int64_t*)ownerPk);
 
 	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_step(query);
