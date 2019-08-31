@@ -11,6 +11,7 @@ int setAccountLevel(const int64_t upk64, const int level);
 int destroyAccount(const int64_t upk64);
 
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey);
+bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64, const unsigned char * const hashKey);
 
 bool upk64Exists(const int64_t upk64);
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey);

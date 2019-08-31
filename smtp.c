@@ -307,9 +307,9 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 	mbedtls_entropy_free(entropy);
 }
 
-static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr,
-const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsigned char * const addrKey) {
-	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL || addrKey == NULL) return;
+static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
+const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsigned char * const addrKey) {
+	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL || addrKey == NULL) return;
 
 	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
@@ -337,9 +337,17 @@ const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsi
 			continue;
 		}
 
-		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
+		const char *domain = strchr(from, '@');
+		if (domain == NULL) return;
+		domain++;
+		const size_t lenDomain = (from + lenFrom) - domain;
+
 		const uint8_t attach = 0; // TODO
 		const uint8_t spamByte = 0; // TODO
+		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
+
+		// TODO: Look up Gatekeeper flag on user address
+		if (isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, *((int64_t*)pk), addrKey)) return;
 
 		size_t bodyLen = lenMsgBody;
 		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
@@ -810,7 +818,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			const uint8_t tlsVersion = getTlsVersion(tls);
-			deliverMessage(to, lenTo, body, lenBody, clientAddr, cs, tlsVersion, infoByte, addrKey);
+			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, tlsVersion, infoByte, addrKey);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);

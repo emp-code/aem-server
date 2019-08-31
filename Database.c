@@ -262,6 +262,36 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 	return 0;
 }
 
+bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const hashKey, const unsigned char * const text, const size_t lenText) {
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM gatekeeper WHERE hash=? AND upk64=?", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	sqlite3_bind_int64(query, 1, gkHash(text, lenText, upk64, hashKey));
+	sqlite3_bind_int64(query, 2, upk64);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	return (ret == SQLITE_ROW);
+}
+
+bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64, const unsigned char * const hashKey) {
+	if (domain == NULL || lenDomain < 1 || from == NULL || lenFrom < 1 || hashKey == NULL) false;
+
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	if (db == NULL) return -1;
+
+	const bool result = (
+	   isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)countryCode, 2)
+	|| isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)domain, lenDomain)
+	|| isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)from, lenFrom)
+	);
+
+	sqlite3_close_v2(db);
+	return result;
+}
+
 // Format: item1\nitem2\n...
 int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey) {
 	if (lenGkData < 1) return -1;
