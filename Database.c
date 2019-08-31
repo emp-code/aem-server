@@ -170,7 +170,7 @@ int getAdminData(unsigned char ** const adminData) {
 		ret = sqlite3_prepare_v2(dbMsg, "SELECT MIN(SUM(LENGTH(msg)) / 1024 / 1024, 255) FROM msg WHERE upk64=?", -1, &queryMsg, NULL);
 		if (ret == SQLITE_OK) {
 			sqlite3_bind_int64(query, 1, upk64);
-			ret = sqlite3_step(query);
+			ret = sqlite3_step(queryMsg);
 			space = (ret != SQLITE_ROW) ? 0 : sqlite3_column_int(queryMsg, 0);
 			sqlite3_finalize(queryMsg);
 		}
