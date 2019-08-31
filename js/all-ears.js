@@ -540,17 +540,8 @@ function AllEars() {
 					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
 					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
 
-					let newLevel = 0;
-					if (_BitTest(loginData[pos + 8], 0)) newLevel += 1;
-					if (_BitTest(loginData[pos + 8], 1)) newLevel += 2;
-
-					let newSpace = 0;
-					if (_BitTest(loginData[pos + 8], 2)) newSpace += 1;
-					if (_BitTest(loginData[pos + 8], 3)) newSpace += 2;
-					if (_BitTest(loginData[pos + 8], 4)) newSpace += 4;
-					if (_BitTest(loginData[pos + 8], 5)) newSpace += 8;
-					if (_BitTest(loginData[pos + 8], 6)) newSpace += 16;
-					if (_BitTest(loginData[pos + 8], 7)) newSpace += 32;
+					const newLevel = loginData[pos + 8] & 3;
+					const newSpace = (loginData[pos + 8] & 252) >> 2;
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
