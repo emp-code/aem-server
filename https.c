@@ -326,7 +326,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	const int memberLevel = getUserLevel(sender_pk64);
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
+	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) return -1;
 
@@ -337,7 +337,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 
 	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
-		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
+		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
 		if (boxSet == NULL) return -1;
 
 		memcpy(&upk64, sender_pk, 8);

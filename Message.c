@@ -21,7 +21,7 @@ IntMsg
 			4: Sender membership level (+1 if set)
 			5: Sender membership level (+2 if set)
 			6:
-			7: Address type (Shield if set, normal if not set)
+			7:
 		[4B uint32_t] Timestamp
 		[18B char*] AddressFrom (24c SixBit)
 		[18B char*] AddressTo (24c SixBit)
@@ -100,7 +100,7 @@ static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char
 	return ciphertext;
 }
 
-static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const adrFrom, const unsigned char * const adrTo, const int senderLevel, const bool senderShield) {
+static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const adrFrom, const unsigned char * const adrTo, const int senderLevel) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char infoByte = 0;
@@ -118,8 +118,6 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 			break;
 	}
 
-	if (senderShield) BIT_SET(infoByte, 7);
-
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
 	memcpy(plaintext + 1, &ts, 4);
@@ -133,8 +131,8 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 	return ciphertext;
 }
 
-unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel, const bool senderShield) {
-	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel, senderShield);
+unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel) {
+	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel);
 	if (headBox == NULL) return NULL;
 
 	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
