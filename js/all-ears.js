@@ -545,12 +545,12 @@ function AllEars() {
 					if (_BitTest(loginData[pos + 8], 1)) newLevel += 2;
 
 					let newSpace = 0;
-					if (_BitTest(loginData[pos + 8], 2)) newLevel += 1;
-					if (_BitTest(loginData[pos + 8], 3)) newLevel += 2;
-					if (_BitTest(loginData[pos + 8], 4)) newLevel += 4;
-					if (_BitTest(loginData[pos + 8], 5)) newLevel += 8;
-					if (_BitTest(loginData[pos + 8], 6)) newLevel += 16;
-					if (_BitTest(loginData[pos + 8], 7)) newLevel += 32;
+					if (_BitTest(loginData[pos + 8], 2)) newSpace += 1;
+					if (_BitTest(loginData[pos + 8], 3)) newSpace += 2;
+					if (_BitTest(loginData[pos + 8], 4)) newSpace += 4;
+					if (_BitTest(loginData[pos + 8], 5)) newSpace += 8;
+					if (_BitTest(loginData[pos + 8], 6)) newSpace += 16;
+					if (_BitTest(loginData[pos + 8], 7)) newSpace += 32;
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
