@@ -1,8 +1,9 @@
 #ifndef AEM_INCLUDES_SIXBIT_H
 #define AEM_INCLUDES_SIXBIT_H
 
-char *sixBitToText(const char *source, const size_t lenSource);
-unsigned char *textToSixBit(const char *source, const size_t lenSource, const size_t lenOutMin);
-size_t lenToSixBit(const size_t len);
+#include <stdbool.h>
+
+int addr2bin(const char * const source, const size_t len, unsigned char * const target);
+bool isNormalBinAddress(const unsigned char * const source);
 
 #endif

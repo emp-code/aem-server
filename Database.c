@@ -34,39 +34,6 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 	return db;
 }
 
-unsigned char *addr2bin(const char * const c, const size_t len) {
-	if (c == NULL || len < 1) return NULL;
-
-	if (len <= 24) {
-		char d[len];
-		for (size_t i = 0; i < len; i++) {
-			if (isupper(c[i]))
-				d[i] = tolower(c[i]);
-			else if (isalnum(c[i]) || c[i] == '.' || c[i] == '-')
-				d[i] = c[i];
-			else
-				return NULL;
-		}
-
-		return textToSixBit(d, len, 18);
-	}
-
-	if (len != 36) return NULL;
-
-	// Shield addresses are encoded in hex
-	for (int i = 0; i < 36; i++) {
-		if (!((c[i] >= '0' && c[i] <= '9') || (c[i] >= 'a' && c[i] <= 'f'))) return NULL;
-	}
-
-	unsigned char bin[18];
-	size_t binLen;
-	sodium_hex2bin(bin, 18, c, 36, NULL, &binLen, NULL);
-	if (binLen != 18) return NULL;
-	unsigned char * const binm = malloc(18);
-	memcpy(binm, bin, 18);
-	return binm;
-}
-
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	unsigned char hash16[16];
 	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
@@ -320,18 +287,13 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 		const size_t len = next - lf - 1;
 		if (*lf == '\n') lf++;
 
-		const size_t lenGksb = lenToSixBit(len);
-		unsigned char * const gkSixBit = textToSixBit(lf, len, 0);
-		if (memchr(gkSixBit, '?', lenGksb) == NULL) {
-			ret = sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
-			if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+		ret = sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
+		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-			sqlite3_bind_int64(query, 1, gkHash(gkSixBit, lenGksb, upk64, hashKey));
-			sqlite3_bind_int64(query, 2, upk64);
-			sqlite3_step(query);
-			sqlite3_finalize(query);
-		}
-		free(gkSixBit);
+		sqlite3_bind_int64(query, 1, gkHash((unsigned char*)lf, len, upk64, hashKey));
+		sqlite3_bind_int64(query, 2, upk64);
+		sqlite3_step(query);
+		sqlite3_finalize(query);
 
 		lf = next;
 		if (lenGkData - (next - gkData) < 2) break;

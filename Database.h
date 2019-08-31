@@ -6,8 +6,6 @@
 #define AEM_NOTEDATA_LEN 5122 // 5 KiB + 2 bytes (16 bits) for length
 #define AEM_ADMINDATA_LEN 9216 // 9 KiB
 
-unsigned char *addr2bin(const char * const c, const size_t len);
-
 int addAccount(const unsigned char * const pk);
 int setAccountLevel(const int64_t upk64, const int level);
 int destroyAccount(const int64_t upk64);

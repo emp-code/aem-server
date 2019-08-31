@@ -309,14 +309,17 @@ static int sendIntMsg(const unsigned char * const addrKey, const char * const ad
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
 
-	unsigned char * const binFrom = addr2bin(addrFrom, lenFrom);
-	if (binFrom == NULL) return -1;
-	unsigned char * const binTo = addr2bin(addrTo, lenTo);
-	if (binTo == NULL) {free(binFrom); return -1;}
+	unsigned char binFrom[18];
+	int ret = addr2bin(addrFrom, lenFrom, binFrom);
+	if (ret < 1) return -1;
+
+	unsigned char binTo[18];
+	ret = addr2bin(addrTo, lenTo, binTo);
+	if (ret < 1) return -1;
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	const int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
-	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) {free(binFrom); free(binTo); return -1;}
+	ret = getPublicKeyFromAddress(binTo, pk, addrKey);
+	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	int64_t sender_pk64;
 	memcpy(&sender_pk64, sender_pk, 8);
@@ -325,7 +328,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	size_t bodyLen = lenDecrypted - bodyBegin;
 	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-	if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
+	if (boxSet == NULL) return -1;
 
 	int64_t upk64;
 	memcpy(&upk64, pk, 8);
@@ -335,15 +338,13 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
 		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel, (lenFrom == 36));
-		if (boxSet == NULL) {free(binFrom); free(binTo); return -1;}
+		if (boxSet == NULL) return -1;
 
 		memcpy(&upk64, sender_pk, 8);
 		addUserMessage(upk64, boxSet, bsLen);
 		free(boxSet);
 	}
 
-	free(binFrom);
-	free(binTo);
 	return 0;
 }
 
@@ -445,17 +446,17 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 }
 
 static void respond_https_addr_add(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
-	unsigned char *addr;
+	unsigned char addr[18];
 	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
 		sodium_free(*decrypted);
-		addr = malloc(18);
-		if (addr == NULL) return;
+
 		randombytes_buf(addr, 18);
+		if (isNormalBinAddress(addr)) return;
 	} else {
 		if (lenDecrypted > 24) return;
-		addr = addr2bin(*decrypted, lenDecrypted);
+		int ret = addr2bin(*decrypted, lenDecrypted, addr);
 		sodium_free(*decrypted);
-		if (addr == NULL) return;
+		if (ret < 1) return;
 	}
 
 	const int64_t hash = addressToHash(addr, addrKey);
@@ -474,7 +475,6 @@ static void respond_https_addr_add(mbedtls_ssl_context * const ssl, const int64_
 	, 200);
 	memcpy(data + 200, &hash, 8);
 	memcpy(data + 208, addr, 18);
-	free(addr);
 	sendData(ssl, data, 226);
 }
 

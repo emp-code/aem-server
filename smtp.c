@@ -319,8 +319,9 @@ const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsi
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
-		unsigned char * const binTo = addr2bin(toStart, lenTo);
-		if (binTo == NULL) {
+		unsigned char binTo[18];
+		int ret = addr2bin(toStart, lenTo, binTo);
+		if (ret < 1) {
 			puts("[SMTP] Failed to deliver email: addr2bin failed");
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
@@ -328,10 +329,9 @@ const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsi
 		}
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
-		int ret = getPublicKeyFromAddress(binTo, pk, addrKey);
+		ret = getPublicKeyFromAddress(binTo, pk, addrKey);
 		if (ret != 0) {
 			puts("[SMTP] Discarding email sent to nonexistent address");
-			free(binTo);
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
 			continue;
@@ -344,7 +344,6 @@ const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsi
 		size_t bodyLen = lenMsgBody;
 		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-		free(binTo);
 
 		if (boxSet == NULL) {
 			puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed");
