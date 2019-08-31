@@ -7,10 +7,10 @@
 
 #include <stdio.h>
 
+#include "SixBit.h"
+
 #define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 #define BIT_CHECK(a,b) (!!((a) & (1ULL<<(b)))) // '!!' to make sure this returns 0 or 1
-
-#define AEM_ADDRESS_HEXCHARS "acdeghilmnorstuw"
 
 // Unused characters are used for Shield addresses
 #define AEM_SIXBIT_CHAR_MIN_VALID 25
@@ -216,7 +216,7 @@ int addr2bin(const char * const source, const size_t lenSource, unsigned char * 
 		const int one = getHexValue(source[i * 2]);
 		if (one < 0) return 0;
 
-		const int two = getHexValue(source[i * 2 + 1]);
+		const int two = getHexValue(source[i * 2 + 1])  * 16;
 		if (two < 0) return 0;
 
 		target[i] = one + two;

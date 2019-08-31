@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define AEM_ADDRESS_HEXCHARS "acdeghilmnorstuw"
+
 int addr2bin(const char * const source, const size_t len, unsigned char * const target);
 bool isNormalBinAddress(const unsigned char * const source);
 

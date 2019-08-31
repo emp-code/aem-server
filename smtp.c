@@ -515,7 +515,13 @@ static bool isAddressAem(const char * const c, const size_t len) {
 		}
 	} else if (len == 36) {
 		for (size_t i = 0; i < len; i++) {
-			if (!isxdigit(c[i])) return false;
+			bool ok = false;
+
+			for (int j = 0; j < 16; j++) {
+				if (c[i] == AEM_ADDRESS_HEXCHARS[j]) {ok = true; break;}
+			}
+
+			if (!ok) return false;
 		}
 	} else return false;
 
