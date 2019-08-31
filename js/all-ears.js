@@ -216,17 +216,16 @@ function AllEars() {
 		const addrData = new Uint8Array(_userAddress.length * 27);
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			addrData[i*27] = _userAddress[i].isShield      ? _BitSet(addrData[i*27], 0) : _BitClear(addrData[i*27], 0);
-			addrData[i*27] = _userAddress[i].acceptIntMsg  ? _BitSet(addrData[i*27], 1) : _BitClear(addrData[i*27], 1);
-			addrData[i*27] = _userAddress[i].sharePk       ? _BitSet(addrData[i*27], 2) : _BitClear(addrData[i*27], 2);
-			addrData[i*27] = _userAddress[i].acceptExtMsg  ? _BitSet(addrData[i*27], 3) : _BitClear(addrData[i*27], 3);
-			addrData[i*27] = _userAddress[i].useGatekeeper ? _BitSet(addrData[i*27], 4) : _BitClear(addrData[i*27], 4);
-			addrData[i*27] = _BitClear(addrData[i*27], 5);
-			addrData[i*27] = _BitClear(addrData[i*27], 6);
-			addrData[i*27] = _BitClear(addrData[i*27], 7);
+			const pos = i * 27;
+			addrData[pos] = 0;
 
-			addrData.set(_userAddress[i].address, i * 27 + 1);
-			addrData.set(_userAddress[i].hash, i * 27 + 19);
+			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 1 << 1;
+			if (_userAddress[i].sharePk)       addrData[pos] |= 1 << 2;
+			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 1 << 3;
+			if (_userAddress[i].useGatekeeper) addrData[pos] |= 1 << 4;
+
+			addrData.set(_userAddress[i].address, pos + 1);
+			addrData.set(_userAddress[i].hash, pos + 19);
 		}
 
 		return addrData;
@@ -794,8 +793,8 @@ function AllEars() {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true));
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
 	}); };
@@ -805,15 +804,14 @@ function AllEars() {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), _DecodeAddress(byteArray.slice(8)), true, false, false, false, true));
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 		});
 	}); };
 
 	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
 		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-
 		_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
