@@ -5,6 +5,11 @@
 
 #define AEM_HEADBOX_SIZE 41 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
 
+#define AEM_FLAG_MSGTYPE_INTMSG   0
+#define AEM_FLAG_MSGTYPE_EXTMSG   1
+#define AEM_FLAG_MSGTYPE_TEXTNOTE 2
+#define AEM_FLAG_MSGTYPE_FILENOTE 3
+
 #define AEM_INFOBYTE_PROTOERR 8  // bit 3: protocol violation (commands out of order etc)
 #define AEM_INFOBYTE_CMD_FAIL 16 // bit 4: invalid command
 #define AEM_INFOBYTE_CMD_RARE 32 // bit 5: rare/unusual command (NOOP/RSET etc)

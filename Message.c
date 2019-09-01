@@ -78,11 +78,6 @@ TextNote/FileNote
 		[-- char*] Message data
 */
 
-#define AEM_FLAG_MSGTYPE_INTMSG   0
-#define AEM_FLAG_MSGTYPE_EXTMSG   1
-#define AEM_FLAG_MSGTYPE_TEXTNOTE 2
-#define AEM_FLAG_MSGTYPE_FILENOTE 3
-
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
 	const size_t bodyLenPadded = ceil(*bodyLen / (double)1024) * 1024;
 	const size_t padLen = bodyLenPadded - *bodyLen;
