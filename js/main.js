@@ -186,7 +186,7 @@ function addIntMessages() {
 			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
-			document.getElementById("readmsg_from").className = (ae.GetIntMsgShield(i)) ? "mono" : "";
+			document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 36) ? "mono" : "";
 			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
 		};
 
