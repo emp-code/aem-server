@@ -42,8 +42,6 @@ function AllEars() {
 	let _admin_userLevel = [];
 
 // Private Functions
-	const _BitSet = function(num, bit) {return num | 1 << bit;};
-	const _BitClear = function(num, bit) {return num & ~(1 << bit);};
 	const _BitTest = function(num, bit) {return ((num >> bit) % 2 != 0);};
 	const _GetBit = function(byteArray, bitNum) {
 		const skipBytes = Math.floor(bitNum / 8.0);
@@ -140,23 +138,13 @@ function AllEars() {
 		_FetchBinary(url, postMsg, callback);
 	};
 
-	const _GetNibble = function(byteArray, skipBits) {
-		let ret = 0;
-		if (_GetBit(byteArray, skipBits + 0)) ret += 1;
-		if (_GetBit(byteArray, skipBits + 1)) ret += 2;
-		if (_GetBit(byteArray, skipBits + 2)) ret += 4;
-		if (_GetBit(byteArray, skipBits + 3)) ret += 8;
-		return ret;
-	}
-
 	const _DecodeShieldAddress = function(byteArray) {
 		const hexTable = "acdeghilmnorstuw";
 
 		let decoded = "";
-		let skipBits = 0;
-		for (let i = 0; i < 36; i++) {
-			decoded += hexTable[_GetNibble(byteArray, skipBits)];
-			skipBits += 4;
+		for (let i = 0; i < 18; i++) {
+			decoded += hexTable[byteArray[i] & 15];
+			decoded += hexTable[(byteArray[i] & 240) >>> 4];
 		}
 
 		return decoded;
@@ -648,9 +636,7 @@ function AllEars() {
 
 					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else { // xxxxxx00 IntMsg
-					let im_sml = 0;
-					if (_BitTest(msgHead[0], 4)) im_sml++;
-					if (_BitTest(msgHead[0], 5)) im_sml += 2;
+					const im_sml = (msgHead[0] >>> 4) & 3;
 
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const im_ts = new Uint32Array(u32bytes)[0];
