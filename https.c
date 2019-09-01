@@ -35,8 +35,6 @@
 #define AEM_HTTPS_REQUEST_GET 0
 // POST: body size (Content-Length)
 
-#define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
-
 static const int https_ciphersuites[] = {
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 	MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
@@ -399,8 +397,10 @@ static void respond_https_addnote(mbedtls_ssl_context * const ssl, unsigned char
 	unsigned char header[AEM_HEADBOX_SIZE];
 	bzero(header, AEM_HEADBOX_SIZE);
 
-	if (isFileNote) BIT_SET(header[0], 0);
-	BIT_SET(header[0], 1);
+	if (isFileNote)
+		header[0] |= AEM_FLAG_MSGTYPE_FILENOTE;
+	else
+		header[0] |= AEM_FLAG_MSGTYPE_TEXTNOTE;
 
 	const uint32_t t = (uint32_t)time(NULL);
 	memcpy(header + 1, &t, 4);
