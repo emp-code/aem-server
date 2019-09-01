@@ -316,8 +316,9 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	if (ret < 1) return -1;
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	ret = getPublicKeyFromAddress(binTo, pk, addrKey);
-	if (ret != 0 || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
+	unsigned char flags;
+	ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
+	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	int64_t sender_pk64;
 	memcpy(&sender_pk64, sender_pk, 8);
@@ -496,6 +497,24 @@ static void respond_https_addr_upd(mbedtls_ssl_context * const ssl, const int64_
 	if (ret == 0) send204(ssl);
 }
 
+static void respond_https_addr_set(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted < 1 || lenDecrypted % 9 != 0) {free(*decrypted); return;}
+
+	const unsigned int addressCount = lenDecrypted / 9; // unsigned to avoid GCC warning
+	unsigned char addrFlags[addressCount];
+	int64_t addrHash[addressCount];
+
+	for (unsigned int i = 0; i < addressCount; i++) {
+		memcpy(addrFlags + i, (*decrypted) + i * 9, 1);
+		memcpy(addrHash + i, (*decrypted) + i * 9 + 1, 8);
+	}
+
+	sodium_free(*decrypted);
+
+	const int ret = updateAddressSettings(upk64, addrHash, addrFlags, addressCount);
+	if (ret == 0) send204(ssl);
+}
+
 static void respond_https_delmsg(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
@@ -586,6 +605,7 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	if (lenUrl == 12 && memcmp(url, "api/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
 	if (lenUrl == 12 && memcmp(url, "api/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
 	if (lenUrl == 12 && memcmp(url, "api/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "api/addr/set", 12) == 0) return respond_https_addr_set(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (lenUrl == 10 && memcmp(url, "api/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
 	if (lenUrl == 12 && memcmp(url, "api/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);

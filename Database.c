@@ -67,12 +67,12 @@ bool upk64Exists(const int64_t upk64) {
 	return retval;
 }
 
-int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey) {
+int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT publickey FROM userdata WHERE upk64=(SELECT upk64 FROM address WHERE hash=?)", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT publickey, flags FROM address INNER JOIN userdata USING(upk64) WHERE hash=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, addressToHash(addr, addrKey));
@@ -85,6 +85,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 	}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), crypto_box_PUBLICKEYBYTES);
+	memcpy(flags, sqlite3_column_blob(query, 1), 1);
 
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
@@ -427,6 +428,28 @@ int updateAddress(const int64_t upk64, const unsigned char * const addrData, con
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return (ret == SQLITE_DONE) ? 0 : -1;
+}
+
+int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, const unsigned char * const addrFlags, const int addressCount) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	if (db == NULL) return -1;
+
+	for (int i = 0; i < addressCount; i++) {
+		sqlite3_stmt *query;
+		int ret = sqlite3_prepare_v2(db, "UPDATE address SET flags=? WHERE hash=? AND upk64=?", -1, &query, NULL);
+		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+		sqlite3_bind_blob(query, 1, addrFlags + i, 1, SQLITE_STATIC);
+		sqlite3_bind_int64(query, 2, addrHash[i]);
+		sqlite3_bind_int64(query, 3, upk64);
+
+		ret = sqlite3_step(query);
+		if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
+		sqlite3_finalize(query);
+	}
+
+	sqlite3_close_v2(db);
+	return 0;
 }
 
 int addAddress(const int64_t upk64, const int64_t hash) {

@@ -146,7 +146,7 @@ function AllEars() {
 		}
 
 		return decoded;
-	}
+	};
 
 	const _DecodeAddress = function(byteArray) {
 		if (byteArray.length != 18) return "(Error: wrong length)";
@@ -205,13 +205,31 @@ function AllEars() {
 			const pos = i * 27;
 			addrData[pos] = 0;
 
-			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 1 << 1;
-			if (_userAddress[i].sharePk)       addrData[pos] |= 1 << 2;
-			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 1 << 3;
-			if (_userAddress[i].useGatekeeper) addrData[pos] |= 1 << 4;
+			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 128;
+			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 64;
+			if (_userAddress[i].useGatekeeper) addrData[pos] |= 32;
+			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
 
 			addrData.set(_userAddress[i].address, pos + 1);
 			addrData.set(_userAddress[i].hash, pos + 19);
+		}
+
+		return addrData;
+	};
+
+	const _MakeAddrData_Server = function() {
+		const addrData = new Uint8Array(_userAddress.length * 9);
+
+		for (let i = 0; i < _userAddress.length; i++) {
+			const pos = i * 9;
+			addrData[pos] = 0;
+
+			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 128;
+			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 64;
+			if (_userAddress[i].useGatekeeper) addrData[pos] |= 32;
+			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
+
+			addrData.set(_userAddress[i].hash, pos + 1);
 		}
 
 		return addrData;
@@ -348,9 +366,9 @@ function AllEars() {
 			case 1: return "TLSv1.0";
 			case 2: return "TLSv1.1";
 			case 3: return "TLSv1.2";
-			case 3: return "TLSv1.3";
+			case 4: return "TLSv1.3";
 		}
-	}
+	};
 
 // Public
 	this.GetLevelMax = function() {return _maxLevel;};
@@ -480,10 +498,10 @@ function AllEars() {
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
 				// First bit unused
-				const acceptIntMsg  = addrData[i * 27] &  2;
-				const sharePk       = addrData[i * 27] &  4;
-				const acceptExtMsg  = addrData[i * 27] &  8;
-				const useGatekeeper = addrData[i * 27] & 16;
+				const acceptExtMsg  = addrData[i * 27] & 128;
+				const acceptIntMsg  = addrData[i * 27] & 64;
+				const useGatekeeper = addrData[i * 27] & 32;
+				const sharePk       = addrData[i * 27] & 16;
 				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
 				const decoded = _DecodeAddress(addr);
@@ -784,8 +802,12 @@ function AllEars() {
 	}); };
 
 	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
-		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-		_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+		_FetchEncrypted("/api/addr/set", _MakeAddrData_Server(), nacl, function(fetchOk) {
+			if (!fetchOk) {callback(false); return;}
+
+			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+		});
 	}); };
 
 	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
