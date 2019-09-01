@@ -42,9 +42,9 @@ function AllEars() {
 	let _admin_userLevel = [];
 
 // Private Functions
-	const _BitSet = function(num, bit) {return num | 1<<bit;};
-	const _BitClear = function(num, bit) {return num & ~(1<<bit);};
-	const _BitTest = function(num, bit) {return ((num>>bit) % 2 != 0);};
+	const _BitSet = function(num, bit) {return num | 1 << bit;};
+	const _BitClear = function(num, bit) {return num & ~(1 << bit);};
+	const _BitTest = function(num, bit) {return ((num >> bit) % 2 != 0);};
 	const _GetBit = function(byteArray, bitNum) {
 		const skipBytes = Math.floor(bitNum / 8.0);
 		const skipBits = bitNum % 8;
@@ -414,11 +414,11 @@ function AllEars() {
 	this.GetExtMsgHeaders = function(num) {return _extMsg[num].headers;};
 	this.GetExtMsgBody    = function(num) {return _extMsg[num].body;};
 
-	this.GetExtMsgFlagPErr = function(num) {return _BitTest(_extMsg[num].info, 3);}; // Protocol Error
-	this.GetExtMsgFlagFail = function(num) {return _BitTest(_extMsg[num].info, 4);}; // Invalid command used
-	this.GetExtMsgFlagRare = function(num) {return _BitTest(_extMsg[num].info, 5);}; // Rare/unusual command used
-	this.GetExtMsgFlagQuit = function(num) {return _BitTest(_extMsg[num].info, 6);}; // QUIT command issued
-	this.GetExtMsgFlagPExt = function(num) {return _BitTest(_extMsg[num].info, 7);}; // Protocol Extended (ESMTP)
+	this.GetExtMsgFlagPErr = function(num) {return _extMsg[num].info &   8;}; // Protocol Error
+	this.GetExtMsgFlagFail = function(num) {return _extMsg[num].info &  16;}; // Invalid command used
+	this.GetExtMsgFlagRare = function(num) {return _extMsg[num].info &  32;}; // Rare/unusual command used
+	this.GetExtMsgFlagQuit = function(num) {return _extMsg[num].info &  64;}; // QUIT command issued
+	this.GetExtMsgFlagPExt = function(num) {return _extMsg[num].info & 128;}; // Protocol Extended (ESMTP)
 
 	this.GetNoteCount = function() {return _textNote.length;};
 	this.GetNoteId = function(num) {return _textNote[num].id;};
@@ -496,10 +496,10 @@ function AllEars() {
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
 				// First bit unused
-				const acceptIntMsg  = _BitTest(addrData[i * 27], 1);
-				const sharePk       = _BitTest(addrData[i * 27], 2);
-				const acceptExtMsg  = _BitTest(addrData[i * 27], 3);
-				const useGatekeeper = _BitTest(addrData[i * 27], 4);
+				const acceptIntMsg  = addrData[i * 27] &  2;
+				const sharePk       = addrData[i * 27] &  4;
+				const acceptExtMsg  = addrData[i * 27] &  8;
+				const useGatekeeper = addrData[i * 27] & 16;
 				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
 				const decoded = _DecodeAddress(addr);
@@ -541,7 +541,7 @@ function AllEars() {
 					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
 
 					const newLevel = loginData[pos + 8] & 3;
-					const newSpace = (loginData[pos + 8] & 252) >> 2;
+					const newSpace = loginData[pos + 8] >>> 2;
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
@@ -559,34 +559,10 @@ function AllEars() {
 				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
-				if (!_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 0,0 IntMsg
-					let im_sml = 0;
-					if (_BitTest(msgHead[0], 4)) im_sml++;
-					if (_BitTest(msgHead[0], 5)) im_sml += 2;
-
+				if ((msgHead[0] & 3) === 3) { // xxxxxx11 FileNote
 					const u32bytes = msgHead.slice(1, 5).buffer;
-					const im_ts = new Uint32Array(u32bytes)[0];
+					const note_ts = new Uint32Array(u32bytes)[0];
 
-					const im_from_bin = msgHead.slice(5, 23);
-					const im_from = _DecodeAddress(im_from_bin);
-
-					let im_isSent;
-					for (let j = 0; j < _userAddress.length; j++) {
-						im_isSent = true;
-
-						for (let k = 0; k < 18; k++) {
-							if (im_from_raw[k] != _userAddress[j].address[k]) {
-								im_isSent = false;
-								break;
-							}
-						}
-
-						if (im_isSent) break;
-					}
-
-					const im_to = _DecodeAddress(msgHead.slice(23));
-
-					// BodyBox
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
@@ -597,13 +573,35 @@ function AllEars() {
 					const padAmount = new Uint16Array(u16bytes)[0];
 					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
-					const firstLf = msgBodyUtf8.indexOf('\n');
-					const im_title = msgBodyUtf8.slice(0, firstLf);
-					const im_body = msgBodyUtf8.slice(firstLf + 1);
+					const lenFn = msgBody[0];
+					const fileName = nacl.decode_utf8(msgBody.slice(1, 1 + lenFn));
 
-					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_shield, im_to, im_title, im_body));
-				} else if (_BitTest(msgHead[0], 0) && !_BitTest(msgHead[0], 1)) { // 1,0 ExtMsg
+					const lenFt = msgBody[1 + lenFn];
+					const fileType = nacl.decode_utf8(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
+
+					const fileData = msgBody.slice(2 + lenFn + lenFt);
+
+					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
+				} else if ((msgHead[0] & 2) === 2) { // xxxxxx10 TextNote
+					const u32bytes = msgHead.slice(1, 5).buffer;
+					const note_ts = new Uint32Array(u32bytes)[0];
+
+					const bbSize = msgKilos * 1024 + 50;
+					const bbStart = msgStart + 91;
+
+					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
+					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+
+					const u16bytes = msgBodyFull.slice(0, 2).buffer;
+					const padAmount = new Uint16Array(u16bytes)[0];
+					const msgBody = nacl.decode_utf8(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
+
+					const ln = msgBody.indexOf('\n');
+					if (ln > 0)
+						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
+					else
+						console.log("Received corrupted TextNote");
+				} else if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
 					const em_infobyte = msgHead[0];
 
 					const u32bytes = msgHead.slice(1, 5).buffer;
@@ -649,29 +647,34 @@ function AllEars() {
 					const em_body = body.slice(headersEnd + 4);
 
 					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
-				} else if (!_BitTest(msgHead[0], 0) && _BitTest(msgHead[0], 1)) {  // 0,1 TextNote
+				} else { // xxxxxx00 IntMsg
+					let im_sml = 0;
+					if (_BitTest(msgHead[0], 4)) im_sml++;
+					if (_BitTest(msgHead[0], 5)) im_sml += 2;
+
 					const u32bytes = msgHead.slice(1, 5).buffer;
-					const note_ts = new Uint32Array(u32bytes)[0];
+					const im_ts = new Uint32Array(u32bytes)[0];
 
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 91;
+					const im_from_bin = msgHead.slice(5, 23);
+					const im_from = _DecodeAddress(im_from_bin);
 
-					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+					let im_isSent;
+					for (let j = 0; j < _userAddress.length; j++) {
+						im_isSent = true;
 
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = nacl.decode_utf8(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
+						for (let k = 0; k < 18; k++) {
+							if (im_from_bin[k] != _userAddress[j].address[k]) {
+								im_isSent = false;
+								break;
+							}
+						}
 
-					const ln = msgBody.indexOf('\n');
-					if (ln > 0)
-						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
-					else
-						console.log("Received corrupted TextNote");
-				} else { // 1,1 FileNote
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const note_ts = new Uint32Array(u32bytes)[0];
+						if (im_isSent) break;
+					}
 
+					const im_to = _DecodeAddress(msgHead.slice(23));
+
+					// BodyBox
 					const bbSize = msgKilos * 1024 + 50;
 					const bbStart = msgStart + 91;
 
@@ -682,15 +685,12 @@ function AllEars() {
 					const padAmount = new Uint16Array(u16bytes)[0];
 					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-					const lenFn = msgBody[0];
-					const fileName = nacl.decode_utf8(msgBody.slice(1, 1 + lenFn));
+					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+					const firstLf = msgBodyUtf8.indexOf('\n');
+					const im_title = msgBodyUtf8.slice(0, firstLf);
+					const im_body = msgBodyUtf8.slice(firstLf + 1);
 
-					const lenFt = msgBody[1 + lenFn];
-					const fileType = nacl.decode_utf8(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
-
-					const fileData = msgBody.slice(2 + lenFn + lenFt);
-
-					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
+					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, (im_from.length === 36), im_to, im_title, im_body));
 				}
 
 				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
