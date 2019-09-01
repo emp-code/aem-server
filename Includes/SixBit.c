@@ -54,7 +54,7 @@
 #define AEM_SIXBIT_CHAR_z 62
 #define AEM_SIXBIT_CHAR_NULL 63
 
-static int getBit(const unsigned char *c, const int bitNum) {
+static int getBit(const unsigned char * const c, const int bitNum) {
 	const int skipBits = bitNum % 8;
 	const int skipBytes = (bitNum - skipBits) / 8;
 
