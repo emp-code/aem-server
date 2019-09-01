@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
-#include <ctype.h>
 
 #include <sodium.h>
 #include <sqlite3.h>
@@ -20,8 +19,6 @@
 
 #define AEM_PATH_DB_MESSAGES "/Messages.aed"
 #define AEM_PATH_DB_USERS  "/Users.aed"
-
-#define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
 static sqlite3 *openDb(const char * const path, const int flags) {
 	sqlite3 *db;
