@@ -156,7 +156,7 @@ function addIntMessages() {
 			cellTo.className = "";
 		}
 
-		if (ae.GetIntMsgShield(i)) {
+		if (ae.GetIntMsgFrom(i).length === 36) {
 			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
 			cellFrom.className = "mono";
 		} else {

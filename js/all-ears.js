@@ -49,13 +49,12 @@ function AllEars() {
 		return _BitTest(byteArray[skipBytes], skipBits);
 	};
 
-	function _NewIntMsg(id, isSent, sml, ts, from, shield, to, title, body) {
+	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
 		this.id = id;
 		this.isSent = isSent;
 		this.senderMemberLevel = sml;
 		this.ts = ts;
 		this.from = from;
-		this.shield = shield;
 		this.to = to;
 		this.title = title;
 		this.body = body;
@@ -381,7 +380,6 @@ function AllEars() {
 	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
 	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
-	this.GetIntMsgShield = function(num) {return _intMsg[num].shield;};
 	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;};
 	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;};
 	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;};
@@ -674,7 +672,7 @@ function AllEars() {
 					const im_title = msgBodyUtf8.slice(0, firstLf);
 					const im_body = msgBodyUtf8.slice(firstLf + 1);
 
-					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, (im_from.length === 36), im_to, im_title, im_body));
+					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_to, im_title, im_body));
 				}
 
 				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
