@@ -8,20 +8,18 @@
 
 #include "Message.h"
 
-#define BIT_SET(a,b) ((a) |= (1ULL<<(b)))
-
 /*
 IntMsg
 	HeadBox
 		[1B uint8_t] InfoByte
-			0: Message type (0)
-			1: Message type (0)
-			2: (Reserved) (0)
-			3:
-			4: Sender membership level (+1 if set)
-			5: Sender membership level (+2 if set)
-			6:
-			7:
+			128:
+			 64:
+			 32: Sender membership level (+2 if set)
+			 16: Sender membership level (+1 if set)
+			  8:
+			  4:
+			  2: Message type (off)
+			  1: Message type (off)
 		[4B uint32_t] Timestamp
 		[18B char*] AddressFrom (24c SixBit)
 		[18B char*] AddressTo (24c SixBit)
@@ -35,14 +33,14 @@ IntMsg
 ExtMsg
 	HeadBox
 		[1B] InfoByte
-			0: Message type (1)
-			1: Message type (0)
-			2: (Reserved) (0)
-			3: Protocol violation (commands out of order, etc)
-			4: Invalid commands received
-			5: Unusual commands (NOOP/RSET/etc) received
-			6: QUIT received
-			7: Protocol (ESMTP if set, SMTP if not set)
+			128: Protocol (ESMTP if set, SMTP if not set)
+			 64: QUIT received
+			 32: Unusual commands (NOOP/RSET/etc) received
+			 16: Invalid commands received
+			  8: Protocol violation (commands out of order, etc)
+			  4:
+			  2: Message type (off)
+			  1: Message type (on)
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
 		[2B uint16_t] TLS ciphersuite
@@ -61,17 +59,17 @@ ExtMsg
 		[1B char] Linebreak (\n)
 		[-- char*] Message data
 
-TextNote
+TextNote/FileNote
 	HeadBox
 		[1B uint8_t] InfoByte
-			0: Message type (0)
-			1: Message type (1)
-			2: (Reserved) (0)
-			3:
-			4:
-			5:
-			6:
-			7:
+			128:
+			 64:
+			 32:
+			 16:
+			  8:
+			  4:
+			  2: Message type (on)
+			  1: Message type (text: off, file: on)
 		[4B uint32_t] Timestamp
 		[36B] (unused)
 
@@ -79,6 +77,11 @@ TextNote
 		[2B uint16_t] Amount of padding
 		[-- char*] Message data
 */
+
+#define AEM_FLAG_MSGTYPE_INTMSG   0
+#define AEM_FLAG_MSGTYPE_EXTMSG   1
+#define AEM_FLAG_MSGTYPE_TEXTNOTE 2
+#define AEM_FLAG_MSGTYPE_FILENOTE 3
 
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
 	const size_t bodyLenPadded = ceil(*bodyLen / (double)1024) * 1024;
@@ -103,20 +106,7 @@ static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char
 static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const adrFrom, const unsigned char * const adrTo, const int senderLevel) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	unsigned char infoByte = 0;
-
-	switch(senderLevel) {
-		case 3:
-			BIT_SET(infoByte, 4);
-			BIT_SET(infoByte, 5);
-			break;
-		case 2:
-			BIT_SET(infoByte, 5);
-			break;
-		case 1:
-			BIT_SET(infoByte, 4);
-			break;
-	}
+	unsigned char infoByte = AEM_FLAG_MSGTYPE_INTMSG | ((senderLevel & 3) << 4); // xxLLxxTT
 
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
@@ -155,7 +145,7 @@ const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigne
 	const uint32_t ts = (uint32_t)time(NULL);
 	const uint16_t cs16 = (cs > UINT16_MAX || cs < 0) ? 1 : cs;
 
-	BIT_SET(infoByte, 0);
+	infoByte |= AEM_FLAG_MSGTYPE_EXTMSG; // xxxxxxTT
 
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
