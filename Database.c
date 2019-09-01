@@ -457,11 +457,14 @@ int addAddress(const int64_t upk64, const int64_t hash) {
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64, flags) VALUES (?, ?, ?)", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, hash);
 	sqlite3_bind_int64(query, 2, upk64);
+
+	const unsigned char flags = AEM_FLAGS_USE_GK;
+	sqlite3_bind_blob(query, 3, &flags, 1, SQLITE_STATIC);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
