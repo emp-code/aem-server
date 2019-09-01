@@ -238,16 +238,22 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 
 	return -1;
 }
-
 static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
-	if (buf == NULL || len < 1 || addr == NULL || buf[0] != '<') return 0;
+	if (buf == NULL || len < 1 || addr == NULL) return 0;
+
+	size_t skipBytes = 0;
+	while (isspace(buf[skipBytes]) && skipBytes < len) skipBytes++;
+	if (skipBytes >= len) return 0;
+
+	if (buf[skipBytes] != '<') return 0;
+	skipBytes++;
 
 	size_t lenAddr = 0;
-	while (lenAddr < (len - 1) && buf[1 + lenAddr] != '>') lenAddr++;
+	while (lenAddr < (len - 1) && buf[skipBytes + lenAddr] != '>') lenAddr++;
 
 	if (lenAddr < 1 || lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
 
-	memcpy(addr, buf + 1, lenAddr);
+	memcpy(addr, buf + skipBytes, lenAddr);
 	return lenAddr;
 }
 
