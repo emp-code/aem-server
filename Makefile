@@ -3,7 +3,7 @@ CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_
 objects = main.o http.o https.o smtp.o Includes/Base64.o Includes/Brotli.o Includes/QuotedPrintable.o Includes/SixBit.o Message.o Database.o
 
 ae-mail: $(objects)
-	$(CC) $(CFLAGS) -o ae-mail $(objects) -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lm -lsqlite3 -lmaxminddb
+	$(CC) $(CFLAGS) -o ae-mail $(objects) -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lsqlite3 -lmaxminddb
 
 main: main.c http.h https.h smpt.h
 

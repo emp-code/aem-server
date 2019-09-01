@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h> // for islower/isdigit
-#include <math.h> // for floor
 
 #include <stdio.h>
 
@@ -56,15 +55,15 @@
 #define AEM_SIXBIT_CHAR_NULL 63
 
 static int getBit(const unsigned char *c, const int bitNum) {
-	const int skipBytes = floor(bitNum / (double)8);
 	const int skipBits = bitNum % 8;
+	const int skipBytes = (bitNum - skipBits) / 8;
 
 	return BIT_CHECK(c[skipBytes], skipBits);
 }
 
 static void setBit(unsigned char * const c, const int bitNum) {
-	const int skipBytes = floor(bitNum / (double)8);
 	const int skipBits = bitNum % 8;
+	const int skipBytes = (bitNum - skipBits) / 8;
 
 	BIT_SET(c[skipBytes], skipBits);
 }
