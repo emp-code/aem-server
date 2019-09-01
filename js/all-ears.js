@@ -93,11 +93,10 @@ function AllEars() {
 		this.fileType = fileType;
 	}
 
-	function _NewAddress(addr, hash, decoded, isShield, accInt, spk, accExt, gk) {
+	function _NewAddress(addr, hash, decoded, accInt, spk, accExt, gk) {
 		this.address = addr;
 		this.hash = hash;
 		this.decoded = decoded;
-		this.isShield = isShield;
 		this.acceptIntMsg = accInt;
 		this.sharePk = spk;
 		this.acceptExtMsg = accExt;
@@ -358,7 +357,6 @@ function AllEars() {
 	this.GetLevelMax = function() {return _maxLevel;};
 
 	this.GetAddress = function(num) {return _userAddress[num].decoded;};
-	this.IsAddressShield = function(num) {return _userAddress[num].isShield;};
 	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;};
 	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;};
 	this.IsAddressSharePk      = function(num) {return _userAddress[num].sharePk;};
@@ -492,7 +490,7 @@ function AllEars() {
 				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
 				const decoded = _DecodeAddress(addr);
 
-				_userAddress.push(new _NewAddress(addr, hash, decoded, (decoded.length == 36), acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
+				_userAddress.push(new _NewAddress(addr, hash, decoded, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
 			}
 
 			// Gatekeeper data
@@ -769,7 +767,7 @@ function AllEars() {
 		_FetchEncrypted("/api/addr/add", nacl.encode_utf8(addr), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, false, true));
+			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, true));
 
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
@@ -780,7 +778,7 @@ function AllEars() {
 		_FetchEncrypted("/api/addr/add", nacl.encode_utf8("SHIELD"), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), _DecodeAddress(byteArray.slice(8)), true, false, false, false, true));
+			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), _DecodeAddress(byteArray.slice(8)), false, false, false, true));
 
 			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
 			_FetchEncrypted("/api/addr/upd", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});

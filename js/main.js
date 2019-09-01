@@ -362,7 +362,7 @@ function addAddress(num) {
 	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent = ae.GetAddress(num);
-	if (ae.IsAddressShield(num)) cellAddr.className = "mono";
+	if (ae.GetAddress(num).length == 36) cellAddr.className = "mono";
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
