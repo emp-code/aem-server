@@ -192,7 +192,8 @@ function AllEars() {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (_userAddress[i].isShield === isShield) count++;
+			if (isShield && _userAddress[i].decoded.length === 36) count++;
+			else if (!isShield && _userAddress[i].decoded.length <= 24) count++;
 		}
 
 		return count;
