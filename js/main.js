@@ -55,7 +55,14 @@ function addExtMessages() {
 		cellTime.setAttribute("data-ts", ts);
 		cellTime.textContent = new Date(ts * 1000).toLocaleString();
 		cellTitle.textContent = ae.GetExtMsgTitle(i);
-		cellTo.textContent = ae.GetExtMsgTo(i);
+
+		if (ae.GetExtMsgTo(i).length === 36) {
+			cellTo.textContent = ae.GetExtMsgTo(i).substr(0, 16);
+			cellTo.className = "mono";
+		} else {
+			cellTo.textContent = ae.GetExtMsgTo(i);
+			cellTo.className = "";
+		}
 
 		const cc = ae.GetExtMsgCountry(i);
 		cellFrom.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
