@@ -634,22 +634,26 @@ function AllEars() {
 					const msgBodyBrI8 = new Int8Array(msgBodyBrU8);
 					const msgBody = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
 
-					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
-					const firstLf = msgBodyUtf8.indexOf('\n');
-					const em_greet = msgBodyUtf8.slice(0, firstLf);
-					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
-					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-					const body = msgBodyUtf8.slice(secondLf + 1);
+					try {
+						const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+						const firstLf = msgBodyUtf8.indexOf('\n');
+						const em_greet = msgBodyUtf8.slice(0, firstLf);
+						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
+						const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
+						const body = msgBodyUtf8.slice(secondLf + 1);
 
-					const titleStart = body.indexOf("\nSubject: ");
-					const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
-					const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
+						const titleStart = body.indexOf("\nSubject: ");
+						const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+						const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
-					const headersEnd = body.indexOf("\r\n\r\n");
-					const em_headers = body.slice(0, headersEnd);
-					const em_body = body.slice(headersEnd + 4);
+						const headersEnd = body.indexOf("\r\n\r\n");
+						const em_headers = body.slice(0, headersEnd);
+						const em_body = body.slice(headersEnd + 4);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+					} catch(e) {
+						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, "(error)", em_infobyte, em_countrycode, "(error)", em_to, "(error)", "(error)", "(error)"));
+					}
 				} else { // xxxxxx00 IntMsg
 					const im_sml = (msgHead[0] >>> 4) & 3;
 
