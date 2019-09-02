@@ -486,7 +486,7 @@ function AllEars() {
 			const noteData = nacl.crypto_box_seal_open(loginData.slice(noteDataStart, noteDataStart + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
 			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
 
-			const contactSet = nacl.decode_utf8(noteData.slice(2)).split('\n');
+			const contactSet = new TextDecoder("utf-8").decode(noteData.slice(2)).split('\n');
 			for (let i = 0; i < (contactSet.length - 1); i += 3) {
 				_contactMail.push(contactSet[i]);
 				_contactName.push(contactSet[i + 1]);
@@ -512,7 +512,7 @@ function AllEars() {
 
 			// Gatekeeper data
 			const gkDataStart = 6 + _lenNoteData + addrDataSize;
-			const gkData = nacl.decode_utf8(nacl.crypto_box_seal_open(loginData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkData = new TextDecoder("utf-8").decode(nacl.crypto_box_seal_open(loginData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
 			let gkCountDomain = 0;
@@ -577,10 +577,10 @@ function AllEars() {
 					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
 					const lenFn = msgBody[0];
-					const fileName = nacl.decode_utf8(msgBody.slice(1, 1 + lenFn));
+					const fileName = new TextDecoder("utf-8").decode(msgBody.slice(1, 1 + lenFn));
 
 					const lenFt = msgBody[1 + lenFn];
-					const fileType = nacl.decode_utf8(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
+					const fileType = new TextDecoder("utf-8").decode(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
 
 					const fileData = msgBody.slice(2 + lenFn + lenFt);
 
@@ -597,7 +597,7 @@ function AllEars() {
 
 					const u16bytes = msgBodyFull.slice(0, 2).buffer;
 					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = nacl.decode_utf8(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
+					const msgBody = new TextDecoder("utf-8").decode(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
 
 					const ln = msgBody.indexOf('\n');
 					if (ln > 0)
@@ -616,7 +616,7 @@ function AllEars() {
 					const em_cs = new Uint16Array(u16bytes)[0];
 					const em_tlsver = msgHead[11];
 
-					const em_countrycode = nacl.decode_utf8(msgHead.slice(19, 21));
+					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(19, 21));
 
 					const em_to = _DecodeAddress(msgHead.slice(23));
 
@@ -635,7 +635,7 @@ function AllEars() {
 					const msgBody = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
 
 					try {
-						const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+						const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
 						const firstLf = msgBodyUtf8.indexOf('\n');
 						const em_greet = msgBodyUtf8.slice(0, firstLf);
 						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
@@ -690,7 +690,7 @@ function AllEars() {
 					const padAmount = new Uint16Array(u16bytes)[0];
 					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
 
-					const msgBodyUtf8 = nacl.decode_utf8(msgBody);
+					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
 					const firstLf = msgBodyUtf8.indexOf('\n');
 					const im_title = msgBodyUtf8.slice(0, firstLf);
 					const im_body = msgBodyUtf8.slice(firstLf + 1);
