@@ -3,7 +3,7 @@
 #include <ctype.h>
 
 // Returns length of decoded string
-int decodeQuotedPrintable(char * const * const data, size_t lenData, size_t lenTotal) {
+int decodeQuotedPrintable(char * const * const data, size_t lenData) {
 	char *c = memchr(*data, '=', lenData);
 	size_t skip = 0;
 
@@ -11,12 +11,12 @@ int decodeQuotedPrintable(char * const * const data, size_t lenData, size_t lenT
 		skip = (c - *data) + 1;
 
 		if (c[1] == '\n') {
-			const size_t len = lenTotal - ((c + 2) - *data);
+			const size_t len = (*data + lenData) - c - 2;
 			memmove(c, c + 2, len);
 			lenData -= 2;
 			skip -= 2;
 		} else if (c[1] == '\r' && c[2] == '\n') {
-			const size_t len = lenTotal - ((c + 3) - *data);
+			const size_t len = (*data + lenData) - c - 2;
 			memmove(c, c + 3, len);
 			lenData -= 3;
 			skip -= 3;
@@ -26,14 +26,20 @@ int decodeQuotedPrintable(char * const * const data, size_t lenData, size_t lenT
 			hex[2] = '\0';
 			const unsigned char num = strtol(hex, NULL, 16);
 
-			const size_t len = lenTotal - ((c + 2) - *data);
-			memmove(c, c + 2, len);
-			*c = num;
+			const size_t len = (*data + lenData) - c - 2;
+			memmove(c + 1, c + 3, len);
+			*c = (num == '=') ? '\0' : num;
 			lenData -= 2;
 			skip -= 2;
 		}
 
 		c = memchr(*data + skip, '=', lenData - skip);
+	}
+
+	while(1) {
+		c = memchr(*data, '\0', lenData);
+		if (c == NULL) break;
+		*c = '=';
 	}
 
 	return lenData;

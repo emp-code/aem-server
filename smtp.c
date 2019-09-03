@@ -395,7 +395,7 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 			const size_t lenQpBegin = *lenData - (qpBegin - *data);
 			const size_t lenQp = ewEnd - qpBegin;
 
-			const int lenDqp = decodeQuotedPrintable(&qpBegin, lenQp, lenQpBegin);
+			const int lenDqp = decodeQuotedPrintable(&qpBegin, lenQp);
 
 			memmove(ew, qpBegin, lenQpBegin - (lenQp - lenDqp));
 			memmove(ew + lenDqp, ew + lenDqp + 2, lenQpBegin - lenQp - 2);
@@ -458,7 +458,7 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
 				char * const msg = boundaryHeaderEnd + 4;
 				const size_t lenOld = boundaryEnd - msg;
-				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, (*data + *lenData) - msg);
+				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
 				*lenData -= (lenOld - lenNew);
 				(*data)[*lenData] = '\0';
 			} else {
@@ -491,7 +491,7 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 		if (qpHeader != NULL && qpHeader < headersEnd) {
 			char * const msg = *data + lenHeaders + 4;
 			const size_t lenOld = *lenData - lenHeaders - 4;
-			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld, lenOld);
+			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
 			*lenData -= (lenOld - lenNew);
 		} else {
 			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: base64\r\n");
