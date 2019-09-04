@@ -176,6 +176,7 @@ static void message_create(mbedtls_ssl_context * const ssl, const unsigned char 
 		extDomain[lenExtDomain] = '\0';
 
 		// TODO: ExtMsg (email)
+		sodium_free(*decrypted);
 		return;
 	}
 
@@ -210,6 +211,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 
 	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
 	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
+	sodium_free(*decrypted);
 
 	addUserMessage(*((int64_t*)upk), boxset, bsLen);
 	free(boxset);
@@ -225,7 +227,8 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		randombytes_buf(addr, 18);
 		if (isNormalBinAddress(addr)) return;
 	} else {
-		if (lenDecrypted > 24) return;
+		if (lenDecrypted > 24) {sodium_free(*decrypted); return;}
+
 		int ret = addr2bin(*decrypted, lenDecrypted, addr);
 		sodium_free(*decrypted);
 		if (ret < 1) return;
@@ -304,7 +307,7 @@ static void storage_engate(mbedtls_ssl_context * const ssl, const unsigned char 
 }
 
 static void storage_ennote(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) return;
+	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) {sodium_free(*decrypted); return;}
 
 	const int ret = updateNoteData(upk64, (unsigned char*)*decrypted);
 	sodium_free(*decrypted);
