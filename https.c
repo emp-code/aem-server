@@ -195,7 +195,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 
 			if (lenReqBody == AEM_HTTPS_REQUEST_GET) {
 				https_get(&ssl, (char*)reqUrl, lenReqUrl, fileSet, domain, lenDomain);
-			} else { // POST
+			} else if (lenReqUrl == 14) { // POST (API URLs are 14 characters)
 				const unsigned char *post = memmem(req + lenReqUrl + 11, lenReq, "\r\n\r\n", 4);
 
 				if (post != NULL) {
@@ -212,8 +212,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 							lenReq += ret;
 						}
 
-						if (ret > 0)
-							https_post(&ssl, ssk, addrKey, domain, lenDomain, reqUrl, lenReqUrl, post, lenPost);
+						if (ret > 0) https_post(&ssl, ssk, addrKey, domain, lenDomain, reqUrl, post, lenPost);
 					}
 				}
 			}

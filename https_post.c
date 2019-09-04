@@ -376,10 +376,7 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey,
-const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost) {
-	if (lenUrl != 14) return;
-
+void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const char * const url, const unsigned char * const post, const size_t lenPost) {
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
