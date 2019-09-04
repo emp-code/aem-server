@@ -427,17 +427,26 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 
 	const char * const headersEnd = strstr(*data, "\r\n\r\n");
 	if (headersEnd == NULL) return;
-
 	const size_t lenHeaders = headersEnd - *data;
 
 	const char * const mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
 	if (mpHeader != NULL) {
-		const char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
-		if (boundaryBegin == NULL || boundaryBegin > headersEnd) return;
-		boundaryBegin += 10;
+		char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
+		char *boundaryEnd;
 
-		const char *boundaryEnd = strchr(boundaryBegin, '"');
+		if (boundaryBegin == NULL || boundaryBegin > headersEnd) {
+			boundaryBegin = strstr(mpHeader + 25, "boundary=");
+			if (boundaryBegin == NULL || boundaryBegin > headersEnd) return;
+
+			boundaryBegin += 10;
+			boundaryEnd = strpbrk(boundaryBegin, "\r\n");
+		} else {
+			boundaryBegin += 10;
+			boundaryEnd = strchr(boundaryBegin, '"');
+		}
+
 		if (boundaryEnd == NULL) return;
+
 		const size_t lenBoundary = boundaryEnd - boundaryBegin;
 
 		char boundary[lenBoundary + 1];
@@ -455,12 +464,18 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
 
 			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: quoted-printable\r\n");
+
 			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
 				char * const msg = boundaryHeaderEnd + 4;
 				const size_t lenOld = boundaryEnd - msg;
 				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
+
+				memmove(msg + lenNew, msg + lenOld, (*data + *lenData) - (msg + lenOld));
+
 				*lenData -= (lenOld - lenNew);
 				(*data)[*lenData] = '\0';
+
+				boundaryEnd = strstr(msg, boundary);
 			} else {
 				const char * const b64Header = strcasestr(bound, "\r\nContent-Transfer-Encoding: base64\r\n");
 				if (b64Header != NULL && b64Header < boundaryHeaderEnd) {
