@@ -241,9 +241,6 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 		return 1;
 	}
 
-	unsigned char seed[16];
-	randombytes_buf(seed, 16);
-
 	const int numCss  = aem_countFiles("css",  ".css",  4);
 	const int numHtml = aem_countFiles("html", ".html", 5);
 	const int numImg  = aem_countFiles("img",  ".webp", 5);
@@ -291,7 +288,7 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 			if (pid < 0) {puts("[Main.HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, seed, domain, lenDomain, fileSet);
+				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, domain, lenDomain, fileSet);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
