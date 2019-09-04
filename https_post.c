@@ -372,7 +372,7 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 
 void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey,
 const char * const domain, const size_t lenDomain, const char * const url, const size_t lenUrl, const unsigned char * const post, const size_t lenPost) {
-	if (lenUrl < 8) return;
+	if (lenUrl < 4) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
@@ -382,21 +382,21 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	int64_t upk64;
 	memcpy(&upk64, upk, 8);
 
-	if (lenUrl ==  9 && memcmp(url, "api/login", 9) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl ==  8 && memcmp(url, "api/send", 8) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
-	if (lenUrl == 12 && memcmp(url, "api/textnote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, false);
-	if (lenUrl == 12 && memcmp(url, "api/filenote", 12) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, true);
+	if (lenUrl ==  5 && memcmp(url, "login", 5) == 0) return respond_https_login(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  4 && memcmp(url, "send", 4) == 0) return respond_https_send(ssl, upk, domain, lenDomain, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl ==  8 && memcmp(url, "textnote", 8) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, false);
+	if (lenUrl ==  8 && memcmp(url, "filenote", 8) == 0) return respond_https_addnote(ssl, upk, &decrypted, lenDecrypted, true);
 
-	if (lenUrl == 12 && memcmp(url, "api/addr/del", 12) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "api/addr/add", 12) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
-	if (lenUrl == 12 && memcmp(url, "api/addr/upd", 12) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "api/addr/set", 12) == 0) return respond_https_addr_set(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "addr/del", 8) == 0) return respond_https_addr_del(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "addr/add", 8) == 0) return respond_https_addr_add(ssl, upk64, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl ==  8 && memcmp(url, "addr/upd", 8) == 0) return respond_https_addr_upd(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "addr/set", 8) == 0) return respond_https_addr_set(ssl, upk64, &decrypted, lenDecrypted);
 
-	if (lenUrl == 10 && memcmp(url, "api/delmsg",     10) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 12 && memcmp(url, "api/notedata",   12) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 14 && memcmp(url, "api/gatekeeper", 14) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, addrKey);
+	if (lenUrl ==  6 && memcmp(url, "delmsg",      6) == 0) return respond_https_delmsg    (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl ==  8 && memcmp(url, "notedata",    8) == 0) return respond_https_notedata  (ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 10 && memcmp(url, "gatekeeper", 10) == 0) return respond_https_gatekeeper(ssl, upk, &decrypted, lenDecrypted, addrKey);
 
-	if (lenUrl == 14 && memcmp(url, "api/addaccount", 14) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 16 && memcmp(url, "api/accountlevel", 16) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
-	if (lenUrl == 18 && memcmp(url, "api/destroyaccount", 18) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 10 && memcmp(url, "addaccount", 10) == 0) return respond_https_addaccount(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 12 && memcmp(url, "accountlevel", 12) == 0) return respond_https_accountlevel(ssl, upk64, &decrypted, lenDecrypted);
+	if (lenUrl == 14 && memcmp(url, "destroyaccount", 14) == 0) return respond_https_destroyaccount(ssl, upk64, &decrypted, lenDecrypted);
 }

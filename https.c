@@ -189,7 +189,7 @@ const unsigned char * const seed, const char * const domain, const size_t lenDom
 		const int lenReqBody = getRequestType((char*)req, lenReq, domain, lenDomain);
 
 		if (lenReqBody >= AEM_HTTPS_REQUEST_GET) {
-			const char * const reqUrl = (char*)(req + ((lenReqBody == AEM_HTTPS_REQUEST_GET) ? 5 : 6));
+			const char * const reqUrl = (char*)(req + ((lenReqBody == AEM_HTTPS_REQUEST_GET) ? 5 : 10)); // "GET /" = 5; "POST /api/" = 10
 			const char * const ruEnd = strchr(reqUrl, ' ');
 			const size_t lenReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
