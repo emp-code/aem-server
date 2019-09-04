@@ -27,7 +27,7 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 
 	if (files[reqNum].lenData > 999999) return;
 
-	char *mediatype;
+	const char *mediatype;
 	int mtLen;
 	switch (fileType) {
 		case AEM_FILETYPE_IMG:
@@ -46,8 +46,8 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 			return;
 	}
 
-	char headers[287 + mtLen];
-	sprintf(headers,
+	char data[287 + mtLen + files[reqNum].lenData];
+	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
@@ -61,10 +61,7 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 		"\r\n"
 	, (fileType == AEM_FILETYPE_CSS || fileType == AEM_FILETYPE_JS) ? "Content-Encoding: br\r\n" : "", mtLen, mediatype, files[reqNum].lenData);
 
-	const size_t lenHeaders = strlen(headers);
-
-	char data[lenHeaders + files[reqNum].lenData];
-	memcpy(data, headers, lenHeaders);
+	const size_t lenHeaders = strlen(data);
 	memcpy(data + lenHeaders, files[reqNum].data, files[reqNum].lenData);
 
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
@@ -159,7 +156,7 @@ void https_get(mbedtls_ssl_context * const ssl, const char * const url, const si
 	if (lenUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
-	if (lenUrl > 4 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
-	if (lenUrl > 4 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
-	if (lenUrl > 3 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
