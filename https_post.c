@@ -385,8 +385,7 @@ const char * const domain, const size_t lenDomain, const char * const url, const
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
 	if (decrypted == NULL) return;
 
-	int64_t upk64;
-	memcpy(&upk64, upk, 8);
+	const int64_t upk64 = *((int64_t*)upk);
 
 	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, upk64, &decrypted, lenDecrypted);
 
