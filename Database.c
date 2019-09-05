@@ -161,7 +161,7 @@ int getAdminData(unsigned char ** const adminData) {
 		memcpy(*adminData + (userCount * 9), &upk64, 8);
 
 		int memberLevel = sqlite3_column_int(query, 1);
-		if (memberLevel > 3) memberLevel = 0;
+		if (memberLevel < 0 || memberLevel > 3) memberLevel = 0;
 
 		int space = 0;
 		sqlite3_stmt *queryMsg;
