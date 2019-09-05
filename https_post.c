@@ -127,11 +127,11 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	memcpy(data + lenHead + 4, &lenGk,    2);
 
 	size_t s = lenHead + 6;
-	memcpy(data + s, noteData,  lenNote);  s += lenNote;
-	memcpy(data + s, addrData,  lenAddr);  s += lenAddr;
-	memcpy(data + s, gkData,    lenGk);    s += lenGk;
+	memcpy(data + s, noteData,  lenNote); s += lenNote;
+	memcpy(data + s, addrData,  lenAddr); s += lenAddr;
+	memcpy(data + s, gkData,    lenGk);   s += lenGk;
 	if (level == AEM_USERLEVEL_MAX) {memcpy(data + s, adminData, lenAdmin); s += lenAdmin;}
-	memcpy(data + s, msgData,   lenMsg);   s += lenMsg;
+	memcpy(data + s, msgData,   lenMsg);  s += lenMsg;
 
 	free(noteData);
 	free(addrData);
@@ -145,7 +145,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
 
 	const int ret = addAccount((unsigned char*)*decrypted);
 	sodium_free(*decrypted);
@@ -154,7 +154,7 @@ static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
 
 	unsigned char targetPk[8];
 	const int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
@@ -166,7 +166,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
 
