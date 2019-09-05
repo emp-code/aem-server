@@ -50,8 +50,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
 	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
-	int64_t sender_pk64;
-	memcpy(&sender_pk64, sender_pk, 8);
+	const int64_t sender_pk64 = *((int64_t*)sender_pk);
 	const int memberLevel = getUserLevel(sender_pk64);
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
@@ -59,8 +58,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) return -1;
 
-	int64_t recv_pk64;
-	memcpy(&recv_pk64, recv_pk, 8);
+	const int64_t recv_pk64 = *((int64_t*)recv_pk);
 	addUserMessage(recv_pk64, boxSet, bsLen);
 	free(boxSet);
 
@@ -211,8 +209,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 9) {free(*decrypted); return;}
-	int64_t hash;
-	memcpy(&hash, *decrypted, 8);
+	const int64_t hash = *((int64_t*)(*decrypted));
 
 	const int ret = deleteAddress(upk64, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8);
 	sodium_free(*decrypted);
