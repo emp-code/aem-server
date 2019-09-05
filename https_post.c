@@ -219,7 +219,10 @@ static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (lenDecrypted < 9) {free(*decrypted); return;}
 	const int64_t hash = *((int64_t*)(*decrypted));
 
-	const int ret = deleteAddress(upk64, hash, (unsigned char*)((*decrypted) + 8), lenDecrypted - 8);
+	const unsigned char * const addrData = (unsigned char*)((*decrypted) + 8);
+	const size_t lenAddrData = lenDecrypted - 8;
+
+	const int ret = deleteAddress(upk64, hash, addrData, lenAddrData);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
