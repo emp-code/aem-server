@@ -170,6 +170,7 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
+	if (level < AEM_USERLEVEL_MIN || level > AEM_USERLEVEL_MAX) return;
 
 	unsigned char targetPk[8];
 	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
