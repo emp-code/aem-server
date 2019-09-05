@@ -147,7 +147,7 @@ int getAdminData(unsigned char ** const adminData) {
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT publickey, level, upk64 FROM userdata LIMIT 1024", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT upk64, level FROM userdata LIMIT 1024", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3 * const dbMsg = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READONLY);
@@ -157,17 +157,17 @@ int getAdminData(unsigned char ** const adminData) {
 
 	int userCount = 0;
 	while (sqlite3_step(query) == SQLITE_ROW) {
-		memcpy(*adminData + (userCount * 9), sqlite3_column_blob(query, 0), 8);
+		const int64_t upk64 = sqlite3_column_int64(query, 0);
+		memcpy(*adminData + (userCount * 9), &upk64, 8);
 
 		int memberLevel = sqlite3_column_int(query, 1);
 		if (memberLevel > 3) memberLevel = 0;
-		int64_t upk64 = sqlite3_column_int(query, 2);
 
 		int space = 0;
 		sqlite3_stmt *queryMsg;
 		ret = sqlite3_prepare_v2(dbMsg, "SELECT MIN(SUM(LENGTH(msg)) / 1024 / 1024, 255) FROM msg WHERE upk64=?", -1, &queryMsg, NULL);
 		if (ret == SQLITE_OK) {
-			sqlite3_bind_int64(query, 1, upk64);
+			sqlite3_bind_int64(queryMsg, 1, upk64);
 			ret = sqlite3_step(queryMsg);
 			space = (ret != SQLITE_ROW) ? 0 : sqlite3_column_int(queryMsg, 0);
 			sqlite3_finalize(queryMsg);
