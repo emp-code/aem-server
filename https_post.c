@@ -110,6 +110,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	const size_t lenResponse = lenHead + lenBody;
 
 	char * const data = malloc(lenResponse);
+	if (data == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -269,6 +270,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenDecrypted - 1;
 	unsigned char * const boxset = malloc(bsLen);
+	if (boxset == NULL) {sodium_free(*decrypted); return;}
 
 	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
 	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
