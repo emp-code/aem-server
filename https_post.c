@@ -52,6 +52,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 
 	const int64_t sender_pk64 = *((int64_t*)sender_pk);
 	const int memberLevel = getUserLevel(sender_pk64);
+	if (memberLevel < 0 || memberLevel > 3) return -1;
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
 	unsigned char *boxSet = makeMsg_Int(recv_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
