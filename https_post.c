@@ -33,6 +33,50 @@ static int numDigits(double number) {
 	return digits;
 }
 
+static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
+char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
+	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
+
+	unsigned char binFrom[18];
+	int ret = addr2bin(addrFrom, lenFrom, binFrom);
+	if (ret < 1) return -1;
+
+	unsigned char binTo[18];
+	ret = addr2bin(addrTo, lenTo, binTo);
+	if (ret < 1) return -1;
+
+	unsigned char pk[crypto_box_PUBLICKEYBYTES];
+	unsigned char flags;
+	ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
+	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
+
+	int64_t sender_pk64;
+	memcpy(&sender_pk64, sender_pk, 8);
+	const int memberLevel = getUserLevel(sender_pk64);
+
+	size_t bodyLen = lenDecrypted - bodyBegin;
+	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
+	if (boxSet == NULL) return -1;
+
+	int64_t upk64;
+	memcpy(&upk64, pk, 8);
+	addUserMessage(upk64, boxSet, bsLen);
+	free(boxSet);
+
+	if (senderCopy == 'Y') {
+		bodyLen = lenDecrypted - bodyBegin;
+		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
+		if (boxSet == NULL) return -1;
+
+		memcpy(&upk64, sender_pk, 8);
+		addUserMessage(upk64, boxSet, bsLen);
+		free(boxSet);
+	}
+
+	return 0;
+}
+
 // TODO: Support multiple pages
 static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17 || memcmp(*decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(*decrypted); return;}
@@ -96,127 +140,40 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	free(data);
 }
 
-static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
-char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
-	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1) return -1;
+static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
-	unsigned char binFrom[18];
-	int ret = addr2bin(addrFrom, lenFrom, binFrom);
-	if (ret < 1) return -1;
-
-	unsigned char binTo[18];
-	ret = addr2bin(addrTo, lenTo, binTo);
-	if (ret < 1) return -1;
-
-	unsigned char pk[crypto_box_PUBLICKEYBYTES];
-	unsigned char flags;
-	ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
-	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
-
-	int64_t sender_pk64;
-	memcpy(&sender_pk64, sender_pk, 8);
-	const int memberLevel = getUserLevel(sender_pk64);
-
-	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
-	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-	if (boxSet == NULL) return -1;
-
-	int64_t upk64;
-	memcpy(&upk64, pk, 8);
-	addUserMessage(upk64, boxSet, bsLen);
-	free(boxSet);
-
-	if (senderCopy == 'Y') {
-		bodyLen = lenDecrypted - bodyBegin;
-		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
-		if (boxSet == NULL) return -1;
-
-		memcpy(&upk64, sender_pk, 8);
-		addUserMessage(upk64, boxSet, bsLen);
-		free(boxSet);
-	}
-
-	return 0;
-}
-
-// Creates BodyBox from client's instructions and stores it
-static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain) {
-/* Format:
-	(From)\n
-	(To)\n
-	(Title)\n
-	(Body)
-*/
-	const char senderCopy = *decrypted[0];
-
-	const char *addrFrom = *decrypted + 1;
-	const char *endFrom = strchr(addrFrom, '\n');
-	if (endFrom == NULL) {sodium_free(*decrypted); return;}
-	const size_t lenFrom = endFrom - addrFrom;
-
-	const char *addrTo = endFrom + 1;
-	const char *endTo = strchr(addrTo, '\n');
-	if (endTo == NULL) {sodium_free(*decrypted); return;}
-	const size_t lenTo = endTo - addrTo;
-
-	int ret;
-	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
-	} else {
-		const char * const domainAt = strchr(addrTo, '@');
-		if (domainAt == NULL) {
-			sodium_free(*decrypted);
-			return;
-		}
-
-		const size_t lenExtDomain = lenTo - (domainAt - addrTo) - 1;
-		char extDomain[lenExtDomain + 1];
-		memcpy(extDomain, domainAt + 1, lenExtDomain);
-		extDomain[lenExtDomain] = '\0';
-
-		// TODO: ExtMsg (email)
-		sodium_free(*decrypted);
-		return;
-	}
-
+	const int ret = addAccount((unsigned char*)*decrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
 
-// Takes BodyBox from client and stores it
-static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES - 1) % 1026 != 0) {sodium_free(*decrypted); return;} // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
+static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
 
-	// TODO: Move to Message.c
-	// HeadBox format for notes: [1B] SenderInfo, [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
-	unsigned char header[AEM_HEADBOX_SIZE];
-	bzero(header, AEM_HEADBOX_SIZE);
-
-	if ((*decrypted)[0] == 'F') {
-		header[0] |= AEM_FLAG_MSGTYPE_FILENOTE;
-	} else if ((*decrypted)[0] == 'T') {
-		header[0] |= AEM_FLAG_MSGTYPE_TEXTNOTE;
-	} else {
-		puts("[HTTPS] message_assign: Unrecognized type");
-		sodium_free(*decrypted);
-		return;
-	}
-
-	const uint32_t t = (uint32_t)time(NULL);
-	memcpy(header + 1, &t, 4);
-
-	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenDecrypted - 1;
-	unsigned char * const boxset = malloc(bsLen);
-
-	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
-	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
+	unsigned char targetPk[8];
+	const int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
 	sodium_free(*decrypted);
+	if (ret != 0) return;
 
-	addUserMessage(*((int64_t*)upk), boxset, bsLen);
-	free(boxset);
+	if (destroyAccount(*((int64_t*)targetPk)) == 0) send204(ssl);
+}
 
-	send204(ssl);
+static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
+
+	const int level = strtol(*decrypted + 16, NULL, 10);
+
+	unsigned char targetPk[8];
+	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
+	sodium_free(*decrypted);
+	if (ret != 0) return;
+
+	ret = setAccountLevel(*((int64_t*)targetPk), level);
+	if (ret == 0) send204(ssl);
 }
 
 static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
@@ -263,14 +220,6 @@ static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 1) {free(*decrypted); return;}
-
-	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
-	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
-}
-
 static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 1 || lenDecrypted % 9 != 0) {free(*decrypted); return;}
 
@@ -289,6 +238,85 @@ static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
+// Takes BodyBox from client and stores it
+static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES - 1) % 1026 != 0) {sodium_free(*decrypted); return;} // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
+
+	// TODO: Move to Message.c
+	// HeadBox format for notes: [1B] SenderInfo, [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
+	unsigned char header[AEM_HEADBOX_SIZE];
+	bzero(header, AEM_HEADBOX_SIZE);
+
+	if ((*decrypted)[0] == 'F') {
+		header[0] |= AEM_FLAG_MSGTYPE_FILENOTE;
+	} else if ((*decrypted)[0] == 'T') {
+		header[0] |= AEM_FLAG_MSGTYPE_TEXTNOTE;
+	} else {
+		puts("[HTTPS] message_assign: Unrecognized type");
+		sodium_free(*decrypted);
+		return;
+	}
+
+	const uint32_t t = (uint32_t)time(NULL);
+	memcpy(header + 1, &t, 4);
+
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenDecrypted - 1;
+	unsigned char * const boxset = malloc(bsLen);
+
+	crypto_box_seal(boxset, header, AEM_HEADBOX_SIZE, upk);
+	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
+	sodium_free(*decrypted);
+
+	addUserMessage(*((int64_t*)upk), boxset, bsLen);
+	free(boxset);
+
+	send204(ssl);
+}
+
+// Creates BodyBox from client's instructions and stores it
+static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain) {
+/* Format:
+	(From)\n
+	(To)\n
+	(Title)\n
+	(Body)
+*/
+	const char senderCopy = *decrypted[0];
+
+	const char *addrFrom = *decrypted + 1;
+	const char *endFrom = strchr(addrFrom, '\n');
+	if (endFrom == NULL) {sodium_free(*decrypted); return;}
+	const size_t lenFrom = endFrom - addrFrom;
+
+	const char *addrTo = endFrom + 1;
+	const char *endTo = strchr(addrTo, '\n');
+	if (endTo == NULL) {sodium_free(*decrypted); return;}
+	const size_t lenTo = endTo - addrTo;
+
+	int ret;
+	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
+		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
+	} else {
+		const char * const domainAt = strchr(addrTo, '@');
+		if (domainAt == NULL) {
+			sodium_free(*decrypted);
+			return;
+		}
+
+		const size_t lenExtDomain = lenTo - (domainAt - addrTo) - 1;
+		char extDomain[lenExtDomain + 1];
+		memcpy(extDomain, domainAt + 1, lenExtDomain);
+		extDomain[lenExtDomain] = '\0';
+
+		// TODO: ExtMsg (email)
+		sodium_free(*decrypted);
+		return;
+	}
+
+	sodium_free(*decrypted);
+	if (ret == 0) send204(ssl);
+}
+
 static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
@@ -296,6 +324,14 @@ static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	}
 
 	const int ret = deleteMessages(upk64, ids, (int)lenDecrypted);
+	sodium_free(*decrypted);
+	if (ret == 0) send204(ssl);
+}
+
+static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted < 1) {free(*decrypted); return;}
+
+	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
@@ -314,42 +350,6 @@ static void storage_ennote(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
-
-	const int ret = addAccount((unsigned char*)*decrypted);
-	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
-}
-
-static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
-
-	unsigned char targetPk[8];
-	const int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
-	sodium_free(*decrypted);
-	if (ret != 0) return;
-
-	if (destroyAccount(*((int64_t*)targetPk)) == 0) send204(ssl);
-}
-
-static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) < 3) {sodium_free(*decrypted); return;}
-
-	const int level = strtol(*decrypted + 16, NULL, 10);
-
-	unsigned char targetPk[8];
-	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
-	sodium_free(*decrypted);
-	if (ret != 0) return;
-
-	ret = setAccountLevel(*((int64_t*)targetPk), level);
-	if (ret == 0) send204(ssl);
-}
-
 static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
 
@@ -360,8 +360,7 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 
 	memcpy(upk, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
-	int64_t upk64;
-	memcpy(&upk64, upk, 8);
+	const int64_t upk64 = *((int64_t*)upk);
 	if (!upk64Exists(upk64)) return NULL;
 
 	char * const decrypted = sodium_malloc(lenPost);
