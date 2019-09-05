@@ -383,7 +383,7 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
-	if (decrypted == NULL) return;
+	if (decrypted == NULL || lenDecrypted < 1) return;
 
 	const int64_t upk64 = *((int64_t*)upk);
 
