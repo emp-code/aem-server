@@ -59,16 +59,18 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	if (boxSet == NULL) return -1;
 
 	const int64_t recv_pk64 = *((int64_t*)recv_pk);
-	addUserMessage(recv_pk64, boxSet, bsLen);
+	ret = addUserMessage(recv_pk64, boxSet, bsLen);
 	free(boxSet);
+	if (ret != 0) return -1;
 
 	if (senderCopy == 'Y') {
 		bodyLen = lenDecrypted - bodyBegin;
 		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
 		if (boxSet == NULL) return -1;
 
-		addUserMessage(sender_pk64, boxSet, bsLen);
+		ret = addUserMessage(sender_pk64, boxSet, bsLen);
 		free(boxSet);
+		if (ret != 0) return -1;
 	}
 
 	return 0;
