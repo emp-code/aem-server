@@ -157,11 +157,12 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
 
 	unsigned char targetPk[8];
-	const int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
+	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
 	sodium_free(*decrypted);
 	if (ret != 0) return;
 
-	if (destroyAccount(*((int64_t*)targetPk)) == 0) send204(ssl);
+	ret = destroyAccount(*((int64_t*)targetPk));
+	if (ret == 0) send204(ssl);
 }
 
 static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
