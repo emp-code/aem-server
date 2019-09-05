@@ -241,6 +241,8 @@ int addUserMessage(const int64_t upk64, const unsigned char * const msgData, con
 }
 
 int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char * const addrData, const size_t lenAddrData) {
+	if (addrData == NULL || lenAddrData < 1) return -1;
+
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
