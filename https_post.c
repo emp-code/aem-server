@@ -101,7 +101,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	unsigned char *adminData;
 	if (level == AEM_USERLEVEL_MAX) getAdminData(&adminData);
 
-	const size_t lenMsg = (level == AEM_USERLEVEL_MAX) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
+	const size_t lenMsg = (level == AEM_USERLEVEL_MAX) ? AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN : AEM_MAXMSGTOTALSIZE;
 	unsigned char * const msgData = getUserMessages(upk64, &msgCount, lenMsg);
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
 
