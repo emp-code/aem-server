@@ -12,6 +12,9 @@
 
 #include "https_post.h"
 
+#define AEM_USERLEVEL_MIN 0
+#define AEM_USERLEVEL_MAX 3
+
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
 
 static void send204(mbedtls_ssl_context * const ssl) {
@@ -52,7 +55,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 
 	const int64_t sender_pk64 = *((int64_t*)sender_pk);
 	const int memberLevel = getUserLevel(sender_pk64);
-	if (memberLevel < 0 || memberLevel > 3) return -1;
+	if (memberLevel < AEM_USERLEVEL_MIN || memberLevel > AEM_USERLEVEL_MAX) return -1;
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
 	unsigned char *boxSet = makeMsg_Int(recv_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
@@ -94,13 +97,13 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	const int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
 	if (ret != 0) return;
 
-	const size_t lenAdmin = (level == 3) ? AEM_ADMINDATA_LEN : 0;
+	const size_t lenAdmin = (level == AEM_USERLEVEL_MAX) ? AEM_ADMINDATA_LEN : 0;
 	unsigned char *adminData;
-	if (level == 3) getAdminData(&adminData);
+	if (level == AEM_USERLEVEL_MAX) getAdminData(&adminData);
 
-	const size_t lenMsg = (level == 3) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
+	const size_t lenMsg = (level == AEM_USERLEVEL_MAX) ? AEM_MAXMSGTOTALSIZE : AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN;
 	unsigned char * const msgData = getUserMessages(upk64, &msgCount, lenMsg);
-	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == 3) {free(adminData);} return;}
+	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
 
 	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
 	const size_t lenHead = 198 + numDigits(lenBody);
@@ -127,13 +130,13 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	memcpy(data + s, noteData,  lenNote);  s += lenNote;
 	memcpy(data + s, addrData,  lenAddr);  s += lenAddr;
 	memcpy(data + s, gkData,    lenGk);    s += lenGk;
-	if (level == 3) {memcpy(data + s, adminData, lenAdmin); s += lenAdmin;}
+	if (level == AEM_USERLEVEL_MAX) {memcpy(data + s, adminData, lenAdmin); s += lenAdmin;}
 	memcpy(data + s, msgData,   lenMsg);   s += lenMsg;
 
 	free(noteData);
 	free(addrData);
 	free(gkData);
-	if (level == 3) free(adminData);
+	if (level == AEM_USERLEVEL_MAX) free(adminData);
 	free(msgData);
 
 	sendData(ssl, data, lenResponse);
