@@ -45,23 +45,23 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	ret = addr2bin(addrTo, lenTo, binTo);
 	if (ret < 1) return -1;
 
-	unsigned char pk[crypto_box_PUBLICKEYBYTES];
+	unsigned char recv_pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char flags;
-	ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
-	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
+	ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
+	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	int64_t sender_pk64;
 	memcpy(&sender_pk64, sender_pk, 8);
 	const int memberLevel = getUserLevel(sender_pk64);
 
 	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = makeMsg_Int(pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
+	unsigned char *boxSet = makeMsg_Int(recv_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) return -1;
 
-	int64_t upk64;
-	memcpy(&upk64, pk, 8);
-	addUserMessage(upk64, boxSet, bsLen);
+	int64_t recv_pk64;
+	memcpy(&recv_pk64, recv_pk, 8);
+	addUserMessage(recv_pk64, boxSet, bsLen);
 	free(boxSet);
 
 	if (senderCopy == 'Y') {
@@ -69,8 +69,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
 		if (boxSet == NULL) return -1;
 
-		memcpy(&upk64, sender_pk, 8);
-		addUserMessage(upk64, boxSet, bsLen);
+		addUserMessage(sender_pk64, boxSet, bsLen);
 		free(boxSet);
 	}
 
