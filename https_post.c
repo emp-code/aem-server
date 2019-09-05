@@ -274,10 +274,9 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
 	sodium_free(*decrypted);
 
-	addUserMessage(*((int64_t*)upk), boxset, bsLen);
+	const int ret = addUserMessage(*((int64_t*)upk), boxset, bsLen);
 	free(boxset);
-
-	send204(ssl);
+	if (ret == 0) send204(ssl);
 }
 
 // Creates BodyBox from client's instructions and stores it
