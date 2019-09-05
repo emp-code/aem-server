@@ -115,7 +115,7 @@ int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** con
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT level, notedata, addrdata, gkdata FROM userdata WHERE upk64=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT level, notedata, addrdata, gkdata FROM userdata WHERE upk64=? AND notedata IS NOT NULL AND addrdata IS NOT NULL AND gkdata IS NOT NULL", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, upk64);
