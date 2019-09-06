@@ -365,7 +365,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 			continue;
 		}
 
-		ret = addUserMessage(*((int64_t*)pk), boxSet, bsLen);
+		ret = addUserMessage(charToInt64(pk), boxSet, bsLen);
 		free(boxSet);
 		if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
 
