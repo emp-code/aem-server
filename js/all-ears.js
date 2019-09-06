@@ -562,26 +562,20 @@ function AllEars() {
 				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
+				// BodyBox
+				const bbSize = msgKilos * 1024 + 50;
+				const bbStart = msgStart + 91;
+				const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
+				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+				const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
+				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+
 				if ((msgHead[0] & 3) === 3) { // xxxxxx11 FileNote
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const note_ts = new Uint32Array(u32bytes)[0];
-
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 91;
-
-					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
-
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
-
+					const note_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 					const lenFn = msgBody[0];
 					const fileName = new TextDecoder("utf-8").decode(msgBody.slice(1, 1 + lenFn));
-
 					const lenFt = msgBody[1 + lenFn];
 					const fileType = new TextDecoder("utf-8").decode(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
-
 					const fileData = msgBody.slice(2 + lenFn + lenFt);
 
 					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
@@ -589,77 +583,45 @@ function AllEars() {
 					const u32bytes = msgHead.slice(1, 5).buffer;
 					const note_ts = new Uint32Array(u32bytes)[0];
 
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 91;
+					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
 
-					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
-
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = new TextDecoder("utf-8").decode(msgBodyFull.slice(2, msgBodyFull.length - padAmount));
-
-					const ln = msgBody.indexOf('\n');
+					const ln = msgBodyUtf8.indexOf('\n');
 					if (ln > 0)
-						_textNote.push(new _NewTextNote(msgId, note_ts, msgBody.substr(0, ln), msgBody.substr(ln + 1)));
+						_textNote.push(new _NewTextNote(msgId, note_ts, msgBodyUtf8.substr(0, ln), msgBodyUtf8.substr(ln + 1)));
 					else
 						console.log("Received corrupted TextNote");
 				} else if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
 					const em_infobyte = msgHead[0];
-
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const em_ts = new Uint32Array(u32bytes)[0];
-
-					const em_ip = msgHead.slice(5, 9);
-
-					let u16bytes = msgHead.slice(9, 11).buffer;
-					const em_cs = new Uint16Array(u16bytes)[0];
+					const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
+					const em_ip = new Uint32Array(msgHead.slice(5, 9).buffer)[0];
+					const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
 					const em_tlsver = msgHead[11];
-
 					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(19, 21));
-
 					const em_to = _DecodeAddress(msgHead.slice(23));
 
 					// BodyBox
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 91;
+					const msgBodyBrI8 = new Int8Array(msgBody);
+					const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
+					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
 
-					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+					const firstLf = msgBodyUtf8.indexOf('\n');
+					const em_greet = msgBodyUtf8.slice(0, firstLf);
+					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
+					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
+					const body = msgBodyUtf8.slice(secondLf + 1);
 
-					u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
+					const titleStart = body.indexOf("\nSubject: ");
+					const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+					const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
-					const msgBodyBrU8 = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
-					const msgBodyBrI8 = new Int8Array(msgBodyBrU8);
-					const msgBody = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
+					const headersEnd = body.indexOf("\r\n\r\n");
+					const em_headers = body.slice(0, headersEnd);
+					const em_body = body.slice(headersEnd + 4);
 
-					try {
-						const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
-						const firstLf = msgBodyUtf8.indexOf('\n');
-						const em_greet = msgBodyUtf8.slice(0, firstLf);
-						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
-						const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-						const body = msgBodyUtf8.slice(secondLf + 1);
-
-						const titleStart = body.indexOf("\nSubject: ");
-						const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
-						const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
-
-						const headersEnd = body.indexOf("\r\n\r\n");
-						const em_headers = body.slice(0, headersEnd);
-						const em_body = body.slice(headersEnd + 4);
-
-						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
-					} catch(e) {
-						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, "(error)", em_infobyte, em_countrycode, "(error)", em_to, "(error)", "(error)", "(error)"));
-					}
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else { // xxxxxx00 IntMsg
 					const im_sml = (msgHead[0] >>> 4) & 3;
-
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const im_ts = new Uint32Array(u32bytes)[0];
-
+					const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 					const im_from_bin = msgHead.slice(5, 23);
 					const im_from = _DecodeAddress(im_from_bin);
 
@@ -680,16 +642,6 @@ function AllEars() {
 					const im_to = _DecodeAddress(msgHead.slice(23));
 
 					// BodyBox
-					const bbSize = msgKilos * 1024 + 50;
-					const bbStart = msgStart + 91;
-
-					const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
-					const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
-
-					const u16bytes = msgBodyFull.slice(0, 2).buffer;
-					const padAmount = new Uint16Array(u16bytes)[0];
-					const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
-
 					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
 					const firstLf = msgBodyUtf8.indexOf('\n');
 					const im_title = msgBodyUtf8.slice(0, firstLf);
