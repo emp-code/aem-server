@@ -62,7 +62,7 @@ bool upk64Exists(const int64_t upk64) {
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-	return (ret == SQLITE_DONE) ? 0 : -1;
+	return (ret == SQLITE_ROW);
 }
 
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags) {
