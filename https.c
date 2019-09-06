@@ -1,6 +1,7 @@
 #define _GNU_SOURCE // for memmem, strcasestr
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -55,6 +56,21 @@ static const int https_hashes[] = {
 	MBEDTLS_SSL_HASH_SHA512,
 MBEDTLS_MD_NONE};
 
+static bool supportsBrotli(const char * const req) {
+	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
+	if (ae == NULL) return false;
+
+	const char * const aeEnd = strpbrk(ae + 19, "\r\n");
+	const char * const br = strcasestr(ae + 19, "br");
+	if (br == NULL || br > aeEnd) return false;
+
+	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return false;
+	const char * const br1 = ae + (br - ae - 1); // br - 1
+	if (*br1 != ',' && *br1 != ' ') return false;
+
+	return true;
+}
+
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
 	if (lenReq < 18) return AEM_HTTPS_REQUEST_INVALID; // GET / HTTP/1.1\r\n\r\n
 
@@ -74,18 +90,6 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	const char * const firstCrLf = strpbrk(req, "\r\n");
 	const char * const prot = strcasestr(req, " HTTP/1.1\r\n");
 	if (prot == NULL || prot > firstCrLf) return AEM_HTTPS_REQUEST_INVALID;
-
-	// Brotli compression support is required
-	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
-	if (ae == NULL) return AEM_HTTPS_REQUEST_INVALID;
-
-	const char * const aeEnd = strpbrk(ae + 19, "\r\n");
-	const char * const br = strcasestr(ae + 19, "br");
-	if (br == NULL || br > aeEnd) return AEM_HTTPS_REQUEST_INVALID;
-
-	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return AEM_HTTPS_REQUEST_INVALID;
-	const char * const br1 = ae + (br - ae - 1); // br - 1
-	if (*br1 != ',' && *br1 != ' ') return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
 	if (
@@ -108,6 +112,8 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 			|| (strcasestr(req, "\r\nOrigin:")           != NULL)
 			|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
 		) return AEM_HTTPS_REQUEST_INVALID;
+
+		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
