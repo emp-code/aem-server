@@ -280,7 +280,6 @@ bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const u
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
-
 	return (ret == SQLITE_ROW);
 }
 
@@ -315,8 +314,9 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	const int64_t upk64 = charToInt64(ownerPk);
 
 	sqlite3_bind_int64(query, 1, upk64);
-	sqlite3_step(query);
+	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
+	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
 
 	const char *lf = gkData;
 	while (lf != NULL) {
