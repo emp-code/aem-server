@@ -60,12 +60,9 @@ bool upk64Exists(const int64_t upk64) {
 	sqlite3_bind_int64(query, 1, upk64);
 
 	ret = sqlite3_step(query);
-	const bool retval = (ret == SQLITE_ROW);
-
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-
-	return retval;
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags) {
@@ -346,8 +343,8 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 
 	sqlite3_bind_blob(query, 1, ciphertext, lenGkData + crypto_box_SEALBYTES, free);
 	sqlite3_bind_int64(query, 2, upk64);
-	ret = sqlite3_step(query);
 
+	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return (ret == SQLITE_DONE) ? 0 : -1;
