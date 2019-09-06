@@ -8,6 +8,7 @@
 
 #include "Message.h"
 
+#include "Includes/CharToInt64.h"
 #include "Includes/SixBit.h"
 
 #include "Database.h"
@@ -34,7 +35,7 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	unsigned char hash16[16];
 	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
-	return *((int64_t*)hash16);
+	return charToInt64(hash16);
 }
 
 int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
@@ -45,7 +46,7 @@ int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t u
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, in, len, saltyKey, 24);
 //	if (crypto_pwhash(hash16, 16, (char*)in, len, saltyKey, 3 /*OpsLimit*/, 67108864 /*MemLimit*/, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
-	return *((int64_t*)hash16);
+	return charToInt64(hash16);
 }
 
 bool upk64Exists(const int64_t upk64) {
@@ -310,7 +311,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	int ret = sqlite3_prepare_v2(db, "DELETE FROM gatekeeper WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-	const int64_t upk64 = *((int64_t*)ownerPk);
+	const int64_t upk64 = charToInt64(ownerPk);
 
 	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_step(query);

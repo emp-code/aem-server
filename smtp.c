@@ -41,6 +41,7 @@
 
 #include "Includes/Base64.h"
 #include "Includes/Brotli.h"
+#include "Includes/CharToInt64.h"
 #include "Includes/QuotedPrintable.h"
 #include "Includes/SixBit.h"
 
@@ -352,7 +353,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const uint8_t spamByte = 0; // TODO
 		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
 
-		if (flags & AEM_FLAGS_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, *((int64_t*)pk), addrKey)) return;
+		if (flags & AEM_FLAGS_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk), addrKey)) return;
 
 		size_t bodyLen = lenMsgBody;
 		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);

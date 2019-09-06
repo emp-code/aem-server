@@ -5,7 +5,9 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
+#include "Includes/CharToInt64.h"
 #include "Includes/SixBit.h"
+
 #include "Database.h"
 #include "Message.h"
 #include "https_common.h"
@@ -53,7 +55,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
 	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
-	const int64_t sender_pk64 = *((int64_t*)sender_pk);
+	const int64_t sender_pk64 = charToInt64(sender_pk);
 	const int memberLevel = getUserLevel(sender_pk64);
 	if (memberLevel < AEM_USERLEVEL_MIN || memberLevel > AEM_USERLEVEL_MAX) return -1;
 
@@ -62,7 +64,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 	if (boxSet == NULL) return -1;
 
-	const int64_t recv_pk64 = *((int64_t*)recv_pk);
+	const int64_t recv_pk64 = charToInt64(recv_pk);
 	ret = addUserMessage(recv_pk64, boxSet, bsLen);
 	free(boxSet);
 	if (ret != 0) return -1;
@@ -162,7 +164,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	sodium_free(*decrypted);
 	if (ret != 0) return;
 
-	ret = destroyAccount(*((int64_t*)targetPk));
+	ret = destroyAccount(charToInt64(targetPk));
 	if (ret == 0) send204(ssl);
 }
 
@@ -178,7 +180,7 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	sodium_free(*decrypted);
 	if (ret != 0) return;
 
-	ret = setAccountLevel(*((int64_t*)targetPk), level);
+	ret = setAccountLevel(charToInt64(targetPk), level);
 	if (ret == 0) send204(ssl);
 }
 
@@ -218,7 +220,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 9) {free(*decrypted); return;}
-	const int64_t hash = *((int64_t*)(*decrypted));
+	const int64_t hash = charToInt64(*decrypted);
 
 	const unsigned char * const addrData = (unsigned char*)((*decrypted) + 8);
 	const size_t lenAddrData = lenDecrypted - 8;
@@ -276,7 +278,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 	memcpy(boxset + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, (*decrypted) + 1, lenDecrypted - 1);
 	sodium_free(*decrypted);
 
-	const int ret = addUserMessage(*((int64_t*)upk), boxset, bsLen);
+	const int ret = addUserMessage(charToInt64(upk), boxset, bsLen);
 	free(boxset);
 	if (ret == 0) send204(ssl);
 }
@@ -368,7 +370,7 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 
 	memcpy(upk, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
-	const int64_t upk64 = *((int64_t*)upk);
+	const int64_t upk64 = charToInt64(upk);
 	if (!upk64Exists(upk64)) return NULL;
 
 	char * const decrypted = sodium_malloc(lenPost);
@@ -389,7 +391,7 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
 	if (decrypted == NULL || lenDecrypted < 1) return;
 
-	const int64_t upk64 = *((int64_t*)upk);
+	const int64_t upk64 = charToInt64(upk);
 
 	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, upk64, &decrypted, lenDecrypted);
 
