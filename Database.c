@@ -346,11 +346,11 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 
 	sqlite3_bind_blob(query, 1, ciphertext, lenGkData + crypto_box_SEALBYTES, free);
 	sqlite3_bind_int64(query, 2, upk64);
-	sqlite3_step(query);
-	sqlite3_finalize(query);
+	ret = sqlite3_step(query);
 
+	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-	return 0;
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
 int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int count) {
