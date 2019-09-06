@@ -597,9 +597,7 @@ function AllEars() {
 
 					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
 				} else if ((msgHead[0] & 2) === 2) { // xxxxxx10 TextNote
-					const u32bytes = msgHead.slice(1, 5).buffer;
-					const note_ts = new Uint32Array(u32bytes)[0];
-
+					const note_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
 
 					const ln = msgBodyUtf8.indexOf('\n');
@@ -610,12 +608,13 @@ function AllEars() {
 				} else if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
 					const em_infobyte = msgHead[0];
 					const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const em_ip = new Uint32Array(msgHead.slice(5, 9).buffer)[0];
+					const em_ip = msgHead.slice(5, 9);
 					const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
 					const em_tlsver = msgHead[11];
 					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(19, 21));
 					const em_to = _DecodeAddress(msgHead.slice(23));
 
+					// Bodybox
 					const msgBodyBrI8 = new Int8Array(msgBody);
 					const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
 					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
