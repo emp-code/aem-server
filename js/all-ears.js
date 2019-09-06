@@ -236,6 +236,23 @@ function AllEars() {
 		return addrData;
 	};
 
+	const _IsOwnAddress = function(addr) {
+		for (let i = 0; i < _userAddress.length; i++) {
+			let isOwn = true;
+
+			for (let j = 0; j < 18; j++) {
+				if (addr[j] != _userAddress[i].address[j]) {
+					isOwn = false;
+					break;
+				}
+			}
+
+			if (isOwn) return true;
+		}
+
+		return false;
+	};
+
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
@@ -599,7 +616,6 @@ function AllEars() {
 					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(19, 21));
 					const em_to = _DecodeAddress(msgHead.slice(23));
 
-					// BodyBox
 					const msgBodyBrI8 = new Int8Array(msgBody);
 					const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
 					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
@@ -624,21 +640,7 @@ function AllEars() {
 					const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 					const im_from_bin = msgHead.slice(5, 23);
 					const im_from = _DecodeAddress(im_from_bin);
-
-					let im_isSent;
-					for (let j = 0; j < _userAddress.length; j++) {
-						im_isSent = true;
-
-						for (let k = 0; k < 18; k++) {
-							if (im_from_bin[k] != _userAddress[j].address[k]) {
-								im_isSent = false;
-								break;
-							}
-						}
-
-						if (im_isSent) break;
-					}
-
+					const im_isSent = _IsOwnAddress(im_from_bin);
 					const im_to = _DecodeAddress(msgHead.slice(23));
 
 					// BodyBox
