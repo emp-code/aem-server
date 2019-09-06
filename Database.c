@@ -256,6 +256,7 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
+	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
 
 	ret = sqlite3_prepare_v2(db, "UPDATE userdata SET addrdata=? WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
@@ -263,10 +264,10 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
 	sqlite3_bind_int64(query, 2, upk64);
 
-	sqlite3_step(query);
+	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-	return 0;
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
 bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const hashKey, const unsigned char * const text, const size_t lenText) {
