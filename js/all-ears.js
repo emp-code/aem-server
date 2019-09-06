@@ -515,13 +515,13 @@ function AllEars() {
 			const addrData = nacl.crypto_box_seal_open(loginData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
-				// First bit unused
-				const acceptExtMsg  = addrData[i * 27] & 128;
-				const acceptIntMsg  = addrData[i * 27] & 64;
-				const useGatekeeper = addrData[i * 27] & 32;
-				const sharePk       = addrData[i * 27] & 16;
-				const addr = addrData.slice(i * 27 + 1, i * 27 + 19); // Address, 18 bytes
-				const hash = addrData.slice(i * 27 + 19, i * 27 + 27); // Hash, 8 bytes
+				const start = i * 27;
+				const acceptExtMsg  = addrData[start] & 128;
+				const acceptIntMsg  = addrData[start] & 64;
+				const useGatekeeper = addrData[start] & 32;
+				const sharePk       = addrData[start] & 16;
+				const addr = addrData.slice(start + 1, start + 19);
+				const hash = addrData.slice(start + 19, start + 27);
 				const decoded = _DecodeAddress(addr);
 
 				_userAddress.push(new _NewAddress(addr, hash, decoded, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
