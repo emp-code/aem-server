@@ -518,16 +518,16 @@ int setAccountLevel(const int64_t upk64, const int level) {
 	if (db == NULL) return false;
 
 	sqlite3_stmt *query;
-	const int ret = sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE upk64=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "UPDATE userdata SET level=? WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int(query, 1, level);
 	sqlite3_bind_int64(query, 2, upk64);
 
-	const int retval = (sqlite3_step(query) == SQLITE_DONE) ? 0 : -1;
+	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
-	return retval;
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
 int destroyAccount(const int64_t upk64) {
