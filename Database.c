@@ -330,8 +330,9 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 
 		sqlite3_bind_int64(query, 1, gkHash((unsigned char*)lf, len, upk64, hashKey));
 		sqlite3_bind_int64(query, 2, upk64);
-		sqlite3_step(query);
+		ret = sqlite3_step(query);
 		sqlite3_finalize(query);
+		if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
 
 		lf = next;
 		if (lenGkData - (next - gkData) < 2) break;
