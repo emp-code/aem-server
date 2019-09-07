@@ -188,7 +188,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 	if (db == NULL) return NULL;
 
 	sqlite3_stmt *query;
-	const int ret = sqlite3_prepare_v2(db, "SELECT msg,row_number FROM (SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=? ORDER BY rowid DESC) JOIN msg ON msg.rowid=rowid LIMIT 255", -1, &query, NULL);
+	const int ret = sqlite3_prepare_v2(db, "SELECT msg, row_number FROM (SELECT rowid, row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=? ORDER BY rowid DESC) JOIN msg ON msg.rowid=rowid LIMIT 255", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return NULL;}
 
 	sqlite3_bind_int64(query, 1, upk64);
@@ -206,7 +206,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 		const size_t msgLen = sz - AEM_HEADBOX_SIZE - (crypto_box_SEALBYTES * 2); // Length of decrypted Body part
 		if ((msgLen - 2) % 1024 != 0) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
-		const int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255=256KiB
+		const int sizeFactor = ((msgLen - 2) / 1024) - 1; // 0 = 1KiB, 255 = 256KiB
 		if (sizeFactor > 255) {sqlite3_finalize(query); sqlite3_close_v2(db); return NULL;}
 
 		data[totalSize + 0] = sqlite3_column_int(query, 1);
