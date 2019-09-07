@@ -88,6 +88,10 @@ td, #readmsg_title, #readmsg_body {
 	white-space: nowrap;
 }
 
+#list_inbox > div:nth-child(3n) {
+	text-align: right;
+}
+
 #list_inbox > div:nth-child(6n), #list_sent > div:nth-child(5n) {
 	text-align: center;
 }
