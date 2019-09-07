@@ -49,10 +49,6 @@ td, #readmsg_title, #readmsg_body {
 
 #div_admin td:not(:first-child),
 #div_admin th:not(:first-child),
-#div_inbox td:last-child,
-#div_inbox th:last-child,
-#div_notes_sent td:last-child,
-#div_notes_sent th:last-child,
 #div_notes_contacts th:last-child,
 #div_notes_contacts td:last-child,
 #div_notes_texts td:last-child,
@@ -69,4 +65,25 @@ td, #readmsg_title, #readmsg_body {
 
 #div_prefs_gatekeeper {
 	margin: 0 auto;
+}
+
+#list_inbox {
+	display: grid;
+	grid-template-columns: auto 3fr 1fr 1fr 1fr 3em;
+}
+
+#list_sent {
+	display: grid;
+	grid-template-columns: auto 3fr 1fr 1fr 3em;
+}
+
+#list_inbox > div, #list_sent > div {
+	text-align: left;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+#list_inbox > div:nth-child(6n), #list_sent > div:nth-child(5n) {
+	text-align: center;
 }

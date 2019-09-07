@@ -24,19 +24,14 @@
 				</nav>
 
 				<div class="maindiv" id="div_inbox">
-					<table>
-						<thead>
-							<tr>
-								<th>Time</th>
-								<th>Title</th>
-								<th>From</th>
-								<th>To</th>
-								<th>Delete</th>
-							</tr>
-						</thead>
-						<tbody id="tbody_inbox">
-						</tbody>
-					</table>
+					<div id="list_inbox">
+						<div>Received</div>
+						<div>Subject</div>
+						<div>Sender</div>
+						<div></div>
+						<div>To</div>
+						<div>Delete</div>
+					</div>
 
 					<div class="center">
 						<button type="button" autocomplete="off" id="btn_msgdel" hidden class="topmargin">Delete selected messages</button>
@@ -86,19 +81,13 @@
 					</div>
 
 					<div id="div_notes_sent" hidden>
-						<table>
-							<thead>
-								<tr>
-									<th>Time</th>
-									<th>Title</th>
-									<th>From</th>
-									<th>To</th>
-									<th>Delete</th>
-								</tr>
-							</thead>
-							<tbody id="tbody_sentbox">
-							</tbody>
-						</table>
+						<div id="list_sent">
+							<div>Sent</div>
+							<div>Subject</div>
+							<div>From</div>
+							<div>To</div>
+							<div>Delete</div>
+						</div>
 
 						<button type="button" autocomplete="off" id="btn_sentdel" hidden class="topmargin">Delete selected messages</button>
 					</div>

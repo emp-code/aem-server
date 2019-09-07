@@ -38,44 +38,57 @@ function getCountryFlag(countryCode) {
 }
 
 function addExtMessages() {
-	const tblInbox = document.getElementById("tbody_inbox");
-	const tblSent = document.getElementById("tbody_sentbox");
+	const inbox = document.getElementById("list_inbox");
+	const sent = document.getElementById("list_sent");
 
 	for (let i = 0; i < ae.GetExtMsgCount(); i++) {
-		const table = tblInbox;
+		const isSent = false;//ae.GetExtMsgIsSent(i);
+		const elmt = isSent ? sent : inbox;
 
-		const row = table.insertRow(-1);
-		const cellTime  = row.insertCell(-1);
-		const cellTitle = row.insertCell(-1);
-		const cellFrom  = row.insertCell(-1);
-		const cellTo    = row.insertCell(-1);
-		const cellDel   = row.insertCell(-1);
+		const divTime  = document.createElement("div");
+		const divSubj = document.createElement("div");
+		const divFrom1 = document.createElement("div");
+		const divFrom2 = document.createElement("div");
+		const divTo    = document.createElement("div");
+		const divDel   = document.createElement("div");
 
 		const ts = ae.GetExtMsgTime(i);
-		cellTime.setAttribute("data-ts", ts);
-		cellTime.textContent = new Date(ts * 1000).toLocaleString();
-		cellTitle.textContent = ae.GetExtMsgTitle(i);
+		divTime.setAttribute("data-ts", ts);
+		divTime.textContent = new Date(ts * 1000).toLocaleString();
 
-		if (ae.GetExtMsgTo(i).length === 36) {
-			cellTo.textContent = ae.GetExtMsgTo(i).substr(0, 16);
-			cellTo.className = "mono";
-		} else {
-			cellTo.textContent = ae.GetExtMsgTo(i);
-			cellTo.className = "";
-		}
+		divSubj.textContent = ae.GetExtMsgTitle(i);
+
+		const from = ae.GetExtMsgFrom(i);
+
+		divFrom1.textContent = from.substring(0, from.indexOf('@'));
+
+		const from2 = from.substring(from.indexOf('@') + 1);
 
 		const cc = ae.GetExtMsgCountry(i);
-		cellFrom.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
+		divFrom2.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
 
 		const fromText = document.createElement("span");
-		fromText.textContent = " " + ae.GetExtMsgFrom(i);
-		cellFrom.appendChild(fromText);
+		fromText.textContent = " " + from2;
+		divFrom2.appendChild(fromText);
 
-		cellFrom.className = "";
+		if (ae.GetExtMsgTo(i).length === 36) {
+			divTo.textContent = ae.GetExtMsgTo(i).substr(0, 16);
+			divTo.className = "mono";
+		} else {
+			divTo.textContent = ae.GetExtMsgTo(i);
+			divTo.className = "";
+		}
 
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
+		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
 
-		cellTitle.onclick = function() {
+		elmt.appendChild(divTime);
+		elmt.appendChild(divSubj);
+		elmt.appendChild(divFrom1);
+		elmt.appendChild(divFrom2);
+		elmt.appendChild(divTo);
+		elmt.appendChild(divDel);
+
+		divSubj.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden = false;
 			document.getElementById("readmsg_head").hidden = false;
@@ -105,75 +118,75 @@ function addExtMessages() {
 			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 36) ? "mono" : "";
 		};
 
-		cellDel.children[0].onchange = function() {
-			if (!cellDel.children[0].checked) {
+		divDel.children[0].onchange = function() {
+			if (!divDel.children[0].checked) {
+				const checkboxes = elmt.getElementsByTagName("input");
 				let checked = false;
-				for (let j = 0; j < table.rows.length; j++) {
-					if (table.rows[j].cells[4].children[0].checked) {
+
+				for (let j = 0; j < checkboxes.length; j++) {
+					if (checkboxes.checked) {
 						checked = true;
 						break;
 					}
 				}
 
 				if (!checked) {
-					document.getElementById("btn_msgdel").hidden = true;
+					document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
 					return;
 				}
 			}
 
-			document.getElementById("btn_msgdel").hidden = false;
+			document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = false;
 		};
 	}
 }
 
 function addIntMessages() {
-	const tblInbox = document.getElementById("tbody_inbox");
-	const tblSent = document.getElementById("tbody_sentbox");
+	const inbox = document.getElementById("list_inbox");
+	const sent = document.getElementById("list_sent");
 
 	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
 		const isSent = ae.GetIntMsgIsSent(i);
-		const table = isSent? tblSent : tblInbox;
+		const elmt = isSent ? sent : inbox;
 
-		let rowNum = -1;
-
-		for (let j = table.rows.length - 1; j >= 0; j--) {
-			if (table.rows[j].cells[0].getAttribute("data-ts") > ae.GetIntMsgTime(i)) {
-				rowNum = j + 1;
-				break;
-			}
-		}
-
-		const row = table.insertRow(rowNum);
-		const cellTime  = row.insertCell(-1);
-		const cellTitle = row.insertCell(-1);
-		const cellFrom  = row.insertCell(-1);
-		const cellTo    = row.insertCell(-1);
-		const cellDel   = row.insertCell(-1);
+		const divTime  = document.createElement("div");
+		const divSubj  = document.createElement("div");
+		const divFrom1 = document.createElement("div");
+		const divFrom2 = document.createElement("div");
+		const divTo    = document.createElement("div");
+		const divDel   = document.createElement("div");
 
 		const ts = ae.GetIntMsgTime(i);
-		cellTime.setAttribute("data-ts", ts);
-		cellTime.textContent = new Date(ts * 1000).toLocaleString();
-		cellTitle.textContent = ae.GetIntMsgTitle(i);
+		divTime.setAttribute("data-ts", ts);
+		divTime.textContent = new Date(ts * 1000).toLocaleString();
+		divSubj.textContent = ae.GetIntMsgTitle(i);
 
 		if (ae.GetIntMsgTo(i).length === 36) {
-			cellTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
-			cellTo.className = "mono";
+			divTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
+			divTo.className = "mono";
 		} else {
-			cellTo.textContent = ae.GetIntMsgTo(i);
-			cellTo.className = "";
+			divTo.textContent = ae.GetIntMsgTo(i);
+			divTo.className = "";
 		}
 
 		if (ae.GetIntMsgFrom(i).length === 36) {
-			cellFrom.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
-			cellFrom.className = "mono";
+			divFrom1.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
+			divFrom1.className = "mono";
 		} else {
-			cellFrom.textContent = ae.GetIntMsgFrom(i);
-			cellFrom.className = "";
+			divFrom1.textContent = ae.GetIntMsgFrom(i);
+			divFrom1.className = "";
 		}
 
-		cellDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
+		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
 
-		cellTitle.onclick = function() {
+		elmt.appendChild(divTime);
+		elmt.appendChild(divSubj);
+		elmt.appendChild(divFrom1);
+		if (!isSent) elmt.appendChild(divFrom2);
+		elmt.appendChild(divTo);
+		elmt.appendChild(divDel);
+
+		divSubj.onclick = function() {
 			navMenu(-1);
 			document.getElementById("div_readmsg").hidden = false;
 			document.getElementById("readmsg_head").hidden = false;
@@ -190,18 +203,20 @@ function addIntMessages() {
 			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
 		};
 
-		cellDel.children[0].onchange = function() {
-			if (!cellDel.children[0].checked) {
+		divDel.children[0].onchange = function() {
+			if (!divDel.children[0].checked) {
+				const checkboxes = elmt.getElementsByTagName("input");
 				let checked = false;
-				for (let j = 0; j < table.rows.length; j++) {
-					if (table.rows[j].cells[4].children[0].checked) {
+
+				for (let j = 0; j < checkboxes.length; j++) {
+					if (checkboxes.checked) {
 						checked = true;
 						break;
 					}
 				}
 
 				if (!checked) {
-					document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = true;
+					document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
 					return;
 				}
 			}
@@ -407,7 +422,7 @@ function delMsgs(tblName, btnName) {
 	const ids = [];
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		const checkbox = tbl.rows[i].cells[4].children[0];
+		const checkbox = tbl.rows[i].cells[tbl.rows[0].cells.length - 1].children[0];
 		if (checkbox.checked) ids.push(checkbox.getAttribute("data-id"));
 	}
 
@@ -874,16 +889,13 @@ document.getElementById("btn_uploadfile").onclick = function() {
 };
 
 function navNotesMenu(num) {
-	const btns = document.getElementById("div_notes").getElementsByTagName("button");
-	const divs = document.getElementById("div_notes").getElementsByTagName("div");
-
 	for (let i = 0; i < 4; i++) {
 		if (i === num) {
-			btns[i].disabled = true;
-			divs[i].hidden = false;
+			document.getElementById("div_notes").children[0].children[i].disabled = true;
+			document.getElementById("div_notes").children[1 + i].hidden = false;
 		} else {
-			btns[i].disabled = false;
-			divs[i].hidden = true;
+			document.getElementById("div_notes").children[0].children[i].disabled = false;
+			document.getElementById("div_notes").children[1 + i].hidden = true;
 		}
 	}
 }
