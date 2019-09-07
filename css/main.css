@@ -68,11 +68,15 @@ td, #readmsg_title, #readmsg_body {
 }
 
 #list_inbox {
+	margin: 0 auto;
+	max-width: 80em;
 	display: grid;
 	grid-template-columns: auto 3fr 1fr 1fr 1fr 3em;
 }
 
 #list_sent {
+	margin: 0 auto;
+	max-width: 80em;
 	display: grid;
 	grid-template-columns: auto 3fr 1fr 1fr 3em;
 }
