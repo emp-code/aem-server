@@ -364,6 +364,9 @@ function deleteAddress(addr) {
 
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+
+			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
+			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
 		} else {
 			console.log("Failed to delete address");
 		}
@@ -532,6 +535,9 @@ function loginSuccess() {
 	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
 	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
+
+	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = true;
+	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = true;
 
 	// Gatekeeper data
 	let gkList = ae.GetGatekeeperAddress();
@@ -727,10 +733,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 };
 
 document.getElementById("btn_newaddress").onclick = function() {
-	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) {
-		console.log("Address limit reached");
-		return;
-	}
+	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) return;
 
 	const txtNewAddr = document.getElementById("txt_newaddress");
 	if (!txtNewAddr.reportValidity()) return;
@@ -739,8 +742,8 @@ document.getElementById("btn_newaddress").onclick = function() {
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddAddress(txtNewAddr.value, function(success) {
-		document.getElementById("btn_newaddress").disabled = false;
-		document.getElementById("btn_newshieldaddress").disabled = false;
+		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
+		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -753,17 +756,14 @@ document.getElementById("btn_newaddress").onclick = function() {
 };
 
 document.getElementById("btn_newshieldaddress").onclick = function() {
-	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) {
-		console.log("Shield address limit reached");
-		return;
-	}
+	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) return;
 
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddShieldAddress(function(success) {
-		document.getElementById("btn_newaddress").disabled = false;
-		document.getElementById("btn_newshieldaddress").disabled = false;
+		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
+		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
