@@ -46,7 +46,7 @@ function addExtMessages() {
 		const elmt = isSent ? sent : inbox;
 
 		const divTime  = document.createElement("div");
-		const divSubj = document.createElement("div");
+		const divSubj  = document.createElement("div");
 		const divFrom1 = document.createElement("div");
 		const divFrom2 = document.createElement("div");
 		const divTo    = document.createElement("div");
@@ -540,6 +540,7 @@ function loginSuccess() {
 	gkList = ae.GetGatekeeperDomain();
 	for (let i = 0; i < gkList.length; i++) addOpt(document.getElementById("gatekeeper_domain"), gkList[i]);
 
+	let gkCountryCount = 0;
 	gkList = ae.GetGatekeeperCountry();
 	for (let i = 0; i < gkList.length; i++) {
 		const opts = document.getElementById("gatekeeper_country");
@@ -547,10 +548,13 @@ function loginSuccess() {
 		for (let j = 0; j < opts.length; j++) {
 			if (opts[j].value === gkList[i]) {
 				opts[j].selected = "selected";
+				gkCountryCount++;
 				break;
 			}
 		}
 	}
+
+	document.getElementById("gk_countrycount").textContent = gkCountryCount;
 
 	// Messages
 	addExtMessages();
