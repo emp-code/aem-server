@@ -482,12 +482,17 @@ function addRowAdmin(num) {
 	const row = table.insertRow(-1);
 	const cellPk = row.insertCell(-1);
 	const cellMb = row.insertCell(-1);
+	const cellNa = row.insertCell(-1);
+	const cellSa = row.insertCell(-1);
 	const cellLv = row.insertCell(-1);
 	const cellBtnPl = row.insertCell(-1);
 	const cellBtnMn = row.insertCell(-1);
 	const cellBtnDe = row.insertCell(-1);
 
 	cellPk.textContent = ae.Admin_GetUserPkHex(num);
+	cellMb.textContent = ae.Admin_GetUserSpace(num);
+	cellNa.textContent = ae.Admin_GetUserNAddr(num);
+	cellSa.textContent = ae.Admin_GetUserSAddr(num);
 	cellMb.textContent = ae.Admin_GetUserSpace(num);
 	cellLv.textContent = ae.Admin_GetUserLevel(num);
 	cellBtnPl.innerHTML = "<button type=\"button\">+</button>";

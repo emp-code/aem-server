@@ -147,7 +147,7 @@ int getAdminData(unsigned char ** const adminData) {
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT upk64, level FROM userdata LIMIT 1024", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT upk64, level, addrnorm, addrshld FROM userdata LIMIT 1024", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3 * const dbMsg = openDb(AEM_PATH_DB_MESSAGES, SQLITE_OPEN_READONLY);
@@ -158,10 +158,15 @@ int getAdminData(unsigned char ** const adminData) {
 	int userCount = 0;
 	while (sqlite3_step(query) == SQLITE_ROW) {
 		const int64_t upk64 = sqlite3_column_int64(query, 0);
-		memcpy(*adminData + (userCount * 9), &upk64, 8);
+		memcpy(*adminData + (userCount * 11), &upk64, 8);
 
 		int memberLevel = sqlite3_column_int(query, 1);
 		if (memberLevel < 0 || memberLevel > 3) memberLevel = 0;
+
+		int naddr = sqlite3_column_int(query, 2);
+		int saddr = sqlite3_column_int(query, 3);
+		if (naddr < 0 || naddr > 255) naddr = 0;
+		if (saddr < 0 || saddr > 255) saddr = 0;
 
 		int space = 0;
 		sqlite3_stmt *queryMsg;
@@ -174,8 +179,11 @@ int getAdminData(unsigned char ** const adminData) {
 		}
 
 		const unsigned char memberInfo = memberLevel | (space << 2);
+		*(*adminData + (userCount * 11) + 8) = memberInfo;
 
-		*(*adminData + (userCount * 9) + 8) = memberInfo;
+		*(*adminData + (userCount * 11) + 9) = naddr;
+		*(*adminData + (userCount * 11) + 10) = saddr;
+
 		userCount++;
 	}
 

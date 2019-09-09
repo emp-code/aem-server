@@ -12,7 +12,7 @@ function AllEars() {
 	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
-	const _lenAdminData = 9216; // 9 KiB, space for 1024 users' data
+	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
 	const _maxLevel = 3;
 
 	// These are just informational, the server enforces the real limits
@@ -39,6 +39,8 @@ function AllEars() {
 
 	let _admin_userPkHex = [];
 	let _admin_userSpace = [];
+	let _admin_userNaddr = [];
+	let _admin_userSaddr = [];
 	let _admin_userLevel = [];
 
 // Private Functions
@@ -461,6 +463,8 @@ function AllEars() {
 	this.Admin_GetUserCount = function() {return _admin_userPkHex.length;};
 	this.Admin_GetUserPkHex = function(num) {return _admin_userPkHex[num];};
 	this.Admin_GetUserSpace = function(num) {return _admin_userSpace[num];};
+	this.Admin_GetUserNAddr = function(num) {return _admin_userNaddr[num];};
+	this.Admin_GetUserSAddr = function(num) {return _admin_userSaddr[num];};
 	this.Admin_GetUserLevel = function(num) {return _admin_userLevel[num];};
 
 	this.GetContactCount = function() {return _contactMail.length;};
@@ -553,8 +557,8 @@ function AllEars() {
 			if (_userLevel === _maxLevel) {
 				const adminDataStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
 
-				for (let i = 0; i < (_lenAdminData / 9); i++) {
-					const pos = (adminDataStart + i * 9);
+				for (let i = 0; i < (_lenAdminData / 11); i++) {
+					const pos = (adminDataStart + i * 11);
 					const newPk = loginData.slice(pos, pos + 8);
 
 					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
@@ -562,9 +566,13 @@ function AllEars() {
 
 					const newLevel = loginData[pos + 8] & 3;
 					const newSpace = loginData[pos + 8] >>> 2;
+					const newNaddr = loginData[pos + 9];
+					const newSaddr = loginData[pos + 10];
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
+					_admin_userNaddr.push(newNaddr);
+					_admin_userSaddr.push(newSaddr);
 					_admin_userLevel.push(newLevel);
 				}
 			}

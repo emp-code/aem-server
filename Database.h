@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #define AEM_NOTEDATA_LEN 5122 // 5 KiB + 2 bytes (16 bits) for length
-#define AEM_ADMINDATA_LEN 9216 // 9 KiB
+#define AEM_ADMINDATA_LEN 11264 // 11 KiB, space for 1024 users
 
 #define AEM_FLAGS_ADDR_ISSHIELD 1
 #define AEM_FLAGS_ADDR_USE_GK 2
