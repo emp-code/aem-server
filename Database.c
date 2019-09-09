@@ -297,8 +297,8 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, 
 	if (ret != SQLITE_DONE || sqlite3_changes(db) != 1) {sqlite3_close_v2(db); return -1;}
 
 	sql = isShield
-	? "UPDATE userdata SET addrdata = ?, addrnorm = addrnorm - 1 WHERE upk64 = ?"
-	: "UPDATE userdata SET addrdata = ?, addrshld = addrshld - 1 WHERE upk64 = ?";
+	? "UPDATE userdata SET addrdata = ?, addrshld = addrshld - 1 WHERE upk64 = ?"
+	: "UPDATE userdata SET addrdata = ?, addrnorm = addrnorm - 1 WHERE upk64 = ?";
 
 	ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
