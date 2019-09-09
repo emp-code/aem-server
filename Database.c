@@ -345,7 +345,6 @@ bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain
 int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey) {
 	if (ownerPk == NULL || gkData == NULL || lenGkData < 1 || hashKey == NULL) return -1;
 
-	if (lenGkData < 1) return -1;
 	if (gkData[lenGkData - 1] != '\n') return -1;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
