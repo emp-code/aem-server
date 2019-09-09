@@ -111,6 +111,8 @@ int getUserLevel(const int64_t upk64) {
 }
 
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk, unsigned char * const limits) {
+	if (upk64 == 0 || level == NULL || noteData == NULL || addrData == NULL || lenAddr == NULL || gkData == NULL || lenGk == NULL || limits == NULL) return -1;
+
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
