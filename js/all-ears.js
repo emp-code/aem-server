@@ -409,8 +409,9 @@ function AllEars() {
 
 	this.IsUserAdmin = function() {return (_userLevel === _maxLevel);};
 	this.GetUserLevel = function() {return _userLevel;};
-	this.GetAddressLimitNormal = function() {return _maxAddressNormal[_userLevel];};
-	this.GetAddressLimitShield = function() {return _maxAddressShield[_userLevel];};
+	this.GetStorageLimit = function(lvl) {return _maxStorage[lvl];};
+	this.GetAddressLimitNormal = function(lvl) {return _maxAddressNormal[lvl];};
+	this.GetAddressLimitShield = function(lvl) {return _maxAddressShield[lvl];};
 
 	this.GetIntMsgCount = function() {return _intMsg.length;};
 	this.GetIntMsgId     = function(num) {return _intMsg[num].id;};
@@ -883,6 +884,29 @@ function AllEars() {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userLevel[num] = level;
+			callback(true);
+		});
+	}); };
+
+	this.SetLimits = function(storage, addrNrm, addrShd, callback) { nacl_factory.instantiate(function (nacl) {
+		if (storage.length !== 4 || addrNrm.length !== 4 || addrShd.length !== 4) {callback(false); return;}
+
+		const newLimits = new Uint8Array(12);
+		for (let i = 0; i < 4; i++) {
+			newLimits[(i * 3) + 0] = storage[i];
+			newLimits[(i * 3) + 1] = addrNrm[i];
+			newLimits[(i * 3) + 2] = addrShd[i];
+		}
+
+		_FetchEncrypted("setting/limits", newLimits, nacl, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			for (let i = 0; i < 4; i++) {
+				_maxStorage[i] = storage[i];
+				_maxAddressNormal[i] = addrNrm[i];
+				_maxAddressShield[i] = addrShd[i];
+			}
+
 			callback(true);
 		});
 	}); };

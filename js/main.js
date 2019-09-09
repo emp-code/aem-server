@@ -365,8 +365,8 @@ function deleteAddress(addr) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 
-			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
-			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
+			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
+			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 		} else {
 			console.log("Failed to delete address");
 		}
@@ -537,11 +537,11 @@ function loginSuccess() {
 
 	document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
 	document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal();
-	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield();
+	document.getElementById("addr_max_normal").textContent = ae.GetAddressLimitNormal(ae.GetUserLevel());
+	document.getElementById("addr_max_shield").textContent = ae.GetAddressLimitShield(ae.GetUserLevel());
 
-	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = true;
-	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = true;
+	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = true;
+	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = true;
 
 	// Gatekeeper data
 	let gkList = ae.GetGatekeeperAddress();
@@ -610,6 +610,31 @@ function loginSuccess() {
 	}
 
 	if (ae.IsUserAdmin()) {
+		const tblLimits = document.getElementById("tbl_limits");
+		for (let i = 0; i < 4; i++) {
+			tblLimits.rows[i].cells[1].children[0].value = ae.GetStorageLimit(i);
+			tblLimits.rows[i].cells[2].children[0].value = ae.GetAddressLimitNormal(i);
+			tblLimits.rows[i].cells[3].children[0].value = ae.GetAddressLimitShield(i);
+		}
+
+		document.getElementById("btn_admin_savelimits").onclick = function() {
+			const storageLimit = [];
+			const addrNrmLimit = [];
+			const addrShdLimit = [];
+
+			for (let i = 0; i < 4; i++) {
+				storageLimit[i] = tblLimits.rows[i].cells[1].children[0].value;
+				addrNrmLimit[i] = tblLimits.rows[i].cells[2].children[0].value;
+				addrShdLimit[i] = tblLimits.rows[i].cells[3].children[0].value;
+			}
+
+			ae.SetLimits(storageLimit, addrNrmLimit, addrShdLimit, function(success) {
+				if (!success) {
+					console.log("Failed to update limits");
+				}
+			});
+		};
+
 		for (let i = 0; i < ae.Admin_GetUserCount(); i++) {
 			addRowAdmin(i);
 		}
@@ -737,7 +762,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 };
 
 document.getElementById("btn_newaddress").onclick = function() {
-	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal()) return;
+	if (ae.GetAddressCountNormal() >= ae.GetAddressLimitNormal(ae.GetUserLevel())) return;
 
 	const txtNewAddr = document.getElementById("txt_newaddress");
 	if (!txtNewAddr.reportValidity()) return;
@@ -746,8 +771,8 @@ document.getElementById("btn_newaddress").onclick = function() {
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddAddress(txtNewAddr.value, function(success) {
-		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
-		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
+		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
+		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -766,8 +791,8 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
 	ae.AddShieldAddress(function(success) {
-		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal()) document.getElementById("btn_newaddress").disabled = false;
-		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield()) document.getElementById("btn_newshieldaddress").disabled = false;
+		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
+		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 
 		if (success) {
 			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();

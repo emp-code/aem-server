@@ -38,4 +38,6 @@ int updateNoteData(const int64_t upk64, const unsigned char * const noteData);
 
 int getUserLevel(const int64_t upk64);
 
+int updateLimits(const int * const maxStorage, const int * const maxAddrNrm, const int * const maxAddrShd);
+
 #endif

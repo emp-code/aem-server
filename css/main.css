@@ -20,7 +20,6 @@ textarea {
 table {
 	margin-left:auto;
 	margin-right:auto;
-	text-align: left;
 }
 
 .maindiv {
@@ -59,13 +58,14 @@ td, #readmsg_title, #readmsg_body {
 	width: 3em;
 }
 
-#gatekeeper_domain, #gatekeeper_addr {
-	width:100%;
-}
+#gatekeeper_domain, #gatekeeper_addr {width:100%;}
 
-#div_prefs_gatekeeper {
-	margin: 0 auto;
-}
+#tbody_opt_addr {text-align:left;}
+
+#tbl_limits input {width: 3em;}
+#tbl_limits th, #tbl_limits td {text-align: center;}
+
+#div_prefs_gatekeeper {margin: 0 auto;}
 
 #list_inbox {
 	margin: 0 auto;

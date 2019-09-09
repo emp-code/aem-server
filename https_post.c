@@ -342,6 +342,19 @@ static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
+static void setting_limits(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
+	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
+
+	const int maxStorage[] = {(*decrypted)[0], (*decrypted)[3], (*decrypted)[6], (*decrypted)[9]};
+	const int maxAddrNrm[] = {(*decrypted)[1], (*decrypted)[4], (*decrypted)[7], (*decrypted)[10]};
+	const int maxAddrShd[] = {(*decrypted)[2], (*decrypted)[5], (*decrypted)[8], (*decrypted)[11]};
+	sodium_free(*decrypted);
+
+	const int ret = updateLimits(maxStorage, maxAddrNrm, maxAddrShd);
+	if (ret == 0) send204(ssl);
+}
+
 static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted < 1) {free(*decrypted); return;}
 
@@ -412,6 +425,8 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, upk,   &decrypted, lenDecrypted);
 	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted, addrKey, domain, lenDomain);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, upk64, &decrypted, lenDecrypted);
+
+	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, upk64, &decrypted, lenDecrypted);
 	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, upk,   &decrypted, lenDecrypted, addrKey);

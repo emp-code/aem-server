@@ -403,7 +403,7 @@ int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int cou
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT rowid,row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=?", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT rowid, row_number() OVER (ORDER BY rowid ASC) AS row_number FROM msg WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 	sqlite3_bind_int64(query, 1, upk64);
 
@@ -644,4 +644,28 @@ int destroyAccount(const int64_t upk64) {
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return retval;
+}
+
+int updateLimits(const int * const maxStorage, const int * const maxAddrNrm, const int * const maxAddrShd) {
+	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
+	if (db == NULL) return -1;
+
+	int ret;
+	for (int i = 0; i < 4; i++) {
+		sqlite3_stmt *query;
+		ret = sqlite3_prepare_v2(db, "UPDATE limits SET storage=?, addrnorm=?, addrshld=? WHERE level=?", -1, &query, NULL);
+		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+		sqlite3_bind_int(query, 1, maxStorage[i]);
+		sqlite3_bind_int(query, 2, maxAddrNrm[i]);
+		sqlite3_bind_int(query, 3, maxAddrShd[i]);
+		sqlite3_bind_int(query, 4, i);
+
+		ret = sqlite3_step(query);
+		if (ret != SQLITE_DONE) break;
+		sqlite3_finalize(query);
+	}
+
+	sqlite3_close_v2(db);
+	return (ret == SQLITE_DONE) ? 0 : -1;
 }
