@@ -251,7 +251,9 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 
 	// Keys for web API
 	unsigned char * const spk = malloc(crypto_box_PUBLICKEYBYTES);
+	if (spk == NULL) return 1;
 	unsigned char * const ssk = sodium_malloc(crypto_box_SECRETKEYBYTES);
+	if (ssk == NULL) {free(spk); return 1;}
 	crypto_box_keypair(spk, ssk);
 	sodium_mprotect_readonly(ssk);
 
