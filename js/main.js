@@ -194,13 +194,13 @@ function addIntMessages() {
 			document.getElementById("readmsg_extmsg").hidden = true;
 
 			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
-			document.getElementById("readmsg_from").textContent = ae.GetIntMsgFrom(i);
-			document.getElementById("readmsg_to").textContent = ae.GetIntMsgTo(i);
-			document.getElementById("readmsg_body").textContent = ae.GetIntMsgBody(i);
+			document.getElementById("readmsg_from").textContent  = ae.GetIntMsgFrom(i);
+			document.getElementById("readmsg_to").textContent    = ae.GetIntMsgTo(i);
+			document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
 			document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 36) ? "mono" : "";
-			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 36) ? "mono" : "";
+			document.getElementById("readmsg_to").className   = (ae.GetIntMsgTo(i).length   === 36) ? "mono" : "";
 		};
 
 		divDel.children[0].onchange = function() {
@@ -493,7 +493,6 @@ function addRowAdmin(num) {
 	cellMb.textContent = ae.Admin_GetUserSpace(num);
 	cellNa.textContent = ae.Admin_GetUserNAddr(num);
 	cellSa.textContent = ae.Admin_GetUserSAddr(num);
-	cellMb.textContent = ae.Admin_GetUserSpace(num);
 	cellLv.textContent = ae.Admin_GetUserLevel(num);
 	cellBtnPl.innerHTML = "<button type=\"button\">+</button>";
 	cellBtnMn.innerHTML = "<button type=\"button\">-</button>";
