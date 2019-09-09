@@ -22,25 +22,25 @@ function AllEars() {
 	let _userKeys;
 
 	let _userLevel = 0;
-	let _userAddress = [];
-	let _intMsg = [];
-	let _extMsg = [];
-	let _textNote = [];
-	let _fileNote = [];
+	const _userAddress = [];
+	const _intMsg = [];
+	const _extMsg = [];
+	const _textNote = [];
+	const _fileNote = [];
 
-	let _gkCountry = [];
-	let _gkDomain  = [];
-	let _gkAddress = [];
+	const _gkCountry = [];
+	const _gkDomain  = [];
+	const _gkAddress = [];
 
-	let _contactMail = [];
-	let _contactName = [];
-	let _contactNote = [];
+	const _contactMail = [];
+	const _contactName = [];
+	const _contactNote = [];
 
-	let _admin_userPkHex = [];
-	let _admin_userSpace = [];
-	let _admin_userNaddr = [];
-	let _admin_userSaddr = [];
-	let _admin_userLevel = [];
+	const _admin_userPkHex = [];
+	const _admin_userSpace = [];
+	const _admin_userNaddr = [];
+	const _admin_userSaddr = [];
+	const _admin_userLevel = [];
 
 // Private Functions
 	const _BitTest = function(num, bit) {return ((num >> bit) % 2 != 0);};
