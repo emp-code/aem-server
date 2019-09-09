@@ -15,10 +15,9 @@ function AllEars() {
 	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
 	const _maxLevel = 3;
 
-	// These are just informational, the server enforces the real limits
-	const _maxAddressNormal = [0, 3, 10, 100];
-	const _maxAddressShield = [5, 25, 100, 100];
-	const _maxStorage = [5, 25, 64, 64]; // MiB
+	const _maxStorage = [];
+	const _maxAddressNormal = [];
+	const _maxAddressShield = [];
 
 	let _userKeys;
 
@@ -497,13 +496,19 @@ function AllEars() {
 		_FetchEncrypted("account/browse", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
 			if (!fetchOk) {callback(false); return;}
 
-			_userLevel = loginData[0];
-			const msgCount = loginData[1];
-			const addrDataSize = new Uint16Array(loginData.slice(2, 4).buffer)[0];
-			const gkDataSize   = new Uint16Array(loginData.slice(4, 6).buffer)[0];
+			for (let i = 0; i < 4; i++) {
+				_maxStorage.push(loginData[(i * 3) + 0]);
+				_maxAddressNormal.push(loginData[(i * 3) + 1]);
+				_maxAddressShield.push(loginData[(i * 3) + 2]);
+			}
+
+			_userLevel = loginData[12];
+			const msgCount = loginData[13];
+			const addrDataSize = new Uint16Array(loginData.slice(14, 16).buffer)[0];
+			const gkDataSize   = new Uint16Array(loginData.slice(16, 18).buffer)[0];
 
 			// Note Data
-			const noteDataStart = 6;
+			const noteDataStart = 18;
 			const noteData = nacl.crypto_box_seal_open(loginData.slice(noteDataStart, noteDataStart + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
 			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
 
@@ -515,7 +520,7 @@ function AllEars() {
 			}
 
 			// Address data
-			const addrDataStart = 6 + _lenNoteData;
+			const addrDataStart = 18 + _lenNoteData;
 			const addrData = nacl.crypto_box_seal_open(loginData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
@@ -532,7 +537,7 @@ function AllEars() {
 			}
 
 			// Gatekeeper data
-			const gkDataStart = 6 + _lenNoteData + addrDataSize;
+			const gkDataStart = 18 + _lenNoteData + addrDataSize;
 			const gkData = new TextDecoder("utf-8").decode(nacl.crypto_box_seal_open(loginData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
@@ -555,7 +560,7 @@ function AllEars() {
 			// Admin data
 			const lenAdmin = (_userLevel === _maxLevel) ? _lenAdminData : 0;
 			if (_userLevel === _maxLevel) {
-				const adminDataStart = 6 + _lenNoteData + addrDataSize + gkDataSize;
+				const adminDataStart = 18 + _lenNoteData + addrDataSize + gkDataSize;
 
 				for (let i = 0; i < (_lenAdminData / 11); i++) {
 					const pos = (adminDataStart + i * 11);
@@ -578,7 +583,7 @@ function AllEars() {
 			}
 
 			// Message data
-			let msgStart = 6 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
+			let msgStart = 18 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
 			for (let i = 0; i < msgCount; i++) {
 				const msgId = loginData[msgStart];
 				const msgKilos = loginData[msgStart + 1] + 1;

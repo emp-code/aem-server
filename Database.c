@@ -110,12 +110,23 @@ int getUserLevel(const int64_t upk64) {
 	return level;
 }
 
-int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk) {
+int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk, unsigned char * const limits) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT level, notedata, addrdata, gkdata FROM userdata WHERE upk64=? AND notedata IS NOT NULL AND addrdata IS NOT NULL AND gkdata IS NOT NULL", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "SELECT storage, addrnorm, addrshld FROM limits WHERE (storage BETWEEN 0 AND 255) AND (addrnorm BETWEEN 0 AND 255) AND (addrshld BETWEEN 0 AND 255)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	for (int i = 0; i < 4; i++) {
+		if (sqlite3_step(query) != SQLITE_ROW) {sqlite3_finalize(query); sqlite3_close_v2(db); return -1;}
+		limits[(i * 3) + 0] = sqlite3_column_int(query, 0);
+		limits[(i * 3) + 1] = sqlite3_column_int(query, 1);
+		limits[(i * 3) + 2] = sqlite3_column_int(query, 2);
+	}
+	sqlite3_finalize(query);
+
+	ret = sqlite3_prepare_v2(db, "SELECT level, notedata, addrdata, gkdata FROM userdata WHERE upk64=? AND notedata IS NOT NULL AND addrdata IS NOT NULL AND gkdata IS NOT NULL", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, upk64);

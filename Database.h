@@ -21,7 +21,7 @@ bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain
 bool upk64Exists(const int64_t upk64);
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags);
 
-int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk);
+int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk, unsigned char * const limits);
 int getAdminData(unsigned char ** const adminData);
 unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, const size_t maxSize);
 

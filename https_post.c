@@ -95,8 +95,9 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	uint16_t lenGk;
 	uint8_t msgCount;
 	uint8_t level;
+	unsigned char limits[12]; // 4*3=12: 4 levels, 3 values (storage, addrnorm, addrshld)
 
-	const int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk);
+	const int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk, limits);
 	if (ret != 0) return;
 
 	const size_t lenAdmin = (level == AEM_USERLEVEL_MAX) ? AEM_ADMINDATA_LEN : 0;
@@ -107,7 +108,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	unsigned char * const msgData = getUserMessages(upk64, &msgCount, lenMsg);
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
 
-	const size_t lenBody = 6 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
+	const size_t lenBody = 18 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
 	const size_t lenHead = 198 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 
@@ -124,12 +125,13 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		"\r\n"
 	, lenBody);
 
-	memcpy(data + lenHead + 0, &level,    1);
-	memcpy(data + lenHead + 1, &msgCount, 1);
-	memcpy(data + lenHead + 2, &lenAddr,  2);
-	memcpy(data + lenHead + 4, &lenGk,    2);
+	memcpy(data + lenHead, limits, 12);
+	memcpy(data + lenHead + 12, &level,    1);
+	memcpy(data + lenHead + 13, &msgCount, 1);
+	memcpy(data + lenHead + 14, &lenAddr,  2);
+	memcpy(data + lenHead + 16, &lenGk,    2);
 
-	size_t s = lenHead + 6;
+	size_t s = lenHead + 18;
 	memcpy(data + s, noteData,  lenNote); s += lenNote;
 	memcpy(data + s, addrData,  lenAddr); s += lenAddr;
 	memcpy(data + s, gkData,    lenGk);   s += lenGk;
