@@ -390,6 +390,8 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 }
 
 void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const char * const url, const unsigned char * const post, const size_t lenPost) {
+	if (ssl == NULL || ssk == NULL || addrKey == NULL || domain == NULL || lenDomain < 4 || url == NULL || post == NULL || lenPost < 1) return;
+
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
