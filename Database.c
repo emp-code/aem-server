@@ -83,7 +83,9 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 	}
 
 	memcpy(pk, sqlite3_column_blob(query, 0), crypto_box_PUBLICKEYBYTES);
-	memcpy(flags, sqlite3_column_blob(query, 1), 1);
+
+	const int intFlags = sqlite3_column_int(query, 1);
+	*flags = (intFlags >= 0 && intFlags < 255) ? intFlags : 0;
 
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
@@ -238,14 +240,18 @@ int addUserMessage(const int64_t upk64, const unsigned char * const msgData, con
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
-int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char * const addrData, const size_t lenAddrData) {
+int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, const unsigned char * const addrData, const size_t lenAddrData) {
 	if (addrData == NULL || lenAddrData < 1) return -1;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "DELETE FROM address WHERE hash=? AND upk64=?", -1, &query, NULL);
+	const char *sql = isShield
+	? "DELETE FROM address WHERE hash = ? AND upk64 = ? AND flags & 1"
+	: "DELETE FROM address WHERE hash = ? AND upk64 = ? AND NOT (flags & 1)";
+
+	int ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, hash);
@@ -253,9 +259,13 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char *
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
-	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
+	if (ret != SQLITE_DONE || sqlite3_changes(db) != 1) {sqlite3_close_v2(db); return -1;}
 
-	ret = sqlite3_prepare_v2(db, "UPDATE userdata SET addrdata=? WHERE upk64=?", -1, &query, NULL);
+	sql = isShield
+	? "UPDATE userdata SET addrdata = ?, addrnorm = addrnorm - 1 WHERE upk64 = ?"
+	: "UPDATE userdata SET addrdata = ?, addrshld = addrshld - 1 WHERE upk64 = ?";
+
+	ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_blob(query, 1, addrData, lenAddrData, SQLITE_STATIC);
@@ -443,7 +453,7 @@ int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, c
 		int ret = sqlite3_prepare_v2(db, "UPDATE address SET flags=? WHERE hash=? AND upk64=?", -1, &query, NULL);
 		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-		sqlite3_bind_blob(query, 1, addrFlags + i, 1, SQLITE_STATIC);
+		sqlite3_bind_int(query, 1, addrFlags[i]);
 		sqlite3_bind_int64(query, 2, addrHash[i]);
 		sqlite3_bind_int64(query, 3, upk64);
 
@@ -456,19 +466,37 @@ int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, c
 	return 0;
 }
 
-int addAddress(const int64_t upk64, const int64_t hash) {
+int addAddress(const int64_t upk64, const int64_t hash, const bool isShield) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64, flags) VALUES (?, ?, ?)", -1, &query, NULL);
-	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+	const char * const sqlUpdate = isShield
+	? "UPDATE userdata SET addrshld = addrshld + 1 WHERE upk64 = ? AND (SELECT 1 FROM userdata INNER JOIN limits USING(level) WHERE upk64 = ? AND userdata.addrshld < limits.addrshld)"
+	: "UPDATE userdata SET addrnorm = addrnorm + 1 WHERE upk64 = ? AND (SELECT 1 FROM userdata INNER JOIN limits USING(level) WHERE upk64 = ? AND userdata.addrnorm < limits.addrnorm)";
 
-	sqlite3_bind_int64(query, 1, hash);
+	int ret = sqlite3_prepare_v2(db, sqlUpdate, -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_bind_int64(query, 2, upk64);
 
-	const unsigned char flags = AEM_FLAGS_USE_GK;
-	sqlite3_bind_blob(query, 3, &flags, 1, SQLITE_STATIC);
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
+
+	if (sqlite3_changes(db) != 1) {
+		// User tried to add an address even though they were at the limit
+		sqlite3_close_v2(db);
+		return -1;
+	}
+
+	ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64, flags) VALUES (?, ?, ?)", -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	const int flags = isShield ? AEM_FLAGS_ADDR_USE_GK | AEM_FLAGS_ADDR_ISSHIELD : AEM_FLAGS_ADDR_USE_GK;
+	sqlite3_bind_int64(query, 1, hash);
+	sqlite3_bind_int64(query, 2, upk64);
+	sqlite3_bind_int(query, 3, flags);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
@@ -489,7 +517,7 @@ int addAccount(const unsigned char * const pk) {
 	crypto_box_seal(ciphertext_empty, (unsigned char*)"", 0, pk);
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata) VALUES (?,?,?,?,?,?)", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata, addrnorm, addrshld) VALUES (?,?,?,?,?,?,0,0)", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	int64_t upk64;

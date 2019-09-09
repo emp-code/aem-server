@@ -16,9 +16,9 @@ function AllEars() {
 	const _maxLevel = 3;
 
 	// These are just informational, the server enforces the real limits
-	// [Level0Limit, Level1Limit, ...]
-	const _maxAddressNormal = [0, 0, 3, 30, 250];
-	const _maxAddressShield = [0, 5, 25, 125, 250];
+	const _maxAddressNormal = [0, 3, 10, 100];
+	const _maxAddressShield = [5, 25, 100, 100];
+	const _maxStorage = [5, 25, 64, 64]; // MiB
 
 	let _userKeys;
 
@@ -206,9 +206,9 @@ function AllEars() {
 			const pos = i * 27;
 			addrData[pos] = 0;
 
-			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 128;
-			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 64;
-			if (_userAddress[i].useGatekeeper) addrData[pos] |= 32;
+			if (_userAddress[i].useGatekeeper) addrData[pos] |= 2;
+			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 4;
+			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 8;
 			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
 
 			addrData.set(_userAddress[i].address, pos + 1);
@@ -225,9 +225,9 @@ function AllEars() {
 			const pos = i * 9;
 			addrData[pos] = 0;
 
-			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 128;
-			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 64;
-			if (_userAddress[i].useGatekeeper) addrData[pos] |= 32;
+			if (_userAddress[i].useGatekeeper) addrData[pos] |= 2;
+			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 4;
+			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 8;
 			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
 
 			addrData.set(_userAddress[i].hash, pos + 1);
@@ -516,9 +516,9 @@ function AllEars() {
 
 			for (let i = 0; i < (addrData.length / 27); i++) {
 				const start = i * 27;
-				const acceptExtMsg  = addrData[start] & 128;
-				const acceptIntMsg  = addrData[start] & 64;
-				const useGatekeeper = addrData[start] & 32;
+				const useGatekeeper = addrData[start] & 2;
+				const acceptIntMsg  = addrData[start] & 4;
+				const acceptExtMsg  = addrData[start] & 8;
 				const sharePk       = addrData[start] & 16;
 				const addr = addrData.slice(start + 1, start + 19);
 				const hash = addrData.slice(start + 19, start + 27);
@@ -734,13 +734,15 @@ function AllEars() {
 	}); };
 
 	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
+		const shieldByte = (_userAddress[num].decoded.length === 36) ? nacl.encode_utf8("S") : nacl.encode_utf8("N");
 		const hash = _userAddress[num].hash;
 		_userAddress.splice(num, 1);
 
 		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-		const postData = new Uint8Array(8 + boxAddrData.length);
+		const postData = new Uint8Array(9 + boxAddrData.length);
 		postData.set(hash);
-		postData.set(boxAddrData, 8);
+		postData.set(shieldByte, 8);
+		postData.set(boxAddrData, 9);
 
 		_FetchEncrypted("address/delete", postData, nacl, function(fetchOk) {callback(fetchOk);});
 	}); };

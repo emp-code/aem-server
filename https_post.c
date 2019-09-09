@@ -53,7 +53,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	unsigned char recv_pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char flags;
 	ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
-	if (ret != 0 || !(flags & AEM_FLAGS_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
+	if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	const int64_t sender_pk64 = charToInt64(sender_pk);
 	const int memberLevel = getUserLevel(sender_pk64);
@@ -186,9 +186,10 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 	unsigned char addr[18];
-	if (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0) {
-		sodium_free(*decrypted);
+	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
 
+	if (isShield) {
+		sodium_free(*decrypted);
 		randombytes_buf(addr, 18);
 		if (isNormalBinAddress(addr)) return;
 	} else {
@@ -200,7 +201,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	}
 
 	const int64_t hash = addressToHash(addr, addrKey);
-	if (addAddress(upk64, hash) != 0) return;
+	if (addAddress(upk64, hash, isShield) != 0) return;
 
 	char data[226];
 	memcpy(data,
@@ -219,13 +220,14 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 9) {free(*decrypted); return;}
+	if (lenDecrypted < 10) {free(*decrypted); return;}
 	const int64_t hash = charToInt64(*decrypted);
+	const bool isShield = ((*decrypted)[8] == 'S');
 
-	const unsigned char * const addrData = (unsigned char*)((*decrypted) + 8);
-	const size_t lenAddrData = lenDecrypted - 8;
+	const unsigned char * const addrData = (unsigned char*)((*decrypted) + 9);
+	const size_t lenAddrData = lenDecrypted - 9;
 
-	const int ret = deleteAddress(upk64, hash, addrData, lenAddrData);
+	const int ret = deleteAddress(upk64, hash, isShield, addrData, lenAddrData);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }

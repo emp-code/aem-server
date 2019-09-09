@@ -338,7 +338,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
 		unsigned char flags;
 		ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
-		if (ret != 0 || !(flags & AEM_FLAGS_ACC_EXTMSG)) {
+		if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_EXTMSG)) {
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
 			continue;
@@ -353,7 +353,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const uint8_t spamByte = 0; // TODO
 		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
 
-		if (flags & AEM_FLAGS_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk), addrKey)) return;
+		if (flags & AEM_FLAGS_ADDR_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk), addrKey)) return;
 
 		size_t bodyLen = lenMsgBody;
 		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
@@ -445,6 +445,7 @@ static void processMessage(char * const * const data, size_t * const lenData) {
 			boundaryBegin += 10;
 			boundaryEnd = strchr(boundaryBegin, '"');
 		}
+
 
 		if (boundaryEnd == NULL) return;
 

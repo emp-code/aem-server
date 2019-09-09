@@ -64,6 +64,8 @@ Note that Sealed Boxes can only be opened with the user's secret key.
 * `upk64` (integer): The first 64 bits of the user's public key (required to be unique for each user)
 * `publickey` (blob): The user's full public key
 * `level` (integer): The user's level, limiting their capabilities
+* `addrnorm` (integer): Normal address count
+* `addrshld` (integer): Shield address count
 * `notedata` (blob): A Sealed Box containing data such as contacts (not Text Notes despite the name)
 * `addrdata` (blob): A Sealed Box containing the address data for the user
 * `gkdata` (blob): A Sealed Box containing the Gatekeeper rules for the user

@@ -6,9 +6,10 @@
 #define AEM_NOTEDATA_LEN 5122 // 5 KiB + 2 bytes (16 bits) for length
 #define AEM_ADMINDATA_LEN 9216 // 9 KiB
 
-#define AEM_FLAGS_ACC_EXTMSG 128
-#define AEM_FLAGS_ACC_INTMSG 64
-#define AEM_FLAGS_USE_GK 32
+#define AEM_FLAGS_ADDR_ISSHIELD 1
+#define AEM_FLAGS_ADDR_USE_GK 2
+#define AEM_FLAGS_ADDR_ACC_INTMSG 4
+#define AEM_FLAGS_ADDR_ACC_EXTMSG 8
 
 int addAccount(const unsigned char * const pk);
 int setAccountLevel(const int64_t upk64, const int level);
@@ -27,9 +28,9 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 int addUserMessage(const int64_t upk64, const unsigned char * const msgData, const size_t msgLen);
 
 int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int count);
-int deleteAddress(const int64_t upk64, const int64_t hash, const unsigned char * const addrData, const size_t lenAddrData);
+int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, const unsigned char * const addrData, const size_t lenAddrData);
 int updateAddress(const int64_t upk64, const unsigned char * const addrData, const size_t lenAddrData);
-int addAddress(const int64_t upk64, const int64_t hash);
+int addAddress(const int64_t upk64, const int64_t hash, const bool isShield);
 int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, const unsigned char * const addrFlags, const int addressCount);
 
 int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey);
