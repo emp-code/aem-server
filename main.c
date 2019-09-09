@@ -112,6 +112,7 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 	if (dir == NULL) return NULL;
 
 	struct aem_file * const f = sodium_allocarray(fileCount, sizeof(struct aem_file));
+	if (f == NULL) return NULL;
 
 	for (int counter = 0; counter < fileCount;) {
 		const struct dirent * const de = readdir(dir);
