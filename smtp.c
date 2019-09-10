@@ -392,11 +392,8 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 
 		if (charsetEnd[1] == 'Q' || charsetEnd[1] == 'q') {
 			char * const qpBegin = charsetEnd + 3;
-
-			const size_t lenQpBegin = *lenData - (qpBegin - *data);
 			const size_t lenQp = ewEnd - qpBegin;
-
-			const int lenDqp = decodeQuotedPrintable(&qpBegin, lenQp);
+			const size_t lenDqp = decodeQuotedPrintable(&qpBegin, lenQp);
 
 			memmove(ew, qpBegin, lenDqp);
 
