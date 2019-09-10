@@ -397,6 +397,12 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 
 			memmove(ew, qpBegin, lenDqp);
 
+			while(1) {
+				char * const underscore = memchr(ew, '_', lenDqp);
+				if (underscore == NULL) break;
+				*underscore = ' ';
+			}
+
 			const size_t lenAfter = (*data + *lenData) - (ewEnd + 2);
 			memmove(ew + lenDqp, ewEnd + 2, lenAfter);
 
