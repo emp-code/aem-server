@@ -398,10 +398,12 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 
 			const int lenDqp = decodeQuotedPrintable(&qpBegin, lenQp);
 
-			memmove(ew, qpBegin, lenQpBegin - (lenQp - lenDqp));
-			memmove(ew + lenDqp, ew + lenDqp + 2, lenQpBegin - lenQp - 2);
+			memmove(ew, qpBegin, lenDqp);
 
-			*lenData -= (qpBegin - ew) + (lenQp - lenDqp) + 2;
+			const size_t lenAfter = (*data + *lenData) - (ewEnd + 2);
+			memmove(ew + lenDqp, ewEnd + 2, lenAfter);
+
+			*lenData = lenDqp + lenAfter;
 			(*data)[*lenData] = '\0';
 		} else if (charsetEnd[1] == 'B' || charsetEnd[1] == 'b') {
 			const char * const b64Begin = charsetEnd + 3;
