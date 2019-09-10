@@ -593,6 +593,7 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 void unfoldHeaders(char * const * const data, size_t * const lenData) {
 	while(1) {
 		char *crlfWsp = memmem(*data, *lenData, "\r\n ", 3);
+		if (crlfWsp == NULL) crlfWsp = memmem(*data, *lenData, "\r\n\t", 3);
 		if (crlfWsp == NULL) break;
 
 		memmove(crlfWsp, crlfWsp + 2, (*data + *lenData) - (crlfWsp + 2));
