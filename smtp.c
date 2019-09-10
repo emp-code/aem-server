@@ -584,6 +584,20 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	return 0;
 }
 
+void unfoldHeaders(char * const * const data, size_t * const lenData) {
+	while(1) {
+		char *crlfWsp = memmem(*data, *lenData, "\r\n ", 3);
+		if (crlfWsp == NULL) break;
+
+		size_t lenRemove = 3;
+		while (crlfWsp[lenRemove] == ' ') lenRemove++;
+		memmove(crlfWsp, crlfWsp + lenRemove, (*data + *lenData) - (crlfWsp + lenRemove));
+
+		*lenData -= lenRemove;
+		(*data)[*lenData] = '\0';
+	}
+}
+
 void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || addrKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
@@ -833,6 +847,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			body[lenBody] = '\0';
+			unfoldHeaders(&body, &lenBody);
 			decodeEncodedWord(&body, &lenBody);
 			processMessage(&body, &lenBody);
 			brotliCompress(&body, &lenBody);
