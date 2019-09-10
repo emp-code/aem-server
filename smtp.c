@@ -589,11 +589,9 @@ void unfoldHeaders(char * const * const data, size_t * const lenData) {
 		char *crlfWsp = memmem(*data, *lenData, "\r\n ", 3);
 		if (crlfWsp == NULL) break;
 
-		size_t lenRemove = 3;
-		while (crlfWsp[lenRemove] == ' ') lenRemove++;
-		memmove(crlfWsp, crlfWsp + lenRemove, (*data + *lenData) - (crlfWsp + lenRemove));
+		memmove(crlfWsp, crlfWsp + 2, (*data + *lenData) - (crlfWsp + 2));
 
-		*lenData -= lenRemove;
+		*lenData -= 2;
 		(*data)[*lenData] = '\0';
 	}
 }
