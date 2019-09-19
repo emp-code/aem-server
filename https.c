@@ -23,7 +23,7 @@
 
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_GET 0
-// POST: body size (Content-Length)
+#define AEM_HTTPS_REQUEST_POST 1
 
 static const int https_ciphersuites[] = {
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -119,14 +119,11 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	}
 
 	if (memcmp(req, "POST /api/", 10) == 0) {
-		const char * const cl = strcasestr(req, "\r\nContent-Length: ");
+		const char * const cl = memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24);
 		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
-		const int lenPost = strtol(cl + 18, NULL, 10);
-		if (lenPost < 1) return AEM_HTTPS_REQUEST_INVALID;
-
 		reqEnd[2] = '\r';
-		return lenPost;
+		return AEM_HTTPS_REQUEST_POST;
 	}
 
 	return AEM_HTTPS_REQUEST_INVALID;
