@@ -10,6 +10,7 @@ function AllEars() {
 
 // Private Variables
 	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
+	const _lenPost = 8192; // 8 KiB
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
 	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
@@ -122,11 +123,23 @@ function AllEars() {
 	};
 
 	const _FetchEncrypted = function(url, cleartext, nacl, callback) {
+		if (cleartext.length > _lenPost - 2) {callback(false); return;}
+
+		// Cleartext is padded to _lenPost bytes
+		const clearU8 = new Uint8Array(_lenPost);
+		window.crypto.getRandomValues(clearU8);
+		clearU8.set(cleartext);
+
+		// Last two bytes store the length
+		const u16len = new Uint16Array([cleartext.length]);
+		const u8len = new Uint8Array(u16len.buffer);
+		clearU8.set(u8len, _lenPost - 2);
+
 		let nonce = new Uint8Array(24);
 		window.crypto.getRandomValues(nonce);
 
 		// postBox: the encrypted data to be sent
-		const postBox = nacl.crypto_box(cleartext, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+		const postBox = nacl.crypto_box(clearU8, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
 
 		// postMsg: Nonce + User Public Key + postBox
 		const postMsg = new Uint8Array(24 + _userKeys.boxPk.length + postBox.length);

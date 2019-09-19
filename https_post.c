@@ -395,9 +395,11 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 
 	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, lenPost - skipBytes, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
-
 	sodium_mprotect_readonly(decrypted);
-	*lenDecrypted = lenPost - skipBytes - crypto_box_MACBYTES;
+
+	uint16_t u16len;
+	memcpy(&u16len, decrypted + AEM_HTTPS_POST_SIZE - 2, 2);
+	*lenDecrypted = u16len;
 
 	return decrypted;
 }
@@ -409,7 +411,6 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	size_t lenDecrypted;
 	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
 	if (decrypted == NULL || lenDecrypted < 1) return;
-
 	const int64_t upk64 = charToInt64(upk);
 
 	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, upk64, &decrypted, lenDecrypted);
