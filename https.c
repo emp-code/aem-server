@@ -85,11 +85,11 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	// Host header
 	char header[11 + lenDomain];
 	sprintf(header, "\r\nHost: %.*s\r\n", (int)lenDomain, domain);
-	if (strcasestr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strstr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Protocol: only HTTP/1.1 is supported
 	const char * const firstCrLf = strpbrk(req, "\r\n");
-	const char * const prot = strcasestr(req, " HTTP/1.1\r\n");
+	const char * const prot = strstr(req, " HTTP/1.1\r\n");
 	if (prot == NULL || prot > firstCrLf) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
