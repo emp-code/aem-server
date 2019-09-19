@@ -178,16 +178,16 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
 	if (lenReq > 0) {
-		const int lenReqBody = getRequestType((char*)req, lenReq, domain, lenDomain);
+		const int reqType = getRequestType((char*)req, lenReq, domain, lenDomain);
 
-		if (lenReqBody >= AEM_HTTPS_REQUEST_GET) {
-			const char * const reqUrl = (char*)(req + ((lenReqBody == AEM_HTTPS_REQUEST_GET) ? 5 : 10)); // "GET /" = 5; "POST /api/" = 10
+		if (reqType == AEM_HTTPS_REQUEST_GET || reqType == AEM_HTTPS_REQUEST_POST) {
+			const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 10)); // "GET /" = 5; "POST /api/" = 10
 			const char * const ruEnd = strchr(reqUrl, ' ');
 			const size_t lenReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
 
-			if (lenReqBody == AEM_HTTPS_REQUEST_GET) {
+			if (reqType == AEM_HTTPS_REQUEST_GET) {
 				https_get(&ssl, reqUrl, lenReqUrl, fileSet, domain, lenDomain);
-			} else if (lenReqUrl == 14) { // POST (API URLs are 14 characters)
+			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
 				const unsigned char *post = memmem(req + 20, lenReq, "\r\n\r\n", 4);
 
 				if (post != NULL) {
@@ -195,11 +195,11 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 
 					const int lenReqHeaders = post - req;
 
-					if (lenReqHeaders + lenReqBody < AEM_HTTPS_MAXREQSIZE) {
+					if (lenReqHeaders + AEM_HTTPS_POST_SIZE < AEM_HTTPS_MAXREQSIZE) {
 						int lenPost = lenReq - lenReqHeaders;
 
 						ret = 1;
-						while (lenPost < lenReqBody) {
+						while (lenPost < AEM_HTTPS_POST_SIZE) {
 							do {ret = mbedtls_ssl_read(&ssl, req + lenReq, AEM_HTTPS_MAXREQSIZE - lenReq);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 							lenPost += ret;
 							lenReq += ret;
