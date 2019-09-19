@@ -126,7 +126,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 		if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-		const char * const cl = memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24);
+		const char * const cl = strstr(req, "\r\nContent-Length: 8264\r\n");
 		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 		reqEnd[2] = '\r';
