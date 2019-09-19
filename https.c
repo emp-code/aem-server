@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h> // for islower
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -118,7 +119,13 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		return AEM_HTTPS_REQUEST_GET;
 	}
 
-	if (memcmp(req, "POST /api/", 10) == 0) {
+	if (memcmp(req, "POST /api/", 10) == 0) { // POST /api/account/browse HTTP/1.1\r\n
+		if (lenReq < 36) return AEM_HTTPS_REQUEST_INVALID;
+		for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
+		if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
+		for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
+		if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
+
 		const char * const cl = memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24);
 		if (cl == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
