@@ -288,7 +288,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 }
 
 // Creates BodyBox from client's instructions and stores it
-static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain) {
+static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -308,8 +308,8 @@ static void message_create(mbedtls_ssl_context * const ssl, const unsigned char 
 	const size_t lenTo = endTo - addrTo;
 
 	int ret;
-	if (lenTo > lenDomain + 1 && addrTo[lenTo - lenDomain - 1] == '@' && memcmp(addrTo + lenTo - lenDomain, domain, lenDomain) == 0) {
-		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo - lenDomain - 1, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
+	if (memchr(addrTo, '@', lenTo) == NULL) {
+		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
 	} else {
 		const char * const domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
@@ -402,8 +402,8 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const char * const url, const unsigned char * const post) {
-	if (ssl == NULL || ssk == NULL || addrKey == NULL || domain == NULL || lenDomain < 4 || url == NULL || post == NULL) return;
+void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const url, const unsigned char * const post) {
+	if (ssl == NULL || ssk == NULL || addrKey == NULL || url == NULL || post == NULL) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
@@ -422,7 +422,7 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, upk,   &decrypted, lenDecrypted);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted, addrKey, domain, lenDomain);
+	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted, addrKey);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, upk64, &decrypted, lenDecrypted);
