@@ -188,7 +188,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 			if (reqType == AEM_HTTPS_REQUEST_GET) {
 				https_get(&ssl, reqUrl, lenReqUrl, fileSet, domain, lenDomain);
 			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
-				const unsigned char *post = memmem(req + 20, lenReq, "\r\n\r\n", 4);
+				const unsigned char *post = memmem(req + 20, lenReq - 20, "\r\n\r\n", 4);
 
 				if (post != NULL) {
 					post += 4;
