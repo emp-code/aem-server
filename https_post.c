@@ -377,10 +377,8 @@ static void storage_ennote(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static char *openWebBox(const unsigned char * const post, const size_t lenPost, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
+static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
-
-	if (lenPost <= skipBytes) return NULL;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
 	memcpy(nonce, post, crypto_box_NONCEBYTES);
@@ -390,10 +388,10 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 	const int64_t upk64 = charToInt64(upk);
 	if (!upk64Exists(upk64)) return NULL;
 
-	char * const decrypted = sodium_malloc(lenPost);
+	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE);
 	if (decrypted == NULL) return NULL;
 
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, lenPost - skipBytes, nonce, upk, ssk);
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, AEM_HTTPS_POST_SIZE + crypto_box_MACBYTES, nonce, upk, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 	sodium_mprotect_readonly(decrypted);
 
@@ -404,12 +402,12 @@ static char *openWebBox(const unsigned char * const post, const size_t lenPost, 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const char * const url, const unsigned char * const post, const size_t lenPost) {
-	if (ssl == NULL || ssk == NULL || addrKey == NULL || domain == NULL || lenDomain < 4 || url == NULL || post == NULL || lenPost < 1) return;
+void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const char * const url, const unsigned char * const post) {
+	if (ssl == NULL || ssk == NULL || addrKey == NULL || domain == NULL || lenDomain < 4 || url == NULL || post == NULL) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
-	char * const decrypted = openWebBox(post, lenPost, upk, &lenDecrypted, ssk);
+	char * const decrypted = openWebBox(post, upk, &lenDecrypted, ssk);
 	if (decrypted == NULL || lenDecrypted < 1) return;
 	const int64_t upk64 = charToInt64(upk);
 
