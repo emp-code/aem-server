@@ -20,7 +20,9 @@
 #include "https.h"
 
 #define AEM_HTTPS_TIMEOUT 30
-#define AEM_HTTPS_MAXREQSIZE 10240
+
+#define AEM_SKIP_URL_GET 5 // 'GET /'
+#define AEM_SKIP_URL_POST 10 // 'POST /api/'
 
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_GET 0
@@ -66,6 +68,7 @@ static bool supportsBrotli(const char * const req) {
 	if (br == NULL || br > aeEnd) return false;
 
 	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return false;
+
 	const char * const br1 = ae + (br - ae - 1); // br - 1
 	if (*br1 != ',' && *br1 != ' ') return false;
 
@@ -136,6 +139,39 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	return AEM_HTTPS_REQUEST_INVALID;
 }
 
+void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
+	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_GET, ' ');
+	if (urlEnd == NULL) return;
+	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_GET);
+
+	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet, domain, lenDomain);
+}
+
+void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq, const unsigned char * const ssk, const unsigned char * const addrKey) {
+	const char * const urlEnd = strchr((char*)buf + AEM_SKIP_URL_POST, ' ');
+	if (urlEnd == NULL) return;
+	const size_t lenUrl = urlEnd - ((char*)buf + AEM_SKIP_URL_POST);
+
+	char url[lenUrl];
+	memcpy(url, buf + AEM_SKIP_URL_POST, lenUrl);
+
+	const char *post = strstr(buf + 20, "\r\n\r\n");
+	if (post == NULL) return;
+	post += 4;
+
+	size_t lenPost = lenReq - (post - buf);
+	if (lenPost > 0) memmove(buf, post, lenPost);
+
+	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
+		int ret;
+		do {ret = mbedtls_ssl_read(ssl, (unsigned char*)(buf + lenPost), AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		if (ret < 0) return;
+		lenPost += ret;
+	}
+
+	https_post(ssl, ssk, addrKey, url, (unsigned char*)buf);
+}
+
 void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
 	mbedtls_ssl_config conf;
 	mbedtls_ssl_config_init(&conf);
@@ -180,46 +216,20 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		}
 	}
 
-	unsigned char * const req = malloc(AEM_HTTPS_MAXREQSIZE);
+	unsigned char * const req = malloc(AEM_HTTPS_POST_BOXED_SIZE);
+
 	int lenReq;
-	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_MAXREQSIZE);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
+	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_POST_BOXED_SIZE - 1);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
 	if (lenReq > 0) {
+		req[lenReq] = '\0';
 		const int reqType = getRequestType((char*)req, lenReq, domain, lenDomain);
-
-		if (reqType == AEM_HTTPS_REQUEST_GET || reqType == AEM_HTTPS_REQUEST_POST) {
-			const char * const reqUrl = (char*)(req + ((reqType == AEM_HTTPS_REQUEST_GET) ? 5 : 10)); // "GET /" = 5; "POST /api/" = 10
-			const char * const ruEnd = strchr(reqUrl, ' ');
-			const size_t lenReqUrl = (ruEnd == NULL) ? 0 : ruEnd - reqUrl;
-
-			if (reqType == AEM_HTTPS_REQUEST_GET) {
-				https_get(&ssl, reqUrl, lenReqUrl, fileSet, domain, lenDomain);
-			} else if (reqType == AEM_HTTPS_REQUEST_POST) {
-				const unsigned char *post = memmem(req + 20, lenReq - 20, "\r\n\r\n", 4);
-
-				if (post != NULL) {
-					post += 4;
-
-					const int lenReqHeaders = post - req;
-
-					if (lenReqHeaders + AEM_HTTPS_POST_SIZE < AEM_HTTPS_MAXREQSIZE) {
-						int lenPost = lenReq - lenReqHeaders;
-
-						ret = 1;
-						while (lenPost < AEM_HTTPS_POST_SIZE) {
-							do {ret = mbedtls_ssl_read(&ssl, req + lenReq, AEM_HTTPS_MAXREQSIZE - lenReq);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-							lenPost += ret;
-							lenReq += ret;
-						}
-
-						if (ret > 0) https_post(&ssl, ssk, addrKey, reqUrl, post);
-					}
-				}
-			}
-		} else puts("[HTTPS] Invalid connection attempt");
+		if (reqType == AEM_HTTPS_REQUEST_GET) handleGet(&ssl, (char*)req, domain, lenDomain, fileSet);
+		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
 	}
 
 	free(req);
+
 	mbedtls_entropy_free(&entropy);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_ssl_config_free(&conf);
