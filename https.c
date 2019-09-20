@@ -148,9 +148,9 @@ void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * c
 }
 
 void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq, const unsigned char * const ssk, const unsigned char * const addrKey) {
-	const char * const urlEnd = strchr((char*)buf + AEM_SKIP_URL_POST, ' ');
+	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_POST, ' ');
 	if (urlEnd == NULL) return;
-	const size_t lenUrl = urlEnd - ((char*)buf + AEM_SKIP_URL_POST);
+	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_POST);
 
 	char url[lenUrl];
 	memcpy(url, buf + AEM_SKIP_URL_POST, lenUrl);
