@@ -82,9 +82,8 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	return 0;
 }
 
-// TODO: Support multiple pages
 static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 17 || memcmp(*decrypted, "AllEars:Web.Login", 17) != 0) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != 1) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
 
 	unsigned char *noteData;

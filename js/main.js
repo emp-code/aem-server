@@ -516,7 +516,7 @@ function addOpt(select, val) {
 	select.appendChild(opt);
 }
 
-function loginSuccess() {
+function reloadInterface() {
 	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden = true;
 	document.getElementById("div_login").hidden = true;
 	document.getElementById("div_loggedin").hidden = false;
@@ -648,18 +648,18 @@ function genKeys() {
 	});
 }
 
-document.getElementById("btn_signin").onclick = function() {
+document.getElementById("btn_enter").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
 	if (!txtSkey.reportValidity()) return;
 
 	ae.SetKeys(txtSkey.value, function(successSetKeys) {
 		if (successSetKeys) {
-			ae.Login(function(successLogin) {
-				if (successLogin) {
+			ae.Browse(0, function(successBrowse) {
+				if (successBrowse) {
 					txtSkey.value = "";
-					loginSuccess();
+					reloadInterface();
 				} else {
-					console.log("Failed to log in");
+					console.log("Failed to enter");
 				}
 			});
 		} else {
@@ -967,7 +967,7 @@ document.getElementById("gatekeeper_country").onchange = function() {
 };
 
 document.getElementById("txt_skey").onkeyup = function(e) {
-	if (e.key === "Enter") document.getElementById("btn_signin").click();
+	if (e.key === "Enter") document.getElementById("btn_enter").click();
 };
 
 navMenu(0);

@@ -506,8 +506,10 @@ function AllEars() {
 		callback(true);
 	}); };
 
-	this.Login = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/browse", nacl.encode_utf8("AllEars:Web.Login"), nacl, function(fetchOk, loginData) {
+	this.Browse = function(page, callback) { nacl_factory.instantiate(function (nacl) {
+		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
+
+		_FetchEncrypted("account/browse", new Uint8Array([page]), nacl, function(fetchOk, loginData) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < 4; i++) {
