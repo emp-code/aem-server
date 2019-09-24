@@ -78,7 +78,7 @@ TextNote/FileNote
 */
 
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
-	const size_t bodyLenPadded = ((*bodyLen - (*bodyLen % 1024)) / 1024) + 1;
+	const size_t bodyLenPadded = (((*bodyLen - (*bodyLen % 1024)) / 1024) + 1) * 1024;
 	const size_t padLen = bodyLenPadded - *bodyLen;
 
 	const uint16_t padLen16 = padLen;
