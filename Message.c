@@ -78,21 +78,20 @@ TextNote/FileNote
 */
 
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen, const unsigned char * const headBox) {
-	const size_t bodyLenPadded = (((*bodyLen - (*bodyLen % 1024)) / 1024) + 1) * 1024;
-	const size_t padLen = bodyLenPadded - *bodyLen;
-	const uint16_t padLen16 = padLen;
+	const uint16_t padLen = (*bodyLen % 1024 == 0) ? 0 : 1024 - (*bodyLen % 1024);
+	const size_t bodyLenPadded = *bodyLen + padLen;
 
 	unsigned char body[bodyLenPadded + 2];
 	memcpy(body, bodyText, *bodyLen);
-	randombytes_buf_deterministic(body + *bodyLen, padLen, headBox);
-	memcpy(body + bodyLenPadded, &padLen16, 2);
+	if (padLen > 0) randombytes_buf_deterministic(body + *bodyLen, padLen, headBox);
+	memcpy(body + bodyLenPadded, &padLen, 2);
 
 	*bodyLen = bodyLenPadded + 2;
 
 	unsigned char * const ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
 	if (ciphertext == NULL) return NULL;
-
 	crypto_box_seal(ciphertext, body, *bodyLen, pk);
+
 	return ciphertext;
 }
 
