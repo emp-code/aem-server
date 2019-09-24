@@ -237,13 +237,11 @@ function addFileNote(num, allowDelete) {
 	const cellBtnD = row.insertCell(-1);
 	const cellBtnX = row.insertCell(-1);
 
-	let fileSize = ae.GetFileSize(num);
-	let sizeUnit = "B";
-	if (fileSize > 1023) {fileSize /= 1024; sizeUnit = "K";}
-	if (fileSize > 1023) {fileSize /= 1024; sizeUnit = "M";}
+	let kib = ae.GetFileSize(num);
+	if (kib > 1023) kib = Math.round(kib / 1024); else kib = 1;
 
 	cellTime.textContent = new Date(ae.GetFileTime(num) * 1000).toLocaleString();
-	cellSize.textContent = fileSize + sizeUnit;
+	cellSize.textContent = kib;
 	cellName.textContent = ae.GetFileName(num);
 	cellType.textContent = ae.GetFileType(num);
 	cellBtnD.innerHTML = "<button type=\"button\">D</button>";
