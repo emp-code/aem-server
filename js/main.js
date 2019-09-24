@@ -922,6 +922,8 @@ document.getElementById("btn_uploadfile").onclick = function() {
 };
 
 function navNotesMenu(num) {
+	document.getElementById("div_newtextnote").hidden = true;
+
 	for (let i = 0; i < 4; i++) {
 		if (i === num) {
 			document.getElementById("div_notes").children[0].children[i].disabled = true;
