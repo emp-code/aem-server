@@ -77,14 +77,14 @@ TextNote/FileNote
 		[-- char*] Message data
 */
 
-static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
+static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen, const unsigned char * const headBox) {
 	const size_t bodyLenPadded = (((*bodyLen - (*bodyLen % 1024)) / 1024) + 1) * 1024;
 	const size_t padLen = bodyLenPadded - *bodyLen;
 	const uint16_t padLen16 = padLen;
 
 	unsigned char body[bodyLenPadded + 2];
 	memcpy(body, bodyText, *bodyLen);
-	sodium_memzero(body + *bodyLen, padLen);
+	randombytes_buf_deterministic(body + *bodyLen, padLen, headBox);
 	memcpy(body + bodyLenPadded, &padLen16, 2);
 
 	*bodyLen = bodyLenPadded + 2;
@@ -118,7 +118,7 @@ unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char *
 	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel);
 	if (headBox == NULL) return NULL;
 
-	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen, headBox);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
@@ -164,7 +164,7 @@ const uint32_t ip, const int cs, const uint8_t tlsVersion, const int16_t country
 	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, tlsVersion, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
-	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen, headBox);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
