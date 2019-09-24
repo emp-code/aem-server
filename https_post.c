@@ -253,7 +253,10 @@ static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 // Takes BodyBox from client and stores it
 static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES - 3) % 1024 != 0) {sodium_free(*decrypted); return;} // 256 KiB max size; padded to nearest 1024 prior to encryption (2 first bytes store padding length)
+	if (lenDecrypted > (262146 + crypto_box_SEALBYTES) || (lenDecrypted - crypto_box_SEALBYTES - 3) % 1024 != 0) {
+		sodium_free(*decrypted);
+		return;
+	}
 
 	// TODO: Move to Message.c
 	// HeadBox format for notes: [1B] SenderInfo, [4B] Timestamp (uint32_t), 36 bytes unused (zeroed)
