@@ -51,12 +51,12 @@ ExtMsg
 		[18B char*] AddressTo (24c SixBit)
 
 	BodyBox:
-		[2B uint16_t] Amount of padding
 		[-- char*] SMTP Greeting
 		[1B char] Linebreak (\n)
 		[-- char*] From address (envelope)
 		[1B char] Linebreak (\n)
 		[-- char*] Message data
+		[2B uint16_t] Amount of padding
 
 TextNote/FileNote
 	HeadBox
@@ -80,13 +80,12 @@ TextNote/FileNote
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen) {
 	const size_t bodyLenPadded = (((*bodyLen - (*bodyLen % 1024)) / 1024) + 1) * 1024;
 	const size_t padLen = bodyLenPadded - *bodyLen;
-
 	const uint16_t padLen16 = padLen;
 
 	unsigned char body[bodyLenPadded + 2];
-	memcpy(body, &padLen16, 2);
-	memcpy(body + 2, bodyText, *bodyLen);
-	sodium_memzero(body + 2 + *bodyLen, padLen);
+	memcpy(body, bodyText, *bodyLen);
+	sodium_memzero(body + *bodyLen, padLen);
+	memcpy(body + bodyLenPadded, &padLen16, 2);
 
 	*bodyLen = bodyLenPadded + 2;
 

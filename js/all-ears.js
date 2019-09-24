@@ -605,16 +605,16 @@ function AllEars() {
 				const msgKilos = loginData[msgStart + 1] + 1;
 
 				// HeadBox
-				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + 48
+				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + crypto_box_SEALBYTES (48)
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				// BodyBox
-				const bbSize = msgKilos * 1024 + 50;
+				const lenBody = msgKilos * 1024;
 				const bbStart = msgStart + 91;
-				const msgBodyBox = loginData.slice(bbStart, bbStart + bbSize);
+				const msgBodyBox = loginData.slice(bbStart, bbStart + lenBody + 50); // 2 + crypto_box_SEALBYTES (48)
 				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
-				const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
-				const msgBody = msgBodyFull.slice(2, msgBodyFull.length - padAmount);
+				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody, lenBody + 2).buffer)[0];
+				const msgBody = msgBodyFull.slice(0, lenBody - padAmount);
 
 				if ((msgHead[0] & 3) === 3) { // xxxxxx11 FileNote
 					const note_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
@@ -706,8 +706,8 @@ function AllEars() {
 		const u8pad = new Uint8Array(u16pad.buffer);
 
 		const u8data = new Uint8Array(paddedLen + 2);
-		u8data.set(u8pad);
-		u8data.set(nacl.encode_utf8(txt), 2);
+		u8data.set(nacl.encode_utf8(txt));
+		u8data.set(u8pad, paddedLen);
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
 
@@ -738,15 +738,14 @@ function AllEars() {
 		const u8pad = new Uint8Array(u16pad.buffer);
 
 		const u8data = new Uint8Array(paddedLen + 2);
-		u8data.set(u8pad);
+		u8data[0] = lenFn;
+		u8data.set(nacl.encode_utf8(fileName), 1);
 
-		u8data[2] = lenFn;
-		u8data.set(nacl.encode_utf8(fileName), 3);
+		u8data[1 + lenFn] = lenFt;
+		u8data.set(nacl.encode_utf8(fileType), 2 + lenFn);
 
-		u8data[3 + lenFn] = lenFt;
-		u8data.set(nacl.encode_utf8(fileType), 4 + lenFn);
-
-		u8data.set(fileData, 4 + lenFn + lenFt);
+		u8data.set(fileData, 2 + lenFn + lenFt);
+		u8data.set(u8pad, paddedLen);
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
 
