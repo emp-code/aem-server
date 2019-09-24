@@ -699,13 +699,15 @@ function AllEars() {
 		const lenTxt = new Blob([txt]).size;
 		if (lenTxt > (256 * 1024)) {callback(false); return;}
 
-		// First two bytes store the padding length
-		const paddedLen = Math.ceil(lenTxt / 1024.0) * 1024;
-		const u16pad = new Uint16Array([paddedLen - lenTxt]);
-		const u8pad = new Uint8Array(u16pad.buffer);
+		const lenPad = (lenTxt % 1024 == 0) ? 0 : 1024 - (lenTxt % 1024);
+		const paddedLen = lenTxt + lenPad;
 
 		const u8data = new Uint8Array(paddedLen + 2);
 		u8data.set(nacl.encode_utf8(txt));
+
+		// Last two bytes store the padding length
+		const u16pad = new Uint16Array([lenPad]);
+		const u8pad = new Uint8Array(u16pad.buffer);
 		u8data.set(u8pad, paddedLen);
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
@@ -731,10 +733,8 @@ function AllEars() {
 		fileSize += lenFn + lenFt + 2;
 		if (fileSize > (256 * 1024)) {callback(false); return;}
 
-		// First two bytes store the padding length
-		const paddedLen = Math.ceil(fileSize / 1024.0) * 1024;
-		const u16pad = new Uint16Array([paddedLen - fileSize]);
-		const u8pad = new Uint8Array(u16pad.buffer);
+		const lenPad = (fileSize % 1024 == 0) ? 0 : 1024 - (fileSize % 1024);
+		const paddedLen = fileSize + lenPad;
 
 		const u8data = new Uint8Array(paddedLen + 2);
 		u8data[0] = lenFn;
@@ -744,6 +744,10 @@ function AllEars() {
 		u8data.set(nacl.encode_utf8(fileType), 2 + lenFn);
 
 		u8data.set(fileData, 2 + lenFn + lenFt);
+
+		// Last two bytes store the padding length
+		const u16pad = new Uint16Array([paddedLen - fileSize]);
+		const u8pad = new Uint8Array(u16pad.buffer);
 		u8data.set(u8pad, paddedLen);
 
 		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
