@@ -135,8 +135,7 @@ function AllEars() {
 		const u8len = new Uint8Array(u16len.buffer);
 		clearU8.set(u8len, _lenPost - 2);
 
-		let nonce = new Uint8Array(24);
-		window.crypto.getRandomValues(nonce);
+		const nonce = nacl.crypto_box_random_nonce();
 
 		// postBox: the encrypted data to be sent
 		const postBox = nacl.crypto_box(clearU8, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
