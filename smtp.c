@@ -375,7 +375,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 	}
 }
 
-void decodeEncodedWord(char *data, size_t * const lenData) {
+void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
 	while(1) {
@@ -383,18 +383,18 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		if (headersEnd == NULL) break;
 
 		const size_t searchLen = headersEnd - data;
-		char *ew = memmem(data, searchLen, "=?", 2);
+		char * const ew = memmem(data, searchLen, "=?", 2);
 		if (ew == NULL) break;
 
 		// Remove charset part
-		char *charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
+		const char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
 		if (charsetEnd == NULL) return;
 		if (charsetEnd[2] != '?') return;
 		const char type = charsetEnd[1];
 		memmove(ew, charsetEnd + 3, (data + *lenData) - (charsetEnd + 3));
 		*lenData -= ((charsetEnd + 3) - ew);
 
-		char *ewEnd = memmem(ew, (data + *lenData) - ew, "?=", 2);
+		const char * const ewEnd = memmem(ew, (data + *lenData) - ew, "?=", 2);
 		if (ewEnd == NULL) break;
 
 		size_t lenEw = ewEnd - ew;
@@ -408,7 +408,7 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 
 		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
 		else if (type == 'B' || type == 'b') {
-			unsigned char *dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
+			unsigned char * const dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
 			if (dec != NULL) {
 				memcpy(ew, dec, lenEw);
 				free(dec);
