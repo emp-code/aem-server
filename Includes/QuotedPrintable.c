@@ -10,7 +10,7 @@ static unsigned char hexToChar(const char * const src) {
 
 void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 	while(1) {
-		char *enc = memchr(data, '=', *lenData);
+		char *enc = memchr(data, '=', *lenData - 1);
 		if (enc == NULL) break;
 
 		*enc = hexToChar(enc + 1);
