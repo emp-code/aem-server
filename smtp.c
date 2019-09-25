@@ -409,8 +409,10 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
 		else if (type == 'B' || type == 'b') {
 			unsigned char *dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
-			memcpy(ew, dec, lenEw);
-			free(dec);
+			if (dec != NULL) {
+				memcpy(ew, dec, lenEw);
+				free(dec);
+			}
 		} else return;
 
 		memmove(ew + lenEw, ew + lenEwOld + 2, (data + *lenData) - (ew + lenEwOld + 2));
