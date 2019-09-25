@@ -400,6 +400,12 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		size_t lenEw = ewEnd - ew;
 		const size_t lenEwOld = lenEw;
 
+		while(1) {
+			char * const underscore = memchr(ew, '_', lenEw);
+			if (underscore == NULL) break;
+			*underscore = ' ';
+		}
+
 		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
 		else if (type == 'B' || type == 'b') {
 			unsigned char *dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
