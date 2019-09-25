@@ -394,7 +394,7 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		memmove(ew, charsetEnd + 3, (data + *lenData) - (charsetEnd + 3));
 		*lenData -= ((charsetEnd + 3) - ew);
 
-		char *ewEnd = strstr(ew, "?=");
+		char *ewEnd = memmem(ew, (data + *lenData) - ew, "?=", 2);
 		if (ewEnd == NULL) break;
 
 		size_t lenEw = ewEnd - ew;
