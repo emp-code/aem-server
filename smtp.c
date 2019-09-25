@@ -239,6 +239,7 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 
 	return -1;
 }
+
 static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
 	if (buf == NULL || len < 1 || addr == NULL) return 0;
 
@@ -427,120 +428,6 @@ void decodeEncodedWord(char * const * const data, size_t * const lenData) {
 	}
 }
 
-// TODO: Convert non-UTF8 to UTF8
-static void processMessage(char * const * const data, size_t * const lenData) {
-	if (data == NULL || lenData == NULL || *lenData < 5) return;
-
-	const char * const headersEnd = strstr(*data, "\r\n\r\n");
-	if (headersEnd == NULL) return;
-	const size_t lenHeaders = headersEnd - *data;
-
-	const char * const mpHeader = strcasestr(*data, "\r\nContent-Type: multipart");
-	if (mpHeader != NULL) {
-		char *boundaryBegin = strstr(mpHeader + 25, "boundary=\"");
-		char *boundaryEnd;
-
-		if (boundaryBegin == NULL || boundaryBegin > headersEnd) {
-			boundaryBegin = strstr(mpHeader + 25, "boundary=");
-			if (boundaryBegin == NULL || boundaryBegin > headersEnd) return;
-
-			boundaryBegin += 10;
-			boundaryEnd = strpbrk(boundaryBegin, "\r\n");
-		} else {
-			boundaryBegin += 10;
-			boundaryEnd = strchr(boundaryBegin, '"');
-		}
-
-
-		if (boundaryEnd == NULL) return;
-
-		const size_t lenBoundary = boundaryEnd - boundaryBegin;
-
-		char boundary[lenBoundary + 1];
-		memcpy(boundary, boundaryBegin, lenBoundary);
-		boundary[lenBoundary] = '\0';
-
-		const char *bound = strstr(headersEnd + 4, boundary);
-		while (bound != NULL) {
-			bound += lenBoundary;
-
-			boundaryEnd = strstr(bound, boundary);
-			if (boundaryEnd == NULL) break;
-
-			char * const boundaryHeaderEnd = strstr(bound, "\r\n\r\n");
-			if (boundaryHeaderEnd == NULL || boundaryHeaderEnd > boundaryEnd) break;
-
-			const char * const qpHeader = strcasestr(bound, "\r\nContent-Transfer-Encoding: quoted-printable\r\n");
-
-			if (qpHeader != NULL && qpHeader < boundaryHeaderEnd) {
-				char * const msg = boundaryHeaderEnd + 4;
-				const size_t lenOld = boundaryEnd - msg;
-				const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
-
-				memmove(msg + lenNew, msg + lenOld, (*data + *lenData) - (msg + lenOld));
-
-				*lenData -= (lenOld - lenNew);
-				(*data)[*lenData] = '\0';
-
-				boundaryEnd = strstr(msg, boundary);
-			} else {
-				const char * const b64Header = strcasestr(bound, "\r\nContent-Transfer-Encoding: base64\r\n");
-				if (b64Header != NULL && b64Header < boundaryHeaderEnd) {
-					char *msg = boundaryHeaderEnd + 4;
-
-					while (msg < boundaryEnd && isspace(*msg)) msg++;
-					while (msg < boundaryEnd && !isBase64Char(*(boundaryEnd - 1))) boundaryEnd--;
-					if (msg >= boundaryEnd) break;
-					const size_t lenOld = boundaryEnd - msg;
-
-					size_t lenDecoded;
-					unsigned char * const decoded = b64Decode((unsigned char*)msg, lenOld, &lenDecoded);
-					if (decoded == NULL) break;
-
-					memcpy(msg, decoded, lenDecoded);
-					memmove(msg + lenDecoded, msg + lenOld, ((*data) + *lenData) - (msg + lenOld));
-					free(decoded);
-
-					*lenData -= (lenOld - lenDecoded);
-					(*data)[*lenData] = '\0';
-				}
-			}
-
-			bound = boundaryEnd;
-		}
-	} else {
-		const char * const qpHeader = strcasestr(*data, "\r\nContent-Transfer-Encoding: quoted-printable\r\n");
-		if (qpHeader != NULL && qpHeader < headersEnd) {
-			char * const msg = *data + lenHeaders + 4;
-			const size_t lenOld = *lenData - lenHeaders - 4;
-			const size_t lenNew = decodeQuotedPrintable(&msg, lenOld);
-			*lenData -= (lenOld - lenNew);
-		} else {
-			const char * const b64Header = strcasestr(*data, "\r\nContent-Transfer-Encoding: base64\r\n");
-			if (b64Header != NULL && b64Header < headersEnd) {
-				char *msg = *data + lenHeaders + 4;
-				const char *msgEnd = *data + *lenData;
-
-				while (msg < msgEnd && isspace(*msg)) msg++;
-				while (msg < msgEnd && !isBase64Char(*(msgEnd - 1))) msgEnd--;
-				if (msg >= msgEnd) return;
-				const size_t lenOld = msgEnd - msg;
-
-				size_t lenDecoded;
-				unsigned char * const decoded = b64Decode((unsigned char*)msg, lenOld, &lenDecoded);
-				if (decoded == NULL) return;
-
-				memcpy(msg, decoded, lenDecoded);
-				memmove(msg + lenDecoded, msg + lenOld, ((*data) + *lenData) - (msg + lenOld));
-				free(decoded);
-
-				*lenData -= (lenOld - lenDecoded);
-				(*data)[*lenData] = '\0';
-			}
-		}
-	}
-}
-
 static bool isAddressAem(const char * const c, const size_t len) {
 	if (c == NULL || len < 1) return false;
 
@@ -723,7 +610,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes == 0) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			else printf("[SMTP] Terminating: invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
@@ -859,7 +746,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			body[lenBody] = '\0';
 			unfoldHeaders(&body, &lenBody);
 			decodeEncodedWord(&body, &lenBody);
-			processMessage(&body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
