@@ -172,38 +172,59 @@ void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t 
 	https_post(ssl, ssk, addrKey, url, (unsigned char*)buf);
 }
 
+static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_entropy_context *entropy, mbedtls_ctr_drbg_context *ctr_drbg) {
+	mbedtls_ssl_free(ssl);
+	mbedtls_ssl_config_free(conf);
+	mbedtls_entropy_free(entropy);
+	mbedtls_ctr_drbg_free(ctr_drbg);
+}
+
 void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
+	mbedtls_ssl_context ssl;
 	mbedtls_ssl_config conf;
-	mbedtls_ssl_config_init(&conf);
-
-	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
-	if (ret != 0) {printf("[HTTPS] mbedtls_ssl_config_defaults returned %d\n", ret); return;}
-
-	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
-	mbedtls_ssl_conf_read_timeout(&conf, AEM_HTTPS_TIMEOUT);
-	mbedtls_ssl_conf_ciphersuites(&conf, https_ciphersuites);
-	mbedtls_ssl_conf_curves(&conf, https_curves);
-	mbedtls_ssl_conf_sig_hashes(&conf, https_hashes);
-
+	mbedtls_entropy_context entropy;
 	mbedtls_ctr_drbg_context ctr_drbg;
+
+	mbedtls_ssl_init(&ssl);
+	mbedtls_ssl_config_init(&conf);
+	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
-	mbedtls_entropy_context entropy;
-	mbedtls_entropy_init(&entropy);
-
-	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char*)"All-Ears Mail HTTPS", 19);
-	if (ret != 0) {printf("[HTTPS] mbedtls_ctr_drbg_seed returned %d\n", ret); return;}
-
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+	if (ret != 0) {
+		printf("[HTTPS] mbedtls_ssl_config_defaults returned %d\n", ret);
+		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
+		return;
+	}
 
 	mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
-	ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey);
-	if (ret != 0) {printf("[HTTPS] mbedtls_ssl_conf_own_cert returned %d\n", ret); return;}
+	mbedtls_ssl_conf_ciphersuites(&conf, https_ciphersuites);
+	mbedtls_ssl_conf_curves(&conf, https_curves);
+	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
+	mbedtls_ssl_conf_read_timeout(&conf, AEM_HTTPS_TIMEOUT);
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+	mbedtls_ssl_conf_sig_hashes(&conf, https_hashes);
 
-	mbedtls_ssl_context ssl;
-	mbedtls_ssl_init(&ssl);
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char*)"All-Ears Mail HTTPS", 19);
+	if (ret != 0) {
+		printf("[HTTPS] mbedtls_ctr_drbg_seed returned %d\n", ret);
+		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
+		return;
+	}
+
+	ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey);
+	if (ret != 0) {
+		printf("[HTTPS] mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
+		return;
+	}
+
 	ret = mbedtls_ssl_setup(&ssl, &conf);
-	if (ret != 0) {printf("[HTTPS] mbedtls_ssl_setup returned %d\n", ret); return;}
+	if (ret != 0) {
+		printf("[HTTPS] mbedtls_ssl_setup returned %d\n", ret);
+		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
+		return;
+	}
 
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
@@ -211,7 +232,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			printf("[HTTPS] mbedtls_ssl_handshake returned %d\n", ret);
-			mbedtls_ssl_free(&ssl);
+			tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 			return;
 		}
 	}
@@ -229,9 +250,5 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	}
 
 	free(req);
-
-	mbedtls_entropy_free(&entropy);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ssl_free(&ssl);
+	tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 }
