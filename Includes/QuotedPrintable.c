@@ -14,10 +14,16 @@ void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 		if (enc == NULL) break;
 
 		*enc = hexToChar(enc + 1);
-		if (*enc == '=') *enc = '!';
+		if (*enc == '=') *enc = '\x01';
 
 		size_t x = (data + *lenData) - (enc + 3);
 		memmove(enc + 1, enc + 3, x);
 		*lenData -= 2;
+	}
+
+	while(1) {
+		char * const equalsign = memchr(data, '\x01', *lenData);
+		if (equalsign == NULL) break;
+		*equalsign = '=';
 	}
 }
