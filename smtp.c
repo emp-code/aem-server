@@ -410,7 +410,6 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		else if (type == 'B' || type == 'b') {
 			unsigned char *dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
 			memcpy(ew, dec, lenEw);
-			printf("%zd\n", lenEw);
 			free(dec);
 		} else return;
 
