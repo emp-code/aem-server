@@ -375,56 +375,42 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 	}
 }
 
-void decodeEncodedWord(char * const * const data, size_t * const lenData) {
+void decodeEncodedWord(char *data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
-	const char * const headersEnd = strstr(*data, "\r\n\r\n");
-	if (headersEnd == NULL) return;
+	while(1) {
+		const char * const headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
+		if (headersEnd == NULL) break;
 
-	const size_t searchLen = headersEnd - *data;
-	char *ew = memmem(*data, searchLen, "=?", 2);
+		const size_t searchLen = headersEnd - data;
+		char *ew = memmem(data, searchLen, "=?", 2);
+		if (ew == NULL) break;
 
-	while (ew != NULL) {
-		char * const charsetEnd = strchr(ew + 2, '?');
-		if (charsetEnd == NULL || charsetEnd[2] != '?') break;
+		// Remove charset part
+		char *charsetEnd = strchr(ew + 2, '?');
+		if (charsetEnd == NULL) return;
+		if (charsetEnd[2] != '?') return;
+		const char type = charsetEnd[1];
+		memmove(ew, charsetEnd + 3, (data + *lenData) - (charsetEnd + 3));
+		*lenData -= ((charsetEnd + 3) - ew);
 
-		const char * const ewEnd = strstr(charsetEnd + 2, "?=");
+		char *ewEnd = strstr(ew, "?=");
 		if (ewEnd == NULL) break;
 
-		if (charsetEnd[1] == 'Q' || charsetEnd[1] == 'q') {
-			char * const qpBegin = charsetEnd + 3;
-			const size_t lenQp = ewEnd - qpBegin;
-			const size_t lenDqp = decodeQuotedPrintable(&qpBegin, lenQp);
+		size_t lenEw = ewEnd - ew;
+		const size_t lenEwOld = lenEw;
 
-			memmove(ew, qpBegin, lenDqp);
-
-			while(1) {
-				char * const underscore = memchr(ew, '_', lenDqp);
-				if (underscore == NULL) break;
-				*underscore = ' ';
-			}
-
-			const size_t lenAfter = (*data + *lenData) - (ewEnd + 2);
-			memmove(ew + lenDqp, ewEnd + 2, lenAfter);
-
-			*lenData = lenDqp + lenAfter;
-			(*data)[*lenData] = '\0';
-		} else if (charsetEnd[1] == 'B' || charsetEnd[1] == 'b') {
-			const char * const b64Begin = charsetEnd + 3;
-			const size_t lenB64 = ewEnd - b64Begin;
-
-			size_t lenDec;
-			unsigned char * const dec = b64Decode((unsigned char*)b64Begin, lenB64, &lenDec);
-
-			memcpy(ew, dec, lenDec);
-			memmove(ew + lenDec, ewEnd + 2, *lenData - ((ewEnd + 2) - *data));
+		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
+		else if (type == 'B' || type == 'b') {
+			unsigned char *dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
+			memcpy(ew, dec, lenEw);
+			printf("%zd\n", lenEw);
 			free(dec);
+		} else return;
 
-			*lenData -= (ewEnd + 2) - (ew + lenDec);
-			(*data)[*lenData] = '\0';
-		} else break;
-
-		ew = memmem(*data, searchLen, "=?", 2);
+		memmove(ew + lenEw, ew + lenEwOld + 2, (data + *lenData) - (ew + lenEwOld + 2));
+		*lenData -= (lenEwOld - lenEw + 2);
+		data[*lenData] = '\0';
 	}
 }
 
@@ -745,7 +731,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			body[lenBody] = '\0';
 			unfoldHeaders(&body, &lenBody);
-			decodeEncodedWord(&body, &lenBody);
+			decodeEncodedWord(body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
