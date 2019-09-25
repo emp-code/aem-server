@@ -554,9 +554,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		// Handshake
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				char error_buf[100];
-				mbedtls_strerror(ret, error_buf, 100);
-				printf("[SMTP] Terminating: mbedtls_ssl_handshake returned %d (%s)\n", ret, error_buf);
+				printf("[SMTP] Terminating: mbedtls_ssl_handshake returned %d\n", ret);
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return;
 			}
