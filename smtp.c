@@ -387,7 +387,7 @@ void decodeEncodedWord(char *data, size_t * const lenData) {
 		if (ew == NULL) break;
 
 		// Remove charset part
-		char *charsetEnd = strchr(ew + 2, '?');
+		char *charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
 		if (charsetEnd == NULL) return;
 		if (charsetEnd[2] != '?') return;
 		const char type = charsetEnd[1];
