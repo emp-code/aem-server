@@ -397,17 +397,17 @@ int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * con
 int main() {
 	if (getuid() != 0) {
 		puts("[Main] Terminating: All-Ears must be started as root");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
-	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent zombie processes
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return 1;} // Prevent writing to closed/invalid sockets from ending the process
+	if (signal(SIGCHLD, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return EXIT_FAILURE;} // Prevent zombie processes
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {puts("[Main] Terminating: signal failed"); return EXIT_FAILURE;} // Prevent writing to closed/invalid sockets from ending the process
 
 	puts("[Main] All-Ears Mail");
 
 	if (sodium_init() < 0) {
 		puts("[Main] Terminating: Failed to initialize libsodium");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	setlocale(LC_ALL, "C");
@@ -418,27 +418,27 @@ int main() {
 	int ret = mbedtls_x509_crt_parse_file(&cert, "AllEars/TLS.crt");
 	if (ret != 0) {
 		printf("[Main] Terminating: mbedtls_x509_crt_parse returned %d\n", ret);
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	const size_t lenDomain = getDomainLenFromCert(&cert);
 	char domain[lenDomain];
 	ret = getDomainFromCert(domain, lenDomain, &cert);
 	mbedtls_x509_crt_free(&cert);
-	if (ret != 0) {puts("[Main] Terminating: Failed to get domain from certificate"); return 1;}
+	if (ret != 0) {puts("[Main] Terminating: Failed to get domain from certificate"); return EXIT_FAILURE;}
 
 	printf("[Main] Domain detected as '%.*s'\n", (int)lenDomain, domain);
 
 	// Start server processes
 	int pid = fork();
-	if (pid < 0) return 1;
+	if (pid < 0) return EXIT_FAILURE;
 	if (pid == 0) return receiveConnections_https(domain, lenDomain);
 
 	pid = fork();
-	if (pid < 0) return 1;
+	if (pid < 0) return EXIT_FAILURE;
 	if (pid == 0) return receiveConnections_smtp(domain, lenDomain);
 
 	receiveConnections_http(domain, lenDomain);
 
-	return 0;
+	return EXIT_SUCCESS;
 }
