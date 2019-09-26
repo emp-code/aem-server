@@ -416,11 +416,8 @@ int main() {
 	mbedtls_x509_crt cert;
 	mbedtls_x509_crt_init(&cert);
 	int ret = mbedtls_x509_crt_parse_file(&cert, "AllEars/TLS.crt");
-
 	if (ret != 0) {
-		char error_buf[100];
-		mbedtls_strerror(ret, error_buf, 100);
-		printf("[Main.Cert] mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+		printf("[Main] Terminating: mbedtls_x509_crt_parse returned %d\n", ret);
 		return 1;
 	}
 
