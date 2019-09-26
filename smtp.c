@@ -225,8 +225,7 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 
 		while (sent < lenData) {
 			int ret;
-			do {ret = mbedtls_ssl_write(tls, (unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-
+			do {ret = mbedtls_ssl_write(tls, (const unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 			if (ret < 0) return ret;
 
 			sent += ret;
@@ -408,7 +407,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 
 		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
 		else if (type == 'B' || type == 'b') {
-			unsigned char * const dec = b64Decode((unsigned char*)ew, lenEw, &lenEw);
+			unsigned char * const dec = b64Decode((const unsigned char*)ew, lenEw, &lenEw);
 			if (dec != NULL) {
 				memcpy(ew, dec, lenEw);
 				free(dec);
@@ -535,7 +534,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		mbedtls_ssl_conf_read_timeout(&conf, AEM_SMTP_TIMEOUT);
 		mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
-		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char*)"All-Ears Mail SMTP", 18)) != 0) {
+		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"All-Ears Mail SMTP", 18)) != 0) {
 			printf("[SMTP] Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
