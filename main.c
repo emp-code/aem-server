@@ -45,24 +45,24 @@ static int dropRoot() {
 	if (p == NULL) return -1;
 
 	const unsigned int uid = p->pw_uid;
-	if (p->pw_gid != uid) return 2;
+	if (p->pw_gid != uid) return -2;
 
 	if (
 	   strcmp(p->pw_shell, "/bin/nologin")      != 0
 	&& strcmp(p->pw_shell, "/usr/bin/nologin")  != 0
 	&& strcmp(p->pw_shell, "/usr/sbin/nologin") != 0
 	&& strcmp(p->pw_shell, "/sbin/nologin")     != 0
-	) return 3;
+	) return -3;
 
-	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return 4;
-	if (!isGoodPerm(uid, AEM_HOMEDIR)) return 5;
+	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return -4;
+	if (!isGoodPerm(uid, AEM_HOMEDIR)) return -5;
 
-	if (chroot(AEM_HOMEDIR) != 0) return 6;
+	if (chroot(AEM_HOMEDIR) != 0) return -6;
 
-	if (setgid(uid) != 0) return 7;
-	if (setuid(uid) != 0) return 8;
+	if (setgid(uid) != 0) return -7;
+	if (setuid(uid) != 0) return -8;
 
-	if (getuid() != uid || getgid() != uid) return 9;
+	if (getuid() != uid || getgid() != uid) return -9;
 
 	return 0;
 }
