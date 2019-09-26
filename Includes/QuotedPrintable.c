@@ -14,7 +14,7 @@ void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 		if (enc == NULL) break;
 
 		const int x = (data + *lenData) - (enc + 3);
-		if (x < 1) break;
+		if (x < 0) break;
 
 		*enc = hexToChar(enc + 1);
 		if (*enc == '=') *enc = '\x01';
