@@ -44,7 +44,8 @@ static int dropRoot() {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
 
-	if (p->pw_uid != p->pw_gid) return 2;
+	const unsigned int uid = p->pw_uid;
+	if (p->pw_gid != uid) return 2;
 
 	if (
 	   strcmp(p->pw_shell, "/bin/nologin")      != 0
@@ -54,14 +55,14 @@ static int dropRoot() {
 	) return 3;
 
 	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return 4;
-	if (!isGoodPerm(p->pw_uid, AEM_HOMEDIR)) return 5;
+	if (!isGoodPerm(uid, AEM_HOMEDIR)) return 5;
 
 	if (chroot(p->pw_dir) != 0) return 6;
 
-	if (setgid(p->pw_gid) != 0) return 7;
-	if (setuid(p->pw_uid) != 0) return 8;
+	if (setgid(uid) != 0) return 7;
+	if (setuid(uid) != 0) return 8;
 
-	if (getuid() != p->pw_uid || getgid() != p->pw_gid) return 9;
+	if (getuid() != uid || getgid() != uid) return 9;
 
 	return 0;
 }
