@@ -42,7 +42,7 @@ static int dropRoot() {
 	&& strcmp(p->pw_shell, "/sbin/nologin")     != 0
 	) return 3;
 
-	if (strcmp(p->pw_dir, "/home/allears") != 0) return 4;
+	if (strcmp(p->pw_dir, "/var/lib/allears") != 0) return 4;
 	if (chroot(p->pw_dir) != 0) return 5;
 
 	if (setgid(p->pw_gid) != 0) return 7;
