@@ -470,21 +470,21 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	return 0;
 }
 
-void unfoldHeaders(char * const * const data, size_t * const lenData) {
-	const char * const headersEnd = memmem(*data, *lenData, "\r\n\r\n", 4);
+void unfoldHeaders(char * const data, size_t * const lenData) {
+	const char * const headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
 	if (headersEnd == NULL) return;
-	size_t lenSearch = headersEnd - *data;
+	size_t lenHeaders = headersEnd - data;
 
 	while(1) {
-		char *crlfWsp = memmem(*data, lenSearch, "\r\n ", 3);
-		if (crlfWsp == NULL) crlfWsp = memmem(*data, lenSearch, "\r\n\t", 3);
+		char *crlfWsp = memmem(data, lenHeaders, "\r\n ", 3);
+		if (crlfWsp == NULL) crlfWsp = memmem(data, lenHeaders, "\r\n\t", 3);
 		if (crlfWsp == NULL) break;
 
-		memmove(crlfWsp, crlfWsp + 2, (*data + *lenData) - (crlfWsp + 2));
+		memmove(crlfWsp, crlfWsp + 2, (data + *lenData) - (crlfWsp + 2));
 
 		*lenData -= 2;
-		lenSearch -= 2;
-		(*data)[*lenData] = '\0';
+		lenHeaders -= 2;
+		data[*lenData] = '\0';
 	}
 }
 
@@ -733,7 +733,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			body[lenBody] = '\0';
-			unfoldHeaders(&body, &lenBody);
+			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
