@@ -95,8 +95,9 @@ static void receiveConnections_http(const char * const domain, const size_t lenD
 		return;
 	}
 
-	if (dropRoot() != 0) {
-		puts("[Main.HTTP] dropRoot() failed");
+	const int ret = dropRoot();
+	if (ret != 0) {
+		printf("[Main.HTTP] dropRoot() failed: %d\n", ret);
 		return;
 	}
 
