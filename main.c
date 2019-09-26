@@ -44,7 +44,7 @@ static int dropRoot() {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
 
-	if ((int)p->pw_uid != (int)p->pw_gid) return 2;
+	if (p->pw_uid != p->pw_gid) return 2;
 
 	if (
 	   strcmp(p->pw_shell, "/bin/nologin")      != 0
