@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +30,16 @@
 #define AEM_PORT_HTTPS 443
 #define AEM_PORT_SMTP 25
 
+#define AEM_HOMEDIR "/var/lib/allears"
+#define AEM_DIRMODE (0 | S_IFDIR | S_IRUSR | S_IWUSR | S_IXUSR)
+
+bool isGoodPerm(const unsigned int uid, const char * const path) {
+	struct stat s;
+	if (stat(path, &s) != 0) return false;
+
+	return (s.st_uid == uid && s.st_gid == uid && s.st_mode == AEM_DIRMODE);
+}
+
 static int dropRoot() {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
@@ -42,13 +53,15 @@ static int dropRoot() {
 	&& strcmp(p->pw_shell, "/sbin/nologin")     != 0
 	) return 3;
 
-	if (strcmp(p->pw_dir, "/var/lib/allears") != 0) return 4;
-	if (chroot(p->pw_dir) != 0) return 5;
+	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return 4;
+	if (!isGoodPerm(p->pw_uid, AEM_HOMEDIR)) return 5;
+
+	if (chroot(p->pw_dir) != 0) return 6;
 
 	if (setgid(p->pw_gid) != 0) return 7;
-	if (setuid(p->pw_uid) != 0) return 6;
+	if (setuid(p->pw_uid) != 0) return 8;
 
-	if (getuid() != p->pw_uid || getgid() != p->pw_gid) return 8;
+	if (getuid() != p->pw_uid || getgid() != p->pw_gid) return 9;
 
 	return 0;
 }
