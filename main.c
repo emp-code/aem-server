@@ -15,7 +15,6 @@
 #include <locale.h> // for setlocale
 
 #include <sodium.h>
-#include <mbedtls/error.h>
 #include <mbedtls/ssl.h>
 
 #include "aem_file.h"
@@ -194,9 +193,7 @@ static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	const int ret = mbedtls_x509_crt_parse_file(cert, "AllEars/TLS.crt");
 	if (ret == 0) return 0;
 
-	char error_buf[100];
-	mbedtls_strerror(ret, error_buf, 100);
-	printf("[Main.Cert] mbedtls_x509_crt_parse returned %d: %s\n", ret, error_buf);
+	printf("[Main.Cert] mbedtls_x509_crt_parse returned %d\n", ret);
 	return 1;
 }
 
@@ -205,9 +202,7 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 	const int ret = mbedtls_pk_parse_keyfile(key, "AllEars/TLS.key", NULL);
 	if (ret == 0) return 0;
 
-	char error_buf[100];
-	mbedtls_strerror(ret, error_buf, 100);
-	printf("[Main.Cert] mbedtls_pk_parse_key returned %d: %s\n", ret, error_buf);
+	printf("[Main.Cert] mbedtls_pk_parse_key returned %d\n", ret);
 	return 1;
 }
 
