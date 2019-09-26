@@ -23,8 +23,8 @@ static void send204(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
 		"HTTP/1.1 204 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=94672800\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
@@ -116,8 +116,8 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=94672800\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
@@ -208,8 +208,8 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=94672800; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=94672800\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 26\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
