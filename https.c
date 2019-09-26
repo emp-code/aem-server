@@ -27,6 +27,7 @@
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_GET 0
 #define AEM_HTTPS_REQUEST_POST 1
+#define AEM_HTTPS_REQUEST_MTASTS 10
 
 static const int https_ciphersuites[] = {
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -85,8 +86,12 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	reqEnd[2] = '\0';
 
-	// Host header
-	char header[11 + lenDomain];
+	// Host header: MTA-STS
+	char header[19 + lenDomain];
+	sprintf(header, "\r\nHost: mta-sts.%.*s\r\n", (int)lenDomain, domain);
+	if (strstr(req, header) != NULL) return AEM_HTTPS_REQUEST_MTASTS;
+
+	// Host header: normal
 	sprintf(header, "\r\nHost: %.*s\r\n", (int)lenDomain, domain);
 	if (strstr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
@@ -247,6 +252,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		const int reqType = getRequestType((char*)req, lenReq, domain, lenDomain);
 		if (reqType == AEM_HTTPS_REQUEST_GET) handleGet(&ssl, (char*)req, domain, lenDomain, fileSet);
 		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
+		else if (reqType == AEM_HTTPS_REQUEST_MTASTS) https_mtasts(&ssl, domain, lenDomain);
 	}
 
 	free(req);
