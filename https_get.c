@@ -162,7 +162,7 @@ void https_get(mbedtls_ssl_context * const ssl, const char * const url, const si
 }
 
 void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, const int lenDomain) {
-	char data[324 + lenDomain];
+	char data[347 + lenDomain];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -173,6 +173,7 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 		"Content-Length: %d\r\n"
 		"Referrer-Policy: no-referrer\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
+		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
 		"version: STSv1\n"
 		"mode: enforce\n"
@@ -180,5 +181,5 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 		"max_age: 31557600"
 	, 51 + lenDomain, lenDomain, domain);
 
-	sendData(ssl, data, 323 + lenDomain);
+	sendData(ssl, data, 346 + lenDomain);
 }
