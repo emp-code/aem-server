@@ -81,7 +81,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1298 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1300 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -92,7 +92,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Content-Length: %zd\r\n"
 
-		"Content-Security-Policy:"
+		"Content-Security-Policy: "
 			"connect-src"     " https://%.*s/api/;"
 			"img-src"         " https://%.*s/img/;"
 			"script-src"      " https://%.*s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
@@ -115,7 +115,7 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 			"sandbox allow-scripts allow-same-origin;"
 		"\r\n"
 
-		"Feature-Policy:"
+		"Feature-Policy: "
 			"autoplay"             " 'none';"
 			"accelerometer"        " 'none';"
 			"ambient-light-sensor" " 'none';"
