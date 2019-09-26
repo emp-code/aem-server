@@ -32,9 +32,16 @@
 static int dropRoot() {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
+
 	if ((int)p->pw_uid != (int)p->pw_gid) return 2;
 
-	if (strcmp(p->pw_shell, "/bin/nologin") != 0) return 3;
+	if (
+	   strcmp(p->pw_shell, "/bin/nologin")      != 0
+	&& strcmp(p->pw_shell, "/usr/bin/nologin")  != 0
+	&& strcmp(p->pw_shell, "/usr/sbin/nologin") != 0
+	&& strcmp(p->pw_shell, "/sbin/nologin")     != 0
+	) return 3;
+
 	if (strcmp(p->pw_dir, "/home/allears") != 0) return 4;
 	if (chroot(p->pw_dir) != 0) return 5;
 
