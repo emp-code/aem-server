@@ -57,7 +57,7 @@ static int dropRoot() {
 	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return 4;
 	if (!isGoodPerm(uid, AEM_HOMEDIR)) return 5;
 
-	if (chroot(p->pw_dir) != 0) return 6;
+	if (chroot(AEM_HOMEDIR) != 0) return 6;
 
 	if (setgid(uid) != 0) return 7;
 	if (setuid(uid) != 0) return 8;
