@@ -40,7 +40,7 @@ bool isGoodPerm(const unsigned int uid, const char * const path) {
 	return (s.st_uid == uid && s.st_gid == uid && s.st_mode == AEM_DIRMODE);
 }
 
-static int dropRoot() {
+static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
 
@@ -411,7 +411,7 @@ int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * con
 	return 0;
 }
 
-int main() {
+int main(void) {
 	if (getuid() != 0) {
 		puts("[Main] Terminating: All-Ears must be started as root");
 		return EXIT_FAILURE;
