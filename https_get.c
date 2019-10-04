@@ -208,7 +208,7 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 
 void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
 	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
-	char data[200 + crypto_box_PUBLICKEYBYTES];
+	unsigned char data[200 + crypto_box_PUBLICKEYBYTES];
 
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -221,7 +221,7 @@ void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const s
 		"\r\n"
 	, 200);
 
-	crypto_scalarmult_base((unsigned char*)(data + 200), ssk);
+	crypto_scalarmult_base(data + 200, ssk);
 
 	sendData(ssl, data, 200 + crypto_box_PUBLICKEYBYTES);
 }
