@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include <mbedtls/ssl.h>
+#include <sodium.h>
 
 #include "aem_file.h"
 #include "https_common.h"
@@ -203,4 +204,24 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"Disallow: /img/\n"
 		"Disallow: /api/"
 	, 342);
+}
+
+void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
+	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
+	char data[200 + crypto_box_PUBLICKEYBYTES];
+
+	memcpy(data,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
+		"Connection: close\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 200);
+
+	crypto_scalarmult_base((unsigned char*)(data + 200), ssk);
+
+	sendData(ssl, data, 200 + crypto_box_PUBLICKEYBYTES);
 }

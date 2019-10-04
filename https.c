@@ -29,6 +29,7 @@
 #define AEM_HTTPS_REQUEST_POST 1
 #define AEM_HTTPS_REQUEST_MTASTS 10
 #define AEM_HTTPS_REQUEST_ROBOTS 20
+#define AEM_HTTPS_REQUEST_PUBKEY 50
 
 static const int https_ciphersuites[] = {
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -97,6 +98,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (strstr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
+	if (memcmp(req, "GET /servpubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	// Protocol: only HTTP/1.1 is supported
 	const char * const firstCrLf = strpbrk(req, "\r\n");
@@ -257,6 +259,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
 		else if (reqType == AEM_HTTPS_REQUEST_MTASTS) https_mtasts(&ssl, domain, lenDomain);
 		else if (reqType == AEM_HTTPS_REQUEST_ROBOTS) https_robots(&ssl);
+		else if (reqType == AEM_HTTPS_REQUEST_PUBKEY) https_pubkey(&ssl, ssk);
 	}
 
 	free(req);
