@@ -4,6 +4,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <grp.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -45,7 +46,10 @@ static int dropRoot(void) {
 	if (p == NULL) return -1;
 
 	const unsigned int uid = p->pw_uid;
-	if (p->pw_gid != uid) return -2;
+
+	const struct group * const g = getgrnam("allears");
+	if (g == NULL) return -1;
+	if (p->pw_gid != g->gr_gid) return -1;
 
 	if (
 	   strcmp(p->pw_shell, "/bin/nologin")      != 0
