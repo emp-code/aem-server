@@ -283,14 +283,15 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, 
 
 	sqlite3_stmt *query;
 	const char *sql = isShield
-	? "DELETE FROM address WHERE hash = ? AND upk64 = ? AND flags & 1"
-	: "DELETE FROM address WHERE hash = ? AND upk64 = ? AND NOT (flags & 1)";
+	? "DELETE FROM address WHERE hash = ? AND upk64 = ? AND flags & ?"
+	: "DELETE FROM address WHERE hash = ? AND upk64 = ? AND NOT (flags & ?)";
 
 	int ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, hash);
 	sqlite3_bind_int64(query, 2, upk64);
+	sqlite3_bind_int(query, 3, AEM_FLAGS_ADDR_ISSHIELD);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
