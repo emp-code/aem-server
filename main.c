@@ -31,9 +31,9 @@
 #define AEM_PORT_SMTP 25
 
 #define AEM_HOMEDIR "/var/lib/allears" // Ownership root:allears; permissions 730 (RWX-WX---)
-#define AEM_DIRMODE (0 | S_IFDIR | S_IRWXU | S_IWGRP | S_IXGRP) // Directory, Read-Write-Execute User, Write Group, Execute Group
+#define AEM_DIRMODE (S_IFDIR | S_IRWXU | S_IWGRP | S_IXGRP) // Directory, Read-Write-Execute User, Write Group, Execute Group
 
-bool isGoodPerm(const unsigned int gid, const char * const path) {
+bool isGoodPerm(const gid_t gid, const char * const path) {
 	struct stat s;
 	if (stat(path, &s) != 0) return false;
 
@@ -43,11 +43,11 @@ bool isGoodPerm(const unsigned int gid, const char * const path) {
 static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
-	const unsigned int uid = p->pw_uid;
+	const uid_t uid = p->pw_uid;
 
 	const struct group * const g = getgrnam("allears");
 	if (g == NULL) return -1;
-	const unsigned int gid = g->gr_gid;
+	const gid_t gid = g->gr_gid;
 
 	if (p->pw_gid != gid) return -1;
 
