@@ -564,7 +564,7 @@ int addAccount(const unsigned char * const pk) {
 	crypto_box_seal(ciphertext_empty, (unsigned char*)"", 0, pk);
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata, addrnorm, addrshld) VALUES (?,?,?,?,?,?,0,0)", -1, &query, NULL);
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO userdata (upk64, publickey, level, notedata, addrdata, gkdata, addrnorm, addrshld) VALUES (?,?,0,?,?,?,0,0)", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	int64_t upk64;
@@ -572,10 +572,9 @@ int addAccount(const unsigned char * const pk) {
 
 	sqlite3_bind_int64(query, 1, upk64);
 	sqlite3_bind_blob(query, 2, pk, crypto_box_PUBLICKEYBYTES, SQLITE_STATIC);
-	sqlite3_bind_int(query, 3, 0);
-	sqlite3_bind_blob(query, 4, ciphertext_notedata, AEM_NOTEDATA_LEN + crypto_box_SEALBYTES, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 3, ciphertext_notedata, AEM_NOTEDATA_LEN + crypto_box_SEALBYTES, SQLITE_STATIC);
+	sqlite3_bind_blob(query, 4, ciphertext_empty, crypto_box_SEALBYTES, SQLITE_STATIC);
 	sqlite3_bind_blob(query, 5, ciphertext_empty, crypto_box_SEALBYTES, SQLITE_STATIC);
-	sqlite3_bind_blob(query, 6, ciphertext_empty, crypto_box_SEALBYTES, SQLITE_STATIC);
 
 	ret = sqlite3_step(query);
 	sqlite3_finalize(query);
