@@ -7,7 +7,7 @@
 
 const unsigned char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-__attribute__((warn_unused_result))
+__attribute__((warn_unused_result, const))
 bool isBase64Char(const char c) {
 	return (isalnum(c) || c == '+' || c == '/' || c == '=');
 }
