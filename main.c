@@ -44,12 +44,13 @@ bool isGoodPerm(const unsigned int uid, const char * const path) {
 static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
-
 	const unsigned int uid = p->pw_uid;
 
 	const struct group * const g = getgrnam("allears");
 	if (g == NULL) return -1;
-	if (p->pw_gid != g->gr_gid) return -1;
+	const unsigned int gid = g->gr_gid;
+
+	if (p->pw_gid != gid) return -1;
 
 	if (
 	   strcmp(p->pw_shell, "/bin/nologin")      != 0
@@ -63,10 +64,10 @@ static int dropRoot(void) {
 
 	if (chroot(AEM_HOMEDIR) != 0) return -6;
 
-	if (setgid(uid) != 0) return -7;
+	if (setgid(gid) != 0) return -7;
 	if (setuid(uid) != 0) return -8;
 
-	if (getuid() != uid || getgid() != uid) return -9;
+	if (getuid() != uid || getgid() != gid) return -9;
 
 	return 0;
 }
