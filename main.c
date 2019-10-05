@@ -30,14 +30,14 @@
 #define AEM_PORT_HTTPS 443
 #define AEM_PORT_SMTP 25
 
-#define AEM_HOMEDIR "/var/lib/allears"
-#define AEM_DIRMODE (0 | S_IFDIR | S_IRUSR | S_IWUSR | S_IXUSR)
+#define AEM_HOMEDIR "/var/lib/allears" // Ownership root:allears; permissions 730 (RWX-WX---)
+#define AEM_DIRMODE (0 | S_IFDIR | S_IRWXU | S_IWGRP | S_IXGRP) // Directory, Read-Write-Execute User, Write Group, Execute Group
 
-bool isGoodPerm(const unsigned int uid, const char * const path) {
+bool isGoodPerm(const unsigned int gid, const char * const path) {
 	struct stat s;
 	if (stat(path, &s) != 0) return false;
 
-	return (s.st_uid == uid && s.st_gid == uid && s.st_mode == AEM_DIRMODE);
+	return (s.st_uid == 0 && s.st_gid == gid && s.st_mode == AEM_DIRMODE);
 }
 
 static int dropRoot(void) {
@@ -59,7 +59,7 @@ static int dropRoot(void) {
 	) return -3;
 
 	if (strcmp(p->pw_dir, AEM_HOMEDIR) != 0) return -4;
-	if (!isGoodPerm(uid, AEM_HOMEDIR)) return -5;
+	if (!isGoodPerm(gid, AEM_HOMEDIR)) return -5;
 
 	if (chdir(AEM_HOMEDIR) != 0) return -6;
 	if (chroot(AEM_HOMEDIR) != 0) return -6;
