@@ -214,7 +214,7 @@ static int loadAddrKey(unsigned char * const addrKey) {
 	return 1;
 }
 
-static int receiveConnections_https(const char * const domain, const size_t lenDomain, mbedtls_x509_crt *tlsCert) {
+static int receiveConnections_https(const char * const domain, const size_t lenDomain, mbedtls_x509_crt * const tlsCert) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("[Main.HTTPS] Terminating: missing html/index.html");
 		return 1;
@@ -305,7 +305,7 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	return 0;
 }
 
-static int receiveConnections_smtp(const char * const domain, const size_t lenDomain, mbedtls_x509_crt *tlsCert) {
+static int receiveConnections_smtp(const char * const domain, const size_t lenDomain, mbedtls_x509_crt * const tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
 
