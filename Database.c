@@ -25,7 +25,10 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 	if (path == NULL) return NULL;
 
 	sqlite3 *db;
-	if (sqlite3_open_v2(path, &db, flags, NULL) != SQLITE_OK) return NULL;
+	if (sqlite3_open_v2(path, &db, flags, NULL) != SQLITE_OK) {
+		sqlite3_close_v2(db);
+		return NULL;
+	}
 
 	sqlite3_exec(db, "PRAGMA temp_store=MEMORY", NULL, NULL, NULL);
 	sqlite3_exec(db, "PRAGMA secure_delete=true", NULL, NULL, NULL);
