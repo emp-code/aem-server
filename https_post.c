@@ -32,12 +32,14 @@ static void send204(mbedtls_ssl_context * const ssl) {
 	, 199);
 }
 
+__attribute__((warn_unused_result, const))
 static int numDigits(double number) {
 	int digits = 0;
 	while (number > 1) {number /= 10; digits++;}
 	return digits;
 }
 
+__attribute__((warn_unused_result))
 static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1 || lenFrom > 24 || lenTo > 24) return -1;
@@ -379,6 +381,7 @@ static void storage_ennote(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
+__attribute__((warn_unused_result))
 static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
 

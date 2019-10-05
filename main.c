@@ -30,9 +30,10 @@
 #define AEM_PORT_HTTPS 443
 #define AEM_PORT_SMTP 25
 
-#define AEM_HOMEDIR "/var/lib/allears" // Ownership root:allears; permissions 730 (RWX-WX---)
+#define AEM_HOMEDIR "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
 #define AEM_DIRMODE (S_IFDIR | S_IRWXU | S_IWGRP | S_IXGRP) // Directory, Read-Write-Execute User, Write Group, Execute Group
 
+__attribute__((warn_unused_result))
 bool isGoodPerm(const gid_t gid, const char * const path) {
 	struct stat s;
 	if (stat(path, &s) != 0) return false;
@@ -40,6 +41,7 @@ bool isGoodPerm(const gid_t gid, const char * const path) {
 	return (s.st_uid == 0 && s.st_gid == gid && s.st_mode == AEM_DIRMODE);
 }
 
+__attribute__((warn_unused_result))
 static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
@@ -78,6 +80,7 @@ static void allowQuickRestart(const int * const sock) {
 	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 }
 
+__attribute__((warn_unused_result))
 static int initSocket(const int * const sock, const int port) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
@@ -94,6 +97,7 @@ static int initSocket(const int * const sock, const int port) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 static int aem_countFiles(const char * const path, const char * const ext, const size_t extLen) {
 	DIR * const dir = opendir(path);
 	if (dir == NULL) return 0;
@@ -110,6 +114,7 @@ static int aem_countFiles(const char * const path, const char * const ext, const
 	return counter;
 }
 
+__attribute__((warn_unused_result))
 static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount, const unsigned char * const spk) {
 	if (path == NULL || ext == NULL || extLen < 1 || fileCount < 1) return NULL;
 
@@ -194,6 +199,7 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 	return f;
 }
 
+__attribute__((warn_unused_result))
 static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	mbedtls_x509_crt_init(cert);
 	const int ret = mbedtls_x509_crt_parse_file(cert, "AllEars/TLS.crt");
@@ -203,6 +209,7 @@ static int loadTlsCert(mbedtls_x509_crt * const cert) {
 	return 1;
 }
 
+__attribute__((warn_unused_result))
 static int loadTlsKey(mbedtls_pk_context * const key) {
 	mbedtls_pk_init(key);
 	const int ret = mbedtls_pk_parse_keyfile(key, "AllEars/TLS.key", NULL);
@@ -212,6 +219,7 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 	return 1;
 }
 
+__attribute__((warn_unused_result))
 static int loadAddrKey(unsigned char * const addrKey) {
 	const int fd = open("AllEars/Address.key", O_RDONLY);
 	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
@@ -363,6 +371,7 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 char *getDomainInfo(mbedtls_x509_crt * const cert) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
@@ -379,6 +388,7 @@ char *getDomainInfo(mbedtls_x509_crt * const cert) {
 	return strdup(c + 5);
 }
 
+__attribute__((warn_unused_result))
 size_t getDomainLenFromCert(mbedtls_x509_crt * const cert) {
 	char * const c = getDomainInfo(cert);
 	if (c == NULL) return 0;
@@ -387,6 +397,7 @@ size_t getDomainLenFromCert(mbedtls_x509_crt * const cert) {
 	return s;
 }
 
+__attribute__((warn_unused_result))
 int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * const cert) {
 	char * const c = getDomainInfo(cert);
 	if (c == NULL) return -1;

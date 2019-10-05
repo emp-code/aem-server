@@ -168,6 +168,7 @@ MBEDTLS_TLS_RSA_WITH_RC4_128_SHA,
 MBEDTLS_TLS_RSA_WITH_RC4_128_MD5,
 0};
 
+__attribute__((warn_unused_result))
 static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	if (sockAddr == NULL) return 0;
 
@@ -203,6 +204,7 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	return ret;
 }
 
+__attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
 	if (buf == NULL || maxSize < 1) return -1;
 
@@ -217,6 +219,7 @@ static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * cons
 	return -1;
 }
 
+__attribute__((warn_unused_result))
 static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
 	if (data == NULL || lenData < 1) return -1;
 
@@ -239,6 +242,7 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 	return -1;
 }
 
+__attribute__((warn_unused_result))
 static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
 	if (buf == NULL || len < 1 || addr == NULL) return 0;
 
@@ -258,6 +262,7 @@ static size_t smtp_addr(const char * const buf, const size_t len, char * const a
 	return lenAddr;
 }
 
+__attribute__((warn_unused_result))
 static bool smtp_greet(const int sock, const char * const domain, const size_t lenDomain) {
 	if (domain == NULL || lenDomain < 1) return false;
 
@@ -269,6 +274,7 @@ static bool smtp_greet(const int sock, const char * const domain, const size_t l
 	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
 }
 
+__attribute__((warn_unused_result))
 static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain, const size_t lenDomain) {
 	if (tls == NULL || domain == NULL || lenDomain < 1) return false;
 
@@ -280,6 +286,7 @@ static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain
 	return (send_aem(0, tls, shlo, lenShlo) == lenShlo);
 }
 
+__attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const char * const domain, const size_t lenDomain, const char * const buf, const ssize_t bytes) {
 	if (domain == NULL || lenDomain < 1 || buf == NULL || bytes < 4) return false;
 
@@ -420,6 +427,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	}
 }
 
+__attribute__((warn_unused_result))
 static bool isAddressAem(const char * const c, const size_t len) {
 	if (c == NULL || len < 1) return false;
 
@@ -442,6 +450,7 @@ static bool isAddressAem(const char * const c, const size_t len) {
 	return true;
 }
 
+__attribute__((warn_unused_result))
 static bool isAddressOurs(const char * const addr, const size_t lenAddr, const char * const domain, const size_t lenDomain) {
 	if (addr == NULL || lenAddr < 1 || domain == NULL || lenDomain < 1) return false;
 
@@ -453,6 +462,7 @@ static bool isAddressOurs(const char * const addr, const size_t lenAddr, const c
 	);
 }
 
+__attribute__((warn_unused_result))
 static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
 

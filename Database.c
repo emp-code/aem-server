@@ -21,6 +21,7 @@
 #define AEM_PATH_DB_MESSAGES "/Messages.aed"
 #define AEM_PATH_DB_USERS  "/Users.aed"
 
+__attribute__((warn_unused_result))
 static sqlite3 *openDb(const char * const path, const int flags) {
 	if (path == NULL) return NULL;
 
@@ -37,6 +38,7 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 	return db;
 }
 
+__attribute__((warn_unused_result))
 int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
 	if (addr == NULL || addrKey == NULL) return 0;
 
@@ -45,6 +47,7 @@ int64_t addressToHash(const unsigned char * const addr, const unsigned char * co
 	return charToInt64(hash16);
 }
 
+__attribute__((warn_unused_result))
 int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
 	if (in == NULL || len < 1 || hashKey == NULL) return 0;
 
@@ -58,6 +61,7 @@ int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t u
 	return charToInt64(hash16);
 }
 
+__attribute__((warn_unused_result))
 bool upk64Exists(const int64_t upk64) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return false;
@@ -74,6 +78,7 @@ bool upk64Exists(const int64_t upk64) {
 	return (ret == SQLITE_ROW);
 }
 
+__attribute__((warn_unused_result))
 int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags) {
 	if (addr == NULL || pk == NULL || addrKey == NULL || flags == NULL) return -1;
 
@@ -103,6 +108,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 int getUserLevel(const int64_t upk64) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
@@ -121,6 +127,7 @@ int getUserLevel(const int64_t upk64) {
 	return level;
 }
 
+__attribute__((warn_unused_result))
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk, unsigned char * const limits) {
 	if (upk64 == 0 || level == NULL || noteData == NULL || addrData == NULL || lenAddr == NULL || gkData == NULL || lenGk == NULL || limits == NULL) return -1;
 
@@ -166,6 +173,7 @@ int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** con
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 int getAdminData(unsigned char ** const adminData) {
 	if (adminData == NULL) return -1;
 
@@ -219,6 +227,7 @@ int getAdminData(unsigned char ** const adminData) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, const size_t maxSize) {
 	if (msgCount == NULL || maxSize < 1) return NULL;
 
@@ -259,6 +268,7 @@ unsigned char *getUserMessages(const int64_t upk64, uint8_t * const msgCount, co
 	return data;
 }
 
+__attribute__((warn_unused_result))
 int addUserMessage(const int64_t upk64, const unsigned char * const msgData, const size_t msgLen) {
 	if (msgData == NULL || msgLen < 1) return -1;
 
@@ -278,6 +288,7 @@ int addUserMessage(const int64_t upk64, const unsigned char * const msgData, con
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, const unsigned char * const addrData, const size_t lenAddrData) {
 	if (addrData == NULL || lenAddrData < 1) return -1;
 
@@ -316,6 +327,7 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, 
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const hashKey, const unsigned char * const text, const size_t lenText) {
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM gatekeeper WHERE hash=? AND upk64=?", -1, &query, NULL);
@@ -329,6 +341,7 @@ static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, 
 	return (ret == SQLITE_ROW);
 }
 
+__attribute__((warn_unused_result))
 bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64, const unsigned char * const hashKey) {
 	if (domain == NULL || lenDomain < 1 || from == NULL || lenFrom < 1 || hashKey == NULL) false;
 
@@ -346,6 +359,7 @@ bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain
 }
 
 // Format: item1\nitem2\n...
+__attribute__((warn_unused_result))
 int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey) {
 	if (ownerPk == NULL || gkData == NULL || lenGkData < 1 || hashKey == NULL) return -1;
 
@@ -400,6 +414,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int count) {
 	if (ids == NULL || count < 1) return -1;
 
@@ -452,6 +467,7 @@ int deleteMessages(const int64_t upk64, const uint8_t * const ids, const int cou
 	return retval;
 }
 
+__attribute__((warn_unused_result))
 int updateNoteData(const int64_t upk64, const unsigned char * const noteData) {
 	if (noteData == NULL) return -1;
 
@@ -471,6 +487,7 @@ int updateNoteData(const int64_t upk64, const unsigned char * const noteData) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int updateAddress(const int64_t upk64, const unsigned char * const addrData, const size_t lenAddrData) {
 	if (addrData == NULL || lenAddrData < 1) return -1;
 
@@ -490,6 +507,7 @@ int updateAddress(const int64_t upk64, const unsigned char * const addrData, con
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, const unsigned char * const addrFlags, const int addressCount) {
 	if (addrHash == NULL || addrFlags == NULL || addressCount < 1) return -1;
 
@@ -514,6 +532,7 @@ int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, c
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 int addAddress(const int64_t upk64, const int64_t hash, const bool isShield) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
@@ -552,6 +571,7 @@ int addAddress(const int64_t upk64, const int64_t hash, const bool isShield) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int addAccount(const unsigned char * const pk) {
 	if (pk == NULL) return -1;
 
@@ -585,6 +605,7 @@ int addAccount(const unsigned char * const pk) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int setAccountLevel(const int64_t upk64, const int level) {
 	if (level < 0 || level > 3) return -1;
 
@@ -604,6 +625,7 @@ int setAccountLevel(const int64_t upk64, const int level) {
 	return (ret == SQLITE_DONE) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 int destroyAccount(const int64_t upk64) {
 	sqlite3 *db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
@@ -649,6 +671,7 @@ int destroyAccount(const int64_t upk64) {
 	return retval;
 }
 
+__attribute__((warn_unused_result))
 int updateLimits(const int * const maxStorage, const int * const maxAddrNrm, const int * const maxAddrShd) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;

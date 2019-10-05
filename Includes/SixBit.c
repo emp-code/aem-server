@@ -54,6 +54,7 @@
 #define AEM_SIXBIT_CHAR_z 62
 #define AEM_SIXBIT_CHAR_NULL 63
 
+__attribute__((warn_unused_result))
 static int getBit(const unsigned char * const c, const int bitNum) {
 	const int skipBits = bitNum % 8;
 	const int skipBytes = (bitNum - skipBits) / 8;
@@ -68,6 +69,7 @@ static void setBit(unsigned char * const c, const int bitNum) {
 	BIT_SET(c[skipBytes], skipBits);
 }
 
+__attribute__((warn_unused_result))
 static int charToUint6(const char character) {
 	switch (character) {
 		case '-': return AEM_SIXBIT_CHAR_HYPHEN;
@@ -114,6 +116,7 @@ static int charToUint6(const char character) {
 	}
 }
 
+__attribute__((warn_unused_result))
 static int addrToSixBit(const char * const source, const size_t lenSource, unsigned char * const out) {
 	bzero(out, 18);
 
@@ -139,6 +142,7 @@ static int addrToSixBit(const char * const source, const size_t lenSource, unsig
 }
 
 // Source must be 18 bytes
+__attribute__((warn_unused_result))
 bool isNormalBinAddress(const unsigned char * const source) {
 	int lastCharacter = 0;
 
@@ -169,6 +173,7 @@ bool isNormalBinAddress(const unsigned char * const source) {
 	return true;
 }
 
+__attribute__((warn_unused_result))
 static bool isNormalAddress(const char * const source, const size_t lenSource) {
 	if (lenSource < 1 || lenSource > 24) return false;
 
@@ -195,6 +200,7 @@ static bool isNormalAddress(const char * const source, const size_t lenSource) {
 	return true;
 }
 
+__attribute__((warn_unused_result))
 static int getHexValue(const char c) {
 	for (int i = 0; i < 16; i++) {
 		if (c == AEM_ADDRESS_HEXCHARS[i]) return i;
@@ -203,6 +209,7 @@ static int getHexValue(const char c) {
 	return -1;
 }
 
+__attribute__((warn_unused_result))
 int addr2bin(const char * const source, const size_t lenSource, unsigned char * const target) {
 	if (source == NULL || lenSource < 1) return 0;
 

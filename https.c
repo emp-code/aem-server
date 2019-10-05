@@ -62,6 +62,7 @@ static const int https_hashes[] = {
 	MBEDTLS_SSL_HASH_SHA512,
 MBEDTLS_MD_NONE};
 
+__attribute__((warn_unused_result))
 static bool supportsBrotli(const char * const req) {
 	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
 	if (ae == NULL) return false;
@@ -78,6 +79,7 @@ static bool supportsBrotli(const char * const req) {
 	return true;
 }
 
+__attribute__((warn_unused_result))
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
 	if (lenReq < 18) return AEM_HTTPS_REQUEST_INVALID; // GET / HTTP/1.1\r\n\r\n
 

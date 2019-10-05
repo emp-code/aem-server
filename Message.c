@@ -77,6 +77,7 @@ TextNote/FileNote
 		[-- char*] Message data
 */
 
+__attribute__((warn_unused_result))
 static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen, const unsigned char * const headBox) {
 	const uint16_t padLen = (*bodyLen % 1024 == 0) ? 0 : 1024 - (*bodyLen % 1024);
 	const size_t bodyLenPadded = *bodyLen + padLen;
@@ -95,6 +96,7 @@ static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char
 	return ciphertext;
 }
 
+__attribute__((warn_unused_result))
 static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const adrFrom, const unsigned char * const adrTo, const int senderLevel) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
@@ -113,6 +115,7 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 	return ciphertext;
 }
 
+__attribute__((warn_unused_result))
 unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel) {
 	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel);
 	if (headBox == NULL) return NULL;
@@ -132,6 +135,7 @@ unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char *
 	return boxSet;
 }
 
+__attribute__((warn_unused_result))
 static unsigned char *extMsg_makeHeadBox(const unsigned char * const pk, const unsigned char * const binTo, const uint32_t ip,
 const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigned char attach, unsigned char infoByte, const unsigned char spamByte) {
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -158,6 +162,7 @@ const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigne
 	return ciphertext;
 }
 
+__attribute__((warn_unused_result))
 unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen,
 const uint32_t ip, const int cs, const uint8_t tlsVersion, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
 	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, tlsVersion, countryCode, attach, infoByte, spamByte);

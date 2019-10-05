@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdint.h>
 
+__attribute__((warn_unused_result))
 int64_t charToInt64(const void * const source) {
 	if (source == NULL) return 0;
 

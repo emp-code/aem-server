@@ -2,6 +2,7 @@
 
 #include <brotli/encode.h>
 
+__attribute__((warn_unused_result))
 int brotliCompress(char ** const holder, size_t * const lenData) {
 	size_t lenOut = *lenData;
 	if (lenOut < 100) lenOut += 100; // compressed version can be larger with very small files

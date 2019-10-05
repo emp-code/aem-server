@@ -7,10 +7,12 @@
 
 const unsigned char b64Table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+__attribute__((warn_unused_result))
 bool isBase64Char(const char c) {
 	return (isalnum(c) || c == '+' || c == '/' || c == '=');
 }
 
+__attribute__((warn_unused_result))
 unsigned char *b64Decode(const unsigned char * const src, const size_t srcLen, size_t * const outLen) {
 	unsigned char dtable[256];
 	memset(dtable, 0x80, 256);
