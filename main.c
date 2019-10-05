@@ -23,7 +23,6 @@
 
 #include "Includes/Brotli.h"
 
-#include "http.h"
 #include "https.h"
 #include "smtp.h"
 
@@ -92,27 +91,6 @@ static int initSocket(const int * const sock, const int port) {
 
 	listen(*sock, 10); // socket, backlog (# of connections to keep in queue)
 	return 0;
-}
-
-static void receiveConnections_http(const char * const domain, const size_t lenDomain) {
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (initSocket(&sock, AEM_PORT_HTTP) != 0) {
-		puts("[Main.HTTP] Failed to create HTTP socket");
-		return;
-	}
-
-	const int ret = dropRoot();
-	if (ret != 0) {
-		printf("[Main.HTTP] dropRoot() failed: %d\n", ret);
-		return;
-	}
-
-	puts("[Main.HTTP] Ready");
-
-	while(1) {
-		const int sockNew = accept4(sock, NULL, NULL, SOCK_NONBLOCK);
-		respond_http(sockNew, domain, lenDomain);
-	}
 }
 
 static int aem_countFiles(const char * const path, const char * const ext, const size_t extLen) {
@@ -452,15 +430,11 @@ int main(void) {
 	printf("[Main] Domain detected as '%.*s'\n", (int)lenDomain, domain);
 
 	// Start server processes
-	int pid = fork();
+	const int pid = fork();
 	if (pid < 0) return EXIT_FAILURE;
 	if (pid == 0) return receiveConnections_https(domain, lenDomain);
 
-	pid = fork();
-	if (pid < 0) return EXIT_FAILURE;
-	if (pid == 0) return receiveConnections_smtp(domain, lenDomain);
-
-	receiveConnections_http(domain, lenDomain);
+	receiveConnections_smtp(domain, lenDomain);
 
 	return EXIT_SUCCESS;
 }
