@@ -198,11 +198,11 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
 		"User-agent: *\n"
+		"Disallow: /api/\n"
 		"Disallow: /css/\n"
 		"Disallow: /js/\n"
-		"Disallow: /img/\n"
-		"Disallow: /api/"
-	, 342);
+		"Disallow: /img/"
+	, 341);
 }
 
 void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
