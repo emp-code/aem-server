@@ -192,16 +192,6 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 }
 
 __attribute__((warn_unused_result))
-static int loadTlsCert(mbedtls_x509_crt * const cert) {
-	mbedtls_x509_crt_init(cert);
-	const int ret = mbedtls_x509_crt_parse_file(cert, "AllEars/TLS.crt");
-	if (ret == 0) return 0;
-
-	printf("[Main.Cert] mbedtls_x509_crt_parse returned %d\n", ret);
-	return 1;
-}
-
-__attribute__((warn_unused_result))
 static int loadTlsKey(mbedtls_pk_context * const key) {
 	mbedtls_pk_init(key);
 	const int ret = mbedtls_pk_parse_keyfile(key, "AllEars/TLS.key", NULL);
@@ -224,14 +214,11 @@ static int loadAddrKey(unsigned char * const addrKey) {
 	return 1;
 }
 
-static int receiveConnections_https(const char * const domain, const size_t lenDomain) {
+static int receiveConnections_https(const char * const domain, const size_t lenDomain, mbedtls_x509_crt *tlsCert) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("[Main.HTTPS] Terminating: missing html/index.html");
 		return 1;
 	}
-
-	mbedtls_x509_crt tlsCert;
-	if (loadTlsCert(&tlsCert) < 0) return 1;
 
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
@@ -292,7 +279,7 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 			if (pid < 0) {puts("[Main.HTTPS] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_https(newSock, &tlsCert, &tlsKey, ssk, addrKey, domain, lenDomain, fileSet);
+				respond_https(newSock, tlsCert, &tlsKey, ssk, addrKey, domain, lenDomain, fileSet);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
@@ -312,16 +299,13 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	sodium_free(fileJs);
 	sodium_free(fileSet);
 
-	mbedtls_x509_crt_free(&tlsCert);
+	mbedtls_x509_crt_free(tlsCert);
 	mbedtls_pk_free(&tlsKey);
 	close(sock);
 	return 0;
 }
 
-static int receiveConnections_smtp(const char * const domain, const size_t lenDomain) {
-	mbedtls_x509_crt tlsCert;
-	if (loadTlsCert(&tlsCert) < 0) return 1;
-
+static int receiveConnections_smtp(const char * const domain, const size_t lenDomain, mbedtls_x509_crt *tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
 
@@ -350,14 +334,14 @@ static int receiveConnections_smtp(const char * const domain, const size_t lenDo
 			if (pid < 0) {puts("[Main.SMTP] Failed fork"); break;}
 			else if (pid == 0) {
 				// Child goes on to communicate with the client
-				respond_smtp(newSock, &tlsCert, &tlsKey, addrKey, domain, lenDomain, &clientAddr);
+				respond_smtp(newSock, tlsCert, &tlsKey, addrKey, domain, lenDomain, &clientAddr);
 				close(newSock);
 				break;
 			} else close(newSock); // Parent closes its copy of the socket and moves on to accept a new one
 		}
 	}
 
-	mbedtls_x509_crt_free(&tlsCert);
+	mbedtls_x509_crt_free(tlsCert);
 	mbedtls_pk_free(&tlsKey);
 	close(sock);
 	return 0;
@@ -417,18 +401,17 @@ int main(void) {
 	setlocale(LC_ALL, "C");
 
 	// Get domain from TLS certificate
-	mbedtls_x509_crt cert;
-	mbedtls_x509_crt_init(&cert);
-	int ret = mbedtls_x509_crt_parse_file(&cert, "AllEars/TLS.crt");
+	mbedtls_x509_crt tlsCert;
+	mbedtls_x509_crt_init(&tlsCert);
+	int ret = mbedtls_x509_crt_parse_file(&tlsCert, "AllEars/TLS.crt");
 	if (ret != 0) {
 		printf("[Main] Terminating: mbedtls_x509_crt_parse returned %d\n", ret);
 		return EXIT_FAILURE;
 	}
 
-	const size_t lenDomain = getDomainLenFromCert(&cert);
+	const size_t lenDomain = getDomainLenFromCert(&tlsCert);
 	char domain[lenDomain];
-	ret = getDomainFromCert(domain, lenDomain, &cert);
-	mbedtls_x509_crt_free(&cert);
+	ret = getDomainFromCert(domain, lenDomain, &tlsCert);
 	if (ret != 0) {puts("[Main] Terminating: Failed to get domain from certificate"); return EXIT_FAILURE;}
 
 	printf("[Main] Domain detected as '%.*s'\n", (int)lenDomain, domain);
@@ -436,9 +419,9 @@ int main(void) {
 	// Start server processes
 	const int pid = fork();
 	if (pid < 0) return EXIT_FAILURE;
-	if (pid == 0) return receiveConnections_https(domain, lenDomain);
+	if (pid == 0) return receiveConnections_https(domain, lenDomain, &tlsCert);
 
-	receiveConnections_smtp(domain, lenDomain);
+	receiveConnections_smtp(domain, lenDomain, &tlsCert);
 
 	return EXIT_SUCCESS;
 }
