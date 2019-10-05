@@ -100,7 +100,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (strstr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
-	if (memcmp(req, "GET /servpubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	// Protocol: only HTTP/1.1 is supported
 	const char * const firstCrLf = strpbrk(req, "\r\n");
