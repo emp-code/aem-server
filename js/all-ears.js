@@ -8,8 +8,31 @@ function AllEars() {
 		if (document.characterSet !== "UTF-8") return;
 	} catch(e) {return;}
 
+	let _serverPk;
+
+	fetch("/api/pubkey", {
+		method: "GET",
+		cache: "no-store",
+		credentials: "omit",
+		redirect: "error",
+		referrer: "no-referrer",
+	}).then(function(response) {
+		if (!response.ok) {
+			console.log("Failed to get server public key (1)");
+			return;
+		}
+
+		return response.arrayBuffer();
+	}).then(function(ab) {
+		_serverPk = new Uint8Array(ab);
+
+		if (_serverPk.length != 32) {
+			console.log("Invalid server public key length: " + _serverPk.length);
+			return;
+		}
+	});
+
 // Private Variables
-	const _serverPkHex = "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._"; // Automatically replaced by the server
 	const _lenPost = 8192; // 8 KiB
 	const _lenNoteData_unsealed = 5122;
 	const _lenNoteData = _lenNoteData_unsealed + 48;
@@ -138,7 +161,7 @@ function AllEars() {
 		const nonce = nacl.crypto_box_random_nonce();
 
 		// postBox: the encrypted data to be sent
-		const postBox = nacl.crypto_box(clearU8, nonce, nacl.from_hex(_serverPkHex), _userKeys.boxSk);
+		const postBox = nacl.crypto_box(clearU8, nonce, _serverPk, _userKeys.boxSk);
 
 		// postMsg: Nonce + User Public Key + postBox
 		const postMsg = new Uint8Array(24 + _userKeys.boxPk.length + postBox.length);

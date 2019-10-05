@@ -115,7 +115,7 @@ static int aem_countFiles(const char * const path, const char * const ext, const
 }
 
 __attribute__((warn_unused_result))
-static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount, const unsigned char * const spk) {
+static struct aem_file *aem_loadFiles(const char * const path, const char * const ext, const size_t extLen, const int fileCount) {
 	if (path == NULL || ext == NULL || extLen < 1 || fileCount < 1) return NULL;
 
 	DIR * const dir = opendir(path);
@@ -145,14 +145,6 @@ static struct aem_file *aem_loadFiles(const char * const path, const char * cons
 				close(fd);
 
 				if (readBytes == bytes) {
-					while (spk != NULL) {
-						char * const spk_loc = memmem(tempData, bytes, "_PLACEHOLDER_FOR_ALL-EARS_MAIL_SERVER_PUBLIC_KEY_DO_NOT_MODIFY._", 64);
-						if (spk_loc == NULL) break;
-						char hex[65];
-						sodium_bin2hex(hex, 65, spk, crypto_box_PUBLICKEYBYTES);
-						memcpy(spk_loc, hex, 64);
-					}
-
 					brotliCompress(&tempData, (size_t*)&bytes);
 
 					f[counter].filename = strdup(de->d_name);
@@ -265,12 +257,12 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 	if (ssk == NULL) {free(spk); return 1;}
 	crypto_box_keypair(spk, ssk);
 	sodium_mprotect_readonly(ssk);
-
-	struct aem_file * const fileCss  = aem_loadFiles("css",  ".css",  4, numCss, NULL);
-	struct aem_file * const fileHtml = aem_loadFiles("html", ".html", 5, numHtml, NULL);
-	struct aem_file * const fileImg  = aem_loadFiles("img",  ".webp", 5, numImg, NULL);
-	struct aem_file * const fileJs   = aem_loadFiles("js",   ".js",   3, numJs, spk);
 	free(spk);
+
+	struct aem_file * const fileCss  = aem_loadFiles("css",  ".css",  4, numCss);
+	struct aem_file * const fileHtml = aem_loadFiles("html", ".html", 5, numHtml);
+	struct aem_file * const fileImg  = aem_loadFiles("img",  ".webp", 5, numImg);
+	struct aem_file * const fileJs   = aem_loadFiles("js",   ".js",   3, numJs);
 
 	struct aem_fileSet * const fileSet = sodium_malloc(sizeof(struct aem_fileSet));
 	if (fileSet == NULL) {puts("[Main.HTTPS] Failed to allocate memory for fileSet"); return 1;}
