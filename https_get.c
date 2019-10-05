@@ -193,17 +193,16 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: 98\r\n"
+		"Content-Length: 76\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
 		"User-agent: *\n"
-		"Disallow: /api/\n"
 		"Disallow: /css/\n"
 		"Disallow: /js/\n"
 		"Disallow: /img/\n"
-		"Disallow: /servpubkey"
-	, 363);
+		"Disallow: /api/"
+	, 342);
 }
 
 void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
