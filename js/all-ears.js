@@ -1,6 +1,6 @@
 "use strict";
 
-function AllEars() {
+function AllEars(readyCallback) {
 	try {
 		if (!window.isSecureContext) return;
 		if (window.self !== window.top) return;
@@ -17,19 +17,12 @@ function AllEars() {
 		redirect: "error",
 		referrer: "no-referrer",
 	}).then(function(response) {
-		if (!response.ok) {
-			console.log("Failed to get server public key (1)");
-			return;
-		}
-
-		return response.arrayBuffer();
+		return response.ok ? response.arrayBuffer() : false;
 	}).then(function(ab) {
-		_serverPk = new Uint8Array(ab);
+		if (ab === false) return readyCallback(false);
 
-		if (_serverPk.length != 32) {
-			console.log("Invalid server public key length: " + _serverPk.length);
-			return;
-		}
+		_serverPk = new Uint8Array(ab);
+		return readyCallback((_serverPk.length === 32));
 	});
 
 // Private Variables

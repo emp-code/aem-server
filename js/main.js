@@ -1,6 +1,12 @@
 "use strict";
 
-const ae = new AllEars();
+const ae = new AllEars(function(ok) {
+	if (ok) {
+		document.getElementById("btn_enter").disabled = false;
+	} else {
+		console.log("Failed to load All-Ears");
+	}
+});
 
 function navMenu(num) {
 	document.getElementById("div_readmsg").hidden = true;
