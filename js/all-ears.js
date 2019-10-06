@@ -2,11 +2,12 @@
 
 function AllEars(readyCallback) {
 	try {
-		if (!window.isSecureContext) return;
-		if (window.self !== window.top) return;
-		if (document.compatMode == "BackCompat") return;
-		if (document.characterSet !== "UTF-8") return;
-	} catch(e) {return;}
+		if (!window.isSecureContext
+		|| window.self !== window.top
+		|| document.compatMode == "BackCompat"
+		|| document.characterSet !== "UTF-8"
+		) return readyCallback(false);
+	} catch(e) {return readyCallback(false);}
 
 	let _serverPk;
 
