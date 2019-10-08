@@ -326,23 +326,23 @@ function setAccountLevel(upk_hex, level) {
 			return;
 		}
 
-		tbl.rows[rowid].cells[2].textContent = level;
+		tbl.rows[rowid].cells[4].textContent = level;
 
 		if (level === 0) {
-			tbl.rows[rowid].cells[4].children[0].disabled = "disabled";
-			tbl.rows[rowid].cells[3].children[0].disabled = "";
+			tbl.rows[rowid].cells[5].children[0].disabled = "";
+			tbl.rows[rowid].cells[6].children[0].disabled = "disabled";
 		} else if (level === ae.GetLevelMax()) {
-			tbl.rows[rowid].cells[3].children[0].disabled = "disabled";
-			tbl.rows[rowid].cells[4].children[0].disabled = "";
+			tbl.rows[rowid].cells[5].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[6].children[0].disabled = "";
 		} else {
-			tbl.rows[rowid].cells[3].children[0].disabled = "";
-			tbl.rows[rowid].cells[4].children[0].disabled = "";
+			tbl.rows[rowid].cells[5].children[0].disabled = "";
+			tbl.rows[rowid].cells[6].children[0].disabled = "";
 		}
 
 		const pkHex = ae.Admin_GetUserPkHex(rowid);
 		const currentLevel = ae.Admin_GetUserLevel(rowid);
-		tbl.rows[rowid].cells[3].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
-		tbl.rows[rowid].cells[4].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
+		tbl.rows[rowid].cells[5].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel + 1);};
+		tbl.rows[rowid].cells[6].children[0].onclick = function() {setAccountLevel(pkHex, currentLevel - 1);};
 	});
 }
 
