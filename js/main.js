@@ -665,12 +665,12 @@ document.getElementById("btn_enter").onclick = function() {
 					reloadInterface();
 				} else {
 					console.log("Failed to enter");
-					this.disabled = false;
+					document.getElementById("btn_enter").disabled = false;
 				}
 			});
 		} else {
 			console.log("Invalid format for key");
-			this.disabled = false;
+			document.getElementById("btn_enter").disabled = false;
 		}
 	});
 };
