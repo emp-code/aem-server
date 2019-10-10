@@ -656,6 +656,7 @@ document.getElementById("btn_enter").onclick = function() {
 	const txtSkey = document.getElementById('txt_skey');
 	if (!txtSkey.reportValidity()) return;
 
+	this.disabled = true;
 	ae.SetKeys(txtSkey.value, function(successSetKeys) {
 		if (successSetKeys) {
 			ae.Browse(0, function(successBrowse) {
@@ -664,10 +665,12 @@ document.getElementById("btn_enter").onclick = function() {
 					reloadInterface();
 				} else {
 					console.log("Failed to enter");
+					this.disabled = false;
 				}
 			});
 		} else {
 			console.log("Invalid format for key");
+			this.disabled = false;
 		}
 	});
 };
