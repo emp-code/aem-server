@@ -1,11 +1,11 @@
 header, nav {
-	text-align: center;
 	margin-bottom: 1em;
+	text-align: center;
 }
 
-footer {
-	text-align: center;
+footer, .maindiv {
 	margin-top: 1em;
+	text-align: center;
 }
 
 td, th {
@@ -13,18 +13,13 @@ td, th {
 }
 
 textarea {
-	width: 50em;
 	height: 10em;
+	width: 50em;
 }
 
 table {
 	margin-left:auto;
 	margin-right:auto;
-}
-
-.maindiv {
-	margin-top: 1em;
-	text-align: center;
 }
 
 .bold {font-weight: bold;}
@@ -33,10 +28,7 @@ table {
 .center {text-align: center;}
 .left {text-align: left;}
 .flex {display: flex;}
-
-.flex input {
-	flex: 1;
-}
+.flex input {flex: 1;}
 
 td, #readmsg_title, #readmsg_body {
 	white-space: pre-wrap;
@@ -67,24 +59,19 @@ td, #readmsg_title, #readmsg_body {
 
 #div_prefs_gatekeeper {margin: 0 auto;}
 
-#list_inbox {
+#list_inbox, #list_sent {
+	display: grid;
 	margin: 0 auto;
 	max-width: 80em;
-	display: grid;
-	grid-template-columns: auto 3fr 1fr 1fr 1fr 3em;
 }
 
-#list_sent {
-	margin: 0 auto;
-	max-width: 80em;
-	display: grid;
-	grid-template-columns: auto 3fr 1fr 1fr 3em;
-}
+#list_inbox {grid-template-columns: auto 3fr 1fr 1fr 1fr 3em;}
+#list_sent  {grid-template-columns: auto 3fr 1fr 1fr 3em;}
 
 #list_inbox > div, #list_sent > div {
+	overflow: hidden;
 	text-align: left;
 	text-overflow: ellipsis;
-	overflow: hidden;
 	white-space: nowrap;
 }
 
