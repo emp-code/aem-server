@@ -65,12 +65,10 @@ function addExtMessages() {
 		divSubj.textContent = ae.GetExtMsgTitle(i);
 
 		const from = ae.GetExtMsgFrom(i);
-
-		divFrom1.textContent = from.substring(0, from.indexOf('@'));
-
-		const from2 = from.substring(from.indexOf('@') + 1);
-
+		const from2 = from.substring(from.indexOf("@") + 1);
 		const cc = ae.GetExtMsgCountry(i);
+
+		divFrom1.textContent = from.substring(0, from.indexOf("@"));
 		divFrom2.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
 
 		const fromText = document.createElement("span");
@@ -653,7 +651,7 @@ function genKeys() {
 }
 
 document.getElementById("btn_enter").onclick = function() {
-	const txtSkey = document.getElementById('txt_skey');
+	const txtSkey = document.getElementById("txt_skey");
 	if (!txtSkey.reportValidity()) return;
 
 	this.disabled = true;
