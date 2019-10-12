@@ -19,6 +19,7 @@
 
 #include "https.h"
 
+#define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_GET 5 // 'GET /'
@@ -154,7 +155,9 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
 	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_GET, ' ');
 	if (urlEnd == NULL) return;
+
 	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_GET);
+	if (lenUrl > AEM_MAXLEN_URL) return;
 
 	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet, domain, lenDomain);
 }
