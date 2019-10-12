@@ -14,7 +14,7 @@
 #define AEM_FILETYPE_JS  3
 
 // Javascript, CSS, images etc
-static void respond_https_file(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const int fileType, const struct aem_file * const files, const int fileCount) {
+static void respondFile(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const int fileType, const struct aem_file * const files, const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -69,7 +69,7 @@ static void respond_https_file(mbedtls_ssl_context * const ssl, const char * con
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-static void respond_https_html(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const struct aem_file * const files, const int fileCount, const char * const domain, const size_t lenDomain) {
+static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const struct aem_file * const files, const int fileCount, const char * const domain, const size_t lenDomain) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -155,12 +155,12 @@ static void respond_https_html(mbedtls_ssl_context * const ssl, const char * con
 }
 
 void https_get(mbedtls_ssl_context * const ssl, const char * const url, const size_t lenUrl, const struct aem_fileSet * const fileSet, const char * const domain, const size_t lenDomain) {
-	if (lenUrl == 0) return respond_https_html(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
-	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respond_https_html(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
+	if (lenUrl == 0) return respondHtml(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
+	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respondHtml(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
-	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
-	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0) return respond_https_file(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
-	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0) return respond_https_file(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0) return respondFile(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
 void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, const int lenDomain) {
