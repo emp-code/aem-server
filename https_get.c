@@ -32,8 +32,8 @@ static void respondFile(mbedtls_ssl_context * const ssl, const char * const name
 	int mtLen;
 	switch (fileType) {
 		case AEM_FILETYPE_IMG:
-			mediatype = "image/webp";
-			mtLen = 10;
+			mediatype = "image/png";
+			mtLen = 9;
 			break;
 		case AEM_FILETYPE_JS:
 			mediatype = "application/javascript; charset=utf-8";
@@ -158,9 +158,9 @@ void https_get(mbedtls_ssl_context * const ssl, const char * const url, const si
 	if (lenUrl == 0) return respondHtml(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respondHtml(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
 
-	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
-	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
-	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0) return respondFile(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
+	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0 && memcmp(url + lenUrl - 4, ".css", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
+	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0 && memcmp(url + lenUrl - 4, ".png", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
+	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0 && memcmp(url + lenUrl - 3, ".js",  3) == 0) return respondFile(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
 void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, const int lenDomain) {

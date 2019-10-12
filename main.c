@@ -232,7 +232,7 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 
 	const int numCss  = aem_countFiles("css",  ".css",  4);
 	const int numHtml = aem_countFiles("html", ".html", 5);
-	const int numImg  = aem_countFiles("img",  ".webp", 5);
+	const int numImg  = aem_countFiles("img",  ".png",  4);
 	const int numJs   = aem_countFiles("js",   ".js",   3);
 
 	printf("[Main.HTTPS] Loading files: %d CSS, %d HTML, %d image, %d Javascript\n", numCss, numHtml, numImg, numJs);
@@ -248,7 +248,7 @@ static int receiveConnections_https(const char * const domain, const size_t lenD
 
 	struct aem_file * const fileCss  = aem_loadFiles("css",  ".css",  4, numCss);
 	struct aem_file * const fileHtml = aem_loadFiles("html", ".html", 5, numHtml);
-	struct aem_file * const fileImg  = aem_loadFiles("img",  ".webp", 5, numImg);
+	struct aem_file * const fileImg  = aem_loadFiles("img",  ".png",  4, numImg);
 	struct aem_file * const fileJs   = aem_loadFiles("js",   ".js",   3, numJs);
 
 	struct aem_fileSet * const fileSet = sodium_malloc(sizeof(struct aem_fileSet));
