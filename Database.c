@@ -536,8 +536,8 @@ __attribute__((warn_unused_result))
 static bool isUserAtAddressLimit(sqlite3 * const db, const uint64_t upk64, const bool isShield) {
 	sqlite3_stmt *query;
 	const char * const sql = isShield
-	? "SELECT 1 WHERE (SELECT addrshld FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) < (SELECT COUNT(1) FROM address WHERE upk64=? AND flags & ?)"
-	: "SELECT 1 WHERE (SELECT addrnorm FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) < (SELECT COUNT(1) FROM address WHERE upk64=? AND NOT (flags & ?))";
+	? "SELECT 1 WHERE (SELECT addrshld FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) <= (SELECT COUNT(1) FROM address WHERE upk64=? AND flags & ?)"
+	: "SELECT 1 WHERE (SELECT addrnorm FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) <= (SELECT COUNT(1) FROM address WHERE upk64=? AND NOT (flags & ?))";
 
 	int ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
