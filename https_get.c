@@ -218,11 +218,12 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
 		"User-agent: *\n"
+		"Disallow: /.well-known/\n"
 		"Disallow: /api/\n"
 		"Disallow: /css/\n"
 		"Disallow: /js/\n"
 		"Disallow: /img/"
-	, 341);
+	, 365);
 }
 
 // Tracking Status Resource for DNT
