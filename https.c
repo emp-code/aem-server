@@ -264,14 +264,15 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
-		const int reqType = getRequestType((char*)req, lenReq, domain, lenDomain);
-		if (reqType == AEM_HTTPS_REQUEST_GET) handleGet(&ssl, (char*)req, domain, lenDomain, fileSet);
-		else if (reqType == AEM_HTTPS_REQUEST_MTASTS) https_mtasts(&ssl, domain, lenDomain);
-		else if (reqType == AEM_HTTPS_REQUEST_ROBOTS) https_robots(&ssl);
-		else if (reqType == AEM_HTTPS_REQUEST_PUBKEY) https_pubkey(&ssl, ssk);
-		else if (reqType == AEM_HTTPS_REQUEST_POST) {
-			handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
-			sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
+		switch (getRequestType((char*)req, lenReq, domain, lenDomain)) {
+			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req, domain, lenDomain, fileSet); break;
+			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl, domain, lenDomain); break;
+			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl, ssk); break;
+			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
+			case AEM_HTTPS_REQUEST_POST: {
+				handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
+				sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
+			}
 		}
 	}
 
