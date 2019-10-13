@@ -231,10 +231,11 @@ void https_tsr(mbedtls_ssl_context *ssl) {
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Type: application/tracking-status+json\r\n"
 		"Content-Length: 17\r\n"
 		"\r\n"
 		"{\"tracking\": \"N\"}"
-	, 195);
+	, 233);
 }
