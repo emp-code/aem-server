@@ -26,10 +26,11 @@ static void send204(mbedtls_ssl_context * const ssl) {
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
+		"Cache-Control: no-store\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 199);
+	, 224);
 }
 
 __attribute__((warn_unused_result, const))
@@ -110,7 +111,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
 
 	const size_t lenBody = 18 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
-	const size_t lenHead = 198 + numDigits(lenBody);
+	const size_t lenHead = 223 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 
 	char * const data = malloc(lenResponse);
@@ -121,6 +122,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
+		"Cache-Control: no-store\r\n"
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
@@ -206,12 +208,13 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	const int64_t hash = addressToHash(addr, addrKey);
 	if (addAddress(upk64, hash, isShield) != 0) return;
 
-	char data[226];
+	char data[251];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
+		"Cache-Control: no-store\r\n"
 		"Connection: close\r\n"
 		"Content-Length: 26\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
