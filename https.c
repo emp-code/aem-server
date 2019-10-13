@@ -132,8 +132,8 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
 	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
-	if (memcmp(req, "POST /api/", 10) == 0) { // POST /api/account/browse HTTP/1.1\r\n
-		if (lenReq < 36) return AEM_HTTPS_REQUEST_INVALID;
+	if (memcmp(req, "POST /api/", 10) == 0) {
+		if (lenReq < 71) return AEM_HTTPS_REQUEST_INVALID; // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
 		for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 		if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
 		for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
