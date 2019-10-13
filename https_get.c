@@ -226,7 +226,7 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 }
 
 // Tracking Status Resource for DNT
-void https_tsr(mbedtls_ssl_context *ssl) {
+void https_tsr(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"

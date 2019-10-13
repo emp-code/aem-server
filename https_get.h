@@ -5,6 +5,6 @@ void https_get(mbedtls_ssl_context * const ssl, const char * const url, const si
 void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, const int lenDomain);
 void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk);
 void https_robots(mbedtls_ssl_context * const ssl);
-void https_tsr(mbedtls_ssl_context *ssl);
+void https_tsr(mbedtls_ssl_context * const ssl);
 
 #endif
