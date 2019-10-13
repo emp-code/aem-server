@@ -91,14 +91,11 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	reqEnd[2] = '\0';
 
-	// Host header: MTA-STS
-	char header[19 + lenDomain];
-	sprintf(header, "\r\nHost: mta-sts.%.*s\r\n", (int)lenDomain, domain);
-	if (strstr(req, header) != NULL) return AEM_HTTPS_REQUEST_MTASTS;
-
-	// Host header: normal
-	sprintf(header, "\r\nHost: %.*s\r\n", (int)lenDomain, domain);
-	if (strstr(req, header) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	// Host header
+	const char * const host = strstr(req, "\r\nHost: ");
+	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(host + 8, "mta-sts.", 8) == 0) return AEM_HTTPS_REQUEST_MTASTS;
+	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
 	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
