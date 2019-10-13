@@ -266,10 +266,13 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		req[lenReq] = '\0';
 		const int reqType = getRequestType((char*)req, lenReq, domain, lenDomain);
 		if (reqType == AEM_HTTPS_REQUEST_GET) handleGet(&ssl, (char*)req, domain, lenDomain, fileSet);
-		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
 		else if (reqType == AEM_HTTPS_REQUEST_MTASTS) https_mtasts(&ssl, domain, lenDomain);
 		else if (reqType == AEM_HTTPS_REQUEST_ROBOTS) https_robots(&ssl);
 		else if (reqType == AEM_HTTPS_REQUEST_PUBKEY) https_pubkey(&ssl, ssk);
+		else if (reqType == AEM_HTTPS_REQUEST_POST) {
+			handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
+			sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
+		}
 	}
 
 	free(req);
