@@ -118,15 +118,18 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 
 	if (memcmp(req, "GET /", 5) == 0) {
 		if (
-			   (strcasestr(req, "\r\nSec-Fetch-Mode: cors")       != NULL)
-			|| (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
+			   (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
 			|| (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL)
 			|| (strcasestr(req, "\r\nContent-Length:")   != NULL)
-			|| (strcasestr(req, "\r\nOrigin:")           != NULL)
-			|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
 		) return AEM_HTTPS_REQUEST_INVALID;
 
 		if (memcmp(req + 5, "api/pubkey ", 11) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+
+		if (
+			   (strcasestr(req, "\r\nSec-Fetch-Mode: cors")       != NULL)
+			|| (strcasestr(req, "\r\nOrigin:")           != NULL)
+			|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
+		) return AEM_HTTPS_REQUEST_INVALID;
 
 		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
