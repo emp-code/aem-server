@@ -97,9 +97,6 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (strncmp(host + 8, "mta-sts.", 8) == 0) return AEM_HTTPS_REQUEST_MTASTS;
 	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
-	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
-
 	// Protocol: only HTTP/1.1 is supported
 	const char * const firstCrLf = strpbrk(req, "\r\n");
 	const char * const prot = strstr(req, " HTTP/1.1\r\n");
@@ -131,6 +128,9 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
+
+	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
+	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (memcmp(req, "POST /api/", 10) == 0) { // POST /api/account/browse HTTP/1.1\r\n
 		if (lenReq < 36) return AEM_HTTPS_REQUEST_INVALID;
