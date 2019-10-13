@@ -19,6 +19,8 @@
 
 #include "https.h"
 
+#define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
+#define AEM_MINLEN_POST 71 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
 #define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
@@ -83,7 +85,7 @@ static bool supportsBrotli(const char * const req) {
 
 __attribute__((warn_unused_result))
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
-	if (lenReq < 30) return AEM_HTTPS_REQUEST_INVALID; // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
+	if (lenReq < AEM_MINLEN_GET) return AEM_HTTPS_REQUEST_INVALID;
 
 	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
@@ -139,7 +141,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	}
 
 	if (memcmp(req, "POST /api/", 10) == 0) {
-		if (lenReq < 71) return AEM_HTTPS_REQUEST_INVALID; // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
+		if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
 
 		for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 		if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
