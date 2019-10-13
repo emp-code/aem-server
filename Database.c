@@ -533,31 +533,56 @@ int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, c
 }
 
 __attribute__((warn_unused_result))
+static bool isUserAtAddressLimit(sqlite3 * const db, const uint64_t upk64, const bool isShield) {
+	sqlite3_stmt *query;
+	const char * const sql = isShield
+	? "SELECT 1 WHERE (SELECT addrshld FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) < (SELECT COUNT(1) FROM address WHERE upk64=? AND flags & ?)"
+	: "SELECT 1 WHERE (SELECT addrnorm FROM LIMITS WHERE level = (SELECT level FROM userdata WHERE upk64=?)) < (SELECT COUNT(1) FROM address WHERE upk64=? AND NOT (flags & ?))";
+
+	int ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	sqlite3_bind_int64(query, 1, upk64);
+	sqlite3_bind_int64(query, 2, upk64);
+	sqlite3_bind_int(query, 3, AEM_FLAGS_ADDR_ISSHIELD);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	return (ret == SQLITE_ROW);
+}
+
+static int updateUserAddressCount(sqlite3 * const db, const uint64_t upk64, const bool isShield) {
+	sqlite3_stmt *query;
+	const char * const sql = isShield
+	? "UPDATE userdata SET addrshld = (SELECT COUNT(1) FROM address WHERE upk64=? AND flags & ?) WHERE upk64=?"
+	: "UPDATE userdata SET addrnorm = (SELECT COUNT(1) FROM address WHERE upk64=? AND NOT (flags & ?)) WHERE upk64=?";
+
+	int ret = sqlite3_prepare_v2(db, sql, -1, &query, NULL);
+	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+
+	sqlite3_bind_int64(query, 1, upk64);
+	sqlite3_bind_int(query, 2, AEM_FLAGS_ADDR_ISSHIELD);
+	sqlite3_bind_int64(query, 3, upk64);
+
+	ret = sqlite3_step(query);
+	sqlite3_finalize(query);
+
+	return ret;
+}
+
+__attribute__((warn_unused_result))
 int addAddress(const int64_t upk64, const int64_t hash, const bool isShield) {
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
-	sqlite3_stmt *query;
-	const char * const sqlUpdate = isShield
-	? "UPDATE userdata SET addrshld = addrshld + 1 WHERE upk64 = ? AND (SELECT 1 FROM userdata INNER JOIN limits USING(level) WHERE upk64 = ? AND userdata.addrshld < limits.addrshld)"
-	: "UPDATE userdata SET addrnorm = addrnorm + 1 WHERE upk64 = ? AND (SELECT 1 FROM userdata INNER JOIN limits USING(level) WHERE upk64 = ? AND userdata.addrnorm < limits.addrnorm)";
-
-	int ret = sqlite3_prepare_v2(db, sqlUpdate, -1, &query, NULL);
-	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
-	sqlite3_bind_int64(query, 1, upk64);
-	sqlite3_bind_int64(query, 2, upk64);
-
-	ret = sqlite3_step(query);
-	sqlite3_finalize(query);
-	if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
-
-	if (sqlite3_changes(db) != 1) {
-		// User tried to add an address even though they were at the limit
+	if (isUserAtAddressLimit(db, upk64, isShield)) {
 		sqlite3_close_v2(db);
 		return -1;
 	}
 
-	ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64, flags) VALUES (?, ?, ?)", -1, &query, NULL);
+	sqlite3_stmt *query;
+	int ret = sqlite3_prepare_v2(db, "INSERT INTO address (hash, upk64, flags) VALUES (?, ?, ?)", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	const int flags = isShield ? AEM_FLAGS_ADDR_USE_GK | AEM_FLAGS_ADDR_ISSHIELD : AEM_FLAGS_ADDR_USE_GK;
@@ -566,6 +591,10 @@ int addAddress(const int64_t upk64, const int64_t hash, const bool isShield) {
 	sqlite3_bind_int(query, 3, flags);
 
 	ret = sqlite3_step(query);
+	if (ret == SQLITE_DONE) {
+		updateUserAddressCount(db, upk64, isShield);
+	}
+
 	sqlite3_finalize(query);
 	sqlite3_close_v2(db);
 	return (ret == SQLITE_DONE) ? 0 : -1;
