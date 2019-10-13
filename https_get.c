@@ -185,6 +185,26 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 	sendData(ssl, data, 316 + lenDomain);
 }
 
+void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
+	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
+	unsigned char data[200 + crypto_box_PUBLICKEYBYTES];
+
+	memcpy(data,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
+		"Connection: close\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 200);
+
+	crypto_scalarmult_base(data + 200, ssk);
+
+	sendData(ssl, data, 200 + crypto_box_PUBLICKEYBYTES);
+}
+
 void https_robots(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
 		"HTTP/1.1 200 aem\r\n"
@@ -205,22 +225,16 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 	, 341);
 }
 
-void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
-	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
-	unsigned char data[200 + crypto_box_PUBLICKEYBYTES];
-
-	memcpy(data,
+// Tracking Status Resource for DNT
+void https_tsr(mbedtls_ssl_context *ssl) {
+	sendData(ssl,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
+		"Content-Type: application/tracking-status+json\r\n"
+		"Content-Length: 17\r\n"
 		"\r\n"
-	, 200);
-
-	crypto_scalarmult_base(data + 200, ssk);
-
-	sendData(ssl, data, 200 + crypto_box_PUBLICKEYBYTES);
+		"{\"tracking\": \"N\"}"
+	, 195);
 }

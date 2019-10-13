@@ -33,6 +33,7 @@
 #define AEM_HTTPS_REQUEST_POST 1
 #define AEM_HTTPS_REQUEST_MTASTS 10
 #define AEM_HTTPS_REQUEST_ROBOTS 20
+#define AEM_HTTPS_REQUEST_TSR    30
 #define AEM_HTTPS_REQUEST_PUBKEY 50
 
 static const int https_ciphersuites[] = {
@@ -136,6 +137,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
 		if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
+		if (memcmp(req + 5, ".well-known/dnt/", 16) == 0) return AEM_HTTPS_REQUEST_TSR;
 
 		return AEM_HTTPS_REQUEST_GET;
 	}
@@ -269,6 +271,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl, domain, lenDomain); break;
 			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl, ssk); break;
 			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
+			case AEM_HTTPS_REQUEST_TSR:    https_tsr(&ssl); break;
 			case AEM_HTTPS_REQUEST_POST: {
 				handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
 				sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
