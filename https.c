@@ -124,9 +124,10 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 			|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
 		) return AEM_HTTPS_REQUEST_INVALID;
 
+		if (memcmp(req + 5, "api/pubkey ", 11) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+
 		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
-		if (memcmp(req + 5, "api/pubkey ", 11) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 		if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
 
 		return AEM_HTTPS_REQUEST_GET;
