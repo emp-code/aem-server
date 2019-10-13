@@ -126,11 +126,11 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 
 		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
+		if (memcmp(req + 5, "api/pubkey ", 11) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+		if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
+
 		return AEM_HTTPS_REQUEST_GET;
 	}
-
-	if (memcmp(req, "GET /robots.txt ", 16) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
-	if (memcmp(req, "GET /api/pubkey ", 16) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (memcmp(req, "POST /api/", 10) == 0) {
 		if (lenReq < 71) return AEM_HTTPS_REQUEST_INVALID; // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
