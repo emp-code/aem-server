@@ -19,6 +19,7 @@
 
 #include "https.h"
 
+#define AEM_MAXLEN_REQ 800
 #define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
 
@@ -88,6 +89,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	lenReq = reqEnd - req + 2; // Include \r\n at end
+	if (lenReq > AEM_MAXLEN_REQ) return AEM_HTTPS_REQUEST_INVALID;
 	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
 	reqEnd[2] = '\0';
 
