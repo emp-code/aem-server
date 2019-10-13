@@ -134,10 +134,11 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 
 	if (memcmp(req, "POST /api/", 10) == 0) {
 		if (lenReq < 71) return AEM_HTTPS_REQUEST_INVALID; // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
+
 		for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 		if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
 		for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-		if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
+		if (req[24] != ' ') return AEM_HTTPS_REQUEST_INVALID;
 
 		if (strstr(req, "\r\nContent-Length: 8264\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
