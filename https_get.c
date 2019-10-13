@@ -236,7 +236,8 @@ void https_tsr(mbedtls_ssl_context * const ssl) {
 		"Connection: close\r\n"
 		"Content-Type: application/tracking-status+json\r\n"
 		"Content-Length: 17\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
 		"{\"tracking\": \"N\"}"
-	, 233);
+	, 266);
 }
