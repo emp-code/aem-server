@@ -175,7 +175,7 @@ void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t 
 	char url[lenUrl];
 	memcpy(url, buf + AEM_SKIP_URL_POST, lenUrl);
 
-	const char *post = strstr(buf + 20, "\r\n\r\n");
+	const char *post = strstr(buf + AEM_MINLEN_POST - 4, "\r\n\r\n");
 	if (post == NULL) return;
 	post += 4;
 
