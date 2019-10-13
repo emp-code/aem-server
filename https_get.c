@@ -148,7 +148,7 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 		"\r\n"
 	, files[reqNum].lenData, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain);
 
-	size_t lenHeaders = strlen(data);
+	const size_t lenHeaders = strlen(data);
 	memcpy(data + lenHeaders, files[reqNum].data, files[reqNum].lenData);
 
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
