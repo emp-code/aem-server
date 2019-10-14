@@ -914,6 +914,8 @@ function AllEars(readyCallback) {
 	}); };
 
 	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
+		if (level < 0 || level > _maxLevel) {callback(false); return;}
+
 		const upData = new Uint8Array(9);
 		upData.set(nacl.from_hex(_admin_userPkHex[num]));
 		upData[8] = level;
