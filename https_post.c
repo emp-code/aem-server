@@ -19,6 +19,11 @@
 
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
 
+#define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
+#define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
+#define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
+#define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
+
 static void send204(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
 		"HTTP/1.1 204 aem\r\n"
@@ -83,6 +88,11 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 	}
 
 	return 0;
+}
+
+static void userViolation(const int64_t upk64, const int violation) {
+	printf("[System] Destroying account %lx for violation %x\n", upk64, violation);
+	destroyAccount(upk64);
 }
 
 static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
@@ -153,7 +163,12 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
+
+	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
+		userViolation(upk64, AEM_VIOLATION_ACCOUNT_CREATE);
+		sodium_free(*decrypted);
+		return;
+	}
 
 	const int ret = addAccount((unsigned char*)*decrypted);
 	sodium_free(*decrypted);
@@ -162,7 +177,12 @@ static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
+
+	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
+		userViolation(upk64, AEM_VIOLATION_ACCOUNT_DELETE);
+		sodium_free(*decrypted);
+		return;
+	}
 
 	unsigned char targetPk[8];
 	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
@@ -175,7 +195,12 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
+
+	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
+		userViolation(upk64, AEM_VIOLATION_ACCOUNT_UPDATE);
+		sodium_free(*decrypted);
+		return;
+	}
 
 	const int level = strtol(*decrypted + 16, NULL, 10);
 	if (level < AEM_USERLEVEL_MIN || level > AEM_USERLEVEL_MAX) return;
@@ -351,7 +376,12 @@ static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 static void setting_limits(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {sodium_free(*decrypted); return;}
+
+	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
+		userViolation(upk64, AEM_VIOLATION_SETTING_LIMITS);
+		sodium_free(*decrypted);
+		return;
+	}
 
 	const int maxStorage[] = {(*decrypted)[0], (*decrypted)[3], (*decrypted)[6], (*decrypted)[9]};
 	const int maxAddrNrm[] = {(*decrypted)[1], (*decrypted)[4], (*decrypted)[7], (*decrypted)[10]};
