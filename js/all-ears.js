@@ -714,7 +714,7 @@ function AllEars(readyCallback) {
 	this.SaveNote = function(title, body, callback) { nacl_factory.instantiate(function (nacl) {
 		const txt = title + '\n' + body;
 		const lenTxt = new Blob([txt]).size;
-		if (lenTxt > (256 * 1024)) {callback(false); return;}
+		if (lenTxt > _lenPost) {callback(false); return;}
 
 		const lenPad = (lenTxt % 1024 == 0) ? 0 : 1024 - (lenTxt % 1024);
 		const paddedLen = lenTxt + lenPad;
@@ -748,7 +748,7 @@ function AllEars(readyCallback) {
 		if (lenFn > 255 || lenFt > 255) {callback(false); return;}
 
 		fileSize += lenFn + lenFt + 2;
-		if (fileSize > (256 * 1024)) {callback(false); return;}
+		if (fileSize > _lenPost) {callback(false); return;}
 
 		const lenPad = (fileSize % 1024 == 0) ? 0 : 1024 - (fileSize % 1024);
 		const paddedLen = fileSize + lenPad;
@@ -847,8 +847,8 @@ function AllEars(readyCallback) {
 		noteData.set(noteUtf8, 2);
 
 		const n = noteUtf8.length;
-		noteData[0] = n & 0xff;
-		noteData[1] = n >> 8 & 0xff;
+		noteData[0] = n & 0xFF;
+		noteData[1] = n >> 8 & 0xFF;
 
 		_FetchEncrypted("storage/ennote", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
