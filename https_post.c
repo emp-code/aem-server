@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <ctype.h> // for islower
 
 #include <mbedtls/ssl.h>
 #include <sodium.h>
@@ -219,6 +220,13 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		if (isNormalBinAddress(addr)) return;
 	} else {
 		if (lenDecrypted > 24) {sodium_free(*decrypted); return;}
+
+		for (size_t i = 0; i < lenDecrypted; i++) {
+			if (!islower((*decrypted)[i]) && (*decrypted)[i] != '.' && (*decrypted)[i] != '-') {
+				sodium_free(*decrypted);
+				return;
+			}
+		}
 
 		int ret = addr2bin(*decrypted, lenDecrypted, addr);
 		sodium_free(*decrypted);
