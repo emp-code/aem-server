@@ -914,7 +914,11 @@ function AllEars(readyCallback) {
 	}); };
 
 	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/update", nacl.encode_utf8(_admin_userPkHex[num] + level), nacl, function(fetchOk, byteArray) {
+		const upData = new Uint8Array(9);
+		upData.set(nacl.from_hex(_admin_userPkHex[num]));
+		upData[8] = level;
+
+		_FetchEncrypted("account/update", upData, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userLevel[num] = level;

@@ -192,7 +192,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 17) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != 9) {sodium_free(*decrypted); return;}
 
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
 		userViolation(upk64, AEM_VIOLATION_ACCOUNT_UPDATE);
@@ -200,15 +200,13 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		return;
 	}
 
-	const int level = strtol(*decrypted + 16, NULL, 10);
-	if (level < AEM_USERLEVEL_MIN || level > AEM_USERLEVEL_MAX) return;
+	const uint8_t level = (*decrypted)[8];
+	if (level > AEM_USERLEVEL_MAX) return;
 
-	unsigned char targetPk[8];
-	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
+	const int64_t target64 = charToInt64(*decrypted);
 	sodium_free(*decrypted);
-	if (ret != 0) return;
 
-	ret = setAccountLevel(charToInt64(targetPk), level);
+	const int ret = setAccountLevel(target64, level);
 	if (ret == 0) send204(ssl);
 }
 
