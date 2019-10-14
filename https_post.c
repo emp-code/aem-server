@@ -203,7 +203,7 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	const uint8_t level = (*decrypted)[8];
 	sodium_free(*decrypted);
 
-	if (level > AEM_USERLEVEL_MAX) return;
+	if (level > AEM_USERLEVEL_MAX || upk64 == target64) return;
 
 	const int ret = setAccountLevel(target64, level);
 	if (ret == 0) send204(ssl);
