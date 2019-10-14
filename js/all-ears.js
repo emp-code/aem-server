@@ -903,6 +903,8 @@ function AllEars(readyCallback) {
 	}); };
 
 	this.DestroyAccount = function(num, callback) { nacl_factory.instantiate(function (nacl) {
+		if (num >= _admin_userPkHex.length) {callback(false); return;}
+
 		_FetchEncrypted("account/delete", nacl.from_hex(_admin_userPkHex[num]), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
