@@ -183,7 +183,6 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 
 	if (upk64 != target64 && getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
 		userViolation(upk64, AEM_VIOLATION_ACCOUNT_DELETE);
-		sodium_free(*decrypted);
 		return;
 	}
 
