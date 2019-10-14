@@ -239,7 +239,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 1 || lenDecrypted % 9 != 0) {free(*decrypted); return;}
+	if (lenDecrypted % 9 != 0) {free(*decrypted); return;}
 
 	const unsigned int addressCount = lenDecrypted / 9; // unsigned to avoid GCC warning
 	unsigned char addrFlags[addressCount];
@@ -363,8 +363,6 @@ static void setting_limits(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted < 1) {free(*decrypted); return;}
-
 	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
