@@ -176,7 +176,7 @@ static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
-	if (lenDecrypted != 16) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != 8) {sodium_free(*decrypted); return;}
 
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
 		userViolation(upk64, AEM_VIOLATION_ACCOUNT_DELETE);
@@ -184,12 +184,10 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		return;
 	}
 
-	unsigned char targetPk[8];
-	int ret = sodium_hex2bin(targetPk, 8, *decrypted, 16, NULL, NULL, NULL);
+	const int64_t target64 = charToInt64(*decrypted);
 	sodium_free(*decrypted);
-	if (ret != 0) return;
 
-	ret = destroyAccount(charToInt64(targetPk));
+	const int ret = destroyAccount(target64);
 	if (ret == 0) send204(ssl);
 }
 
