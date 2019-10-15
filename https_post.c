@@ -220,7 +220,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		if (lenDecrypted > 24 || (lenDecrypted == 24 && (*decrypted)[0] == '5')) {sodium_free(*decrypted); return;}
 
 		for (size_t i = 0; i < lenDecrypted; i++) {
-			if (!islower((*decrypted)[i])) {
+			if (!islower((*decrypted)[i]) && !isdigit((*decrypted)[i])) {
 				sodium_free(*decrypted);
 				return;
 			}
