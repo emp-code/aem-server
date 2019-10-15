@@ -61,13 +61,6 @@ function AllEars(readyCallback) {
 	const _admin_userLevel = [];
 
 // Private Functions
-	const _BitTest = function(num, bit) {return ((num >> bit) % 2 != 0);};
-	const _GetBit = function(byteArray, bitNum) {
-		const skipBytes = Math.floor(bitNum / 8.0);
-		const skipBits = bitNum % 8;
-		return _BitTest(byteArray[skipBytes], skipBits);
-	};
-
 	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
 		this.id = id;
 		this.isSent = isSent;
@@ -166,74 +159,77 @@ function AllEars(readyCallback) {
 		_FetchBinary("/api/" + url, postMsg, callback);
 	};
 
+	const _GetBit = function(src, bitNum) {
+		const bit = bitNum % 8;
+		const byte = (bitNum - bit) / 8;
+
+		return ((1 & (src[byte] >> (7 - bit))) === 1);
+	}
+
 	const _DecodeShieldAddress = function(byteArray) {
-		const hexTable = "acdeghilmnorstuw";
+		const shld32_chars = "567890abcdefghijklmnopqrstuvwxyz";
 
 		let decoded = "";
-		for (let i = 0; i < 18; i++) {
-			decoded += hexTable[byteArray[i] & 15];
-			decoded += hexTable[(byteArray[i] & 240) >>> 4];
+
+		for (let i = 0; i < 24; i++) {
+			let num = 0;
+			const skipBits = i * 5;
+
+			if (_GetBit(byteArray, skipBits + 0)) num += 16;
+			if (_GetBit(byteArray, skipBits + 1)) num +=  8;
+			if (_GetBit(byteArray, skipBits + 2)) num +=  4;
+			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
+			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
+
+			decoded += shld32_chars[num];
 		}
 
 		return decoded;
 	};
 
 	const _DecodeAddress = function(byteArray) {
-		if (byteArray.length != 18) return "(Error: wrong length)";
+		if (byteArray.length != 15) return "(Error: wrong length)";
 
-		const sixBitTable = "?????????????????????????-.0123456789abcdefghijklmnopqrstuvwxyz ";
+		const addr32_chars = "#0123456789abcdefghkmnpqrstuwxyz";
 
-		let endReached = false;
 		let decoded = "";
 
 		for (let i = 0; i < 24; i++) {
 			let num = 0;
-			const skipBits = i * 6;
+			const skipBits = i * 5;
 
-			if (_GetBit(byteArray, skipBits + 0)) num +=  1;
-			if (_GetBit(byteArray, skipBits + 1)) num +=  2;
+			if (_GetBit(byteArray, skipBits + 0)) num += 16;
+			if (_GetBit(byteArray, skipBits + 1)) num +=  8;
 			if (_GetBit(byteArray, skipBits + 2)) num +=  4;
-			if (_GetBit(byteArray, skipBits + 3)) num +=  8;
-			if (_GetBit(byteArray, skipBits + 4)) num += 16;
-			if (_GetBit(byteArray, skipBits + 5)) num += 32;
+			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
+			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
 
-			if (sixBitTable[num] === '?' || ((i === 0 || i === 23) && (sixBitTable[num] === '-' || sixBitTable[num] === '.'))) {
-				return _DecodeShieldAddress(byteArray);
+			if (addr32_chars[num] === '#') {
+				return (i === 0) ? _DecodeShieldAddress(byteArray) : decoded;
 			}
 
-			if (sixBitTable[num] === ' ') {
-				if (!endReached) {endReached = true;}
-			} else if (endReached) {
-				// Non-null characters after end --> Shield address
-				return _DecodeShieldAddress(byteArray);
-			}
-
-			decoded += sixBitTable[num];
-
-			if (decoded.endsWith("--") || decoded.endsWith("-.") || decoded.endsWith(".-") || decoded.endsWith("..")) {
-				return _DecodeShieldAddress(byteArray);
-			}
+			decoded += addr32_chars[num];
 		}
 
-		return decoded.trim();
+		return decoded;
 	};
 
 	const _GetAddressCount = function(isShield) {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (isShield && _userAddress[i].decoded.length === 36) count++;
-			else if (!isShield && _userAddress[i].decoded.length <= 24) count++;
+			if (isShield && _userAddress[i].decoded.length === 24 && _userAddress[i].decoded[0] === '5') count++;
+			else if (!isShield && (_userAddress[i].decoded.length < 24 || _userAddress[i].decoded[0] !== '5')) count++;
 		}
 
 		return count;
 	};
 
 	const _MakeAddrData = function() {
-		const addrData = new Uint8Array(_userAddress.length * 27);
+		const addrData = new Uint8Array(_userAddress.length * 24);
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			const pos = i * 27;
+			const pos = i * 24;
 			addrData[pos] = 0;
 
 			if (_userAddress[i].useGatekeeper) addrData[pos] |= 2;
@@ -242,7 +238,7 @@ function AllEars(readyCallback) {
 			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
 
 			addrData.set(_userAddress[i].address, pos + 1);
-			addrData.set(_userAddress[i].hash, pos + 19);
+			addrData.set(_userAddress[i].hash, pos + 16);
 		}
 
 		return addrData;
@@ -270,7 +266,7 @@ function AllEars(readyCallback) {
 		for (let i = 0; i < _userAddress.length; i++) {
 			let isOwn = true;
 
-			for (let j = 0; j < 18; j++) {
+			for (let j = 0; j < 15; j++) {
 				if (addr[j] != _userAddress[i].address[j]) {
 					isOwn = false;
 					break;
@@ -555,14 +551,14 @@ function AllEars(readyCallback) {
 			const addrDataStart = 18 + _lenNoteData;
 			const addrData = nacl.crypto_box_seal_open(loginData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
-			for (let i = 0; i < (addrData.length / 27); i++) {
-				const start = i * 27;
+			for (let i = 0; i < (addrData.length / 24); i++) {
+				const start = i * 24;
 				const useGatekeeper = addrData[start] & 2;
 				const acceptIntMsg  = addrData[start] & 4;
 				const acceptExtMsg  = addrData[start] & 8;
 				const sharePk       = addrData[start] & 16;
-				const addr = addrData.slice(start + 1, start + 19);
-				const hash = addrData.slice(start + 19, start + 27);
+				const addr = addrData.slice(start + 1, start + 16);
+				const hash = addrData.slice(start + 16, start + 24);
 				const decoded = _DecodeAddress(addr);
 
 				_userAddress.push(new _NewAddress(addr, hash, decoded, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
@@ -621,13 +617,13 @@ function AllEars(readyCallback) {
 				const msgKilos = loginData[msgStart + 1] + 1;
 
 				// HeadBox
-				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 91); // 2 + 41 + crypto_box_SEALBYTES (48)
+				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 85); // 85 = 2 + 35 + crypto_box_SEALBYTES (48)
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				// BodyBox
 				const lenBody = msgKilos * 1024;
-				const bbStart = msgStart + 91;
-				const msgBodyBox = loginData.slice(bbStart, bbStart + lenBody + 50); // 2 + crypto_box_SEALBYTES (48)
+				const bbStart = msgStart + 85;
+				const msgBodyBox = loginData.slice(bbStart, bbStart + lenBody + 50); // 50 = 2 + crypto_box_SEALBYTES (48)
 				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody, lenBody + 2).buffer)[0];
 				const msgBody = msgBodyFull.slice(0, lenBody - padAmount);
@@ -656,8 +652,10 @@ function AllEars(readyCallback) {
 					const em_ip = msgHead.slice(5, 9);
 					const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
 					const em_tlsver = msgHead[11];
-					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(19, 21));
-					const em_to = _DecodeAddress(msgHead.slice(23));
+					// msgHead[12] = SpamByte
+					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
+					// 16-19 unused
+					const em_to = _DecodeAddress(msgHead.slice(20));
 
 					// Bodybox
 					const msgBodyBrI8 = new Int8Array(msgBody);
@@ -682,10 +680,10 @@ function AllEars(readyCallback) {
 				} else { // xxxxxx00 IntMsg
 					const im_sml = (msgHead[0] >>> 4) & 3;
 					const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const im_from_bin = msgHead.slice(5, 23);
+					const im_from_bin = msgHead.slice(5, 20);
 					const im_from = _DecodeAddress(im_from_bin);
 					const im_isSent = _IsOwnAddress(im_from_bin);
-					const im_to = _DecodeAddress(msgHead.slice(23));
+					const im_to = _DecodeAddress(msgHead.slice(20));
 
 					// BodyBox
 					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
@@ -696,7 +694,7 @@ function AllEars(readyCallback) {
 					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_to, im_title, im_body));
 				}
 
-				msgStart += (msgKilos * 1024) + 141; // 48*2+41+2+2=141
+				msgStart += (msgKilos * 1024) + 135; // 135 = 48 * 2 + 35 + 2 + 2
 			}
 
 			callback(true);
@@ -782,7 +780,7 @@ function AllEars(readyCallback) {
 	}); };
 
 	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
-		const shieldByte = (_userAddress[num].decoded.length === 36) ? nacl.encode_utf8("S") : nacl.encode_utf8("N");
+		const shieldByte = (_userAddress[num].decoded.length === 24 && _userAddress[num].decoded[0] === '5') ? nacl.encode_utf8("S") : nacl.encode_utf8("N");
 		const hash = _userAddress[num].hash;
 		_userAddress.splice(num, 1);
 

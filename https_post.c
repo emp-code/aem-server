@@ -6,8 +6,8 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
+#include "Includes/Addr32.h"
 #include "Includes/CharToInt64.h"
-#include "Includes/SixBit.h"
 
 #include "Database.h"
 #include "Message.h"
@@ -51,17 +51,15 @@ static int sendIntMsg(const unsigned char * const addrKey, const char * const ad
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1 || lenFrom > 24 || lenTo > 24) return -1;
 
-	unsigned char binFrom[18];
-	int ret = addr2bin(addrFrom, lenFrom, binFrom);
-	if (ret < 1) return -1;
+	unsigned char binFrom[15];
+	addr32_store(binFrom, addrFrom, lenFrom);
 
-	unsigned char binTo[18];
-	ret = addr2bin(addrTo, lenTo, binTo);
-	if (ret < 1) return -1;
+	unsigned char binTo[15];
+	addr32_store(binTo, addrTo, lenTo);
 
 	unsigned char recv_pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char flags;
-	ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
+	int ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
 	if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	const int64_t sender_pk64 = charToInt64(sender_pk);
@@ -211,32 +209,31 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
-	unsigned char addr[18];
+	unsigned char addr[15];
 	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
 
 	if (isShield) {
 		sodium_free(*decrypted);
-		randombytes_buf(addr, 18);
-		if (isNormalBinAddress(addr)) return;
+		randombytes_buf(addr, 15);
+		addr[0] &= 7; // Clear the first five bits (7=4+2+1)
 	} else {
-		if (lenDecrypted > 24) {sodium_free(*decrypted); return;}
+		if (lenDecrypted > 24 || (lenDecrypted == 24 && (*decrypted)[0] == '5')) {sodium_free(*decrypted); return;}
 
 		for (size_t i = 0; i < lenDecrypted; i++) {
-			if (!islower((*decrypted)[i]) && (*decrypted)[i] != '.' && (*decrypted)[i] != '-') {
+			if (!islower((*decrypted)[i])) {
 				sodium_free(*decrypted);
 				return;
 			}
 		}
 
-		int ret = addr2bin(*decrypted, lenDecrypted, addr);
+		addr32_store(addr, *decrypted, lenDecrypted);
 		sodium_free(*decrypted);
-		if (ret < 1) return;
 	}
 
 	const int64_t hash = addressToHash(addr, addrKey);
 	if (addAddress(upk64, hash, isShield) != 0) return;
 
-	char data[251];
+	char data[248];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -244,13 +241,14 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Cache-Control: no-store\r\n"
 		"Connection: close\r\n"
-		"Content-Length: 26\r\n"
+		"Content-Length: 23\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 225);
 	memcpy(data + 225, &hash, 8);
-	memcpy(data + 233, addr, 18);
-	sendData(ssl, data, 251);
+	memcpy(data + 233, addr, 15);
+
+	sendData(ssl, data, 248);
 }
 
 static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {

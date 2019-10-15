@@ -20,8 +20,8 @@ IntMsg
 			  2: Message type (off)
 			  1: Message type (off)
 		[4B uint32_t] Timestamp
-		[18B char*] AddressFrom (24c SixBit)
-		[18B char*] AddressTo (24c SixBit)
+		[15B char*] AddressFrom (addr32)
+		[15B char*] AddressTo (addr32)
 
 	BodyBox
 		[2B uint16_t] Amount of padding
@@ -44,11 +44,11 @@ ExtMsg
 		[4B uint32_t] IP
 		[2B uint16_t] TLS ciphersuite
 		[1B uint8_t] TLS version
-		[7B] (unused)
+		[1B] SpamByte
 		[2B char*] ISO 3166-1 alpha-2 country code
 		[1B uint8_t] Number of attachements
-		[1B] SpamByte
-		[18B char*] AddressTo (24c SixBit)
+		[4B] (unused)
+		[15B char*] AddressTo (addr32)
 
 	BodyBox:
 		[-- char*] SMTP Greeting
@@ -70,7 +70,7 @@ TextNote/FileNote
 			  2: Message type (on)
 			  1: Message type (text: off, file: on)
 		[4B uint32_t] Timestamp
-		[36B] (unused)
+		[30B] (unused)
 
 	BodyBox
 		[2B uint16_t] Amount of padding
@@ -105,8 +105,8 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 	unsigned char plaintext[AEM_HEADBOX_SIZE];
 	plaintext[0] = infoByte;
 	memcpy(plaintext + 1, &ts, 4);
-	memcpy(plaintext + 5, adrFrom, 18);
-	memcpy(plaintext + 23, adrTo, 18);
+	memcpy(plaintext + 5, adrFrom, 15);
+	memcpy(plaintext + 20, adrTo, 15);
 
 	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	if (ciphertext == NULL) return NULL;
@@ -149,11 +149,11 @@ const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigne
 	memcpy(plaintext + 5, &ip, 4);
 	memcpy(plaintext + 9, &cs16, 2);
 	plaintext[11] = tlsVersion;
-	bzero(plaintext + 12, 7); // 12-18 (7 bytes) unused
-	memcpy(plaintext + 19, &countryCode, 2);
-	plaintext[21] = attach;
-	plaintext[22] = spamByte;
-	memcpy(plaintext + 23, binTo, 18);
+	plaintext[12] = spamByte;
+	memcpy(plaintext + 13, &countryCode, 2);
+	plaintext[15] = attach;
+	bzero(plaintext + 16, 4); // 16-19 (4 bytes) unused
+	memcpy(plaintext + 20, binTo, 15);
 
 	unsigned char * const ciphertext = malloc(AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	if (ciphertext == NULL) return NULL;

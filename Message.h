@@ -3,7 +3,7 @@
 
 #include <sodium.h>
 
-#define AEM_HEADBOX_SIZE 41 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
+#define AEM_HEADBOX_SIZE 35 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
 
 #define AEM_FLAG_MSGTYPE_INTMSG   0
 #define AEM_FLAG_MSGTYPE_EXTMSG   1

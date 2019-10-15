@@ -39,11 +39,11 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
+#include "Includes/Addr32.h"
 #include "Includes/Base64.h"
 #include "Includes/Brotli.h"
 #include "Includes/CharToInt64.h"
 #include "Includes/QuotedPrintable.h"
-#include "Includes/SixBit.h"
 
 #include "Database.h"
 #include "Message.h"
@@ -333,18 +333,12 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
-		unsigned char binTo[18];
-		int ret = addr2bin(toStart, lenTo, binTo);
-		if (ret < 1) {
-			puts("[SMTP] Failed to deliver email: addr2bin failed");
-			if (nextTo == NULL) return;
-			toStart = nextTo + 1;
-			continue;
-		}
+		unsigned char binTo[15];
+		addr32_store(binTo, toStart, lenTo);
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
 		unsigned char flags;
-		ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
+		int ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
 		if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_EXTMSG)) {
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
@@ -429,23 +423,11 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 
 __attribute__((warn_unused_result))
 static bool isAddressAem(const char * const c, const size_t len) {
-	if (c == NULL || len < 1) return false;
+	if (c == NULL || len < 1 || len > 24) return false;
 
-	if (len <= 24) {
-		for (size_t i = 0; i < len; i++) {
-			if (!isalnum(c[i]) && c[i] != '.' && c[i] != '-') return false;
-		}
-	} else if (len == 36) {
-		for (size_t i = 0; i < len; i++) {
-			bool ok = false;
-
-			for (int j = 0; j < 16; j++) {
-				if (c[i] == AEM_ADDRESS_HEXCHARS[j]) {ok = true; break;}
-			}
-
-			if (!ok) return false;
-		}
-	} else return false;
+	for (size_t i = 0; i < len; i++) {
+		if (!isalnum(c[i])) return false;
+	}
 
 	return true;
 }

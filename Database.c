@@ -9,7 +9,6 @@
 #include "Message.h"
 
 #include "Includes/CharToInt64.h"
-#include "Includes/SixBit.h"
 
 #include "Database.h"
 
@@ -43,7 +42,7 @@ int64_t addressToHash(const unsigned char * const addr, const unsigned char * co
 	if (addr == NULL || addrKey == NULL) return 0;
 
 	unsigned char hash16[16];
-	if (crypto_pwhash(hash16, 16, (char*)addr, 18, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
+	if (crypto_pwhash(hash16, 16, (char*)addr, 15, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
 	return charToInt64(hash16);
 }
 
