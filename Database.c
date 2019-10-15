@@ -515,13 +515,14 @@ int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, c
 
 	for (int i = 0; i < addressCount; i++) {
 		sqlite3_stmt *query;
-		int ret = sqlite3_prepare_v2(db, "UPDATE address SET flags = (? | (SELECT flags & 1 FROM address WHERE hash=?)) WHERE hash=? AND upk64=?", -1, &query, NULL);
+		int ret = sqlite3_prepare_v2(db, "UPDATE address SET flags = (? | (SELECT flags & ? FROM address WHERE hash=?)) WHERE hash=? AND upk64=?", -1, &query, NULL);
 		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 		sqlite3_bind_int(query, 1, addrFlags[i]);
-		sqlite3_bind_int64(query, 2, addrHash[i]);
+		sqlite3_bind_int(query, 2, AEM_FLAGS_ADDR_ISSHIELD);
 		sqlite3_bind_int64(query, 3, addrHash[i]);
-		sqlite3_bind_int64(query, 4, upk64);
+		sqlite3_bind_int64(query, 4, addrHash[i]);
+		sqlite3_bind_int64(query, 5, upk64);
 
 		ret = sqlite3_step(query);
 		if (ret != SQLITE_DONE) {sqlite3_close_v2(db); return -1;}
