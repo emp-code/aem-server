@@ -1,4 +1,4 @@
-/* Addr32: a 32-bit text encoding designed for All-Ears Mail addresses.
+/* Addr32: a 5-bit text encoding designed for All-Ears Mail addresses.
 
 	Supports [0-9a-z] with the following exceptions:
 		- The letters i/j/l are treated as the number 1

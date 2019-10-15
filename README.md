@@ -18,13 +18,20 @@ This software is experimental and largely untested. While every attempt is made 
 Address Types & Storage
 ====
 
-All-Ears provides two types of addresses:
-* Normal addresses, which are 1-24 characters, user-chosen
-* Shield addresses, which are 24 random characters
+Addresses in All-Ears can be registered and given up quickly and easily.
+
+Two types of addresses are provided:
+* Normal addresses: 1-24 characters, user-chosen
+* Shield addresses: 24 characters, randomly generated (first character is always '5')
+
+Addresses are stored in a custom 5-bit encoding supporting lowercase letters and digits, with the following characters treated as equivalents:
+* i/j/l/1
+* o/0
+* v/w
 
 Addresses are 120 bits (15 bytes) in binary form, but are stored as 64-bit Argon2 hashes. This means there may be multiple unintentional aliases for addresses, although they're very unlikely to be encountered normally.
 
-Argon2 hashes take time and power to calculate, but easily guessable addresses are likely to be discovered easily. Shield addressess are randomly generated, and therefore resistant against such attacks.
+Argon2 hashes take time and power to calculate, but easily guessable addresses are likely to be discovered easily. Shield addressess are random with 115 bits of entropy, and therefore resistant against such attacks.
 
 Message Storage
 ====
