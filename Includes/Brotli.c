@@ -15,7 +15,7 @@ int brotliCompress(char ** const holder, size_t * const lenData) {
 
 	free(*holder);
 	*holder = realloc(output, lenOut);
-	if (*holder == NULL) return -1;
+	if (*holder == NULL) {free(output); return -1;}
 	*lenData = lenOut;
 
 	return 0;
