@@ -83,7 +83,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
-	if (memcmp(host + 8 + lenDomain, ":7850\r\n", 7) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(host + 8 + lenDomain, ":7850\r\n", 7) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
 	if (
