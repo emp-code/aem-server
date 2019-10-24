@@ -18,7 +18,6 @@
 
 #define AEM_MINLEN_POST 76 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:7850\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
-#define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_POST 10 // 'POST /api/'
