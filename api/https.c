@@ -59,7 +59,7 @@ MBEDTLS_MD_NONE};
 
 __attribute__((warn_unused_result))
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
-	if (memcmp(req, "GET /api/pubkey", 15) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
 
