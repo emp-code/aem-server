@@ -80,6 +80,7 @@ static bool supportsBrotli(const char * const req) {
 __attribute__((warn_unused_result))
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
 	if (lenReq < AEM_MINLEN_GET) return AEM_HTTPS_REQUEST_INVALID;
+	if (memcmp(req, "GET /", 5) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
