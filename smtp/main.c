@@ -171,6 +171,7 @@ int main(void) {
 	}
 
 	signal(SIGINT, sigTerm);
+	signal(SIGQUIT, sigTerm);
 	signal(SIGTERM, sigTerm);
 
 	if (sodium_init() < 0) {
