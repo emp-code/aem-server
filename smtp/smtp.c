@@ -39,14 +39,13 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "Includes/Addr32.h"
-#include "Includes/Base64.h"
-#include "Includes/Brotli.h"
-#include "Includes/CharToInt64.h"
-#include "Includes/QuotedPrintable.h"
-
-#include "Database.h"
-#include "Message.h"
+#include "Include/Addr32.h"
+#include "Include/Base64.h"
+#include "Include/Brotli.h"
+#include "Include/CharToInt64.h"
+#include "Include/Database.h"
+#include "Include/Message.h"
+#include "Include/QuotedPrintable.h"
 
 #include "smtp.h"
 

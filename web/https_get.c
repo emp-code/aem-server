@@ -4,10 +4,10 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
-#include "aem_file.h"
-#include "https_common.h"
-
 #include "https_get.h"
+
+#include "Include/https_common.h"
+#include "aem_file.h"
 
 #define AEM_FILETYPE_CSS 1
 #define AEM_FILETYPE_IMG 2
@@ -84,7 +84,7 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1347 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1352 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -97,7 +97,7 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 		"Content-Length: %zd\r\n"
 
 		"Content-Security-Policy: "
-			"connect-src"     " https://%.*s/api/;"
+			"connect-src"     " https://%.*s:7850/api/;"
 			"img-src"         " https://%.*s/img/;"
 			"script-src"      " https://%.*s/js/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
 			"style-src"       " https://%.*s/css/;"
@@ -185,27 +185,6 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 	, 51 + lenDomain, lenDomain, domain);
 
 	sendData(ssl, data, 316 + lenDomain);
-}
-
-void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
-	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
-	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
-
-	memcpy(data,
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Connection: close\r\n"
-		"Cache-Control: no-store\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 225);
-
-	crypto_scalarmult_base(data + 225, ssk);
-
-	sendData(ssl, data, 225 + crypto_box_PUBLICKEYBYTES);
 }
 
 void https_robots(mbedtls_ssl_context * const ssl) {

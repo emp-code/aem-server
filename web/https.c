@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
-#include <ctype.h> // for islower
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -12,29 +11,23 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "aem_file.h"
-
-#include "https_get.h"
-#include "https_post.h"
-
 #include "https.h"
 
+#include "aem_file.h"
+#include "https_get.h"
+
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
-#define AEM_MINLEN_POST 71 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
 #define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_GET 5 // 'GET /'
-#define AEM_SKIP_URL_POST 10 // 'POST /api/'
 
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_GET 0
-#define AEM_HTTPS_REQUEST_POST 1
 #define AEM_HTTPS_REQUEST_MTASTS 10
 #define AEM_HTTPS_REQUEST_ROBOTS 20
 #define AEM_HTTPS_REQUEST_TSR    30
-#define AEM_HTTPS_REQUEST_PUBKEY 50
 
 static const int https_ciphersuites[] = {
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -109,54 +102,26 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 
 	// Forbidden request headers
 	if (
-		   (strcasestr(req, "\r\nAuthorization:") != NULL)
-		|| (strcasestr(req, "\r\nCookie:") != NULL)
-		|| (strcasestr(req, "\r\nExpect:") != NULL)
-		|| (strcasestr(req, "\r\nRange:")  != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site") != NULL)
-		// These are only for preflighted requests, which All-Ears doesn't use
-		|| (strcasestr(req, "\r\nAccess-Control-Request-Method:")  != NULL)
-		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
+		   (strcasestr(req, "\r\nAccess-Control-")   != NULL)
+		|| (strcasestr(req, "\r\nAuthorization:")    != NULL)
+		|| (strcasestr(req, "\r\nContent-Length:")   != NULL)
+		|| (strcasestr(req, "\r\nCookie:")           != NULL)
+		|| (strcasestr(req, "\r\nExpect:")           != NULL)
+		|| (strcasestr(req, "\r\nOrigin:")           != NULL)
+		|| (strcasestr(req, "\r\nRange:")            != NULL)
+		|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Mode: cors")       != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site")  != NULL)
 	) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memcmp(req, "GET /", 5) == 0) {
-		if (
-			   (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
-			|| (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL)
-			|| (strcasestr(req, "\r\nContent-Length:")            != NULL)
-		) return AEM_HTTPS_REQUEST_INVALID;
+	if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
+	if (memcmp(req + 5, ".well-known/dnt/", 16) == 0) return AEM_HTTPS_REQUEST_TSR;
 
-		if (memcmp(req + 5, "api/pubkey ", 11) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+	if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
 
-		if (
-			   (strcasestr(req, "\r\nSec-Fetch-Mode: cors") != NULL)
-			|| (strcasestr(req, "\r\nOrigin:")              != NULL)
-			|| (strcasestr(req, "\r\nX-Requested-With:")    != NULL)
-		) return AEM_HTTPS_REQUEST_INVALID;
-
-		if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
-
-		if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
-		if (memcmp(req + 5, ".well-known/dnt/", 16) == 0) return AEM_HTTPS_REQUEST_TSR;
-
-		return AEM_HTTPS_REQUEST_GET;
-	}
-
-	if (memcmp(req, "POST /api/", 10) == 0) {
-		if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
-
-		for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-		if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
-		for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-		if (req[24] != ' ') return AEM_HTTPS_REQUEST_INVALID;
-
-		if (strstr(req, "\r\nContent-Length: 8264\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
-
-		reqEnd[2] = '\r';
-		return AEM_HTTPS_REQUEST_POST;
-	}
-
-	return AEM_HTTPS_REQUEST_INVALID;
+	return AEM_HTTPS_REQUEST_GET;
 }
 
 void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
@@ -169,31 +134,6 @@ void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * c
 	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet, domain, lenDomain);
 }
 
-void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq, const unsigned char * const ssk, const unsigned char * const addrKey) {
-	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_POST, ' ');
-	if (urlEnd == NULL) return;
-	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_POST);
-
-	char url[lenUrl];
-	memcpy(url, buf + AEM_SKIP_URL_POST, lenUrl);
-
-	const char *post = strstr(buf + AEM_MINLEN_POST - 4, "\r\n\r\n");
-	if (post == NULL) return;
-	post += 4;
-
-	size_t lenPost = lenReq - (post - buf);
-	if (lenPost > 0) memmove(buf, post, lenPost);
-
-	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
-		int ret;
-		do {ret = mbedtls_ssl_read(ssl, (unsigned char*)(buf + lenPost), AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		if (ret < 0) return;
-		lenPost += ret;
-	}
-
-	https_post(ssl, ssk, addrKey, url, (unsigned char*)buf);
-}
-
 static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_entropy_context *entropy, mbedtls_ctr_drbg_context *ctr_drbg) {
 	mbedtls_ssl_free(ssl);
 	mbedtls_ssl_config_free(conf);
@@ -201,7 +141,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ctr_drbg_free(ctr_drbg);
 }
 
-void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
+void respond_https(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
 	mbedtls_ssl_context ssl;
 	mbedtls_ssl_config conf;
 	mbedtls_entropy_context entropy;
@@ -219,7 +159,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		return;
 	}
 
-	mbedtls_ssl_conf_ca_chain(&conf, srvcert->next, NULL);
+	mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
 	mbedtls_ssl_conf_ciphersuites(&conf, https_ciphersuites);
 	mbedtls_ssl_conf_curves(&conf, https_curves);
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
@@ -227,14 +167,14 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_ssl_conf_sig_hashes(&conf, https_hashes);
 
-	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (unsigned char*)"All-Ears Mail HTTPS", 19);
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
 		printf("[HTTPS] mbedtls_ctr_drbg_seed returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 		return;
 	}
 
-	ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey);
+	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
 	if (ret != 0) {
 		printf("[HTTPS] mbedtls_ssl_conf_own_cert returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
@@ -259,23 +199,18 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 		}
 	}
 
-	unsigned char * const req = malloc(AEM_HTTPS_POST_BOXED_SIZE);
+	unsigned char * const req = malloc(AEM_MAXLEN_REQ + 1);
 
 	int lenReq;
-	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_POST_BOXED_SIZE - 1);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
+	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_MAXLEN_REQ);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
 		switch (getRequestType((char*)req, lenReq, domain, lenDomain)) {
 			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req, domain, lenDomain, fileSet); break;
 			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl, domain, lenDomain); break;
-			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl, ssk); break;
 			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
 			case AEM_HTTPS_REQUEST_TSR:    https_tsr(&ssl); break;
-			case AEM_HTTPS_REQUEST_POST: {
-				handlePost(&ssl, (char*)req, lenReq, ssk, addrKey);
-				sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
-			}
 		}
 	}
 

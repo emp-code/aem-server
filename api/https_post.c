@@ -6,12 +6,11 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
-#include "Includes/Addr32.h"
-#include "Includes/CharToInt64.h"
-
-#include "Database.h"
-#include "Message.h"
-#include "https_common.h"
+#include "Include/Addr32.h"
+#include "Include/CharToInt64.h"
+#include "Include/Database.h"
+#include "Include/Message.h"
+#include "Include/https_common.h"
 
 #include "https_post.h"
 
@@ -24,6 +23,27 @@
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
+
+void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
+	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
+	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
+
+	memcpy(data,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
+		"Connection: close\r\n"
+		"Cache-Control: no-store\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 225);
+
+	crypto_scalarmult_base(data + 225, ssk);
+
+	sendData(ssl, data, 225 + crypto_box_PUBLICKEYBYTES);
+}
 
 static void send204(mbedtls_ssl_context * const ssl) {
 	sendData(ssl,
