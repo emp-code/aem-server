@@ -103,6 +103,32 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
 	) return AEM_HTTPS_REQUEST_INVALID;
 
+	const char *secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
+	if (secDest != NULL) {
+		secDest += 18;
+		if (
+		   strncasecmp(secDest, "audio", 5) == 0
+		|| strncasecmp(secDest, "audioworklet", 12) == 0
+		|| strncasecmp(secDest, "document", 8) == 0
+		|| strncasecmp(secDest, "embed", 5) == 0
+		|| strncasecmp(secDest, "font", 4) == 0
+		|| strncasecmp(secDest, "image", 5) == 0
+		|| strncasecmp(secDest, "manifest", 8) == 0
+		|| strncasecmp(secDest, "nested-document", 15) == 0
+		|| strncasecmp(secDest, "object", 6) == 0
+		|| strncasecmp(secDest, "paintworklet", 12) == 0
+		|| strncasecmp(secDest, "report", 6) == 0
+		|| strncasecmp(secDest, "script", 6) == 0
+		|| strncasecmp(secDest, "serviceworker", 13) == 0
+		|| strncasecmp(secDest, "sharedworker", 12) == 0
+		|| strncasecmp(secDest, "style", 5) == 0
+		|| strncasecmp(secDest, "track", 5) == 0
+		|| strncasecmp(secDest, "video", 5) == 0
+		|| strncasecmp(secDest, "worker", 6) == 0
+		|| strncasecmp(secDest, "xslt", 4) == 0
+		) return AEM_HTTPS_REQUEST_INVALID;
+	}
+
 	if (strstr(req, "\r\nContent-Length: 8264\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	reqEnd[2] = '\r';
