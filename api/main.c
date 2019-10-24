@@ -4,6 +4,7 @@
 #include <locale.h> // for setlocale
 #include <pwd.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,13 @@
 #define AEM_PATH_ADDRKEY "/etc/allears/Address.key"
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
 #define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
+
+static bool terminate = false;
+
+static void sigTerm() {
+	puts("Terminating after handling next connection");
+	terminate = true;
+}
 
 __attribute__((warn_unused_result))
 static int dropRoot(void) {
@@ -108,7 +116,7 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 	if (ret == 0) {
 		puts("Ready");
 
-		while(1) {
+		while(!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
 			respond_https(newSock, tlsCert, &tlsKey, ssk, addrKey, domain, lenDomain);
@@ -168,6 +176,9 @@ int main(void) {
 		puts("Terminating: signal failed");
 		return EXIT_FAILURE;
 	}
+
+	signal(SIGINT, sigTerm);
+	signal(SIGTERM, sigTerm);
 
 	if (sodium_init() < 0) {
 		puts("Terminating: Failed to initialize libsodium");
