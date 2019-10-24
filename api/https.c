@@ -63,7 +63,13 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (memcmp(req, "GET /api/pubkey", 15) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
+
+	// First line
 	if (memcmp(req, "POST /api/", 10) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
+	if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
+	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
+	if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
@@ -78,11 +84,6 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	// Protocol: only HTTP/1.1 is supported
-	const char * const firstCrLf = strpbrk(req, "\r\n");
-	const char * const prot = strstr(req, " HTTP/1.1\r\n");
-	if (prot == NULL || prot > firstCrLf) return AEM_HTTPS_REQUEST_INVALID;
-
 	// Forbidden request headers
 	if (
 		   (strcasestr(req, "\r\nAuthorization:") != NULL)
@@ -94,13 +95,6 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		|| (strcasestr(req, "\r\nAccess-Control-Request-Method:")  != NULL)
 		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
 	) return AEM_HTTPS_REQUEST_INVALID;
-
-	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
-
-	for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-	if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
-	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-	if (req[24] != ' ') return AEM_HTTPS_REQUEST_INVALID;
 
 	if (strstr(req, "\r\nContent-Length: 8264\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
