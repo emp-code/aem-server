@@ -91,7 +91,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 		|| (strcasestr(req, "\r\nCookie:") != NULL)
 		|| (strcasestr(req, "\r\nExpect:") != NULL)
 		|| (strcasestr(req, "\r\nRange:")  != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site") != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-origin") != NULL)
 		// These are only for preflighted requests, which All-Ears doesn't use
 		|| (strcasestr(req, "\r\nAccess-Control-Request-Method:")  != NULL)
 		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
