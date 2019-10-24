@@ -196,17 +196,16 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"Connection: close\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: 76\r\n"
+		"Content-Length: 84\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
 		"User-agent: *\n"
 		"Disallow: /.well-known/\n"
-		"Disallow: /api/\n"
 		"Disallow: /css/\n"
 		"Disallow: /js/\n"
 		"Disallow: /img/"
-	, 416);
+	, 400);
 }
 
 // Tracking Status Resource for DNT
