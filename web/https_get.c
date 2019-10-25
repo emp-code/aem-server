@@ -84,7 +84,7 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 
 	if (files[reqNum].lenData > 99999) return;
 
-	char data[1352 + (lenDomain * 4) + files[reqNum].lenData];
+	char data[1386 + (lenDomain * 4) + files[reqNum].lenData];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -120,14 +120,14 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 		"\r\n"
 
 		"Feature-Policy: "
-			"autoplay"             " 'none';"
 			"accelerometer"        " 'none';"
 			"ambient-light-sensor" " 'none';"
+			"autoplay"             " 'none';"
+			"battery"              " 'none';"
 			"camera"               " 'none';"
-			"cookie"               " 'none';"
 			"display-capture"      " 'none';"
 			"document-domain"      " 'none';"
-			"docwrite"             " 'none';"
+			"document-write"       " 'none';"
 			"encrypted-media"      " 'none';"
 			"fullscreen"           " 'none';"
 			"geolocation"          " 'none';"
@@ -141,6 +141,7 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 			"sync-xhr"             " 'none';"
 			"usb"                  " 'none';"
 			"vr"                   " 'none';"
+			"xr-spatial-tracking"  " 'none';"
 		"\r\n"
 
 		"Referrer-Policy: no-referrer\r\n"
