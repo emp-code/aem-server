@@ -206,6 +206,7 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 	if (sock < 0) {ret = -2;}
 	if (ret == 0) {if (initSocket(&sock, AEM_PORT_HTTPS) != 0) ret = -3;}
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
+	if (ret == 0) {ret = tlsSetup(tlsCert, &tlsKey);}
 
 	if (ret == 0) {
 		puts("Ready");
@@ -213,10 +214,12 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 		while(!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_https(newSock, tlsCert, &tlsKey, domain, lenDomain, fileSet);
+			respond_https(newSock, domain, lenDomain, fileSet);
 			close(newSock);
 		}
 	}
+
+	tlsFree();
 
 	for (int i = 0; i < numCss;  i++) {free(fileCss[i].filename);  sodium_free(fileCss[i].data);}
 	for (int i = 0; i < numHtml; i++) {free(fileHtml[i].filename); sodium_free(fileHtml[i].data);}
