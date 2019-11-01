@@ -21,7 +21,7 @@
 "\r\n250 SMTPUTF8" \
 "\r\n"
 
-#define _GNU_SOURCE // for strcasestr
+#define _GNU_SOURCE // for memmem
 
 #include <arpa/inet.h>
 #include <ctype.h>
@@ -30,8 +30,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sodium.h>
+
 #include <maxminddb.h>
+#include <sodium.h>
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -361,7 +362,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 
 		if (boxSet == NULL) {
-			puts("[SMTP]: Failed to deliver email: makeMsg_Ext failed");
+			puts("Failed to deliver email: makeMsg_Ext failed");
 			toStart = nextTo + 1;
 			continue;
 		}
