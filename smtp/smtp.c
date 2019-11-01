@@ -243,7 +243,7 @@ static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char
 }
 
 static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const char code1, const char code2, const char code3) {
-	const char resp[] = {code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'};
+	const char resp[9] = {code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'};
 	return send_aem(sock, tls, resp, 9);
 }
 
