@@ -252,8 +252,9 @@ static size_t smtp_addr(const char * const buf, const size_t len, char * const a
 	if (buf[skipBytes] != '<') return 0;
 	skipBytes++;
 
+	const size_t max = len - skipBytes - 1;
 	size_t lenAddr = 0;
-	while (lenAddr < (len - 1) && buf[skipBytes + lenAddr] != '>') lenAddr++;
+	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
 
 	if (lenAddr < 1 || lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
 
