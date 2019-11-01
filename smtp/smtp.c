@@ -513,9 +513,9 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 	mbedtls_ctr_drbg_context ctr_drbg;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
-		send(sock, "220 aem\r\n", 9, 0);
-		tls = &ssl;
+		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
 
+		tls = &ssl;
 		mbedtls_ssl_init(tls);
 		mbedtls_ssl_config_init(&conf);
 		mbedtls_entropy_init(&entropy);
