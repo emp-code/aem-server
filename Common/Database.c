@@ -6,19 +6,18 @@
 #include <sodium.h>
 #include <sqlite3.h>
 
-#include "Message.h"
+#include "Database.h"
 
 #include "CharToInt64.h"
-
-#include "Database.h"
+#include "Message.h"
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
 #define AEM_DB_BUSY_TIMEOUT 15000 // milliseconds
 
-#define AEM_PATH_DB_MESSAGES "/Messages.aed"
-#define AEM_PATH_DB_USERS  "/Users.aed"
+#define AEM_PATH_DB_MESSAGES "Messages.aed"
+#define AEM_PATH_DB_USERS "Users.aed"
 
 __attribute__((warn_unused_result))
 static sqlite3 *openDb(const char * const path, const int flags) {
@@ -113,7 +112,7 @@ int getUserLevel(const int64_t upk64) {
 	if (db == NULL) return -1;
 
 	sqlite3_stmt *query;
-	int ret = sqlite3_prepare_v2(db, "SELECT level FROM userdata WHERE upk64=?", -1, &query, NULL);
+	const int ret = sqlite3_prepare_v2(db, "SELECT level FROM userdata WHERE upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
 	sqlite3_bind_int64(query, 1, upk64);
