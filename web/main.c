@@ -19,11 +19,15 @@
 
 #include "Include/Brotli.h"
 #include "aem_file.h"
+#include "global.h"
 #include "https.h"
 
 #define AEM_PORT_HTTPS 443
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
 #define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
+
+char domain[AEM_MAXLEN_HOST];
+size_t lenDomain;
 
 static bool terminate = false;
 
@@ -167,7 +171,7 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 	return 1;
 }
 
-static int receiveConnections(const char * const domain, const size_t lenDomain, mbedtls_x509_crt * const tlsCert) {
+static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	if (access("html/index.html", R_OK) == -1 ) {
 		puts("Terminating: missing html/index.html");
 		return 1;
@@ -211,10 +215,10 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 	if (ret == 0) {
 		puts("Ready");
 
-		while(!terminate) {
+		while (!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_https(newSock, domain, lenDomain, fileSet);
+			respond_https(newSock, fileSet);
 			close(newSock);
 		}
 	}
@@ -239,37 +243,28 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 }
 
 __attribute__((warn_unused_result))
-char *getDomainInfo(mbedtls_x509_crt * const cert) {
+int getDomainFromCert(mbedtls_x509_crt * const cert) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
 
 	char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return NULL;
+	if (c == NULL) return -1;
 	c += 17;
 
 	char * const end = strchr(c, '\n');
 	*end = '\0';
 
 	c = strstr(c, ": CN=");
-	if (c == NULL) return NULL;
-	return strdup(c + 5);
-}
-
-__attribute__((warn_unused_result))
-size_t getDomainLenFromCert(mbedtls_x509_crt * const cert) {
-	char * const c = getDomainInfo(cert);
-	if (c == NULL) return 0;
-	const size_t s = strlen(c);
-	free(c);
-	return s;
-}
-
-__attribute__((warn_unused_result))
-int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * const cert) {
-	char * const c = getDomainInfo(cert);
 	if (c == NULL) return -1;
-	memcpy(dom, c, len);
-	free(c);
+	c += 5;
+
+	lenDomain = strlen(c);
+	if (lenDomain > AEM_MAXLEN_HOST) {
+		free(c);
+		return -1;
+	}
+
+	memcpy(domain, c, lenDomain);
 	return 0;
 }
 
@@ -304,12 +299,12 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	const size_t lenDomain = getDomainLenFromCert(&tlsCert);
-	char domain[lenDomain];
-	ret = getDomainFromCert(domain, lenDomain, &tlsCert);
-	if (ret != 0) {puts("Terminating: Failed to get domain from certificate"); return EXIT_FAILURE;}
+	if (getDomainFromCert(&tlsCert) != 0) {
+		puts("Terminating: Failed to load domain name from TLS certificate");
+		return EXIT_FAILURE;
+	}
 
 	printf("Domain detected as '%.*s'\n", (int)lenDomain, domain);
 
-	return receiveConnections(domain, lenDomain, &tlsCert);
+	return receiveConnections(&tlsCert);
 }

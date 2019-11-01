@@ -8,6 +8,7 @@
 
 #include "Include/https_common.h"
 #include "aem_file.h"
+#include "global.h"
 
 #define AEM_FILETYPE_CSS 1
 #define AEM_FILETYPE_IMG 2
@@ -70,7 +71,7 @@ static void respondFile(mbedtls_ssl_context * const ssl, const char * const name
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const struct aem_file * const files, const int fileCount, const char * const domain, const size_t lenDomain) {
+static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name, const size_t lenName, const struct aem_file * const files, const int fileCount) {
 	int reqNum = -1;
 
 	for (int i = 0; i < fileCount; i++) {
@@ -157,16 +158,16 @@ static void respondHtml(mbedtls_ssl_context * const ssl, const char * const name
 	sendData(ssl, data, lenHeaders + files[reqNum].lenData);
 }
 
-void https_get(mbedtls_ssl_context * const ssl, const char * const url, const size_t lenUrl, const struct aem_fileSet * const fileSet, const char * const domain, const size_t lenDomain) {
-	if (lenUrl == 0) return respondHtml(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
-	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respondHtml(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount, domain, lenDomain);
+void https_get(mbedtls_ssl_context * const ssl, const char * const url, const size_t lenUrl, const struct aem_fileSet * const fileSet) {
+	if (lenUrl == 0) return respondHtml(ssl, "index.html", 10, fileSet->htmlFiles, fileSet->htmlCount);
+	if (lenUrl > 5 && memcmp(url + lenUrl - 5, ".html", 5) == 0) return respondHtml(ssl, url, lenUrl, fileSet->htmlFiles, fileSet->htmlCount);
 
 	if (lenUrl > 8 && memcmp(url, "css/", 4) == 0 && memcmp(url + lenUrl - 4, ".css", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_CSS, fileSet->cssFiles, fileSet->cssCount);
 	if (lenUrl > 8 && memcmp(url, "img/", 4) == 0 && memcmp(url + lenUrl - 4, ".png", 4) == 0) return respondFile(ssl, url + 4, lenUrl - 4, AEM_FILETYPE_IMG, fileSet->imgFiles, fileSet->imgCount);
 	if (lenUrl > 6 && memcmp(url, "js/",  3) == 0 && memcmp(url + lenUrl - 3, ".js",  3) == 0) return respondFile(ssl, url + 3, lenUrl - 3, AEM_FILETYPE_JS,  fileSet->jsFiles,  fileSet->jsCount);
 }
 
-void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, const int lenDomain) {
+void https_mtasts(mbedtls_ssl_context * const ssl) {
 	char data[317 + lenDomain];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -175,7 +176,7 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Content-Length: %d\r\n"
+		"Content-Length: %zd\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-Robots-Tag: noindex\r\n"
 		"\r\n"
@@ -183,7 +184,7 @@ void https_mtasts(mbedtls_ssl_context * const ssl, const char * const domain, co
 		"mode: enforce\n"
 		"mx: %.*s\n"
 		"max_age: 31557600"
-	, 51 + lenDomain, lenDomain, domain);
+	, 51 + lenDomain, (int)lenDomain, domain);
 
 	sendData(ssl, data, 316 + lenDomain);
 }

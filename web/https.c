@@ -14,6 +14,7 @@
 #include "https.h"
 
 #include "aem_file.h"
+#include "global.h"
 #include "https_get.h"
 
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
@@ -83,7 +84,7 @@ static bool supportsBrotli(const char * const req) {
 }
 
 __attribute__((warn_unused_result))
-static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
+static int getRequestType(char * const req, size_t lenReq) {
 	if (lenReq < AEM_MINLEN_GET) return AEM_HTTPS_REQUEST_INVALID;
 	if (memcmp(req, "GET /", 5) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
@@ -130,14 +131,14 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	return AEM_HTTPS_REQUEST_GET;
 }
 
-void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
+void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const struct aem_fileSet * const fileSet) {
 	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_GET, ' ');
 	if (urlEnd == NULL) return;
 
 	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_GET);
 	if (lenUrl > AEM_MAXLEN_URL) return;
 
-	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet, domain, lenDomain);
+	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet);
 }
 
 void tlsFree(void) {
@@ -188,7 +189,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	return 0;
 }
 
-void respond_https(int sock, const char * const domain, const size_t lenDomain, const struct aem_fileSet * const fileSet) {
+void respond_https(int sock, const struct aem_fileSet * const fileSet) {
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;
@@ -208,9 +209,11 @@ void respond_https(int sock, const char * const domain, const size_t lenDomain, 
 
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
-		switch (getRequestType((char*)req, lenReq, domain, lenDomain)) {
-			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req, domain, lenDomain, fileSet); break;
-			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl, domain, lenDomain); break;
+		const int type = getRequestType((char*)req, lenReq);
+
+		switch (type) {
+			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req, fileSet); break;
+			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl); break;
 			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
 			case AEM_HTTPS_REQUEST_TSR:    https_tsr(&ssl); break;
 		}
