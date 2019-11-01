@@ -220,8 +220,8 @@ static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * cons
 }
 
 __attribute__((warn_unused_result))
-static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
-	if (data == NULL || lenData < 1) return -1;
+static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
+	if (data == NULL || lenData < 1) return false;
 
 	if (tls != NULL) {
 		size_t sent = 0;
@@ -229,17 +229,22 @@ static int send_aem(const int sock, mbedtls_ssl_context * const tls, const char 
 		while (sent < lenData) {
 			int ret;
 			do {ret = mbedtls_ssl_write(tls, (const unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-			if (ret < 0) return ret;
+			if (ret < 0) return false;
 
 			sent += ret;
 		}
 
-		return sent;
+		return true;
 	}
 
-	if (sock > 0) return send(sock, data, lenData, 0);
+	if (sock > 0) return (send(sock, data, lenData, 0) == (int)lenData);
 
-	return -1;
+	return false;
+}
+
+static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const char code1, const char code2, const char code3) {
+	const char resp[] = {code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'};
+	return send_aem(sock, tls, resp, 9);
 }
 
 __attribute__((warn_unused_result))
@@ -284,7 +289,7 @@ static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain
 	memcpy(shlo, "250-", 4);
 	memcpy(shlo + 4, domain, lenDomain);
 	memcpy(shlo + 4 + lenDomain, AEM_SHLO_RESPONSE, AEM_SHLO_RESPONSE_LEN);
-	return (send_aem(0, tls, shlo, lenShlo) == lenShlo);
+	return send_aem(0, tls, shlo, lenShlo);
 }
 
 __attribute__((warn_unused_result))
@@ -566,7 +571,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			printf("Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			send_aem(sock, tls, "221 aem\r\n", 9);
+			smtp_respond(sock, tls, '2', '2', '1');
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
@@ -610,7 +615,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			if (lenFrom < 1) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
-				if (send_aem(sock, tls, "503 aem\r\n", 9) != 9) {
+				if (!smtp_respond(sock, tls, '5', '0', '3')) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 101);
 				}
@@ -627,7 +632,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			}
 
 			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
-				if (send_aem(sock, tls, "550 aem\r\n", 9) != 9) {
+				if (!smtp_respond(sock, tls, '5', '5', '0')) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 103);
 				}
@@ -643,7 +648,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			}
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
-				if (send_aem(sock, tls, "452 aem\r\n", 9) != 9) { // Too many recipients
+				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 104);
 				}
@@ -671,7 +676,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
 			infoByte |= AEM_INFOBYTE_CMD_RARE;
 
-			if (send_aem(sock, tls, "252 aem\r\n", 9) != 9) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
+			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 105);
 			}
@@ -681,7 +686,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		}
 
 		else if (strncasecmp(buf, "QUIT", 4) == 0) {
-			send_aem(sock, tls, "221 aem\r\n", 9);
+			smtp_respond(sock, tls, '2', '2', '1');
 			break;
 		}
 
@@ -689,7 +694,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			if (lenFrom < 1 || lenTo < 1) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
-				if (send_aem(sock, tls, "503 aem\r\n", 9) != 9) {
+				if (!smtp_respond(sock, tls, '5', '0', '3')) {
 					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 106);
 				}
@@ -698,7 +703,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 				continue;
 			}
 
-			if (send_aem(sock, tls, "354 aem\r\n", 9) != 9) {
+			if (!smtp_respond(sock, tls, '3', '5', '4')) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 107);
 			}
@@ -723,7 +728,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
 			}
 
-			if (send_aem(sock, tls, "250 aem\r\n", 9) != 9) {
+			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 150);
 			}
@@ -761,7 +766,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			infoByte |= AEM_INFOBYTE_CMD_FAIL;
 
 			// Unsupported commands
-			if (send_aem(sock, tls, "500 aem\r\n", 9) != 9) {
+			if (!smtp_respond(sock, tls, '5', '0', '0')) {
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 108);
 			}
@@ -770,7 +775,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			continue;
 		}
 
-		if (send_aem(sock, tls, "250 aem\r\n", 9) != 9) {
+		if (!smtp_respond(sock, tls, '2', '5', '0')) {
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return smtp_fail(clientAddr, 150);
 		}
