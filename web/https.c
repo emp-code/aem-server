@@ -148,6 +148,13 @@ void tlsFree(void) {
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 }
 
+static int sni(void *parameter, mbedtls_ssl_context *ssl, const unsigned char *hostname, size_t len) {
+	if (parameter != NULL || ssl == NULL) return -1;
+	if (len == 0) return 0;
+
+	return (hostname == NULL || len != lenDomain || memcmp(hostname, domain, lenDomain) != 0) ? -1 : 0;
+}
+
 int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey) {
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
@@ -167,6 +174,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	mbedtls_ssl_conf_read_timeout(&conf, AEM_HTTPS_TIMEOUT);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_ssl_conf_sig_hashes(&conf, https_hashes);
+	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
