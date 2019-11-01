@@ -614,6 +614,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 					return smtp_fail(clientAddr, 101);
 				}
 
+				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 				continue;
 			}
 
@@ -630,6 +631,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 					return smtp_fail(clientAddr, 103);
 				}
 
+				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 				continue;
 			}
 
@@ -645,6 +647,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 					return smtp_fail(clientAddr, 104);
 				}
 
+				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 				continue;
 			}
 
@@ -672,6 +675,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 				return smtp_fail(clientAddr, 105);
 			}
 
+			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			continue;
 		}
 
@@ -689,6 +693,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 					return smtp_fail(clientAddr, 106);
 				}
 
+				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 				continue;
 			}
 
