@@ -259,10 +259,7 @@ int getDomainFromCert(mbedtls_x509_crt * const cert) {
 	c += 5;
 
 	lenDomain = strlen(c);
-	if (lenDomain > AEM_MAXLEN_HOST) {
-		free(c);
-		return -1;
-	}
+	if (lenDomain > AEM_MAXLEN_HOST) return -1;
 
 	memcpy(domain, c, lenDomain);
 	return 0;
