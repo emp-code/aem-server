@@ -172,32 +172,32 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	if (sockAddr == NULL) return 0;
 
 	MMDB_s mmdb;
-	int status = MMDB_open("/GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
+	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
 
 	if (status != MMDB_SUCCESS) {
-		printf("[SMTP.getCountryCode] Can't open database: %s\n", MMDB_strerror(status));
+		printf("getCountryCode: Can't open database: %s\n", MMDB_strerror(status));
 		return 0;
 	}
 
 	int mmdb_error;
-	MMDB_lookup_result_s result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &mmdb_error);
+	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &mmdb_error);
 
 	if (mmdb_error != MMDB_SUCCESS) {
-		printf("[SMTP.getCountryCode] Got an error from libmaxminddb: %s\n", MMDB_strerror(mmdb_error));
+		printf("getCountryCode: Got an error from libmaxminddb: %s\n", MMDB_strerror(mmdb_error));
 		return 0;
 	}
 
 	int16_t ret = 0;
-	if (result.found_entry) {
+	if (mmdb_result.found_entry) {
 		MMDB_entry_data_s entry_data;
-		status = MMDB_get_value(&result.entry, &entry_data, "country", "iso_code", NULL);
+		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
 
 		if (status == MMDB_SUCCESS) {
 			memcpy(&ret, entry_data.utf8_string, 2);
 		} else {
-			printf("[SMTP.getCountryCode] Error looking up the entry data: %s\n", MMDB_strerror(status));
+			printf("getCountryCode: Error looking up the entry data: %s\n", MMDB_strerror(status));
 		}
-	} else puts("[SMTP.getCountryCode] No entry for the IP address was found");
+	} else puts("getCountryCode: No entry for the IP address was found");
 
 	MMDB_close(&mmdb);
 	return ret;
