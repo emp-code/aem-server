@@ -309,7 +309,7 @@ static bool smtp_helo(const int sock, const char * const domain, const size_t le
 }
 
 static void smtp_fail(const struct sockaddr_in * const clientAddr, const int code) {
-	printf("[SMTP] Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
+	printf("Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
 static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const conf, mbedtls_ctr_drbg_context * const ctr_drbg, mbedtls_entropy_context * const entropy) {
@@ -367,7 +367,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 
 		ret = addUserMessage(charToInt64(pk), boxSet, bsLen);
 		free(boxSet);
-		if (ret != 0) puts("[SMTP] Failed to deliver email: addUserMessage failed");
+		if (ret != 0) puts("Failed to deliver email: addUserMessage failed");
 
 		if (nextTo == NULL) return;
 		toStart = nextTo + 1;
@@ -515,7 +515,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 		int ret;
 		if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-			printf("[SMTP] Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
+			printf("Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
 			mbedtls_ssl_free(tls);
 			mbedtls_ssl_config_free(&conf);
 			return;
@@ -528,20 +528,20 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
 		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"All-Ears Mail SMTP", 18)) != 0) {
-			printf("[SMTP] Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
+			printf("Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
 
 		mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
 		if ((ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey)) != 0) {
-			printf("[SMTP] Terminating: mbedtls_ssl_conf_own_cert returned %d\n", ret);
+			printf("Terminating: mbedtls_ssl_conf_own_cert returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
 
 		if ((ret = mbedtls_ssl_setup(tls, &conf)) != 0) {
-			printf("[SMTP] Terminating: mbedtls_ssl_setup returned %d\n", ret);
+			printf("Terminating: mbedtls_ssl_setup returned %d\n", ret);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -551,7 +551,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		// Handshake
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				printf("[SMTP] Terminating: mbedtls_ssl_handshake returned %d\n", ret);
+				printf("Terminating: mbedtls_ssl_handshake returned %d\n", ret);
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return;
 			}
@@ -559,22 +559,22 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
-			printf("[SMTP] Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			printf("Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
-			printf("[SMTP] Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			printf("Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			send_aem(sock, tls, "221 aem\r\n", 9);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
-			printf("[SMTP] Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
+			printf("Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
 
 		if (!smtp_shlo(tls, domain, lenDomain)) {
-			puts("[SMTP] Terminating: Failed to send greeting following StartTLS");
+			puts("Terminating: Failed to send greeting following StartTLS");
 			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
@@ -591,8 +591,8 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes < 1) printf("[SMTP] Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else printf("[SMTP] Terminating: invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) printf("Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			else printf("Terminating: invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
