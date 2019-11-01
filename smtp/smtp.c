@@ -494,8 +494,9 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 	char buf[AEM_SMTP_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
+	if (bytes < 7) return smtp_fail(clientAddr, 1); // HELO \r\n
 
-	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientAddr, 1);
+	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientAddr, 2);
 
 	uint8_t infoByte = 0;
 	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_ESMTP;
