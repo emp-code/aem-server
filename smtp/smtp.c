@@ -328,8 +328,8 @@ static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const 
 }
 
 static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
-const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte, const unsigned char * const addrKey) {
-	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL || addrKey == NULL) return;
+const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte) {
+	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL) return;
 
 	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
@@ -344,7 +344,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 
 		unsigned char pk[crypto_box_PUBLICKEYBYTES];
 		unsigned char flags;
-		int ret = getPublicKeyFromAddress(binTo, pk, addrKey, &flags);
+		int ret = getPublicKeyFromAddress(binTo, pk, &flags);
 		if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_EXTMSG)) {
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
@@ -360,7 +360,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const uint8_t spamByte = 0; // TODO
 		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
 
-		if (flags & AEM_FLAGS_ADDR_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk), addrKey)) return;
+		if (flags & AEM_FLAGS_ADDR_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk))) return;
 
 		size_t bodyLen = lenMsgBody;
 		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
@@ -487,8 +487,8 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const unsigned char * const addrKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
-	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || addrKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
+void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
+	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
@@ -599,8 +599,8 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes < 1) printf("Terminating: client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else printf("Terminating: invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) printf("Terminating: Client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			else printf("Terminating: Invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
@@ -744,7 +744,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			const uint8_t tlsVersion = getTlsVersion(tls);
-			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, tlsVersion, infoByte, addrKey);
+			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, tlsVersion, infoByte);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);

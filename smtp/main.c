@@ -17,6 +17,7 @@
 #include <mbedtls/ssl.h>
 
 #include "Include/Brotli.h"
+#include "Include/Database.h"
 #include "smtp.h"
 
 #define AEM_CHROOT "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
@@ -77,24 +78,29 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 }
 
 __attribute__((warn_unused_result))
-static int loadAddrKey(unsigned char * const addrKey) {
+static int loadAddrKey(void) {
 	const int fd = open(AEM_PATH_ADDRKEY, O_RDONLY);
 	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
 
+	unsigned char addrKey[crypto_pwhash_SALTBYTES];
 	const off_t readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
 	close(fd);
-	if (readBytes == crypto_pwhash_SALTBYTES) return 0;
 
-	printf("pread returned: %ld\n", readBytes);
-	return 1;
+	if (readBytes != crypto_pwhash_SALTBYTES) {
+		printf("pread returned: %ld\n", readBytes);
+		return -1;
+	}
+
+	setAddrKey(addrKey);
+	sodium_memzero(addrKey, crypto_pwhash_SALTBYTES);
+	return 0;
 }
 
 static int receiveConnections(const char * const domain, const size_t lenDomain, mbedtls_x509_crt * const tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
 
-	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	int ret = loadAddrKey(addrKey);
+	int ret = loadAddrKey();
 	if (ret < 0) {
 		puts("Terminating: failed to load address key");
 		return 1;
@@ -113,7 +119,7 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_smtp(newSock, tlsCert, &tlsKey, addrKey, domain, lenDomain, &clientAddr);
+			respond_smtp(newSock, tlsCert, &tlsKey, domain, lenDomain, &clientAddr);
 			close(newSock);
 		}
 	}

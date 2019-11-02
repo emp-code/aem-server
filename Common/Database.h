@@ -11,15 +11,17 @@
 #define AEM_FLAGS_ADDR_ACC_INTMSG 4
 #define AEM_FLAGS_ADDR_ACC_EXTMSG 8
 
+void setAddrKey(const unsigned char ak[crypto_pwhash_SALTBYTES]);
+
 int addAccount(const unsigned char * const pk);
 int setAccountLevel(const int64_t upk64, const int level);
 int destroyAccount(const int64_t upk64);
 
-int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey);
-bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64, const unsigned char * const hashKey);
+int64_t addressToHash(const unsigned char * const addr);
+bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64);
 
 bool upk64Exists(const int64_t upk64);
-int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags);
+int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, unsigned char * const flags);
 
 int getUserInfo(const int64_t upk64, uint8_t * const level, unsigned char ** const noteData, unsigned char ** const addrData, uint16_t * const lenAddr, unsigned char ** const gkData, uint16_t * const lenGk, unsigned char * const limits);
 int getAdminData(unsigned char ** const adminData);
@@ -33,7 +35,7 @@ int updateAddress(const int64_t upk64, const unsigned char * const addrData, con
 int addAddress(const int64_t upk64, const int64_t hash, const bool isShield);
 int updateAddressSettings(const int64_t upk64, const int64_t * const addrHash, const unsigned char * const addrFlags, const int addressCount);
 
-int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey);
+int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData);
 int updateNoteData(const int64_t upk64, const unsigned char * const noteData);
 
 int getUserLevel(const int64_t upk64);

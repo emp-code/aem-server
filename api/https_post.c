@@ -67,7 +67,7 @@ static int numDigits(double number) {
 }
 
 __attribute__((warn_unused_result))
-static int sendIntMsg(const unsigned char * const addrKey, const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
+static int sendIntMsg(const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
 	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1 || lenFrom > 24 || lenTo > 24) return -1;
 
@@ -79,7 +79,7 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 
 	unsigned char recv_pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char flags;
-	int ret = getPublicKeyFromAddress(binTo, recv_pk, addrKey, &flags);
+	int ret = getPublicKeyFromAddress(binTo, recv_pk, &flags);
 	if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
 
 	const int64_t sender_pk64 = charToInt64(sender_pk);
@@ -228,7 +228,7 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
+static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
 	unsigned char addr[15];
 	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
 
@@ -250,7 +250,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 		sodium_free(*decrypted);
 	}
 
-	const int64_t hash = addressToHash(addr, addrKey);
+	const int64_t hash = addressToHash(addr);
 	if (addAddress(upk64, hash, isShield) != 0) return;
 
 	char data[248];
@@ -341,7 +341,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 }
 
 // Creates BodyBox from client's instructions and stores it
-static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const addrKey) {
+static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -362,7 +362,7 @@ static void message_create(mbedtls_ssl_context * const ssl, const unsigned char 
 
 	int ret;
 	if (memchr(addrTo, '@', lenTo) == NULL) {
-		ret = sendIntMsg(addrKey, addrFrom, lenFrom, addrTo, lenTo, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
+		ret = sendIntMsg(addrFrom, lenFrom, addrTo, lenTo, decrypted, (endTo + 1) - *decrypted, lenDecrypted, upk, senderCopy);
 	} else {
 		const char * const domainAt = strchr(addrTo, '@');
 		if (domainAt == NULL) {
@@ -419,8 +419,8 @@ static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void storage_engate(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const hashKey) {
-	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted, hashKey);
+static void storage_engate(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
@@ -459,8 +459,8 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const unsigned char * const addrKey, const char * const url, const unsigned char * const post) {
-	if (ssl == NULL || ssk == NULL || addrKey == NULL || url == NULL || post == NULL) return;
+void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const char * const url, const unsigned char * const post) {
+	if (ssl == NULL || ssk == NULL || url == NULL || post == NULL) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
@@ -475,17 +475,17 @@ void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk
 	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, upk64, &decrypted, lenDecrypted);
 	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, upk64, &decrypted, lenDecrypted);
 
-	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, upk64, &decrypted, lenDecrypted, addrKey);
+	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, upk64, &decrypted, lenDecrypted);
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, upk64, &decrypted, lenDecrypted);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, upk,   &decrypted, lenDecrypted);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted, addrKey);
+	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, upk64, &decrypted, lenDecrypted);
 
 	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, upk,   &decrypted, lenDecrypted, addrKey);
+	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, upk,   &decrypted, lenDecrypted);
 	if (memcmp(url, "storage/ennote", 14) == 0) return storage_ennote(ssl, upk64, &decrypted, lenDecrypted);
 }

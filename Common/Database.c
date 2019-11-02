@@ -19,6 +19,21 @@
 #define AEM_PATH_DB_MESSAGES "Messages.aed"
 #define AEM_PATH_DB_USERS "Users.aed"
 
+static unsigned char addrKey[crypto_pwhash_SALTBYTES];
+
+void setAddrKey(const unsigned char ak[crypto_pwhash_SALTBYTES]) {
+	memcpy(addrKey, ak, crypto_pwhash_SALTBYTES);
+}
+
+__attribute__((warn_unused_result))
+int64_t addressToHash(const unsigned char * const addr) {
+	if (addr == NULL) return 0;
+
+	unsigned char hash16[16];
+	if (crypto_pwhash(hash16, 16, (char*)addr, 15, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
+	return charToInt64(hash16);
+}
+
 __attribute__((warn_unused_result))
 static sqlite3 *openDb(const char * const path, const int flags) {
 	if (path == NULL) return NULL;
@@ -37,21 +52,12 @@ static sqlite3 *openDb(const char * const path, const int flags) {
 }
 
 __attribute__((warn_unused_result))
-int64_t addressToHash(const unsigned char * const addr, const unsigned char * const addrKey) {
-	if (addr == NULL || addrKey == NULL) return 0;
-
-	unsigned char hash16[16];
-	if (crypto_pwhash(hash16, 16, (char*)addr, 15, addrKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
-	return charToInt64(hash16);
-}
-
-__attribute__((warn_unused_result))
-int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64, const unsigned char * const hashKey) {
-	if (in == NULL || len < 1 || hashKey == NULL) return 0;
+int64_t gkHash(const unsigned char * const in, const size_t len, const int64_t upk64) {
+	if (in == NULL || len < 1) return 0;
 
 	unsigned char saltyKey[24];
 	memcpy(saltyKey, &upk64, 8);
-	memcpy(saltyKey + 8, hashKey, 16);
+	memcpy(saltyKey + 8, addrKey, 16);
 
 	unsigned char hash16[16];
 	crypto_generichash(hash16, 16, in, len, saltyKey, 24);
@@ -77,8 +83,8 @@ bool upk64Exists(const int64_t upk64) {
 }
 
 __attribute__((warn_unused_result))
-int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, const unsigned char * const addrKey, unsigned char * const flags) {
-	if (addr == NULL || pk == NULL || addrKey == NULL || flags == NULL) return -1;
+int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * const pk, unsigned char * const flags) {
+	if (addr == NULL || pk == NULL || flags == NULL) return -1;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
 	if (db == NULL) return -1;
@@ -87,7 +93,7 @@ int getPublicKeyFromAddress(const unsigned char * const addr, unsigned char * co
 	int ret = sqlite3_prepare_v2(db, "SELECT publickey, flags FROM address INNER JOIN userdata USING(upk64) WHERE hash=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-	sqlite3_bind_int64(query, 1, addressToHash(addr, addrKey));
+	sqlite3_bind_int64(query, 1, addressToHash(addr));
 
 	ret = sqlite3_step(query);
 	if (ret != SQLITE_ROW || sqlite3_column_bytes(query, 0) != crypto_box_PUBLICKEYBYTES) {
@@ -326,12 +332,12 @@ int deleteAddress(const int64_t upk64, const int64_t hash, const bool isShield, 
 }
 
 __attribute__((warn_unused_result))
-static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const hashKey, const unsigned char * const text, const size_t lenText) {
+static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const text, const size_t lenText) {
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM gatekeeper WHERE hash=? AND upk64=?", -1, &query, NULL);
 	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-	sqlite3_bind_int64(query, 1, gkHash(text, lenText, upk64, hashKey));
+	sqlite3_bind_int64(query, 1, gkHash(text, lenText, upk64));
 	sqlite3_bind_int64(query, 2, upk64);
 
 	ret = sqlite3_step(query);
@@ -340,16 +346,16 @@ static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, 
 }
 
 __attribute__((warn_unused_result))
-bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64, const unsigned char * const hashKey) {
-	if (domain == NULL || lenDomain < 1 || from == NULL || lenFrom < 1 || hashKey == NULL) false;
+bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain, const size_t lenDomain, const char* from, const size_t lenFrom, const int64_t upk64) {
+	if (domain == NULL || lenDomain < 1 || from == NULL || lenFrom < 1) false;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READWRITE);
 	if (db == NULL) return -1;
 
 	const bool result = (
-	   isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)countryCode, 2)
-	|| isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)domain, lenDomain)
-	|| isBlockedByGatekeeper_test(db, upk64, hashKey, (unsigned char*)from, lenFrom)
+	   isBlockedByGatekeeper_test(db, upk64, (unsigned char*)countryCode, 2)
+	|| isBlockedByGatekeeper_test(db, upk64, (unsigned char*)domain, lenDomain)
+	|| isBlockedByGatekeeper_test(db, upk64, (unsigned char*)from, lenFrom)
 	);
 
 	sqlite3_close_v2(db);
@@ -358,8 +364,8 @@ bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain
 
 // Format: item1\nitem2\n...
 __attribute__((warn_unused_result))
-int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData, const unsigned char * const hashKey) {
-	if (ownerPk == NULL || gkData == NULL || lenGkData < 1 || hashKey == NULL) return -1;
+int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, const size_t lenGkData) {
+	if (ownerPk == NULL || gkData == NULL || lenGkData < 1) return -1;
 
 	if (gkData[lenGkData - 1] != '\n') return -1;
 
@@ -387,7 +393,7 @@ int updateGatekeeper(const unsigned char * const ownerPk, char * const gkData, c
 		ret = sqlite3_prepare_v2(db, "INSERT INTO gatekeeper (hash, upk64) VALUES (?, ?)", -1, &query, NULL);
 		if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
 
-		sqlite3_bind_int64(query, 1, gkHash((unsigned char*)lf, len, upk64, hashKey));
+		sqlite3_bind_int64(query, 1, gkHash((unsigned char*)lf, len, upk64));
 		sqlite3_bind_int64(query, 2, upk64);
 		ret = sqlite3_step(query);
 		sqlite3_finalize(query);
