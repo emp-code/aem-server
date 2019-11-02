@@ -12,8 +12,9 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "https.h"
+#include <sodium.h>
 
+#include "https.h"
 #include "https_post.h"
 
 #define AEM_MAXLEN_DOMAIN 32
@@ -23,6 +24,7 @@
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_POST 10 // 'POST /api/'
+#define AEM_LEN_URL_POST 14 // 'account/browse'
 
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_POST 1
@@ -154,12 +156,8 @@ static int getRequestType(char * const req, size_t lenReq) {
 }
 
 void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq) {
-	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_POST, ' ');
-	if (urlEnd == NULL) return;
-	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_POST);
-
-	char url[lenUrl];
-	memcpy(url, buf + AEM_SKIP_URL_POST, lenUrl);
+	char url[AEM_LEN_URL_POST];
+	memcpy(url, buf + AEM_SKIP_URL_POST, AEM_LEN_URL_POST);
 
 	const char *post = strstr(buf + AEM_MINLEN_POST - 4, "\r\n\r\n");
 	if (post == NULL) return;
@@ -171,7 +169,7 @@ void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t 
 	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
 		int ret;
 		do {ret = mbedtls_ssl_read(ssl, (unsigned char*)(buf + lenPost), AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		if (ret < 0) return;
+		if (ret < 1) return;
 		lenPost += ret;
 	}
 
