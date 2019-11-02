@@ -16,6 +16,8 @@
 
 #include "https_post.h"
 
+#define AEM_MAXLEN_DOMAIN 32
+
 #define AEM_MINLEN_POST 76 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:7850\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
 #define AEM_HTTPS_TIMEOUT 30
@@ -56,6 +58,17 @@ MBEDTLS_ECP_DP_NONE};
 static const int https_hashes[] = {
 	MBEDTLS_SSL_HASH_SHA512,
 MBEDTLS_MD_NONE};
+
+static char domain[AEM_MAXLEN_DOMAIN];
+size_t lenDomain;
+
+int setDomain(const char * const newDomain, size_t len) {
+	if (len > AEM_MAXLEN_DOMAIN) return -1;
+
+	lenDomain = len;
+	memcpy(domain, newDomain, len);
+	return 0;
+}
 
 __attribute__((warn_unused_result))
 static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
@@ -167,7 +180,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ctr_drbg_free(ctr_drbg);
 }
 
-void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const char * const domain, const size_t lenDomain) {
+void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey) {
 	mbedtls_ssl_context ssl;
 	mbedtls_ssl_config conf;
 	mbedtls_entropy_context entropy;
