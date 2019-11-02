@@ -62,7 +62,7 @@ MBEDTLS_MD_NONE};
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
 
-int setDomain(const char * const newDomain, size_t len) {
+int setDomain(const char * const newDomain, const size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
 
 	lenDomain = len;
