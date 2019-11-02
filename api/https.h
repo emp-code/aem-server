@@ -3,6 +3,9 @@
 
 int setDomain(const char * const newDomain, const size_t len);
 
-void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey);
+void tlsFree(void);
+int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey);
+
+void respond_https(int sock);
 
 #endif

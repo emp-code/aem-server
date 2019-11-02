@@ -112,14 +112,15 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	if (sock < 0) {ret = -2;}
 	if (ret == 0) {if (initSocket(&sock, AEM_PORT_HTTPS) != 0) ret = -3;}
 	if (ret == 0) {if (dropRoot() != 0) ret = -4;}
+	if (ret == 0) {ret = tlsSetup(tlsCert, &tlsKey);}
 
 	if (ret == 0) {
 		puts("Ready");
 
-		while(!terminate) {
+		while (!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_https(newSock, tlsCert, &tlsKey);
+			respond_https(newSock);
 			close(newSock);
 		}
 	}
