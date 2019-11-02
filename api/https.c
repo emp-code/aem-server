@@ -60,7 +60,7 @@ static const int https_hashes[] = {
 MBEDTLS_MD_NONE};
 
 static char domain[AEM_MAXLEN_DOMAIN];
-size_t lenDomain;
+static size_t lenDomain;
 
 int setDomain(const char * const newDomain, size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
