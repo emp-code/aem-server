@@ -135,7 +135,7 @@ static int getRequestType(char * const req, size_t lenReq, const char * const do
 	return AEM_HTTPS_REQUEST_POST;
 }
 
-void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq, const unsigned char * const ssk) {
+void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t lenReq) {
 	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_POST, ' ');
 	if (urlEnd == NULL) return;
 	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_POST);
@@ -157,7 +157,7 @@ void handlePost(mbedtls_ssl_context * const ssl, char * const buf, const size_t 
 		lenPost += ret;
 	}
 
-	https_post(ssl, ssk, url, (unsigned char*)buf);
+	https_post(ssl, url, (unsigned char*)buf);
 }
 
 static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_entropy_context *entropy, mbedtls_ctr_drbg_context *ctr_drbg) {
@@ -167,7 +167,7 @@ static void tlsFree(mbedtls_ssl_context *ssl, mbedtls_ssl_config *conf, mbedtls_
 	mbedtls_ctr_drbg_free(ctr_drbg);
 }
 
-void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const unsigned char * const ssk, const char * const domain, const size_t lenDomain) {
+void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_context * const pkey, const char * const domain, const size_t lenDomain) {
 	mbedtls_ssl_context ssl;
 	mbedtls_ssl_config conf;
 	mbedtls_entropy_context entropy;
@@ -233,9 +233,9 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
 		switch (getRequestType((char*)req, lenReq, domain, lenDomain)) {
-			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl, ssk); break;
+			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl); break;
 			case AEM_HTTPS_REQUEST_POST: {
-				handlePost(&ssl, (char*)req, lenReq, ssk);
+				handlePost(&ssl, (char*)req, lenReq);
 				sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
 			}
 		}

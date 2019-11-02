@@ -17,8 +17,8 @@
 #include <mbedtls/ssl.h>
 
 #include "Include/Database.h"
-
 #include "https.h"
+#include "https_post.h"
 
 #define AEM_CHROOT "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
 #define AEM_PORT_HTTPS 7850
@@ -106,14 +106,7 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 		return 1;
 	}
 
-	// Keys for web API
-	unsigned char * const spk = malloc(crypto_box_PUBLICKEYBYTES);
-	if (spk == NULL) return 1;
-	unsigned char * const ssk = sodium_malloc(crypto_box_SECRETKEYBYTES);
-	if (ssk == NULL) {free(spk); return 1;}
-	crypto_box_keypair(spk, ssk);
-	sodium_mprotect_readonly(ssk);
-	free(spk);
+	genServerSecretKey();
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {ret = -2;}
@@ -126,12 +119,11 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 		while(!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_https(newSock, tlsCert, &tlsKey, ssk, domain, lenDomain);
+			respond_https(newSock, tlsCert, &tlsKey, domain, lenDomain);
 			close(newSock);
 		}
 	}
 
-	sodium_free(ssk);
 	mbedtls_x509_crt_free(tlsCert);
 	mbedtls_pk_free(&tlsKey);
 	close(sock);

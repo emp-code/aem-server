@@ -24,7 +24,14 @@
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
 
-void https_pubkey(mbedtls_ssl_context * const ssl, const unsigned char * const ssk) {
+static unsigned char ssk[crypto_box_SECRETKEYBYTES];
+
+void genServerSecretKey(void) {
+	unsigned char spk[crypto_box_PUBLICKEYBYTES];
+	crypto_box_keypair(spk, ssk);
+}
+
+void https_pubkey(mbedtls_ssl_context * const ssl) {
 	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
 	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
 
@@ -459,7 +466,7 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const unsigned char * const ssk, const char * const url, const unsigned char * const post) {
+void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
 	if (ssl == NULL || ssk == NULL || url == NULL || post == NULL) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
