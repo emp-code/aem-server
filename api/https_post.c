@@ -441,7 +441,7 @@ static void storage_ennote(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 __attribute__((warn_unused_result))
-static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted, const unsigned char * const ssk) {
+static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
@@ -467,12 +467,12 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 }
 
 void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
-	if (ssl == NULL || ssk == NULL || url == NULL || post == NULL) return;
+	if (ssl == NULL || url == NULL || post == NULL) return;
 
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 
-	char * const decrypted = openWebBox(post, upk, &lenDecrypted, ssk);
+	char * const decrypted = openWebBox(post, upk, &lenDecrypted);
 	if (decrypted == NULL || lenDecrypted < 1) return;
 	const int64_t upk64 = charToInt64(upk);
 
