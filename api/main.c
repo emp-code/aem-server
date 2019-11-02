@@ -125,6 +125,7 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 		}
 	}
 
+	tlsFree();
 	mbedtls_x509_crt_free(tlsCert);
 	mbedtls_pk_free(&tlsKey);
 	close(sock);
@@ -157,7 +158,7 @@ int main(void) {
 	}
 
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) { // Prevent writing to closed/invalid sockets from ending the process
-		puts("Terminating: signal failed");
+		puts("Terminating: Signal failed");
 		return EXIT_FAILURE;
 	}
 
