@@ -193,7 +193,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {
-		printf("[HTTPS] mbedtls_ssl_config_defaults returned %d\n", ret);
+		printf("mbedtls_ssl_config_defaults returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 		return;
 	}
@@ -208,21 +208,21 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
-		printf("[HTTPS] mbedtls_ctr_drbg_seed returned %d\n", ret);
+		printf("mbedtls_ctr_drbg_seed returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 		return;
 	}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, srvcert, pkey);
 	if (ret != 0) {
-		printf("[HTTPS] mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		printf("mbedtls_ssl_conf_own_cert returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 		return;
 	}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {
-		printf("[HTTPS] mbedtls_ssl_setup returned %d\n", ret);
+		printf("mbedtls_ssl_setup returned %d\n", ret);
 		tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 		return;
 	}
@@ -232,7 +232,7 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 	// Handshake
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			printf("[HTTPS] mbedtls_ssl_handshake returned %d\n", ret);
+			printf("mbedtls_ssl_handshake returned %d\n", ret);
 			tlsFree(&ssl, &conf, &entropy, &ctr_drbg);
 			return;
 		}

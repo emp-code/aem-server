@@ -32,7 +32,7 @@ void genServerSecretKey(void) {
 }
 
 void https_pubkey(mbedtls_ssl_context * const ssl) {
-	if (crypto_box_PUBLICKEYBYTES != 32) {puts("[HTTPS] PK is not 32 bytes"); return;}
+	if (crypto_box_PUBLICKEYBYTES != 32) {puts("PK is not 32 bytes"); return;}
 	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
 
 	memcpy(data,
@@ -326,7 +326,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 	} else if ((*decrypted)[0] == 'T') {
 		header[0] |= AEM_FLAG_MSGTYPE_TEXTNOTE;
 	} else {
-		puts("[HTTPS] message_assign: Unrecognized type");
+		puts("message_assign: Unrecognized type");
 		sodium_free(*decrypted);
 		return;
 	}
