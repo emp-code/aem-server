@@ -121,7 +121,7 @@ static void userViolation(const int64_t upk64, const int violation) {
 	destroyAccount(upk64);
 }
 
-static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 1) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
 
@@ -187,7 +187,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	free(data);
 }
 
-static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
@@ -201,7 +201,7 @@ static void account_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 8) {sodium_free(*decrypted); return;}
 
 	const int64_t target64 = charToInt64(*decrypted);
@@ -216,7 +216,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void account_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 9) {sodium_free(*decrypted); return;}
 
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
@@ -235,7 +235,7 @@ static void account_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	unsigned char addr[15];
 	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
 
@@ -278,7 +278,7 @@ static void address_create(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	sendData(ssl, data, 248);
 }
 
-static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted < 10) {free(*decrypted); return;}
 	const int64_t hash = charToInt64(*decrypted);
 	const bool isShield = ((*decrypted)[8] == 'S');
@@ -291,7 +291,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted % 9 != 0) {free(*decrypted); return;}
 
 	const unsigned int addressCount = lenDecrypted / 9; // unsigned to avoid GCC warning
@@ -310,7 +310,7 @@ static void address_update(mbedtls_ssl_context * const ssl, const int64_t upk64,
 }
 
 // Takes BodyBox from client and stores it
-static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+static void message_assign(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, unsigned char * const upk) {
 	if ((lenDecrypted - crypto_box_SEALBYTES - 3) % 1024 != 0) {
 		sodium_free(*decrypted);
 		return;
@@ -348,7 +348,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * cons
 }
 
 // Creates BodyBox from client's instructions and stores it
-static void message_create(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const upk) {
 /* Format:
 	(From)\n
 	(To)\n
@@ -391,7 +391,7 @@ static void message_create(mbedtls_ssl_context * const ssl, const unsigned char 
 	if (ret == 0) send204(ssl);
 }
 
-static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
 		ids[i] = (uint8_t)((*decrypted)[i]);
@@ -402,7 +402,7 @@ static void message_delete(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void setting_limits(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
 
 	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
@@ -420,19 +420,19 @@ static void setting_limits(mbedtls_ssl_context * const ssl, const int64_t upk64,
 	if (ret == 0) send204(ssl);
 }
 
-static void storage_enaddr(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void storage_enaddr(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
 
-static void storage_engate(mbedtls_ssl_context * const ssl, const unsigned char * const upk, char * const * const decrypted, const size_t lenDecrypted) {
+static void storage_engate(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const upk) {
 	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted);
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
 
-static void storage_ennote(mbedtls_ssl_context * const ssl, const int64_t upk64, char * const * const decrypted, const size_t lenDecrypted) {
+static void storage_ennote(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) {sodium_free(*decrypted); return;}
 
 	const int ret = updateNoteData(upk64, (unsigned char*)*decrypted);
@@ -476,23 +476,23 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (decrypted == NULL || lenDecrypted < 1) return;
 	const int64_t upk64 = charToInt64(upk);
 
-	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, upk64);
 
-	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, upk64);
 
-	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, upk64);
 
-	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, upk,   &decrypted, lenDecrypted);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, upk,   &decrypted, lenDecrypted);
-	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, upk);
+	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, upk);
+	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, upk64);
 
-	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, upk64);
 
-	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, upk64, &decrypted, lenDecrypted);
-	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, upk,   &decrypted, lenDecrypted);
-	if (memcmp(url, "storage/ennote", 14) == 0) return storage_ennote(ssl, upk64, &decrypted, lenDecrypted);
+	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, &decrypted, lenDecrypted, upk);
+	if (memcmp(url, "storage/ennote", 14) == 0) return storage_ennote(ssl, &decrypted, lenDecrypted, upk64);
 }
