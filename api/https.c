@@ -71,7 +71,7 @@ int setDomain(const char * const newDomain, size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int getRequestType(char * const req, size_t lenReq, const char * const domain, const size_t lenDomain) {
+static int getRequestType(char * const req, size_t lenReq) {
 	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
@@ -245,8 +245,9 @@ void respond_https(int sock, mbedtls_x509_crt * const srvcert, mbedtls_pk_contex
 
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
-		switch (getRequestType((char*)req, lenReq, domain, lenDomain)) {
+		switch (getRequestType((char*)req, lenReq)) {
 			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl); break;
+
 			case AEM_HTTPS_REQUEST_POST: {
 				handlePost(&ssl, (char*)req, lenReq);
 				sodium_memzero(req, AEM_HTTPS_POST_BOXED_SIZE);
