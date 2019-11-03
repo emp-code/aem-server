@@ -17,7 +17,6 @@
 
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
 #define AEM_MAXLEN_REQ 800
-#define AEM_MAXLEN_URL 25
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_GET 5 // 'GET /'
@@ -117,8 +116,6 @@ static void handleRequest(size_t lenReq) {
 	if (urlEnd == NULL) return;
 
 	const size_t lenUrl = urlEnd - (req + AEM_SKIP_URL_GET);
-	if (lenUrl > AEM_MAXLEN_URL) return;
-
 	https_respond(&ssl, req + AEM_SKIP_URL_GET, lenUrl);
 }
 
