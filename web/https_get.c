@@ -41,12 +41,16 @@ void freeFiles(void) {
 
 __attribute__((warn_unused_result))
 int loadFile(const int type) {
-	int fd;
-	if      (type == AEM_FILETYPE_CSS)  {fd = open(AEM_PATH_CSS,  O_RDONLY);}
-	else if (type == AEM_FILETYPE_HTML) {fd = open(AEM_PATH_HTML, O_RDONLY);}
-	else if (type == AEM_FILETYPE_JSAE) {fd = open(AEM_PATH_JSAE, O_RDONLY);}
-	else if (type == AEM_FILETYPE_JSMN) {fd = open(AEM_PATH_JSMN, O_RDONLY);}
-	else return -1;
+	const char *path;
+	switch (type) {
+		case AEM_FILETYPE_CSS: path = AEM_PATH_CSS; break;
+		case AEM_FILETYPE_HTML: path = AEM_PATH_HTML; break;
+		case AEM_FILETYPE_JSAE: path = AEM_PATH_JSAE; break;
+		case AEM_FILETYPE_JSMN: path = AEM_PATH_JSMN; break;
+	}
+
+	const int fd = open(path, O_RDONLY);
+	if (fd == -1) return -1;
 
 	// TODO for reloading: Free response if not null
 
