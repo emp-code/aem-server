@@ -58,6 +58,7 @@ int loadFile(const int type) {
 	if (fileBytes < 1) {close(fd); return -1;}
 
 	char *fileData = malloc(fileBytes);
+	if (fileData == NULL) {close(fd); return -1;}
 
 	int ret = pread(fd, fileData, fileBytes, 0);
 	close(fd);
