@@ -13,7 +13,6 @@
 
 #include "https.h"
 
-#include "aem_file.h"
 #include "global.h"
 #include "https_get.h"
 
@@ -123,14 +122,14 @@ static int getRequestType(char * const req, size_t lenReq) {
 	return AEM_HTTPS_REQUEST_GET;
 }
 
-void handleGet(mbedtls_ssl_context * const ssl, char * const buf, const struct aem_fileSet * const fileSet) {
+void handleGet(mbedtls_ssl_context * const ssl, char * const buf) {
 	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_GET, ' ');
 	if (urlEnd == NULL) return;
 
-	const size_t lenUrl = urlEnd - (buf + AEM_SKIP_URL_GET);
-	if (lenUrl > AEM_MAXLEN_URL) return;
+	const size_t len = urlEnd - (buf + AEM_SKIP_URL_GET);
+	if (len > AEM_MAXLEN_URL) return;
 
-	https_get(ssl, buf + AEM_SKIP_URL_GET, lenUrl, fileSet);
+	https_respond(ssl, buf + AEM_SKIP_URL_GET, len);
 }
 
 void tlsFree(void) {
@@ -189,7 +188,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	return 0;
 }
 
-void respond_https(int sock, const struct aem_fileSet * const fileSet) {
+void respond_https(int sock) {
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;
@@ -212,7 +211,7 @@ void respond_https(int sock, const struct aem_fileSet * const fileSet) {
 		const int type = getRequestType((char*)req, lenReq);
 
 		switch (type) {
-			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req, fileSet); break;
+			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req); break;
 			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl); break;
 			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
 			case AEM_HTTPS_REQUEST_TSR:    https_tsr(&ssl); break;
