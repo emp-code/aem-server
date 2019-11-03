@@ -75,28 +75,27 @@ static bool supportsBrotli(const char * const req) {
 	return true;
 }
 
-__attribute__((warn_unused_result))
-static int getRequestType(char * const req, size_t lenReq) {
-	if (lenReq < AEM_MINLEN_GET) return AEM_HTTPS_REQUEST_INVALID;
-	if (memcmp(req, "GET /", 5) != 0) return AEM_HTTPS_REQUEST_INVALID;
+static void handleRequest(char * const req, size_t lenReq) {
+	if (lenReq < AEM_MINLEN_GET) return;
+	if (memcmp(req, "GET /", 5) != 0) return;
 
 	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
-	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (reqEnd == NULL) return;
 
 	lenReq = reqEnd - req + 2; // Include \r\n at end
-	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memchr(req, '\0', lenReq) != NULL) return;
 	reqEnd[2] = '\0';
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
-	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (strncmp(host + 8, "mta-sts.", 8) == 0) return AEM_HTTPS_REQUEST_MTASTS;
-	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (host == NULL) return;
+	if (strncmp(host + 8, "mta-sts.", 8) == 0) return https_mtasts(&ssl);
+	if (strncmp(host + 8, domain, lenDomain) != 0) return;
 
 	// Protocol: only HTTP/1.1 is supported
 	const char * const firstCrLf = strpbrk(req, "\r\n");
 	const char * const prot = strstr(req, " HTTP/1.1\r\n");
-	if (prot == NULL || prot > firstCrLf) return AEM_HTTPS_REQUEST_INVALID;
+	if (prot == NULL || prot > firstCrLf) return;
 
 	// Forbidden request headers
 	if (
@@ -112,24 +111,20 @@ static int getRequestType(char * const req, size_t lenReq) {
 		|| (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
 		|| (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL)
 		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site")  != NULL)
-	) return AEM_HTTPS_REQUEST_INVALID;
+	) return;
 
-	if (memcmp(req + 5, "robots.txt ", 11) == 0) return AEM_HTTPS_REQUEST_ROBOTS;
-	if (memcmp(req + 5, ".well-known/dnt/", 16) == 0) return AEM_HTTPS_REQUEST_TSR;
+	if (memcmp(req + 5, "robots.txt ", 11) == 0) return https_robots(&ssl);
+	if (memcmp(req + 5, ".well-known/dnt/", 16) == 0) return https_tsr(&ssl);
 
-	if (!supportsBrotli(req)) return AEM_HTTPS_REQUEST_INVALID;
+	if (!supportsBrotli(req)) return;
 
-	return AEM_HTTPS_REQUEST_GET;
-}
-
-void handleGet(mbedtls_ssl_context * const ssl, char * const buf) {
-	const char * const urlEnd = strchr(buf + AEM_SKIP_URL_GET, ' ');
+	const char * const urlEnd = strchr(req + AEM_SKIP_URL_GET, ' ');
 	if (urlEnd == NULL) return;
 
-	const size_t len = urlEnd - (buf + AEM_SKIP_URL_GET);
-	if (len > AEM_MAXLEN_URL) return;
+	const size_t lenUrl = urlEnd - (req + AEM_SKIP_URL_GET);
+	if (lenUrl > AEM_MAXLEN_URL) return;
 
-	https_respond(ssl, buf + AEM_SKIP_URL_GET, len);
+	https_respond(&ssl, req + AEM_SKIP_URL_GET, lenUrl);
 }
 
 void tlsFree(void) {
@@ -208,14 +203,7 @@ void respond_https(int sock) {
 
 	if (lenReq > 0) {
 		req[lenReq] = '\0';
-		const int type = getRequestType((char*)req, lenReq);
-
-		switch (type) {
-			case AEM_HTTPS_REQUEST_GET: handleGet(&ssl, (char*)req); break;
-			case AEM_HTTPS_REQUEST_MTASTS: https_mtasts(&ssl); break;
-			case AEM_HTTPS_REQUEST_ROBOTS: https_robots(&ssl); break;
-			case AEM_HTTPS_REQUEST_TSR:    https_tsr(&ssl); break;
-		}
+		handleRequest((char*)req, lenReq);
 	}
 
 	free(req);
