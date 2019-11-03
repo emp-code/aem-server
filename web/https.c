@@ -52,6 +52,8 @@ static const int https_hashes[] = {
 	MBEDTLS_SSL_HASH_SHA512,
 MBEDTLS_MD_NONE};
 
+static unsigned char req[AEM_MAXLEN_REQ + 1];
+
 __attribute__((warn_unused_result))
 static bool supportsBrotli(const char * const req) {
 	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
@@ -190,8 +192,6 @@ void respond_https(int sock) {
 		}
 	}
 
-	unsigned char * const req = malloc(AEM_MAXLEN_REQ + 1);
-
 	int lenReq;
 	do {lenReq = mbedtls_ssl_read(&ssl, req, AEM_MAXLEN_REQ);} while (lenReq == MBEDTLS_ERR_SSL_WANT_READ);
 
@@ -200,7 +200,6 @@ void respond_https(int sock) {
 		handleRequest((char*)req, lenReq);
 	}
 
-	free(req);
 	mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
 }
