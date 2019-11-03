@@ -93,6 +93,10 @@ int loadFile(const int type) {
 	lenHeaders += lenCt;
 
 	char *response = sodium_malloc(lenHeaders + compressedBytes);
+	if (response == NULL) {
+		free(fileData);
+		return -1;
+	}
 
 	if (type == AEM_FILETYPE_CSS || type == AEM_FILETYPE_JSAE || type == AEM_FILETYPE_JSMN) {
 		sprintf(response,
