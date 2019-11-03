@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for memmem, strcasestr
+#define _GNU_SOURCE // for strcasestr
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -73,12 +73,9 @@ static void handleRequest(size_t lenReq) {
 	if (lenReq < AEM_MINLEN_GET) return;
 	if (memcmp(req, "GET /", 5) != 0) return;
 
-	char * const reqEnd = memmem(req, lenReq, "\r\n\r\n", 4);
+	char * const reqEnd = strstr(req, "\r\n\r\n");
 	if (reqEnd == NULL) return;
-
-	lenReq = reqEnd - req + 2; // Include \r\n at end
-	if (memchr(req, '\0', lenReq) != NULL) return;
-	reqEnd[2] = '\0';
+	if (reqEnd + 4 != req + lenReq) return;
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
