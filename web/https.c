@@ -23,12 +23,6 @@
 
 #define AEM_SKIP_URL_GET 5 // 'GET /'
 
-#define AEM_HTTPS_REQUEST_INVALID -1
-#define AEM_HTTPS_REQUEST_GET 0
-#define AEM_HTTPS_REQUEST_MTASTS 10
-#define AEM_HTTPS_REQUEST_ROBOTS 20
-#define AEM_HTTPS_REQUEST_TSR    30
-
 static mbedtls_ssl_context ssl;
 static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
