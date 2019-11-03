@@ -55,7 +55,7 @@ int loadFile(const int type) {
 	// TODO for reloading: Free response if not null
 
 	off_t fileBytes = lseek(fd, 0, SEEK_END);
-	if (fileBytes < 0) {close(fd); return -1;}
+	if (fileBytes < 1) {close(fd); return -1;}
 
 	char *fileData = malloc(fileBytes);
 
