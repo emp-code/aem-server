@@ -109,7 +109,7 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 }
 
 __attribute__((warn_unused_result))
-int getDomainFromCert(mbedtls_x509_crt * const cert) {
+static int getDomainFromCert(mbedtls_x509_crt * const cert) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
 
