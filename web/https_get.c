@@ -233,7 +233,7 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"\r\n"
 		"User-agent: *\n"
 		"Disallow: /.well-known/\n"
-		"Disallow: /files/\n"
+		"Disallow: /files/"
 	, 371);
 }
 
