@@ -1,13 +1,12 @@
 #define _GNU_SOURCE // for memmem, strcasestr
 
-#include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
