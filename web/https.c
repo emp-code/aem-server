@@ -69,11 +69,11 @@ static bool supportsBrotli(const char * const req) {
 	return true;
 }
 
-static void handleRequest(size_t lenReq) {
+static void handleRequest(const size_t lenReq) {
 	if (lenReq < AEM_MINLEN_GET) return;
 	if (memcmp(req, "GET /", 5) != 0) return;
 
-	char * const reqEnd = strstr(req, "\r\n\r\n");
+	const char * const reqEnd = strstr(req, "\r\n\r\n");
 	if (reqEnd == NULL) return;
 	if (reqEnd + 4 != req + lenReq) return;
 
@@ -123,7 +123,7 @@ void tlsFree(void) {
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 }
 
-static int sni(void *parameter, mbedtls_ssl_context *ssl, const unsigned char *hostname, size_t len) {
+static int sni(void * const parameter, mbedtls_ssl_context * const ssl, const unsigned char * const hostname, const size_t len) {
 	if (parameter != NULL || ssl == NULL) return -1;
 	if (len == 0) return 0;
 
