@@ -68,10 +68,10 @@ static bool supportsBrotli(const char * const req) {
 	const char * const br = strcasestr(ae + 19, "br");
 	if (br == NULL || br > aeEnd) return false;
 
-	if (*(br + 2) != ',' && *(br + 2) != ' ' && *(br + 2) != '\r') return false;
+	if (br[2] != ',' && br[2] != ' ' && br[2] != '\r') return false;
 
-	const char * const br1 = ae + (br - ae - 1); // br - 1
-	if (*br1 != ',' && *br1 != ' ') return false;
+	const char br1 = ae[br - ae - 1]; // br - 1
+	if (br1 != ',' && br1 != ' ') return false;
 
 	return true;
 }
