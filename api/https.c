@@ -83,7 +83,7 @@ static int handleRequest(size_t lenReq) {
 	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 	if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	unsigned char * const reqEnd = memmem(req, AEM_MAXLEN_REQ, "\r\n\r\n", 4);
+	const unsigned char * const reqEnd = memmem(req, AEM_MAXLEN_REQ, "\r\n\r\n", 4);
 	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	lenReq = reqEnd - req + 2; // Include \r\n at end
@@ -98,7 +98,7 @@ static int handleRequest(size_t lenReq) {
 	if (memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
-	char *creq = (char*)req;
+	const char * const creq = (char*)req;
 	if (
 		   (strcasestr(creq, "\r\nAuthorization:")       != NULL)
 		|| (strcasestr(creq, "\r\nCookie:")              != NULL)
