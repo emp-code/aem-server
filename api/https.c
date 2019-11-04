@@ -156,7 +156,12 @@ void handlePost(mbedtls_ssl_context * const ssl, const size_t lenReq) {
 	post += 4;
 
 	size_t lenPost = lenReq - (post - req);
-	if (lenPost > 0) memmove(req, post, lenPost);
+
+	if (lenPost > 0) {
+		const size_t lenDel = (lenReq - lenPost);
+		memcpy(req, req + lenDel, lenDel);
+		memcpy(req + lenDel, req + lenDel * 2, lenPost - lenDel);
+	}
 
 	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
 		int ret;
