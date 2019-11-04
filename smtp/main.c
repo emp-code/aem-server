@@ -96,7 +96,7 @@ static int loadAddrKey(void) {
 	return 0;
 }
 
-static int receiveConnections(const char * const domain, const size_t lenDomain, mbedtls_x509_crt * const tlsCert) {
+static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
 
@@ -119,7 +119,7 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 			unsigned int clen = sizeof(clientAddr);
 			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			respond_smtp(newSock, tlsCert, &tlsKey, domain, lenDomain, &clientAddr);
+			respond_smtp(newSock, tlsCert, &tlsKey, &clientAddr);
 			close(newSock);
 		}
 	}
@@ -131,38 +131,22 @@ static int receiveConnections(const char * const domain, const size_t lenDomain,
 }
 
 __attribute__((warn_unused_result))
-char *getDomainInfo(mbedtls_x509_crt * const cert) {
+int getDomainFromCert(mbedtls_x509_crt * const cert) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
 
 	char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return NULL;
+	if (c == NULL) return -1;
 	c += 17;
 
 	char * const end = strchr(c, '\n');
 	*end = '\0';
 
 	c = strstr(c, ": CN=");
-	if (c == NULL) return NULL;
-	return strdup(c + 5);
-}
-
-__attribute__((warn_unused_result))
-size_t getDomainLenFromCert(mbedtls_x509_crt * const cert) {
-	char * const c = getDomainInfo(cert);
-	if (c == NULL) return 0;
-	const size_t s = strlen(c);
-	free(c);
-	return s;
-}
-
-__attribute__((warn_unused_result))
-int getDomainFromCert(char * const dom, const size_t len, mbedtls_x509_crt * const cert) {
-	char * const c = getDomainInfo(cert);
 	if (c == NULL) return -1;
-	memcpy(dom, c, len);
-	free(c);
-	return 0;
+	c += 5;
+
+	return setDomain(c, strlen(c));
 }
 
 int main(void) {
@@ -196,12 +180,8 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	const size_t lenDomain = getDomainLenFromCert(&tlsCert);
-	char domain[lenDomain];
-	ret = getDomainFromCert(domain, lenDomain, &tlsCert);
+	ret = getDomainFromCert(&tlsCert);
 	if (ret != 0) {puts("Terminating: Failed to get domain from certificate"); return EXIT_FAILURE;}
 
-	printf("Domain detected as '%.*s'\n", (int)lenDomain, domain);
-
-	return receiveConnections(domain, lenDomain, &tlsCert);
+	return receiveConnections(&tlsCert);
 }

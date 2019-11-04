@@ -1,26 +1,3 @@
-#define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
-
-#define AEM_SMTP_MAX_ADDRSIZE 200
-#define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
-#define AEM_SMTP_TIMEOUT 30
-
-#define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
-
-#define AEM_EHLO_RESPONSE_LEN 61
-#define AEM_EHLO_RESPONSE \
-"\r\n250-SIZE 262144" \
-"\r\n250-STARTTLS" \
-"\r\n250-8BITMIME" \
-"\r\n250 SMTPUTF8" \
-"\r\n"
-
-#define AEM_SHLO_RESPONSE_LEN 47
-#define AEM_SHLO_RESPONSE \
-"\r\n250-SIZE 262144" \
-"\r\n250-8BITMIME" \
-"\r\n250 SMTPUTF8" \
-"\r\n"
-
 #define _GNU_SOURCE // for memmem
 
 #include <arpa/inet.h>
@@ -49,6 +26,31 @@
 #include "Include/QuotedPrintable.h"
 
 #include "smtp.h"
+
+#define AEM_MAXLEN_DOMAIN 32
+
+#define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
+
+#define AEM_SMTP_MAX_ADDRSIZE 200
+#define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
+#define AEM_SMTP_TIMEOUT 30
+
+#define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
+
+#define AEM_EHLO_RESPONSE_LEN 61
+#define AEM_EHLO_RESPONSE \
+"\r\n250-SIZE 262144" \
+"\r\n250-STARTTLS" \
+"\r\n250-8BITMIME" \
+"\r\n250 SMTPUTF8" \
+"\r\n"
+
+#define AEM_SHLO_RESPONSE_LEN 47
+#define AEM_SHLO_RESPONSE \
+"\r\n250-SIZE 262144" \
+"\r\n250-8BITMIME" \
+"\r\n250 SMTPUTF8" \
+"\r\n"
 
 static const int smtp_ciphersuites[] = {
 MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -167,6 +169,17 @@ MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 MBEDTLS_TLS_RSA_WITH_RC4_128_SHA,
 MBEDTLS_TLS_RSA_WITH_RC4_128_MD5,
 0};
+
+static size_t lenDomain;
+static char domain[AEM_MAXLEN_DOMAIN];
+
+int setDomain(const char * const new, const size_t len) {
+	if (lenDomain > AEM_MAXLEN_DOMAIN) return -1;
+
+	lenDomain = len;
+	memcpy(domain, new, len);
+	return 0;
+}
 
 __attribute__((warn_unused_result))
 static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
@@ -487,7 +500,7 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const char * const domain, const size_t lenDomain, const struct sockaddr_in * const clientAddr) {
+void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
