@@ -1,6 +1,6 @@
 "use strict";
 
-function AllEars(readyCallback) {
+function AllEars(domain, readyCallback) {
 	try {
 		if (!window.isSecureContext
 		|| window.self !== window.top
@@ -9,9 +9,12 @@ function AllEars(readyCallback) {
 		) return readyCallback(false);
 	} catch(e) {return readyCallback(false);}
 
+	if (!domain || typeof(domain) !== "string")
+		domain = document.location.hostname;
+
 	let _serverPk;
 
-	fetch("https://" + document.location.hostname + ":7850/api/pubkey", {
+	fetch("https://" + domain + ":7850/api/pubkey", {
 		method: "GET",
 		cache: "no-store",
 		credentials: "omit",
@@ -156,7 +159,7 @@ function AllEars(readyCallback) {
 		postMsg.set(_userKeys.boxPk, 24);
 		postMsg.set(postBox, 24 + _userKeys.boxPk.length);
 
-		_FetchBinary("https://" + document.location.hostname + ":7850/api/" + url, postMsg, callback);
+		_FetchBinary("https://" + domain + ":7850/api/" + url, postMsg, callback);
 	};
 
 	const _GetBit = function(src, bitNum) {

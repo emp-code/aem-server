@@ -1,6 +1,6 @@
 "use strict";
 
-const ae = new AllEars(function(ok) {
+const ae = new AllEars(null /* domain, null means current domain */, function(ok) {
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
