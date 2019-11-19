@@ -20,6 +20,7 @@
 #define AEM_PORT_HTTPS 443
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
 #define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
+#define AEM_SOCKET_TIMEOUT 15
 
 char domain[AEM_MAXLEN_HOST];
 size_t lenDomain;
@@ -75,6 +76,13 @@ static int loadTlsKey(mbedtls_pk_context * const key) {
 	return 1;
 }
 
+static void setSocketTimeout(const int sock) {
+	struct timeval tv;
+	tv.tv_sec = AEM_SOCKET_TIMEOUT;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+}
+
 static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) return EXIT_FAILURE;
@@ -97,6 +105,7 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	while (!terminate) {
 		const int newSock = accept(sock, NULL, NULL);
 		if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
+		setSocketTimeout(newSock);
 		respond_https(newSock);
 		close(newSock);
 	}

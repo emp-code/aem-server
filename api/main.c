@@ -25,6 +25,7 @@
 #define AEM_PATH_ADDRKEY "/etc/allears/Address.key"
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
 #define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
+#define AEM_SOCKET_TIMEOUT 15
 
 static bool terminate = false;
 
@@ -96,6 +97,13 @@ static int loadAddrKey(void) {
 	return 0;
 }
 
+static void setSocketTimeout(const int sock) {
+	struct timeval tv;
+	tv.tv_sec = AEM_SOCKET_TIMEOUT;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+}
+
 static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return 1;
@@ -120,6 +128,7 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 		while (!terminate) {
 			const int newSock = accept(sock, NULL, NULL);
 			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
+			setSocketTimeout(newSock);
 			respond_https(newSock);
 			close(newSock);
 		}
