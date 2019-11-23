@@ -75,7 +75,7 @@ function addExtMessages() {
 		fromText.textContent = " " + from2;
 		divFrom2.appendChild(fromText);
 
-		if (ae.GetExtMsgTo(i).length === 36) {
+		if (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) {
 			divTo.textContent = ae.GetExtMsgTo(i).substr(0, 16);
 			divTo.className = "mono";
 		} else {
@@ -119,7 +119,7 @@ function addExtMessages() {
 			document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
 
 			document.getElementById("readmsg_from").className = "";
-			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 36) ? "mono" : "";
+			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
 		};
 
 		divDel.children[0].onchange = function() {
@@ -165,21 +165,11 @@ function addIntMessages() {
 		divTime.textContent = new Date(ts * 1000).toLocaleString();
 		divSubj.textContent = ae.GetIntMsgTitle(i);
 
-		if (ae.GetIntMsgTo(i).length === 36) {
-			divTo.textContent = ae.GetIntMsgTo(i).substr(0, 16);
-			divTo.className = "mono";
-		} else {
-			divTo.textContent = ae.GetIntMsgTo(i);
-			divTo.className = "";
-		}
+		divFrom1.textContent = ae.GetIntMsgFrom(i);
+		divTo.textContent = ae.GetIntMsgTo(i);
 
-		if (ae.GetIntMsgFrom(i).length === 36) {
-			divFrom1.textContent = ae.GetIntMsgFrom(i).substr(0, 16);
-			divFrom1.className = "mono";
-		} else {
-			divFrom1.textContent = ae.GetIntMsgFrom(i);
-			divFrom1.className = "";
-		}
+		divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
+		divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).starsWith("5")) ? "mono" : "";
 
 		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
 
@@ -203,8 +193,8 @@ function addIntMessages() {
 			document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
 			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
-			document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 36) ? "mono" : "";
-			document.getElementById("readmsg_to").className   = (ae.GetIntMsgTo(i).length   === 36) ? "mono" : "";
+			document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).startsWith("5")) ? "mono" : "";
+			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
 		};
 
 		divDel.children[0].onchange = function() {
@@ -389,7 +379,7 @@ function addAddress(num) {
 	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent = ae.GetAddress(num);
-	if (ae.GetAddress(num).length == 36) cellAddr.className = "mono";
+	if (cellAddr.textContent.length == 24 && cellAddr.textContent.startsWith("5")) cellAddr.className = "mono";
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
