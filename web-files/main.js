@@ -380,6 +380,9 @@ function addAddress(num) {
 
 	cellAddr.textContent = ae.GetAddress(num);
 	if (cellAddr.textContent.length == 24 && cellAddr.textContent.startsWith("5")) cellAddr.className = "mono";
+	cellAddr.onclick = function() {
+		navigator.clipboard.writeText(cellAddr.textContent + "@" + document.domain);
+	}
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
