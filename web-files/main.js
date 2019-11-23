@@ -75,13 +75,8 @@ function addExtMessages() {
 		fromText.textContent = " " + from2;
 		divFrom2.appendChild(fromText);
 
-		if (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) {
-			divTo.textContent = ae.GetExtMsgTo(i).substr(0, 16);
-			divTo.className = "mono";
-		} else {
-			divTo.textContent = ae.GetExtMsgTo(i);
-			divTo.className = "";
-		}
+		divTo.textContent = ae.GetExtMsgTo(i);
+		divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
 
 		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
 
