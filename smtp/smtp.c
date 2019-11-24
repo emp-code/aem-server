@@ -743,6 +743,7 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			}
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
+				free(body);
 				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 150);
 			}
