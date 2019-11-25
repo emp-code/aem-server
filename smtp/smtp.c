@@ -33,7 +33,6 @@
 
 #define AEM_SMTP_MAX_ADDRSIZE 200
 #define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
-#define AEM_SMTP_TIMEOUT 30
 
 #define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 
@@ -169,6 +168,11 @@ MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 MBEDTLS_TLS_RSA_WITH_RC4_128_SHA,
 MBEDTLS_TLS_RSA_WITH_RC4_128_MD5,
 0};
+
+static mbedtls_ssl_context ssl;
+static mbedtls_ssl_config conf;
+static mbedtls_entropy_context entropy;
+static mbedtls_ctr_drbg_context ctr_drbg;
 
 static size_t lenDomain;
 static char domain[AEM_MAXLEN_DOMAIN];
@@ -332,12 +336,11 @@ static void smtp_fail(const struct sockaddr_in * const clientAddr, const int cod
 	printf("Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
-static void tlsFree(mbedtls_ssl_context * const tls, mbedtls_ssl_config * const conf, mbedtls_ctr_drbg_context * const ctr_drbg, mbedtls_entropy_context * const entropy) {
-	if (tls == NULL) return;
-	mbedtls_ssl_free(tls);
-	mbedtls_ssl_config_free(conf);
-	mbedtls_ctr_drbg_free(ctr_drbg);
-	mbedtls_entropy_free(entropy);
+void tlsFree(void) {
+	mbedtls_ssl_free(&ssl);
+	mbedtls_ssl_config_free(&conf);
+	mbedtls_entropy_free(&entropy);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
 }
 
 static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
@@ -500,8 +503,46 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
-void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const struct sockaddr_in * const clientAddr) {
-	if (sock < 0 || tlsCert == NULL || tlsKey == NULL || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
+int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey) {
+	mbedtls_ssl_init(&ssl);
+	mbedtls_ssl_config_init(&conf);
+	mbedtls_entropy_init(&entropy);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+
+	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+	if (ret != 0) {
+		printf("mbedtls_ssl_config_defaults returned %d\n", ret);
+		return -1;
+	}
+
+	mbedtls_ssl_conf_arc4_support(&conf, MBEDTLS_SSL_ARC4_ENABLED);
+	mbedtls_ssl_conf_ciphersuites(&conf, smtp_ciphersuites);
+	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
+	if (ret != 0) {
+		printf("mbedtls_ctr_drbg_seed returned %d\n", ret);
+		return -1;
+	}
+
+	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
+	if (ret != 0) {
+		printf("mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		return -1;
+	}
+
+	ret = mbedtls_ssl_setup(&ssl, &conf);
+	if (ret != 0) {
+		printf("mbedtls_ssl_setup returned %d\n", ret);
+		return -1;
+	}
+
+	return 0;
+}
+
+void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
+	if (sock < 0 || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
 	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
 
@@ -520,60 +561,17 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
 	mbedtls_ssl_context *tls = NULL;
-	mbedtls_ssl_context ssl;
-	mbedtls_ssl_config conf;
-	mbedtls_entropy_context entropy;
-	mbedtls_ctr_drbg_context ctr_drbg;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
 		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
 
 		tls = &ssl;
-		mbedtls_ssl_init(tls);
-		mbedtls_ssl_config_init(&conf);
-		mbedtls_entropy_init(&entropy);
-		mbedtls_ctr_drbg_init(&ctr_drbg);
-
-		int ret;
-		if ((ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT)) != 0) {
-			printf("Terminating: mbedtls_ssl_config_defaults returned %d\n", ret);
-			mbedtls_ssl_free(tls);
-			mbedtls_ssl_config_free(&conf);
-			return;
-		}
-
-		mbedtls_ssl_conf_arc4_support(&conf, MBEDTLS_SSL_ARC4_ENABLED);
-		mbedtls_ssl_conf_ciphersuites(&conf, smtp_ciphersuites);
-		mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
-		mbedtls_ssl_conf_read_timeout(&conf, AEM_SMTP_TIMEOUT);
-		mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
-		if ((ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"All-Ears Mail SMTP", 18)) != 0) {
-			printf("Terminating: mbedtls_ctr_drbg_seed returned %d\n", ret);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return;
-		}
-
-		mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
-		if ((ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey)) != 0) {
-			printf("Terminating: mbedtls_ssl_conf_own_cert returned %d\n", ret);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return;
-		}
-
-		if ((ret = mbedtls_ssl_setup(tls, &conf)) != 0) {
-			printf("Terminating: mbedtls_ssl_setup returned %d\n", ret);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
-			return;
-		}
-
 		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
-		// Handshake
+		int ret;
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 				printf("Terminating: mbedtls_ssl_handshake returned %d\n", ret);
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return;
 			}
 		}
@@ -581,22 +579,18 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
 			printf("Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			printf("Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
 			printf("Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
 
 		if (!smtp_shlo(tls, domain, lenDomain)) {
 			puts("Terminating: Failed to send greeting following StartTLS");
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return;
 		}
 
@@ -620,7 +614,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			lenFrom = smtp_addr(buf + 10, bytes - 10, from);
 			if (lenFrom < 1) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 100);
 			}
 		}
@@ -630,7 +623,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 101);
 				}
 
@@ -641,13 +633,11 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
 			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
 			if (lenNewTo < 1) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 102);
 			}
 
 			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 103);
 				}
 
@@ -663,7 +653,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
-					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 104);
 				}
 
@@ -691,7 +680,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			infoByte |= AEM_INFOBYTE_CMD_RARE;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 105);
 			}
 
@@ -709,7 +697,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					tlsFree(tls, &conf, &ctr_drbg, &entropy);
 					return smtp_fail(clientAddr, 106);
 				}
 
@@ -718,7 +705,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 			}
 
 			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 107);
 			}
 
@@ -744,7 +730,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				free(body);
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 150);
 			}
 
@@ -782,7 +767,6 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				tlsFree(tls, &conf, &ctr_drbg, &entropy);
 				return smtp_fail(clientAddr, 108);
 			}
 
@@ -791,12 +775,9 @@ void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context
 		}
 
 		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			tlsFree(tls, &conf, &ctr_drbg, &entropy);
 			return smtp_fail(clientAddr, 150);
 		}
 
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
-
-	tlsFree(tls, &conf, &ctr_drbg, &entropy);
 }

@@ -2,7 +2,9 @@
 #define AEM_SMTP_H
 
 int setDomain(const char * const new, const size_t len);
+int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey);
+void tlsFree(void);
 
-void respond_smtp(int sock, mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey, const struct sockaddr_in * const clientAddr);
+void respond_smtp(int sock, const struct sockaddr_in * const clientAddr);
 
 #endif
