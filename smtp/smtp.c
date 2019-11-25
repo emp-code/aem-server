@@ -483,7 +483,7 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	return 0;
 }
 
-void unfoldHeaders(char * const data, size_t * const lenData) {
+static void unfoldHeaders(char * const data, size_t * const lenData) {
 	const char * const headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
 	if (headersEnd == NULL) return;
 	size_t lenHeaders = headersEnd - data;
