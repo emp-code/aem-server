@@ -335,7 +335,7 @@ __attribute__((warn_unused_result))
 static bool isBlockedByGatekeeper_test(sqlite3 * const db, const int64_t upk64, const unsigned char * const text, const size_t lenText) {
 	sqlite3_stmt *query;
 	int ret = sqlite3_prepare_v2(db, "SELECT 1 FROM gatekeeper WHERE hash=? AND upk64=?", -1, &query, NULL);
-	if (ret != SQLITE_OK) {sqlite3_close_v2(db); return -1;}
+	if (ret != SQLITE_OK) return -1;
 
 	sqlite3_bind_int64(query, 1, gkHash(text, lenText, upk64));
 	sqlite3_bind_int64(query, 2, upk64);
