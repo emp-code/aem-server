@@ -332,7 +332,14 @@ static bool smtp_helo(const int sock, const char * const domain, const size_t le
 	return false;
 }
 
-static void smtp_fail(const struct sockaddr_in * const clientAddr, const int code) {
+static void tlsClose(mbedtls_ssl_context * const tls) {
+	if (tls == NULL) return;
+	mbedtls_ssl_close_notify(tls);
+	mbedtls_ssl_session_reset(tls);
+}
+
+static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const clientAddr, const int code) {
+	tlsClose(tls);
 	printf("Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
@@ -544,13 +551,13 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
-	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(clientAddr, 0);
+	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(NULL, clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
-	if (bytes < 7) return smtp_fail(clientAddr, 1); // HELO \r\n
+	if (bytes < 7) return smtp_fail(NULL, clientAddr, 1); // HELO \r\n
 
-	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(clientAddr, 2);
+	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
 
 	uint8_t infoByte = 0;
 	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_ESMTP;
@@ -563,7 +570,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 	mbedtls_ssl_context *tls = NULL;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
-		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
+		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(tls, clientAddr, 110);
 
 		tls = &ssl;
 		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -572,6 +579,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 				printf("Terminating: mbedtls_ssl_handshake returned %d\n", ret);
+				tlsClose(tls);
 				return;
 			}
 		}
@@ -579,18 +587,22 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
 			printf("Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			tlsClose(tls);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
 			printf("Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
+			tlsClose(tls);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
 			printf("Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
+			tlsClose(tls);
 			return;
 		}
 
 		if (!smtp_shlo(tls, domain, lenDomain)) {
 			puts("Terminating: Failed to send greeting following StartTLS");
+			tlsClose(tls);
 			return;
 		}
 
@@ -614,7 +626,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			lenFrom = smtp_addr(buf + 10, bytes - 10, from);
 			if (lenFrom < 1) {
-				return smtp_fail(clientAddr, 100);
+				return smtp_fail(tls, clientAddr, 100);
 			}
 		}
 
@@ -623,7 +635,8 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					return smtp_fail(clientAddr, 101);
+					tlsClose(tls);
+					return smtp_fail(tls, clientAddr, 101);
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -633,12 +646,12 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
 			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
 			if (lenNewTo < 1) {
-				return smtp_fail(clientAddr, 102);
+				return smtp_fail(tls, clientAddr, 102);
 			}
 
 			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					return smtp_fail(clientAddr, 103);
+					return smtp_fail(tls, clientAddr, 103);
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -653,7 +666,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
 				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
-					return smtp_fail(clientAddr, 104);
+					return smtp_fail(tls, clientAddr, 104);
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -680,7 +693,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			infoByte |= AEM_INFOBYTE_CMD_RARE;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				return smtp_fail(clientAddr, 105);
+				return smtp_fail(tls, clientAddr, 105);
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -697,7 +710,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 				infoByte |= AEM_INFOBYTE_PROTOERR;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					return smtp_fail(clientAddr, 106);
+					return smtp_fail(tls, clientAddr, 106);
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -705,7 +718,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				return smtp_fail(clientAddr, 107);
+				return smtp_fail(tls, clientAddr, 107);
 			}
 
 			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 3);
@@ -730,7 +743,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				free(body);
-				return smtp_fail(clientAddr, 150);
+				return smtp_fail(tls, clientAddr, 150);
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -767,7 +780,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				return smtp_fail(clientAddr, 108);
+				return smtp_fail(tls, clientAddr, 108);
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
@@ -775,9 +788,11 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			return smtp_fail(clientAddr, 150);
+			return smtp_fail(tls, clientAddr, 150);
 		}
 
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
+
+	tlsClose(tls);
 }
