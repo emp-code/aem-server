@@ -123,9 +123,10 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 
 	puts("Ready");
 
+	struct sockaddr_in clientAddr;
+	unsigned int clen = sizeof(clientAddr);
+
 	while (!terminate) {
-		struct sockaddr_in clientAddr;
-		unsigned int clen = sizeof(clientAddr);
 		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
 		if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
 		setSocketTimeout(newSock);
