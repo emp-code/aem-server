@@ -108,32 +108,29 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	mbedtls_pk_context tlsKey;
 	if (loadTlsKey(&tlsKey) < 0) return EXIT_FAILURE;
 
-	int ret = loadAddrKey();
-	if (ret < 0) {
+	if (loadAddrKey() < 0) {
 		puts("Terminating: failed to load address key");
 		return EXIT_FAILURE;
 	}
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) return EXIT_FAILURE;
-	if (ret == 0) {if (initSocket(&sock, AEM_PORT_SMTP) != 0) return EXIT_FAILURE;}
+	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return EXIT_FAILURE;
 
 	if (dropRoot() != 0) {mbedtls_pk_free(&tlsKey); return EXIT_FAILURE;}
 
 	if (tlsSetup(tlsCert, &tlsKey) != 0) {mbedtls_pk_free(&tlsKey); return EXIT_FAILURE;}
 
-	if (ret == 0) {
-		puts("Ready");
+	puts("Ready");
 
-		while (!terminate) {
-			struct sockaddr_in clientAddr;
-			unsigned int clen = sizeof(clientAddr);
-			const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			setSocketTimeout(newSock);
-			respond_smtp(newSock, &clientAddr);
-			close(newSock);
-		}
+	while (!terminate) {
+		struct sockaddr_in clientAddr;
+		unsigned int clen = sizeof(clientAddr);
+		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+		if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
+		setSocketTimeout(newSock);
+		respond_smtp(newSock, &clientAddr);
+		close(newSock);
 	}
 
 	tlsFree();
