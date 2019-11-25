@@ -350,7 +350,7 @@ bool isBlockedByGatekeeper(const int16_t * const countryCode, const char *domain
 	if (domain == NULL || lenDomain < 1 || from == NULL || lenFrom < 1) false;
 
 	sqlite3 * const db = openDb(AEM_PATH_DB_USERS, SQLITE_OPEN_READONLY);
-	if (db == NULL) return -1;
+	if (db == NULL) return false;
 
 	const bool result = (
 	   isBlockedByGatekeeper_test(db, upk64, (unsigned char*)countryCode, 2)
