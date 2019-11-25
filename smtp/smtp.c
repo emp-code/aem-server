@@ -698,11 +698,13 @@ static void decodeMessage(char * const msg, size_t * const lenMsg) {
 		} else  {
 			cte = strcasestr(msg, "\nContent-Transfer-Encoding: base64");
 			if (cte != NULL && cte < headersEnd) {
+				const size_t lenOld = *lenMsg - (headersEnd - msg);
 				size_t len;
-				unsigned char * const e = b64Decode((unsigned char*)headersEnd, strlen(headersEnd), &len);
+				unsigned char * const e = b64Decode((unsigned char*)headersEnd, lenOld, &len);
 				if (e != NULL) {
 					memcpy(headersEnd, e, len);
-					headersEnd[len] = '\0';
+					const size_t lenDiff = lenOld - len;
+					*lenMsg -= lenDiff;
 					free(e);
 				}
 			}
