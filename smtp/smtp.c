@@ -510,6 +510,214 @@ static void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
+static char *getBoundary(char *c) {
+	char *b = strstr(c, "boundary=");
+	if (b == NULL) return NULL;
+	b += 9;
+
+	char *bEnd;
+	if (*b == '"') {
+		b++;
+		bEnd = strchr(b, '"');
+	} else if (*b == '\'') {
+		b++;
+		bEnd = strchr(b, '\'');
+	} else {
+		bEnd = strpbrk(b, "\r\n \t");
+	}
+	if (bEnd == NULL) return NULL;
+
+	size_t lenB = bEnd - b;
+	char *result = malloc(lenB + 5);
+	memcpy(result, "--", 2);
+	memcpy(result + 2, b, lenB);
+	result[lenB + 2] = '\0';
+
+	return result;
+}
+
+static int decodeMp(char *msg, const char *boundary) {
+	int rem = 0;
+
+	while(1) {
+		char *boundBegin = strstr(msg, boundary);
+		if (boundBegin == NULL) break;
+
+		// Check for end
+		if (strncmp(boundBegin + strlen(boundary), "--\r\n", 4) == 0) {
+			const size_t newSize = strlen(boundBegin) - strlen(boundary) - 4;
+			const char * const pos = boundBegin + strlen(boundary) + 4;
+			memmove(boundBegin, pos, strlen(pos));
+			boundBegin[newSize] = '\0';
+			rem += strlen(boundary) + 4;
+			break;
+		} else if (strncmp(boundBegin + strlen(boundary), "--\n", 3) == 0) {
+			const size_t newSize = strlen(boundBegin) - strlen(boundary) - 3;
+			const char * const pos = boundBegin + strlen(boundary) + 3;
+			memmove(boundBegin, pos, strlen(pos));
+			boundBegin[newSize] = '\0';
+			rem += strlen(boundary) + 3;
+			break;
+		}
+
+		const char *dl = strstr(boundBegin, "\r\n\r\n");
+		const char * const dl2 = strstr(boundBegin, "\n\n");
+		size_t dlLen;
+		if (dl2 != NULL && (dl == NULL || dl2 < dl)) {
+			dl = dl2;
+			dlLen = 2;
+		} else dlLen = 4;
+		if (dl == NULL) break;
+
+		const char *ct = strcasestr(boundBegin, "\nContent-Type: ");
+		if (ct == NULL || ct > dl) break;
+		if (strncasecmp(ct + 15, "text/html", 9) == 0) ct = "H";
+		else if (strncasecmp(ct + 15, "text/plain", 10) == 0) ct = "T";
+		else if (strncasecmp(ct + 15, "multipart/", 10) == 0) ct = "M";
+		else ct = "X";
+
+		const char *cte = strcasestr(boundBegin, "\nContent-Transfer-Encoding: ");
+		if (cte != NULL && cte < dl) {
+			if (strncasecmp(cte + 28, "quoted-printable", 16) == 0) cte = "Q";
+			else if (strncasecmp(cte + 28, "base64", 6) == 0) cte = "B";
+			else cte = "X";
+		} else cte = "X";
+
+		char *boundary2 = NULL;
+		if (*ct == 'M') {
+			boundary2 = getBoundary(boundBegin);
+			if (boundary2 == NULL) break;
+		}
+
+		size_t lenMsg = strlen(msg);
+		memmove(boundBegin, dl + dlLen, strlen(dl + dlLen));
+		const size_t remove = ((dl + dlLen) - boundBegin);
+		rem += remove;
+		lenMsg -= remove;
+		msg[lenMsg] = '\0';
+
+		const char *boundEnd = strstr(boundBegin, boundary);
+		if (boundEnd == NULL) break;
+		size_t lenBound = boundEnd - boundBegin;
+		size_t lenNew = lenBound;
+
+		if (*cte == 'Q') {
+			char * const e = strndup(boundBegin, lenNew);
+			decodeQuotedPrintable(e, &lenNew);
+
+			const size_t removed = lenBound - lenNew;
+			lenMsg -= removed;
+			rem += removed;
+			lenBound = lenNew;
+
+			memcpy(boundBegin, e, lenNew);
+			free(e);
+			memmove(boundBegin + lenBound, boundEnd, strlen(boundEnd));
+
+			boundEnd = boundBegin + lenBound;
+
+			msg[lenMsg] = '\0';
+		} else if (*cte == 'B') {
+			unsigned char * const e = b64Decode((unsigned char*)boundBegin, lenBound, &lenNew);
+
+			if (e != NULL) {
+				const size_t removed = lenBound - lenNew;
+				lenMsg -= removed;
+				rem += removed;
+				lenBound = lenNew;
+
+				memcpy(boundBegin, e, lenNew);
+				free(e);
+				memmove(boundBegin + lenBound, boundEnd, strlen(boundEnd));
+
+				boundEnd = boundBegin + lenBound;
+
+				msg[lenMsg] = '\0';
+			}
+		}
+
+		if (*ct == 'H') {
+/*			char *e = strndup(boundBegin, lenNew);
+			htmlToText(e, &lenNew);
+
+			const size_t removed = lenBound - lenNew;
+			lenMsg -= removed;
+			rem += removed;
+			lenBound = lenNew;
+
+			memcpy(boundBegin, e, lenNew);
+			free(e);
+			memmove(boundBegin + lenBound, boundEnd, strlen(boundEnd));
+
+			boundEnd = boundBegin + lenBound;
+*/		} else if (*ct == 'M') {
+			const size_t removed = decodeMp(boundBegin, boundary2);
+			lenMsg -= removed;
+			rem += removed;
+			lenNew -= removed;
+			lenBound = lenNew;
+
+			free(boundary2);
+		} else if (*ct != 'T') {
+			lenMsg -= lenBound;
+			rem += lenBound;
+			lenBound = 0;
+		}
+
+		memmove(boundBegin + lenBound, boundEnd, strlen(boundEnd));
+		msg[lenMsg] = '\0';
+	}
+
+	return rem;
+}
+
+static void decodeMessage(char * const msg, size_t * const lenMsg) {
+	char *headersEnd = memmem(msg,  *lenMsg, "\r\n\r\n", 4);
+	const char *z = memchr(msg, '\0', *lenMsg);
+	if (headersEnd == NULL || (z != NULL && z < headersEnd)) return;
+	headersEnd += 4;
+
+	char *h = strcasestr(msg, "\nContent-Type: ");
+	h += 15;
+
+	if (strncasecmp(h, "multipart/", 10) == 0) {
+		char * const boundary = getBoundary(h);
+		if (boundary == NULL) return;
+
+		const size_t rem = decodeMp(headersEnd, boundary);
+		free(boundary);
+		*lenMsg -= rem;
+	} else {
+		const char *cte = strcasestr(msg, "\nContent-Transfer-Encoding: quoted-printable");
+		if (cte != NULL && cte < headersEnd) {
+			size_t len = (*lenMsg) - (headersEnd - msg);
+			const size_t lenOld = len;
+			decodeQuotedPrintable(headersEnd, &len);
+			const size_t lenDiff = lenOld - len;
+			*lenMsg -= lenDiff;
+		} else  {
+			cte = strcasestr(msg, "\nContent-Transfer-Encoding: base64");
+			if (cte != NULL && cte < headersEnd) {
+				size_t len;
+				unsigned char * const e = b64Decode((unsigned char*)headersEnd, strlen(headersEnd), &len);
+				if (e != NULL) {
+					memcpy(headersEnd, e, len);
+					headersEnd[len] = '\0';
+					free(e);
+				}
+			}
+		}
+
+/*		if (strncasecmp(h, "text/html", 9) == 0) {
+			size_t len = strlen(headersEnd);
+			htmlToText(headersEnd, &len);
+			headersEnd[len] = '\0';
+		}
+*/	}
+
+	msg[*lenMsg] = '\0';
+}
+
 int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey) {
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
@@ -752,6 +960,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			body[lenBody] = '\0';
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
+			decodeMessage(body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
