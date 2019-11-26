@@ -13,7 +13,7 @@ allears-web: web/*.c
 #	$(CC) $(CFLAGS) -o allears-http http/*.c
 
 allears-smtp: smtp/*.c
-	$(CC) $(CFLAGS) -o allears-smtp smtp/*.c smtp/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lsqlite3 -lbrotlienc -lmaxminddb
+	$(CC) $(CFLAGS) -o allears-smtp smtp/*.c smtp/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lsqlite3 -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 .PHONY: clean
 clean:

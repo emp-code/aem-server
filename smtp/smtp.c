@@ -24,6 +24,7 @@
 #include "Include/Database.h"
 #include "Include/Message.h"
 #include "Include/QuotedPrintable.h"
+#include "Include/ToUtf8.h"
 
 #include "smtp.h"
 
@@ -416,37 +417,55 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (ew == NULL) break;
 
 		// Remove charset part
-		const char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
+		char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
 		if (charsetEnd == NULL) return;
 		if (charsetEnd[2] != '?') return;
-		const char type = charsetEnd[1];
-		memmove(ew, charsetEnd + 3, (data + *lenData) - (charsetEnd + 3));
-		*lenData -= ((charsetEnd + 3) - ew);
 
-		const char * const ewEnd = memmem(ew, (data + *lenData) - ew, "?=", 2);
+		const size_t csLen = charsetEnd - (ew + 2);
+		char cs[csLen + 1];
+		memcpy(cs, (ew + 2), csLen);
+		cs[csLen] = '\0';
+
+		const char type = charsetEnd[1];
+		char *ewText = charsetEnd + 3;
+
+		const char * const ewEnd = memmem(charsetEnd + 3, *lenData - (ewText - data), "?=", 2);
 		if (ewEnd == NULL) break;
 
 		size_t lenEw = ewEnd - ew;
-		const size_t lenEwOld = lenEw;
+		size_t lenEwText = ewEnd - ewText;
 
 		while(1) {
-			char * const underscore = memchr(ew, '_', lenEw);
+			char * const underscore = memchr(ewText, '_', lenEwText);
 			if (underscore == NULL) break;
 			*underscore = ' ';
 		}
 
-		if (type == 'Q' || type == 'q') {decodeQuotedPrintable(ew, &lenEw);}
-		else if (type == 'B' || type == 'b') {
-			unsigned char * const dec = b64Decode((const unsigned char*)ew, lenEw, &lenEw);
-			if (dec != NULL) {
-				memcpy(ew, dec, lenEw);
-				free(dec);
-			}
+		if (type == 'Q' || type == 'q') {
+			decodeQuotedPrintable(ewText, &lenEwText);
+		} else if (type == 'B' || type == 'b') {
+			unsigned char * const dec = b64Decode((const unsigned char*)ewText, lenEwText, &lenEwText);
+			if (dec == NULL) return;
+
+			memcpy(ew, dec, lenEw);
+			free(dec);
 		} else return;
 
-		memmove(ew + lenEw, ew + lenEwOld + 2, (data + *lenData) - (ew + lenEwOld + 2));
-		*lenData -= (lenEwOld - lenEw + 2);
-		data[*lenData] = '\0';
+		int lenUtf8 = 0;
+		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
+		if (utf8 != NULL) {
+			const int lenDiff = lenEw - lenUtf8;
+			if (lenDiff > 0) {
+				memcpy(ew, utf8, lenUtf8);
+				memmove(ew + lenUtf8, ewEnd + 2, *lenData - (ewEnd + 2 - data));
+				*lenData -= (lenDiff + 2);
+			} else {
+				// TODO: UTF-8 version is longer
+				return;
+			}
+
+			free(utf8);
+		}
 	}
 }
 

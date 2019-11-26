@@ -107,3 +107,5 @@ Cryptography is done using [libsodium](https://libsodium.org).
 Compression is provided by [Brotli](https://github.com/google/brotli).
 
 Email senders are geolocated thanks to [MaxMind](https://dev.maxmind.com/geoip/geoip2/downloadable/).
+
+Text is converted to Unicode with [ICU](http://site.icu-project.org/home)
