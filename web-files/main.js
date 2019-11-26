@@ -508,8 +508,16 @@ function addOpt(select, val) {
 
 function reloadInterface() {
 	if (!ae.IsUserAdmin()) document.getElementById("btn_toadmin").hidden = true;
-	document.getElementById("div_login").hidden = true;
-	document.getElementById("div_loggedin").hidden = false;
+	document.getElementById("div_begin").hidden = true;
+	document.getElementById("div_allears").hidden = false;
+
+	document.getElementById("list_inbox").innerHTML = "<div>Received</div><div>Subject</div><div>Sender</div><div></div><div>To</div><div>Delete</div>";
+	document.getElementById("list_sent").innerHTML = "<div>Sent</div><div>Subject</div><div>From</div><div>To</div><div>Delete</div>";
+	document.getElementById("tbody_admin").innerHTML = "";
+	document.getElementById("tbody_filenotes").innerHTML = "";
+	document.getElementById("tbody_notes_contact").innerHTML = "";
+	document.getElementById("tbody_opt_addr").innerHTML = "";
+	document.getElementById("tbody_textnotes").innerHTML = "";
 
 	// Contacts
 	for (let i = 0; i < ae.GetContactCount(); i++) {
@@ -660,6 +668,26 @@ document.getElementById("btn_enter").onclick = function() {
 		}
 	});
 };
+
+document.getElementById("btn_refresh").onclick = function() {
+	const btn = this;
+	btn.disabled = true;
+
+	ae.Reset();
+
+	ae.Browse(0, function(successBrowse) {
+		if (successBrowse) {
+			reloadInterface();
+			btn.disabled = false;
+		} else {
+			console.log("Failed to refresh");
+			document.getElementById("div_begin").hidden = false;
+			document.getElementById("div_allears").hidden = true;
+			document.getElementById("btn_enter").disabled = false;
+			btn.disabled = false;
+		}
+	});
+}
 
 document.getElementById("btn_contact_add").onclick = function() {
 	const txtMail = document.getElementById("txt_newcontact_mail");

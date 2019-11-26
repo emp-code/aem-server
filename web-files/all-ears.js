@@ -418,6 +418,32 @@ function AllEars(domain, readyCallback) {
 	};
 
 // Public
+	this.Reset = function() {
+		_maxStorage.splice(0);
+		_maxAddressNormal.splice(0);
+		_maxAddressShield.splice(0);
+		_userLevel = 0;
+		_userAddress.splice(0);
+		_intMsg.splice(0);
+		_extMsg.splice(0);
+		_textNote.splice(0);
+		_fileNote.splice(0);
+
+		_gkCountry.splice(0);
+		_gkDomain .splice(0);
+		_gkAddress.splice(0);
+
+		_contactMail.splice(0);
+		_contactName.splice(0);
+		_contactNote.splice(0);
+
+		_admin_userPkHex.splice(0);
+		_admin_userSpace.splice(0);
+		_admin_userNaddr.splice(0);
+		_admin_userSaddr.splice(0);
+		_admin_userLevel.splice(0);
+	}
+
 	this.GetLevelMax = function() {return _maxLevel;};
 
 	this.GetAddress = function(num) {return _userAddress[num].decoded;};

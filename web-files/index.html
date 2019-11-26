@@ -15,7 +15,7 @@
 		</header>
 
 		<main>
-			<div id="div_loggedin" hidden>
+			<div id="div_allears" hidden>
 				<nav>
 					<button type="button" autocomplete="off" id="btn_toinbox">Inbox</button>
 					<button type="button" autocomplete="off" id="btn_towrite">Write</button>
@@ -26,16 +26,11 @@
 
 				<div class="maindiv" id="div_inbox">
 					<div id="list_inbox">
-						<div>Received</div>
-						<div>Subject</div>
-						<div>Sender</div>
-						<div></div>
-						<div>To</div>
-						<div>Delete</div>
 					</div>
 
-					<div class="center">
-						<button type="button" autocomplete="off" id="btn_msgdel" hidden class="topmargin">Delete selected messages</button>
+					<div class="center topmargin">
+						<button type="button" autocomplete="off" id="btn_refresh">Refresh</button>
+						<button type="button" autocomplete="off" id="btn_msgdel" hidden>Delete selected messages</button>
 					</div>
 				</div>
 
@@ -83,11 +78,6 @@
 
 					<div id="div_notes_sent" hidden>
 						<div id="list_sent">
-							<div>Sent</div>
-							<div>Subject</div>
-							<div>From</div>
-							<div>To</div>
-							<div>Delete</div>
 						</div>
 
 						<button type="button" autocomplete="off" id="btn_sentdel" hidden class="topmargin">Delete selected messages</button>
@@ -563,7 +553,7 @@
 				</div>
 			</div>
 
-			<div id="div_login" class="center">
+			<div id="div_begin" class="center">
 				<input id="txt_skey" type="password" size="64" maxlength="64" pattern="[0-9a-f]{64}" required autofocus placeholder="Secret key (hex)" class="center">
 				<br>
 				<button type="button" id="btn_enter" disabled="disabled" autocomplete="off" class="topmargin">Enter</button>
