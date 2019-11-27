@@ -702,7 +702,7 @@ function AllEars(domain, readyCallback) {
 					const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
 					const headersEnd = body.indexOf("\r\n\r\n");
-					const em_headers = body.slice(0, headersEnd);
+					const em_headers = body.slice(1, headersEnd);
 					const em_body = body.slice(headersEnd + 4);
 
 					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
