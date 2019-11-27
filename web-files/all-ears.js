@@ -695,11 +695,11 @@ function AllEars(domain, readyCallback) {
 					const em_greet = msgBodyUtf8.slice(0, firstLf);
 					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
 					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-					const body = msgBodyUtf8.slice(secondLf + 1);
+					const body = msgBodyUtf8.slice(secondLf);
 
 					const titleStart = body.indexOf("\nSubject: ");
-					const titleEnd = (titleStart < 1) ? -1 : body.slice(titleStart + 10).indexOf("\n");
-					const em_title = (titleStart < 1) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
+					const titleEnd = (titleStart < 0) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+					const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
 					const headersEnd = body.indexOf("\r\n\r\n");
 					const em_headers = body.slice(0, headersEnd);
