@@ -447,7 +447,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 			unsigned char * const dec = b64Decode((const unsigned char*)ewText, lenEwText, &lenEwText);
 			if (dec == NULL) return;
 
-			memcpy(ew, dec, lenEw);
+			memcpy(ewText, dec, lenEwText);
 			free(dec);
 		} else return;
 
