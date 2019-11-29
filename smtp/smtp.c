@@ -677,6 +677,8 @@ static void trimSpace(char * const text, size_t * const len) {
 		while (c[1] == ' ') {
 			(*len)--;
 			memmove(c, c + 1, (text + *len) - c);
+
+			if (c == (text + *len)) return;
 		}
 
 		c = memchr(c + 1, ' ', (text + *len) - c);
