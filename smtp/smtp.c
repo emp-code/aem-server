@@ -669,6 +669,20 @@ static void tabsToSpaces(char * const text, const size_t len) {
 	}
 }
 
+// Compress multiple spaces to one
+static void trimSpace(char * const text, size_t * const len) {
+	char *c = memchr(text, ' ', *len);
+
+	while (c != NULL) {
+		while (c[1] == ' ') {
+			(*len)--;
+			memmove(c, c + 1, (text + *len) - c);
+		}
+
+		c = memchr(c + 1, ' ', (text + *len) - c);
+	}
+}
+
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
 	const char *z = memchr(*msg, '\0', *lenMsg);
@@ -965,7 +979,8 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
 			tabsToSpaces(body, lenBody);
-			removeControlChars((unsigned char*)&body, &lenBody);
+			trimSpace(body, &lenBody);
+			removeControlChars((unsigned char*)body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
