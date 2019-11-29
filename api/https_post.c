@@ -26,9 +26,8 @@
 
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 
-void genServerSecretKey(void) {
-	unsigned char spk[crypto_box_PUBLICKEYBYTES];
-	crypto_box_keypair(spk, ssk);
+void setApiKey(const unsigned char sskNew[crypto_box_SECRETKEYBYTES]) {
+	memcpy(ssk, sskNew, crypto_box_PUBLICKEYBYTES);
 }
 
 void https_pubkey(mbedtls_ssl_context * const ssl) {

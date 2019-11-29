@@ -23,6 +23,7 @@
 #define AEM_CHROOT "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
 #define AEM_PORT_HTTPS 7850
 #define AEM_PATH_ADDRKEY "/etc/allears/Address.key"
+#define AEM_PATH_APIKEY "/etc/allears/API.key"
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
 #define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
 #define AEM_SOCKET_TIMEOUT 15
@@ -97,6 +98,24 @@ static int loadAddrKey(void) {
 	return 0;
 }
 
+static int loadApiKey(void) {
+	const int fd = open(AEM_PATH_APIKEY, O_RDONLY);
+	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_box_SECRETKEYBYTES) return 1;
+
+	unsigned char apiKey[crypto_box_SECRETKEYBYTES];
+	const off_t readBytes = pread(fd, apiKey, crypto_box_SECRETKEYBYTES, 0);
+	close(fd);
+
+	if (readBytes != crypto_box_SECRETKEYBYTES) {
+		printf("pread returned: %ld\n", readBytes);
+		return -1;
+	}
+
+	setApiKey(apiKey);
+	sodium_memzero(apiKey, crypto_box_SECRETKEYBYTES);
+	return 0;
+}
+
 static void setSocketTimeout(const int sock) {
 	struct timeval tv;
 	tv.tv_sec = AEM_SOCKET_TIMEOUT;
@@ -109,12 +128,10 @@ static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
 	if (loadTlsKey(&tlsKey) < 0) return 1;
 
 	int ret = loadAddrKey();
-	if (ret < 0) {
-		puts("Terminating: failed to load address key");
-		return 1;
-	}
+	if (ret < 0) {puts("Terminating: failed to load address key"); return 1;}
 
-	genServerSecretKey();
+	ret = loadApiKey();
+	if (ret < 0) {puts("Terminating: failed to load API key"); return 1;}
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {ret = -1;}
