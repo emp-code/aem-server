@@ -696,6 +696,24 @@ static void removeSpaceEnd(char * const text, size_t * const len) {
 	}
 }
 
+// Compress over two linebreaks spaces to two
+static void trimLinebreaks(char * const text, size_t * const len) {
+	char *c = memmem(text, *len, "\n\n\n", 3);
+
+	while (c != NULL) {
+		c++;
+
+		while (c[1] == '\n') {
+			(*len)--;
+			memmove(c, c + 1, (text + *len) - c);
+
+			if (c == (text + *len)) return;
+		}
+
+		c = memmem(text, *len, "\n\n\n", 3);
+	}
+}
+
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
 	const char *z = memchr(*msg, '\0', *lenMsg);
@@ -992,9 +1010,10 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
 			tabsToSpaces(body, lenBody);
+			removeControlChars((unsigned char*)body, &lenBody);
 			trimSpace(body, &lenBody);
 			removeSpaceEnd(body, &lenBody);
-			removeControlChars((unsigned char*)body, &lenBody);
+			trimLinebreaks(body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
