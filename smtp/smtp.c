@@ -685,6 +685,17 @@ static void trimSpace(char * const text, size_t * const len) {
 	}
 }
 
+// Remove space before linebreak
+static void removeSpaceEnd(char * const text, size_t * const len) {
+	char *c = memmem(text, *len, " \n", 2);
+	while (c != NULL) {
+		*len -= 1;
+		memmove(c, c + 1, (text + *len) - c);
+
+		c = memmem(c + 1, (text + *len) - c, " \n", 2);
+	}
+}
+
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
 	const char *z = memchr(*msg, '\0', *lenMsg);
@@ -982,6 +993,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			decodeMessage(&body, &lenBody);
 			tabsToSpaces(body, lenBody);
 			trimSpace(body, &lenBody);
+			removeSpaceEnd(body, &lenBody);
 			removeControlChars((unsigned char*)body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
