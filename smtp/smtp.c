@@ -657,6 +657,18 @@ static void removeControlChars(unsigned char * const text, size_t * const len) {
 	}
 }
 
+static void tabsToSpaces(char * const text, const size_t len) {
+	char *c = memchr(text, '\t', len);
+	size_t skip = 0;
+
+	while (c != NULL) {
+		*c = ' ';
+
+		skip = c - text;
+		c = strchr(text + skip, '\t');
+	}
+}
+
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
 	const char *z = memchr(*msg, '\0', *lenMsg);
@@ -952,6 +964,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
+			tabsToSpaces(body, lenBody);
 			removeControlChars((unsigned char*)&body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
