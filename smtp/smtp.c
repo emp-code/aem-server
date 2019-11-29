@@ -646,6 +646,17 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 	return out;
 }
 
+// Remove control characters except newline (\n)
+static void removeControlChars(unsigned char * const text, size_t * const len) {
+	for (size_t i = 0; i < *len; i++) {
+		if (text[i] < 32 && text[i] != '\n') {
+			(*len)--;
+			memmove(text + i, text + i + 1, *len - i);
+			i--;
+		}
+	}
+}
+
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
 	const char *z = memchr(*msg, '\0', *lenMsg);
@@ -941,6 +952,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
+			removeControlChars((unsigned char*)&body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
