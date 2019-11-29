@@ -616,7 +616,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			}
 
 			// TODO: Support detecting charset if missing?
-			if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0) {
+			if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0 && strncmp(charset, "ascii", 5) != 0 && strncmp(charset, "us-ascii", 8) != 0) {
 				int lenUtf8;
 				char *utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
 				if (utf8 != NULL) {
