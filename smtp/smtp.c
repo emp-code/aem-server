@@ -665,7 +665,7 @@ static void tabsToSpaces(char * const text, const size_t len) {
 		*c = ' ';
 
 		skip = c - text;
-		c = strchr(text + skip, '\t');
+		c = memchr(text + skip, '\t', len - skip);
 	}
 }
 
