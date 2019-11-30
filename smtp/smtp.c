@@ -720,10 +720,10 @@ static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	if (headersEnd == NULL || (z != NULL && z < headersEnd)) return;
 	headersEnd += 4;
 
-	char *h = strcasestr(*msg, "\nContent-Type: ");
-	h += 15;
+	char *ct = strcasestr(*msg, "\nContent-Type: ");
+	ct += 15;
 
-	if (strncasecmp(h, "multipart/", 10) == 0) {
+	if (strncasecmp(ct, "multipart/", 10) == 0) {
 		size_t lenNew;
 		char *new = decodeMp(*msg, &lenNew);
 
@@ -742,6 +742,17 @@ static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 			*msg = full;
 		}
 	} else {
+		char *charset = NULL;
+		char *cs = strstr(ct, "charset=");
+		if (cs == NULL) cs = strstr(ct, "harset =");
+		if (cs != NULL && cs < headersEnd) {
+			cs += 8;
+			if (*cs == ' ') cs++;
+			if (*cs == '"') cs++;
+			size_t lenCs = strcspn(cs, "\r\n \"'");
+			charset = strndup(cs, lenCs);
+		}
+
 		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding: quoted-printable");
 		if (cte != NULL && cte < headersEnd) {
 			size_t len = (*lenMsg) - (headersEnd - *msg);
@@ -763,6 +774,31 @@ static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 				}
 			}
 		}
+
+		// TODO: Support detecting charset if missing?
+		if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0 && strncmp(charset, "ascii", 5) != 0 && strncmp(charset, "us-ascii", 8) != 0) {
+			int lenUtf8;
+			const int lenOld = (*msg + *lenMsg) - headersEnd;
+			char *utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
+			if (utf8 != NULL) {
+				if (lenOld > lenUtf8) {
+					memcpy(headersEnd, utf8, lenUtf8);
+					*lenMsg -= (lenOld - lenUtf8);
+				} else {
+					const size_t lenHeaders = headersEnd - *msg;
+					char *new = malloc(lenHeaders + lenUtf8);
+					if (new != NULL) {
+						memcpy(new, *msg, lenHeaders);
+						free(*msg);
+						memcpy(new + lenHeaders, utf8, lenUtf8);
+						free(utf8);
+						*msg = new;
+					}
+				}
+			}
+		}
+
+		if (charset != NULL) free(charset);
 	}
 }
 
