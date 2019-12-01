@@ -516,7 +516,6 @@ static void unfoldHeaders(char * const data, size_t * const lenData) {
 
 	while(1) {
 		char *crlfWsp = memmem(data + 2, lenHeaders, "\r\n ", 3);
-		if (crlfWsp == NULL) crlfWsp = memmem(data + 2, lenHeaders, "\r\n\t", 3);
 		if (crlfWsp == NULL) break;
 
 		const size_t num = (memcmp(crlfWsp - 2, "?=", 2) == 0) ? 3 : 2; // Remove space if previous line ended with an Encoded-Word
@@ -1042,11 +1041,11 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
 			body[lenBody] = '\0';
+			tabsToSpaces(body, lenBody);
+			removeControlChars((unsigned char*)body, &lenBody);
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
-			tabsToSpaces(body, lenBody);
-			removeControlChars((unsigned char*)body, &lenBody);
 			trimSpace(body, &lenBody);
 			removeSpaceEnd(body, &lenBody);
 			trimLinebreaks(body, &lenBody);
