@@ -284,6 +284,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	headersEnd += 2;
 
 	char *ct = strcasestr(*msg, "\nContent-Type: ");
+	if (ct == NULL) return;
 	ct += 15;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
