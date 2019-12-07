@@ -409,7 +409,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
 	while(1) {
-		const char * const headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
+		const char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
 		if (headersEnd == NULL) break;
 
 		const size_t searchLen = headersEnd - data;
@@ -510,12 +510,12 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 }
 
 static void unfoldHeaders(char * const data, size_t * const lenData) {
-	const char * const headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
+	const char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
 	if (headersEnd == NULL) return;
 	size_t lenHeaders = headersEnd - data;
 
 	while(1) {
-		char *crlfWsp = memmem(data + 2, lenHeaders, "\r\n ", 3);
+		char *crlfWsp = memmem(data + 2, lenHeaders, "\n ", 2);
 		if (crlfWsp == NULL) break;
 
 		const size_t num = (memcmp(crlfWsp - 2, "?=", 2) == 0) ? 3 : 2; // Remove space if previous line ended with an Encoded-Word
@@ -551,7 +551,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		b += 9;
 		if (*b == '"') b++;
 
-		const size_t len = strcspn(b, "\" \r\n");
+		const size_t len = strcspn(b, "\" \n");
 		bound[i] = strndup(b - 2, len);
 		memcpy(bound[i], "--", 2);
 
@@ -565,13 +565,13 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		if (begin == NULL) {i++; continue;}
 		begin += strlen(bound[i]);
 
-		const char *hend = strstr(begin, "\r\n\r\n");
+		const char *hend = strstr(begin, "\n\n");
 		const char * const hend2 = strstr(begin, "\n\n");
 		size_t lenHend;
 		if (hend2 != NULL && (hend == NULL || hend2 < hend)) {
 			hend = hend2;
 			lenHend = 2;
-		} else lenHend = 4;
+		} else lenHend = 2;
 		if (hend == NULL) break;
 
 		const char *cte = strcasestr(begin, "\nContent-Transfer-Encoding: ");
@@ -597,7 +597,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				cs += 8;
 				if (*cs == ' ') cs++;
 				if (*cs == '"') cs++;
-				size_t lenCs = strcspn(cs, "\r\n \"'");
+				size_t lenCs = strcspn(cs, "\n \"'");
 				charset = strndup(cs, lenCs);
 			}
 
@@ -714,10 +714,10 @@ static void trimLinebreaks(char * const text, size_t * const len) {
 }
 
 static void decodeMessage(char ** const msg, size_t * const lenMsg) {
-	char *headersEnd = memmem(*msg,  *lenMsg, "\r\n\r\n", 4);
+	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 	const char *z = memchr(*msg, '\0', *lenMsg);
 	if (headersEnd == NULL || (z != NULL && z < headersEnd)) return;
-	headersEnd += 4;
+	headersEnd += 2;
 
 	char *ct = strcasestr(*msg, "\nContent-Type: ");
 	ct += 15;
@@ -748,7 +748,7 @@ static void decodeMessage(char ** const msg, size_t * const lenMsg) {
 			cs += 8;
 			if (*cs == ' ') cs++;
 			if (*cs == '"') cs++;
-			size_t lenCs = strcspn(cs, "\r\n \"'");
+			size_t lenCs = strcspn(cs, "\n \"'");
 			charset = strndup(cs, lenCs);
 		}
 
@@ -1040,7 +1040,6 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
-			body[lenBody] = '\0';
 			tabsToSpaces(body, lenBody);
 			removeControlChars((unsigned char*)body, &lenBody);
 			unfoldHeaders(body, &lenBody);
