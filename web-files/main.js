@@ -8,6 +8,8 @@ const ae = new AllEars(null /* domain, null means current domain */, function(ok
 	}
 });
 
+let page=0;
+
 function navMenu(num) {
 	document.getElementById("div_readmsg").hidden = true;
 
@@ -43,176 +45,210 @@ function getCountryFlag(countryCode) {
 	return "&#" + regionalIndicator1 + ";&#" + regionalIndicator2 + ";";
 }
 
-function addExtMessages() {
-	const inbox = document.getElementById("list_inbox");
-	const sent = document.getElementById("list_sent");
+function addMessages() {
+	const maxExt = ae.GetExtMsgCount();
+	const maxInt = ae.GetIntMsgCount();
 
-	for (let i = 0; i < ae.GetExtMsgCount(); i++) {
-		const isSent = false;//ae.GetExtMsgIsSent(i);
-		const elmt = isSent ? sent : inbox;
+	let numExt = 0;
+	let numInt = 0;
 
-		const divTime  = document.createElement("div");
-		const divSubj  = document.createElement("div");
-		const divFrom1 = document.createElement("div");
-		const divFrom2 = document.createElement("div");
-		const divTo    = document.createElement("div");
-		const divDel   = document.createElement("div");
+	//TODO handle sent messages separately
 
-		const ts = ae.GetExtMsgTime(i);
-		divTime.setAttribute("data-ts", ts);
-		divTime.textContent = new Date(ts * 1000).toLocaleString();
+	for (let i = 0; i < (page * 20) + 20; i++) {
+		let tsInt = 0;
+		let tsExt = 0;
 
-		divSubj.textContent = ae.GetExtMsgTitle(i);
+		if (numInt < maxInt) tsInt = ae.GetIntMsgTime(numInt);
+		if (numExt < maxExt) tsExt = ae.GetExtMsgTime(numExt);
 
-		const from = ae.GetExtMsgFrom(i);
-		const from2 = from.substring(from.indexOf("@") + 1);
-		const cc = ae.GetExtMsgCountry(i);
+		if (tsInt === 0 && tsExt === 0) break;
 
-		divFrom1.textContent = from.substring(0, from.indexOf("@"));
-		divFrom2.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
-
-		const fromText = document.createElement("span");
-		fromText.textContent = " " + from2;
-		divFrom2.appendChild(fromText);
-
-		divTo.textContent = ae.GetExtMsgTo(i);
-		divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
-
-		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
-
-		elmt.appendChild(divTime);
-		elmt.appendChild(divSubj);
-		elmt.appendChild(divFrom1);
-		elmt.appendChild(divFrom2);
-		elmt.appendChild(divTo);
-		elmt.appendChild(divDel);
-
-		divSubj.onclick = function() {
-			navMenu(-1);
-			document.getElementById("div_readmsg").hidden = false;
-			document.getElementById("readmsg_head").hidden = false;
-			document.getElementById("readmsg_levelinfo").hidden = true;
-			document.getElementById("readmsg_extmsg").hidden = false;
-			document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
-			document.getElementById("readmsg_tls").textContent = ae.GetExtMsgTLS(i);
-			document.getElementById("readmsg_ip").textContent = ae.GetExtMsgIp(i);
-
-			document.getElementById("readmsg_country").innerHTML = getCountryName(cc) + " " + getCountryFlag(cc);
-
-			let flagText = "";
-			if (!ae.GetExtMsgFlagPExt(i)) flagText += "<abbr title=\"The sender did not use the Extended (ESMTP) protocol\">SMTP</abbr> ";
-			if (!ae.GetExtMsgFlagQuit(i)) flagText += "<abbr title=\"The sender did not issue the required QUIT command\">QUIT</abbr> ";
-			if (ae.GetExtMsgFlagRare(i)) flagText += "<abbr title=\"The sender issued unusual command(s)\">RARE</abbr> ";
-			if (ae.GetExtMsgFlagFail(i)) flagText += "<abbr title=\"The sender issued invalid command(s)\">FAIL</abbr> ";
-			if (ae.GetExtMsgFlagPErr(i)) flagText += "<abbr title=\"The sender violated the protocol\">PROT</abbr> ";
-			document.getElementById("readmsg_flags").innerHTML = flagText.trim();
-
-			document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
-			document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);
-			document.getElementById("readmsg_to").textContent = ae.GetExtMsgTo(i);
-			document.getElementById("readmsg_body").textContent = ae.GetExtMsgBody(i);
-			document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
-
-			document.getElementById("readmsg_from").className = "";
-			document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
-		};
-
-		divDel.children[0].onchange = function() {
-			if (!divDel.children[0].checked) {
-				const checkboxes = elmt.getElementsByTagName("input");
-				let checked = false;
-
-				for (let j = 0; j < checkboxes.length; j++) {
-					if (checkboxes.checked) {
-						checked = true;
-						break;
-					}
-				}
-
-				if (!checked) {
-					document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
-					return;
-				}
+		if (tsInt != 0 && tsInt < tsExt) {
+			if (i < (page * 20)) {
+				numInt++;
+				continue;
 			}
 
-			document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = false;
-		};
+			addIntMessage(numInt);
+			numInt++;
+		} else {
+			if (i < (page * 20)) {
+				numExt++;
+				continue;
+			}
+
+			addExtMessage(numExt);
+			numExt++;
+		}
 	}
 }
 
-function addIntMessages() {
+function addExtMessage(i) {
 	const inbox = document.getElementById("list_inbox");
 	const sent = document.getElementById("list_sent");
 
-	for (let i = 0; i < ae.GetIntMsgCount(); i++) {
-		const isSent = ae.GetIntMsgIsSent(i);
-		const elmt = isSent ? sent : inbox;
+	const isSent = false;//ae.GetExtMsgIsSent(i);
+	const elmt = isSent ? sent : inbox;
 
-		const divTime  = document.createElement("div");
-		const divSubj  = document.createElement("div");
-		const divFrom1 = document.createElement("div");
-		const divFrom2 = document.createElement("div");
-		const divTo    = document.createElement("div");
-		const divDel   = document.createElement("div");
+	const divTime  = document.createElement("div");
+	const divSubj  = document.createElement("div");
+	const divFrom1 = document.createElement("div");
+	const divFrom2 = document.createElement("div");
+	const divTo    = document.createElement("div");
+	const divDel   = document.createElement("div");
 
-		const ts = ae.GetIntMsgTime(i);
-		divTime.setAttribute("data-ts", ts);
-		divTime.textContent = new Date(ts * 1000).toLocaleString();
-		divSubj.textContent = ae.GetIntMsgTitle(i);
+	const ts = ae.GetExtMsgTime(i);
+	divTime.setAttribute("data-ts", ts);
+	divTime.textContent = new Date(ts * 1000).toLocaleString();
 
-		divFrom1.textContent = ae.GetIntMsgFrom(i);
-		divTo.textContent = ae.GetIntMsgTo(i);
+	divSubj.textContent = ae.GetExtMsgTitle(i);
 
-		divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
-		divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).starsWith("5")) ? "mono" : "";
+	const from = ae.GetExtMsgFrom(i);
+	const from2 = from.substring(from.indexOf("@") + 1);
+	const cc = ae.GetExtMsgCountry(i);
 
-		divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
+	divFrom1.textContent = from.substring(0, from.indexOf("@"));
+	divFrom2.innerHTML = "<abbr title=\"" + getCountryName(cc) + "\">" + getCountryFlag(cc) + "</abbr>";
 
-		elmt.appendChild(divTime);
-		elmt.appendChild(divSubj);
-		elmt.appendChild(divFrom1);
-		if (!isSent) elmt.appendChild(divFrom2);
-		elmt.appendChild(divTo);
-		elmt.appendChild(divDel);
+	const fromText = document.createElement("span");
+	fromText.textContent = " " + from2;
+	divFrom2.appendChild(fromText);
 
-		divSubj.onclick = function() {
-			navMenu(-1);
-			document.getElementById("div_readmsg").hidden = false;
-			document.getElementById("readmsg_head").hidden = false;
-			document.getElementById("readmsg_levelinfo").hidden = false;
-			document.getElementById("readmsg_extmsg").hidden = true;
+	divTo.textContent = ae.GetExtMsgTo(i);
+	divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
 
-			document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
-			document.getElementById("readmsg_from").textContent  = ae.GetIntMsgFrom(i);
-			document.getElementById("readmsg_to").textContent    = ae.GetIntMsgTo(i);
-			document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
-			document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
+	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
 
-			document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).startsWith("5")) ? "mono" : "";
-			document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
-		};
+	elmt.appendChild(divTime);
+	elmt.appendChild(divSubj);
+	elmt.appendChild(divFrom1);
+	elmt.appendChild(divFrom2);
+	elmt.appendChild(divTo);
+	elmt.appendChild(divDel);
 
-		divDel.children[0].onchange = function() {
-			if (!divDel.children[0].checked) {
-				const checkboxes = elmt.getElementsByTagName("input");
-				let checked = false;
+	divSubj.onclick = function() {
+		navMenu(-1);
+		document.getElementById("div_readmsg").hidden = false;
+		document.getElementById("readmsg_head").hidden = false;
+		document.getElementById("readmsg_levelinfo").hidden = true;
+		document.getElementById("readmsg_extmsg").hidden = false;
+		document.getElementById("readmsg_greet").textContent = ae.GetExtMsgGreet(i);
+		document.getElementById("readmsg_tls").textContent = ae.GetExtMsgTLS(i);
+		document.getElementById("readmsg_ip").textContent = ae.GetExtMsgIp(i);
 
-				for (let j = 0; j < checkboxes.length; j++) {
-					if (checkboxes.checked) {
-						checked = true;
-						break;
-					}
-				}
+		document.getElementById("readmsg_country").innerHTML = getCountryName(cc) + " " + getCountryFlag(cc);
 
-				if (!checked) {
-					document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
-					return;
+		let flagText = "";
+		if (!ae.GetExtMsgFlagPExt(i)) flagText += "<abbr title=\"The sender did not use the Extended (ESMTP) protocol\">SMTP</abbr> ";
+		if (!ae.GetExtMsgFlagQuit(i)) flagText += "<abbr title=\"The sender did not issue the required QUIT command\">QUIT</abbr> ";
+		if (ae.GetExtMsgFlagRare(i)) flagText += "<abbr title=\"The sender issued unusual command(s)\">RARE</abbr> ";
+		if (ae.GetExtMsgFlagFail(i)) flagText += "<abbr title=\"The sender issued invalid command(s)\">FAIL</abbr> ";
+		if (ae.GetExtMsgFlagPErr(i)) flagText += "<abbr title=\"The sender violated the protocol\">PROT</abbr> ";
+		document.getElementById("readmsg_flags").innerHTML = flagText.trim();
+
+		document.getElementById("readmsg_title").textContent = ae.GetExtMsgTitle(i);
+		document.getElementById("readmsg_from").textContent = ae.GetExtMsgFrom(i);
+		document.getElementById("readmsg_to").textContent = ae.GetExtMsgTo(i);
+		document.getElementById("readmsg_body").textContent = ae.GetExtMsgBody(i);
+		document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
+
+		document.getElementById("readmsg_from").className = "";
+		document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
+	};
+
+	divDel.children[0].onchange = function() {
+		if (!divDel.children[0].checked) {
+			const checkboxes = elmt.getElementsByTagName("input");
+			let checked = false;
+
+			for (let j = 0; j < checkboxes.length; j++) {
+				if (checkboxes.checked) {
+					checked = true;
+					break;
 				}
 			}
 
-			document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = false;
-		};
-	}
+			if (!checked) {
+				document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
+				return;
+			}
+		}
+
+		document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = false;
+	};
+}
+
+function addIntMessage(i) {
+	const inbox = document.getElementById("list_inbox");
+	const sent = document.getElementById("list_sent");
+
+	const isSent = ae.GetIntMsgIsSent(i);
+	const elmt = isSent ? sent : inbox;
+
+	const divTime  = document.createElement("div");
+	const divSubj  = document.createElement("div");
+	const divFrom1 = document.createElement("div");
+	const divFrom2 = document.createElement("div");
+	const divTo    = document.createElement("div");
+	const divDel   = document.createElement("div");
+
+	const ts = ae.GetIntMsgTime(i);
+	divTime.setAttribute("data-ts", ts);
+	divTime.textContent = new Date(ts * 1000).toLocaleString();
+	divSubj.textContent = ae.GetIntMsgTitle(i);
+
+	divFrom1.textContent = ae.GetIntMsgFrom(i);
+	divTo.textContent = ae.GetIntMsgTo(i);
+
+	divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
+	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).starsWith("5")) ? "mono" : "";
+
+	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
+
+	elmt.appendChild(divTime);
+	elmt.appendChild(divSubj);
+	elmt.appendChild(divFrom1);
+	if (!isSent) elmt.appendChild(divFrom2);
+	elmt.appendChild(divTo);
+	elmt.appendChild(divDel);
+
+	divSubj.onclick = function() {
+		navMenu(-1);
+		document.getElementById("div_readmsg").hidden = false;
+		document.getElementById("readmsg_head").hidden = false;
+		document.getElementById("readmsg_levelinfo").hidden = false;
+		document.getElementById("readmsg_extmsg").hidden = true;
+
+		document.getElementById("readmsg_title").textContent = ae.GetIntMsgTitle(i);
+		document.getElementById("readmsg_from").textContent  = ae.GetIntMsgFrom(i);
+		document.getElementById("readmsg_to").textContent    = ae.GetIntMsgTo(i);
+		document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
+		document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
+
+		document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).startsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
+	};
+
+	divDel.children[0].onchange = function() {
+		if (!divDel.children[0].checked) {
+			const checkboxes = elmt.getElementsByTagName("input");
+			let checked = false;
+
+			for (let j = 0; j < checkboxes.length; j++) {
+				if (checkboxes.checked) {
+					checked = true;
+					break;
+				}
+			}
+
+			if (!checked) {
+				document.getElementById(isSent ? "btn_sentdel" : "btn_msgdel").hidden = true;
+				return;
+			}
+		}
+
+		document.getElementById(isSent? "btn_sentdel" : "btn_msgdel").hidden = false;
+	};
 }
 
 function addFileNote(num, allowDelete) {
@@ -419,8 +455,7 @@ function delMsgs(tblName, btnName) {
 	if (ids.length > 0) ae.DeleteMessages(ids, function(success) {
 		if (success) {
 			clearMessages();
-			addExtMessages();
-			addIntMessages();
+			addMessages();
 			document.getElementById(btnName).hidden = true;
 		} else {
 			console.log("Failed to delete messages");
@@ -560,9 +595,7 @@ function reloadInterface() {
 
 	document.getElementById("gk_countrycount").textContent = gkCountryCount;
 
-	// Messages
-	addExtMessages();
-	addIntMessages();
+	addMessages();
 
 	// Notes
 	for (let i = 0; i < ae.GetNoteCount(); i++) {
@@ -640,6 +673,25 @@ function genKeys() {
 		console.log("Public=" + pk);
 		console.log("Secret=" + sk);
 	});
+}
+
+document.getElementById("btn_inbox_prev").onclick = function() {
+	if (page > 0) {
+		page--;
+		clearMessages();
+		addMessages();
+		this.disabled = (page === 0);
+	}
+}
+
+document.getElementById("btn_inbox_next").onclick = function() {
+// TODO: Check if page too high
+//	if (page > 0) {
+		page++;
+		clearMessages();
+		addMessages();
+		document.getElementById("btn_inbox_prev").disabled = false;
+//	}
 }
 
 document.getElementById("btn_enter").onclick = function() {
