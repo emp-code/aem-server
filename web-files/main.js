@@ -99,7 +99,7 @@ function addExtMessage(i) {
 
 	const ts = ae.GetExtMsgTime(i);
 	divTime.setAttribute("data-ts", ts);
-	divTime.textContent = new Date(ts * 1000).toLocaleString();
+	divTime.textContent = new Date(ts * 1000).toISOString().slice(0, 16).replace("T", " ");
 	divTime.className = "mono";
 
 	divSubj.textContent = ae.GetExtMsgTitle(i);
@@ -195,7 +195,7 @@ function addIntMessage(i) {
 
 	const ts = ae.GetIntMsgTime(i);
 	divTime.setAttribute("data-ts", ts);
-	divTime.textContent = new Date(ts * 1000).toLocaleString();
+	divTime.textContent = new Date(ts * 1000).toISOString().slice(0, 16).replace("T", " ");
 	divTime.className = "mono";
 
 	divSubj.textContent = ae.GetIntMsgTitle(i);
@@ -268,7 +268,8 @@ function addFileNote(num, allowDelete) {
 	let kib = ae.GetFileSize(num);
 	if (kib > 1023) kib = Math.round(kib / 1024); else kib = 1;
 
-	cellTime.textContent = new Date(ae.GetFileTime(num) * 1000).toLocaleString();
+	cellTime.textContent = new Date(ae.GetFileTime(num) * 1000).toISOString().slice(0, 16).replace("T", " ");
+
 	cellSize.textContent = kib;
 	cellName.textContent = ae.GetFileName(num);
 	cellType.textContent = ae.GetFileType(num);
@@ -609,7 +610,7 @@ function reloadInterface() {
 		const cellTitle = row.insertCell(-1);
 		const cellBtnDe = row.insertCell(-1);
 
-		cellTime.textContent = new Date(ae.GetNoteTime(i) * 1000).toLocaleString();
+		cellTime.textContent = new Date(ae.GetNoteTime(i) * 1000).toISOString().slice(0, 16).replace("T", " ");
 		cellTitle.textContent = ae.GetNoteTitle(i);
 		cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
 
