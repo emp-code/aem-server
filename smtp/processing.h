@@ -1,8 +1,7 @@
 #ifndef AEM_PROCESSING_H
 #define AEM_PROCESSING_H
 
-void removeControlChars(unsigned char * const text, size_t * const len);
-void tabsToSpaces(char * const text, const size_t len);
+void prepareHeaders(char *msg, size_t *lenMsg);
 void trimSpace(char * const text, size_t * const len);
 void removeSpaceEnd(char * const text, size_t * const len);
 void trimLinebreaks(char * const text, size_t * const len);

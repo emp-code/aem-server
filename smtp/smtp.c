@@ -23,6 +23,7 @@
 #include "Include/Message.h"
 #include "Include/QuotedPrintable.h"
 #include "Include/ToUtf8.h"
+#include "Include/Trim.h"
 
 #include "processing.h"
 
@@ -684,14 +685,14 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
 
-			tabsToSpaces(body, lenBody);
-			removeControlChars((unsigned char*)body, &lenBody);
+			prepareHeaders(body, &lenBody);
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
 			trimSpace(body, &lenBody);
 			removeSpaceEnd(body, &lenBody);
 			trimLinebreaks(body, &lenBody);
+			removeSpaceBegin(body, &lenBody);
 			brotliCompress(&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));

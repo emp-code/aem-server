@@ -2,15 +2,18 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "Include/Base64.h"
 #include "Include/QuotedPrintable.h"
+#include "Include/HtmlToText.h"
 #include "Include/ToUtf8.h"
+#include "Include/Trim.h"
 
 #include "processing.h"
 
 // Remove control characters except newline (\n)
-void removeControlChars(unsigned char * const text, size_t * const len) {
+static void removeControlChars(unsigned char * const text, size_t * const len) {
 	for (size_t i = 0; i < *len; i++) {
 		if (text[i] < 32 && text[i] != '\n') {
 			(*len)--;
@@ -20,7 +23,7 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	}
 }
 
-void tabsToSpaces(char * const text, const size_t len) {
+static void tabsToSpaces(char * const text, const size_t len) {
 	char *c = memchr(text, '\t', len);
 	size_t skip = 0;
 
@@ -32,49 +35,21 @@ void tabsToSpaces(char * const text, const size_t len) {
 	}
 }
 
-// Compress multiple spaces to one
-void trimSpace(char * const text, size_t * const len) {
-	char *c = memchr(text, ' ', *len);
+void prepareHeaders(char *msg, size_t *lenMsg) {
+	char *headersEnd = memmem(msg,  *lenMsg, "\r\n\r\n", 4);
+	if (headersEnd == NULL) return;
+	headersEnd += 4;
 
-	while (c != NULL) {
-		while (c[1] == ' ') {
-			(*len)--;
-			memmove(c, c + 1, (text + *len) - c);
+	size_t lenHeaders = headersEnd - msg;
+	const size_t lenHeadersOld = lenHeaders;
 
-			if (c == (text + *len)) return;
-		}
+	tabsToSpaces(msg, lenHeaders);
+	removeControlChars((unsigned char*)msg, &lenHeaders);
 
-		c = memchr(c + 1, ' ', (text + *len) - c);
-	}
-}
+	memmove(msg + lenHeaders, msg + lenHeadersOld, *lenMsg - lenHeadersOld);
 
-// Remove space before linebreak
-void removeSpaceEnd(char * const text, size_t * const len) {
-	char *c = memmem(text, *len, " \n", 2);
-	while (c != NULL) {
-		*len -= 1;
-		memmove(c, c + 1, (text + *len) - c);
-
-		c = memmem(c + 1, (text + *len) - c, " \n", 2);
-	}
-}
-
-// Compress over two linebreaks spaces to two
-void trimLinebreaks(char * const text, size_t * const len) {
-	char *c = memmem(text, *len, "\n\n\n", 3);
-
-	while (c != NULL) {
-		c++;
-
-		while (c[1] == '\n') {
-			(*len)--;
-			memmove(c, c + 1, (text + *len) - c);
-
-			if (c == (text + *len)) return;
-		}
-
-		c = memmem(text, *len, "\n\n\n", 3);
-	}
+	*lenMsg -= (lenHeadersOld - lenHeaders);
+	msg[*lenMsg] = '\0';
 }
 
 void decodeEncodedWord(char * const data, size_t * const lenData) {
@@ -183,7 +158,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		b += 9;
 		if (*b == '"') b++;
 
-		const size_t len = strcspn(b, "\" \n");
+		const size_t len = strcspn(b, "\" \r\n");
 		bound[i] = strndup(b - 2, len);
 		memcpy(bound[i], "--", 2);
 
@@ -197,13 +172,13 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		if (begin == NULL) {i++; continue;}
 		begin += strlen(bound[i]);
 
-		const char *hend = strstr(begin, "\n\n");
+		const char *hend = strstr(begin, "\r\n\r\n");
 		const char * const hend2 = strstr(begin, "\n\n");
 		size_t lenHend;
 		if (hend2 != NULL && (hend == NULL || hend2 < hend)) {
 			hend = hend2;
 			lenHend = 2;
-		} else lenHend = 2;
+		} else lenHend = 4;
 		if (hend == NULL) break;
 
 		const char *cte = strcasestr(begin, "\nContent-Transfer-Encoding: ");
@@ -219,6 +194,8 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		const char *boundEnd = strstr(hend + lenHend, bound[i]);
 
 		if (strncasecmp(ct + 15, "text/", 5) == 0) {
+			const bool isHtml = (strncasecmp(ct + 20, "html", 4) == 0);
+
 			hend += lenHend;
 			size_t lenNew = boundEnd - hend;
 
@@ -259,6 +236,12 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 			if (charset != NULL) free(charset);
 
+			convertNbsp(new, &lenNew);
+			tabsToSpaces(new, lenNew);
+			removeControlChars((unsigned char*)new, &lenNew);
+
+			if (isHtml) htmlToText(new, &lenNew);
+
 			char *out2 = realloc(out, *outLen + lenNew);
 			if (out2 == NULL) break;
 
@@ -279,8 +262,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
-	const char *z = memchr(*msg, '\0', *lenMsg);
-	if (headersEnd == NULL || (z != NULL && z < headersEnd)) return;
+	if (headersEnd == NULL) return;
 	headersEnd += 2;
 
 	char *ct = strcasestr(*msg, "\nContent-Type: ");
@@ -359,9 +341,23 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 						*msg = new;
 					}
 				}
+
+				headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 			}
 		}
 
 		if (charset != NULL) free(charset);
+
+		tabsToSpaces(*msg, *lenMsg);
+		removeControlChars((unsigned char*)(*msg), lenMsg);
+		convertNbsp(*msg, lenMsg);
+
+		ct = strcasestr(*msg, "\nContent-Type: ");
+		if (strncasecmp(ct + 15, "text/html", 9) == 0) {
+			size_t lenHe = (*msg + *lenMsg) - headersEnd;
+			const size_t lenOld = lenHe;
+			htmlToText(headersEnd, &lenHe);
+			*lenMsg -= (lenOld - lenHe);
+		}
 	}
 }
