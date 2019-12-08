@@ -100,6 +100,7 @@ function addExtMessage(i) {
 	const ts = ae.GetExtMsgTime(i);
 	divTime.setAttribute("data-ts", ts);
 	divTime.textContent = new Date(ts * 1000).toLocaleString();
+	divTime.className = "mono";
 
 	divSubj.textContent = ae.GetExtMsgTitle(i);
 
@@ -195,6 +196,8 @@ function addIntMessage(i) {
 	const ts = ae.GetIntMsgTime(i);
 	divTime.setAttribute("data-ts", ts);
 	divTime.textContent = new Date(ts * 1000).toLocaleString();
+	divTime.className = "mono";
+
 	divSubj.textContent = ae.GetIntMsgTitle(i);
 
 	divFrom1.textContent = ae.GetIntMsgFrom(i);
