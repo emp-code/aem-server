@@ -443,8 +443,8 @@ function addAddress(num) {
 }
 
 function clearMessages() {
-	document.getElementById("list_inbox").innerHTML = "<div>Received</div><div>Subject</div><div>Sender</div><div></div><div>To</div><div>Delete</div>";
-	document.getElementById("list_sent").innerHTML = "<div>Sent</div><div>Subject</div><div>From</div><div>To</div><div>Delete</div>";
+	document.getElementById("list_inbox").innerHTML = "<div>Received</div><div>Subject</div><div>Sender</div><div></div><div>Receiver</div><div>Delete</div>";
+	document.getElementById("list_sent").innerHTML = "<div>Sent</div><div>Subject</div><div>From</div><div>Receiver</div><div>Delete</div>";
 }
 
 function delMsgs(tblName, btnName) {
