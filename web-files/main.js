@@ -403,11 +403,8 @@ function addAddress(num) {
 }
 
 function clearMessages() {
-	const tblInbox = document.getElementById("tbody_inbox");
-	const tblSent = document.getElementById("tbody_sentbox");
-
-	while (tblInbox.rows.length > 0) tblInbox.deleteRow(0);
-	while (tblSent.rows.length > 0) tblSent.deleteRow(0);
+	document.getElementById("list_inbox").innerHTML = "<div>Received</div><div>Subject</div><div>Sender</div><div></div><div>To</div><div>Delete</div>";
+	document.getElementById("list_sent").innerHTML = "<div>Sent</div><div>Subject</div><div>From</div><div>To</div><div>Delete</div>";
 }
 
 function delMsgs(tblName, btnName) {
@@ -511,8 +508,7 @@ function reloadInterface() {
 	document.getElementById("div_begin").hidden = true;
 	document.getElementById("div_allears").hidden = false;
 
-	document.getElementById("list_inbox").innerHTML = "<div>Received</div><div>Subject</div><div>Sender</div><div></div><div>To</div><div>Delete</div>";
-	document.getElementById("list_sent").innerHTML = "<div>Sent</div><div>Subject</div><div>From</div><div>To</div><div>Delete</div>";
+	clearMessages();
 	document.getElementById("tbody_admin").innerHTML = "";
 	document.getElementById("tbody_filenotes").innerHTML = "";
 	document.getElementById("tbody_notes_contact").innerHTML = "";
