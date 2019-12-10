@@ -75,7 +75,7 @@ td, #readmsg_title, #readmsg_body {
 	white-space: nowrap;
 	line-height: 167%;
 	padding: 0 0.5em 0 0.5em;
-	border-bottom: 1px solid #DDD;
+	border-bottom: 1px solid #ddd;
 }
 
 #list_inbox > div:nth-child(3n) {
@@ -88,11 +88,11 @@ td, #readmsg_title, #readmsg_body {
 
 @media (prefers-color-scheme: dark) {
 	body, input, textarea, select, button, a {
-		background: #000;
-		color: #fff;
+		background: #090909;
+		color: #ddd;
 	}
 
 	#list_inbox > div, #list_sent > div {
-		border-bottom: 1px solid #444;
+		border-bottom: 1px solid #333;
 	}
 }
