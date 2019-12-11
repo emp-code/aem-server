@@ -23,7 +23,7 @@ table {
 }
 
 .bold {font-weight: bold;}
-.mono {font-family: monospace;}
+.mono {font-family: monospace, monospace;}
 .topmargin {margin-top: 1em;}
 .center {text-align: center;}
 .left {text-align: left;}
