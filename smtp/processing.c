@@ -122,12 +122,12 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	size_t lenHeaders = headersEnd - data;
 
 	while(1) {
-		char *crlfWsp = memmem(data + 2, lenHeaders, "\n ", 2);
-		if (crlfWsp == NULL) break;
+		char *lfSp = memmem(data + 2, lenHeaders, "\n ", 2);
+		if (lfSp == NULL) break;
 
-		const size_t num = (memcmp(crlfWsp - 2, "?=", 2) == 0) ? 3 : 2; // Remove space if previous line ended with an Encoded-Word
+		const size_t num = (memcmp(lfSp - 2, "?=", 2) == 0) ? 2 : 1; // Remove space if previous line ended with an Encoded-Word
 
-		memmove(crlfWsp, crlfWsp + num, (data + *lenData) - (crlfWsp + num));
+		memmove(lfSp, lfSp + num, (data + *lenData) - (lfSp + num));
 
 		*lenData -= num;
 		lenHeaders -= num;
