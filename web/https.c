@@ -123,11 +123,14 @@ void tlsFree(void) {
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 }
 
-static int sni(void * const parameter, mbedtls_ssl_context * const ssl, const unsigned char * const hostname, const size_t len) {
-	if (parameter != NULL || ssl == NULL) return -1;
+static int sni(void * const empty, mbedtls_ssl_context * const ssl, const unsigned char * const hostname, const size_t len) {
+	if (empty != NULL || ssl == NULL) return -1;
 	if (len == 0) return 0;
 
-	return (hostname == NULL || len != lenDomain || memcmp(hostname, domain, lenDomain) != 0) ? -1 : 0;
+	return (hostname != NULL && (
+	(len == lenDomain && memcmp(hostname, domain, lenDomain) == 0) ||
+	(len == lenDomain + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, domain, lenDomain) == 0)
+	)) ? 0 : -1;
 }
 
 int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey) {
