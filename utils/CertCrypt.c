@@ -1,5 +1,5 @@
-//	CertCrypt: Encrypts TLS cert/key files for All-Ears Mail
-//	Compile: gcc -lsodium CertCrypt.c -o CertCrypt
+// CertCrypt: Encrypts TLS cert/key files for All-Ears Mail
+// Compile: gcc -lsodium CertCrypt.c -o CertCrypt
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
@@ -44,7 +44,7 @@ static int getKey(void) {
 	toggleEcho(true);
 
 	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES);
+	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES * 2);
 	return 0;
 }
 
