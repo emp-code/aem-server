@@ -27,7 +27,7 @@
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
-int writeRandomEncrypted(const char * const path, const size_t len, const char nonceChar) {
+static int writeRandomEncrypted(const char * const path, const size_t len, const unsigned char nonceChar) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 
 	if (fd < 0) {
@@ -81,6 +81,5 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, AEM_NONCECHAR_KEY_STO);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
-
 	return 0;
 }
