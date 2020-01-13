@@ -17,17 +17,9 @@
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
 
-// Nonces are not secret, but must not be reused with the same key
-#define AEM_NONCECHAR_KEY_ADR 'a'
-#define AEM_NONCECHAR_KEY_MNG 'm'
-#define AEM_NONCECHAR_KEY_STO 's'
-#define AEM_NONCECHAR_KEY_API 'w'
-#define AEM_NONCECHAR_KEY_TLS 't'
-#define AEM_NONCECHAR_CRT_TLS 'c'
-
 unsigned char master[crypto_secretbox_KEYBYTES];
 
-static int writeRandomEncrypted(const char * const path, const size_t len, const unsigned char nonceChar) {
+static int writeRandomEncrypted(const char * const path, const size_t len) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 
 	if (fd < 0) {
@@ -42,15 +34,16 @@ static int writeRandomEncrypted(const char * const path, const size_t len, const
 	unsigned char encrypted[lenEncrypted];
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	memset(nonce, nonceChar, crypto_secretbox_NONCEBYTES);
+	randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
 
 	crypto_secretbox_easy(encrypted, buf, len, nonce, master);
 	sodium_memzero(buf, len);
 
-	const int ret = write(fd, encrypted, lenEncrypted);
+	int ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
+	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
-	if (ret != lenEncrypted) {
+	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
 		printf("Failed to write %s\n", path);
 		return -1;
 	}
@@ -75,10 +68,10 @@ int main(void) {
 	printf("Master Key (hex): %s\n", master_hex);
 	sodium_memzero(master_hex, lenHex);
 
-	writeRandomEncrypted(AEM_PATH_KEY_ADR, AEM_LEN_KEY_ADR, AEM_NONCECHAR_KEY_ADR);
-	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, AEM_NONCECHAR_KEY_API);
-	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG, AEM_NONCECHAR_KEY_MNG);
-	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, AEM_NONCECHAR_KEY_STO);
+	writeRandomEncrypted(AEM_PATH_KEY_ADR, AEM_LEN_KEY_ADR);
+	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
+	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
+	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;
