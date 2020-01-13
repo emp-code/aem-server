@@ -113,5 +113,5 @@ int main(int argc, char *argv[]) {
 	printf("Created %s\n", path);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
-	return 0;
+	return EXIT_SUCCESS;
 }
