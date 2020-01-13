@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		printf("Terminating: Failed to create %s", path);
+		printf("Terminating: Failed to create %s\n", path);
 		return EXIT_FAILURE;
 	}
 
