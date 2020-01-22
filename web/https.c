@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -141,7 +142,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {
-		printf("mbedtls_ssl_config_defaults returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_config_defaults returned %d\n", ret);
 		return -1;
 	}
 
@@ -156,19 +157,19 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
-		printf("mbedtls_ctr_drbg_seed returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ctr_drbg_seed returned %d\n", ret);
 		return -1;
 	}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
 	if (ret != 0) {
-		printf("mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_conf_own_cert returned %d\n", ret);
 		return -1;
 	}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {
-		printf("mbedtls_ssl_setup returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_setup returned %d\n", ret);
 		return -1;
 	}
 
@@ -181,7 +182,7 @@ void respond_https(int sock) {
 	int ret;
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			printf("mbedtls_ssl_handshake returned %d\n", ret);
+			syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_handshake returned %d\n", ret);
 			mbedtls_ssl_close_notify(&ssl);
 			mbedtls_ssl_session_reset(&ssl);
 			return;

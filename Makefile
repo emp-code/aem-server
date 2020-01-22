@@ -7,7 +7,7 @@ allears-api: api/*.c
 	$(CC) $(CFLAGS) -o allears-api api/*.c api/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lsqlite3
 
 allears-web: web/*.c
-	$(CC) $(CFLAGS) -o allears-web web/*.c web/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc
+	$(CC) $(CFLAGS) -o allears-web web/*.c web/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
 
 #allears-http: http/*.c
 #	$(CC) $(CFLAGS) -o allears-http http/*.c

@@ -8,97 +8,64 @@
 
 #include "https_get.h"
 
-#include "Include/Brotli.h"
 #include "Include/https_common.h"
 #include "global.h"
 
-#define AEM_PATH_CSS  "main.css"
-#define AEM_PATH_HTML "index.html"
-#define AEM_PATH_JSAE "all-ears.js"
-#define AEM_PATH_JSMN "main.js"
-
-static size_t lenResponseCss  = 0;
-static size_t lenResponseHtml = 0;
-static size_t lenResponseJsMn = 0;
-static size_t lenResponseJsAe = 0;
-
 static char *responseCss = NULL;
-static char *responseHtml = NULL;
-static char *responseJsAe = NULL;
-static char *responseJsMn = NULL;
+static char *responseHtm = NULL;
+static char *responseJsa = NULL;
+static char *responseJsm = NULL;
+
+static size_t lenResponseCss = 0;
+static size_t lenResponseHtm = 0;
+static size_t lenResponseJsm = 0;
+static size_t lenResponseJsa = 0;
 
 void freeFiles(void) {
-	if (responseCss  != NULL) {sodium_free(responseCss);  responseCss  = NULL;}
-	if (responseHtml != NULL) {sodium_free(responseHtml); responseHtml = NULL;}
-	if (responseJsAe != NULL) {sodium_free(responseJsAe); responseJsAe = NULL;}
-	if (responseJsMn != NULL) {sodium_free(responseJsMn); responseJsMn = NULL;}
+	if (responseCss != NULL) sodium_free(responseCss);
+	if (responseHtm != NULL) sodium_free(responseHtm);
+	if (responseJsa != NULL) sodium_free(responseJsa);
+	if (responseJsm != NULL) sodium_free(responseJsm);
 
-	lenResponseCss  = 0;
-	lenResponseHtml = 0;
-	lenResponseJsAe = 0;
-	lenResponseJsMn = 0;
+	lenResponseCss = 0;
+	lenResponseHtm = 0;
+	lenResponseJsa = 0;
+	lenResponseJsm = 0;
 }
 
 __attribute__((warn_unused_result))
-int loadFile(const int type) {
-	const char *path;
-	switch (type) {
-		case AEM_FILETYPE_CSS: path = AEM_PATH_CSS; break;
-		case AEM_FILETYPE_HTML: path = AEM_PATH_HTML; break;
-		case AEM_FILETYPE_JSAE: path = AEM_PATH_JSAE; break;
-		case AEM_FILETYPE_JSMN: path = AEM_PATH_JSMN; break;
-	}
+int setResponse(const int type, const unsigned char * const fileData, const size_t fileSize) {
+	if (lenDomain < 1) return -1;
 
-	const int fd = open(path, O_RDONLY);
-	if (fd == -1) return -1;
+	if (
+		(type == AEM_FILETYPE_CSS && responseCss != NULL)
+	|| (type == AEM_FILETYPE_HTM && responseHtm != NULL)
+	|| (type == AEM_FILETYPE_JSA && responseJsa != NULL)
+	|| (type == AEM_FILETYPE_JSM && responseJsm != NULL)
+	) return -1;
 
-	// TODO for reloading: Free response if not null
+	size_t lenHeaders = (type == AEM_FILETYPE_HTM) ? 1419 + lenDomain * 4 : 350;
 
-	off_t fileBytes = lseek(fd, 0, SEEK_END);
-	if (fileBytes < 1) {close(fd); return -1;}
-
-	char *fileData = malloc(fileBytes);
-	if (fileData == NULL) {close(fd); return -1;}
-
-	int ret = pread(fd, fileData, fileBytes, 0);
-	close(fd);
-	if (ret != fileBytes) {
-		free(fileData);
-		return -1;
-	}
-
-	size_t compressedBytes = fileBytes;
-	ret = brotliCompress(&fileData, (size_t*)&compressedBytes);
-	if (ret != 0) {
-		free(fileData);
-		return -1;
-	}
-
-	size_t lenHeaders = (type == AEM_FILETYPE_HTML) ? 1419 + lenDomain * 4 : 350;
-
-	if (compressedBytes > 99999) {free(fileData); return -1;}
-	else if (compressedBytes > 9999) lenHeaders += 5;
-	else if (compressedBytes > 999)  lenHeaders += 4;
-	else if (compressedBytes > 99)   lenHeaders += 3;
-	else if (compressedBytes > 9)    lenHeaders += 2;
+	if (fileSize > 99999) return -1;
+	else if (fileSize > 9999) lenHeaders += 5;
+	else if (fileSize > 999)  lenHeaders += 4;
+	else if (fileSize > 99)   lenHeaders += 3;
+	else if (fileSize > 9)    lenHeaders += 2;
 	else lenHeaders++;
 
 	char *ct = NULL;
 	size_t lenCt = 0;
 	switch(type) {
 		case AEM_FILETYPE_CSS:  ct = "text/css; charset=utf-8";  lenCt = 23; break;
-		case AEM_FILETYPE_JSAE:
-		case AEM_FILETYPE_JSMN: ct = "application/javascript; charset=utf-8"; lenCt = 37;
+		case AEM_FILETYPE_JSA:
+		case AEM_FILETYPE_JSM: ct = "application/javascript; charset=utf-8"; lenCt = 37;
 	}
 	lenHeaders += lenCt;
 
-	char *response = sodium_malloc(lenHeaders + compressedBytes);
-	if (response == NULL) {
-		free(fileData);
-		return -1;
-	}
+	char *response = sodium_malloc(lenHeaders + fileSize);
+	if (response == NULL) return -1;
 
-	if (type == AEM_FILETYPE_CSS || type == AEM_FILETYPE_JSAE || type == AEM_FILETYPE_JSMN) {
+	if (type == AEM_FILETYPE_CSS || type == AEM_FILETYPE_JSA || type == AEM_FILETYPE_JSM) {
 		sprintf(response,
 			"HTTP/1.1 200 aem\r\n"
 			"Tk: N\r\n"
@@ -113,8 +80,8 @@ int loadFile(const int type) {
 			"X-Robots-Tag: noindex\r\n"
 			"Cross-Origin-Resource-Policy: same-origin\r\n"
 			"\r\n"
-		, (int)lenCt, ct, compressedBytes);
-	} else if (type == AEM_FILETYPE_HTML) {
+		, (int)lenCt, ct, fileSize);
+	} else if (type == AEM_FILETYPE_HTM) {
 		sprintf(response,
 			"HTTP/1.1 200 aem\r\n"
 			"Tk: N\r\n"
@@ -179,30 +146,28 @@ int loadFile(const int type) {
 			"X-Frame-Options: deny\r\n"
 			"X-XSS-Protection: 1; mode=block\r\n"
 			"\r\n"
-		, compressedBytes, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain);
+		, fileSize, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain, (int)lenDomain, domain);
 	}
 
-	memcpy(response + lenHeaders, fileData, compressedBytes);
-	free(fileData);
-
+	memcpy(response + lenHeaders, fileData, fileSize);
 	sodium_mprotect_readonly(response);
 
 	switch(type) {
-		case AEM_FILETYPE_CSS:  responseCss  = response; lenResponseCss  = lenHeaders + compressedBytes; break;
-		case AEM_FILETYPE_HTML: responseHtml = response; lenResponseHtml = lenHeaders + compressedBytes; break;
-		case AEM_FILETYPE_JSAE: responseJsAe = response; lenResponseJsAe = lenHeaders + compressedBytes; break;
-		case AEM_FILETYPE_JSMN: responseJsMn = response; lenResponseJsMn = lenHeaders + compressedBytes; break;
+		case AEM_FILETYPE_CSS: responseCss = response; lenResponseCss = lenHeaders + fileSize; break;
+		case AEM_FILETYPE_HTM: responseHtm = response; lenResponseHtm = lenHeaders + fileSize; break;
+		case AEM_FILETYPE_JSA: responseJsa = response; lenResponseJsa = lenHeaders + fileSize; break;
+		case AEM_FILETYPE_JSM: responseJsm = response; lenResponseJsm = lenHeaders + fileSize; break;
 	}
 
 	return 0;
 }
 
 void https_respond(mbedtls_ssl_context * const ssl, const char * const url, const size_t len) {
-	if (len == 0) return sendData(ssl, responseHtml, lenResponseHtml);
+	if (len == 0 || url == NULL) return sendData(ssl, responseHtm, lenResponseHtm);
 
 	if (len == 14 && memcmp(url, "files/main.css",    len) == 0) return sendData(ssl, responseCss,  lenResponseCss);
-	if (len == 17 && memcmp(url, "files/all-ears.js", len) == 0) return sendData(ssl, responseJsAe, lenResponseJsAe);
-	if (len == 13 && memcmp(url, "files/main.js",     len) == 0) return sendData(ssl, responseJsMn, lenResponseJsMn);
+	if (len == 17 && memcmp(url, "files/all-ears.js", len) == 0) return sendData(ssl, responseJsa, lenResponseJsa);
+	if (len == 13 && memcmp(url, "files/main.js",     len) == 0) return sendData(ssl, responseJsm, lenResponseJsm);
 }
 
 void https_mtasts(mbedtls_ssl_context * const ssl) {
