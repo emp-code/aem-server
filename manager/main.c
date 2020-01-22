@@ -69,7 +69,7 @@ static int getKey(void) {
 
 static int dropBounds(void) {
 	return (
-		cap_drop_bound(CAP_AUDIT_CONTROL) == 0
+	   cap_drop_bound(CAP_AUDIT_CONTROL) == 0
 	&& cap_drop_bound(CAP_AUDIT_READ) == 0
 	&& cap_drop_bound(CAP_AUDIT_WRITE) == 0
 	&& cap_drop_bound(CAP_BLOCK_SUSPEND) == 0
@@ -156,15 +156,15 @@ static int setCaps() {
 
 static int rxbind(const char * const source, const char * const target) {
 	return (
-	mount(source, target, NULL, MS_BIND, "") == 0 &&
-	mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
+	   mount(source, target, NULL, MS_BIND, "") == 0
+	&& mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
 	) ? 0 : -1;
 }
 
 static int rwbind(const char * const source, const char * const target) {
 	return (
-	mount(source, target, NULL, MS_BIND, "") == 0 &&
-	mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
+	   mount(source, target, NULL, MS_BIND, "") == 0
+	&& mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
 	) ? 0 : -1;
 }
 
@@ -221,12 +221,10 @@ static int setMounts(void) {
 	&& lchown(AEM_CHROOT"/dev/urandom", 0, allearsGroup) == 0
 
 	&& mount(NULL, AEM_CHROOT, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME, tmpfs_opts) == 0
-
 	) ? 0 : -1;
 }
 
 static void unsetMounts(void) {
-	// AEM_CHROOT
 	umount(AEM_CHROOT"/usr/bin/allears-web");
 	umount(AEM_CHROOT"/usr/bin/allears-api");
 	umount(AEM_CHROOT"/usr/bin/allears-mta");
@@ -241,7 +239,6 @@ static void unsetMounts(void) {
 
 static int setSignals(void) {
 	return (
-
 	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
 	&& signal(SIGCHLD, SIG_IGN) != SIG_ERR
 	&& signal(SIGHUP,  SIG_IGN) != SIG_ERR
@@ -251,7 +248,6 @@ static int setSignals(void) {
 	&& signal(SIGTERM, killAll) != SIG_ERR
 	&& signal(SIGUSR1, killAll) != SIG_ERR
 	&& signal(SIGUSR2, killAll) != SIG_ERR
-
 	) ? 0 : -1;
 }
 

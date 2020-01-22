@@ -14,6 +14,7 @@
 #define _GNU_SOURCE // for pipe2()
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <linux/securebits.h>
@@ -30,8 +31,6 @@
 #include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
-
-#include <errno.h>
 
 #include "global.h"
 
