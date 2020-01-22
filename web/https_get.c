@@ -74,7 +74,7 @@ int loadFile(const int type) {
 		return -1;
 	}
 
-	size_t lenHeaders = (type == AEM_FILETYPE_HTML) ? 1420 + lenDomain * 4 : 350;
+	size_t lenHeaders = (type == AEM_FILETYPE_HTML) ? 1419 + lenDomain * 4 : 350;
 
 	if (compressedBytes > 99999) {free(fileData); return -1;}
 	else if (compressedBytes > 9999) lenHeaders += 5;
@@ -127,7 +127,7 @@ int loadFile(const int type) {
 			"Content-Length: %zd\r\n"
 
 			"Content-Security-Policy: "
-				"connect-src"     " https://%.*s:7850/api/;"
+				"connect-src"     " https://%.*s:302/api/;"
 				"script-src"      " https://%.*s/files/main.js https://%.*s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
 				"style-src"       " https://%.*s/files/main.css;"
 

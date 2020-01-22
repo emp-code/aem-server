@@ -21,7 +21,7 @@
 #include "https_post.h"
 
 #define AEM_CHROOT "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
-#define AEM_PORT_HTTPS 7850
+#define AEM_PORT_HTTPS 302
 #define AEM_PATH_ADDRKEY "/etc/allears/Address.key"
 #define AEM_PATH_APIKEY "/etc/allears/API.key"
 #define AEM_PATH_TLSKEY "/etc/allears/TLS.key"

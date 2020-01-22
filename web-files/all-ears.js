@@ -14,7 +14,7 @@ function AllEars(domain, readyCallback) {
 
 	let _serverPk;
 
-	fetch("https://" + domain + ":7850/api/pubkey", {
+	fetch("https://" + domain + ":302/api/pubkey", {
 		method: "GET",
 		cache: "no-store",
 		credentials: "omit",
@@ -159,7 +159,7 @@ function AllEars(domain, readyCallback) {
 		postMsg.set(_userKeys.boxPk, 24);
 		postMsg.set(postBox, 24 + _userKeys.boxPk.length);
 
-		_FetchBinary("https://" + domain + ":7850/api/" + url, postMsg, callback);
+		_FetchBinary("https://" + domain + ":302/api/" + url, postMsg, callback);
 	};
 
 	const _GetBit = function(src, bitNum) {

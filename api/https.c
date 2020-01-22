@@ -17,7 +17,7 @@
 
 #define AEM_MAXLEN_DOMAIN 32
 
-#define AEM_MINLEN_POST 76 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:7850\r\nContent-Length: 8264\r\n\r\n
+#define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
 #define AEM_HTTPS_TIMEOUT 30
 
@@ -93,7 +93,7 @@ static int handleRequest(size_t lenReq) {
 	const unsigned char * const host = memmem(req, lenReq, "\r\nHost: ", 8);
 	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (memcmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
-	if (memcmp(host + 8 + lenDomain, ":7850\r\n", 7) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (memcmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
