@@ -7,11 +7,13 @@
 #include <unistd.h> // for write
 #include <string.h> // for memset
 
+#define AEM_PATH_KEY_ACC "Account.key"
 #define AEM_PATH_KEY_ADR "Address.key"
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
 #define AEM_PATH_KEY_STO "Storage.key"
 
+#define AEM_LEN_KEY_ACC crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
@@ -68,6 +70,7 @@ int main(void) {
 	printf("Master Key (hex): %s\n", master_hex);
 	sodium_memzero(master_hex, lenHex);
 
+	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC);
 	writeRandomEncrypted(AEM_PATH_KEY_ADR, AEM_LEN_KEY_ADR);
 	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
