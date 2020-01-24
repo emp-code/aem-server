@@ -49,7 +49,7 @@ static int getKey(void) {
 }
 
 int main(int argc, char *argv[]) {
-	puts("CertCrypt: Encrypt .key or .crt files for All-Ears Mail");
+	puts("CertCrypt: Encrypt TLS certificate and private key files for All-Ears Mail");
 
 	if (argc < 2 || strlen(argv[1]) < 5 || (strcmp(argv[1] + strlen(argv[1]) - 4, ".key") != 0 && strcmp(argv[1] + strlen(argv[1]) - 4, ".crt") != 0)) {
 		puts("Terminating: Use .key or .crt file as parameter");
@@ -73,14 +73,16 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	unsigned char buf[AEM_MAXSIZE_FILE];
-	const off_t bytes = read(fd, buf, AEM_MAXSIZE_FILE);
+	unsigned char buf[AEM_MAXSIZE_FILE + 1];
+	off_t bytes = read(fd, buf, AEM_MAXSIZE_FILE);
 	close(fd);
 	if (bytes < 1) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
 		puts("Terminating: Failed to read file");
 		return EXIT_FAILURE;
 	}
+	bytes++;
+	buf[bytes] = '\0';
 
 	const size_t lenEncrypted = bytes + crypto_secretbox_MACBYTES;
 	unsigned char encrypted[lenEncrypted];
