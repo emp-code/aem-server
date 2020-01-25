@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	int ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
+	ssize_t ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
