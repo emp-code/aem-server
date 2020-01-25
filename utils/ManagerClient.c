@@ -119,13 +119,9 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "C");
 
-	if (argc < 2) {
-		puts("Usage: ManagerClient domain.tld instructions");
-		return EXIT_FAILURE;
-	}
-
-	if (loadKey() != 0) return EXIT_FAILURE;
-	puts("Key OK");
+	if (argc < 2) {puts("Usage: ManagerClient domain.tld instructions"); return EXIT_FAILURE;}
+	if (sodium_init() == -1) {puts("Terminating: Failed to init libsodium"); return EXIT_FAILURE;}
+	if (loadKey() != 0) {puts("Terminating: Failed to load key"); return EXIT_FAILURE;}
 
 	int sock = makeSocket(argv[1]);
 	if (sock < 1) return EXIT_FAILURE;
