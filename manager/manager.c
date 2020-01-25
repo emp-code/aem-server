@@ -201,7 +201,7 @@ void killAll(int sig) {
 	}
 
 	refreshPids();
-	rmdir("/tmp/allears");
+	rmdir(AEM_CHROOT_TMP);
 	exit(EXIT_SUCCESS);
 }
 
@@ -317,7 +317,7 @@ static int dropRoot(const pid_t pid) {
 	const struct passwd * const p = getpwnam("allears");
 
 	char dir[50];
-	sprintf(dir, "/tmp/allears/%d", pid);
+	sprintf(dir, AEM_CHROOT_TMP"/%d", pid);
 
 	return (
 	   p != NULL

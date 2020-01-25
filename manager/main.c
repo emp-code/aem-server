@@ -192,7 +192,7 @@ int main(void) {
 	if (setCaps()    != 0) return 9;
 	if (dropBounds() != 0) return 10;
 
-	if (mkdir(AEM_CHROOT_TMP, 0) != 0) {puts("Terminating: /tmp/allears exists"); return 11;}
+	if (mkdir(AEM_CHROOT_TMP, 0) != 0) {printf("Terminating: %s exists\n", AEM_CHROOT_TMP); return 11;}
 	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 12;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 13;}
 
