@@ -139,13 +139,13 @@ static int pipeLoadTls(const int fd) {
 
 	mbedtls_x509_crt_init(&tlsCrt);
 	int ret = mbedtls_x509_crt_parse(&tlsCrt, tls_crt, len_tls_crt);
-	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_x509_crt_parse returned %d\n", ret); return -1;}
+	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_x509_crt_parse returned %d\n", ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
 	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
-	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_pk_parse_key returned %d\n", ret); return -1;}
+	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_pk_parse_key returned %d\n", ret); return -1;}
 
-	if (getDomainFromCert() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed to get domain from certificate"); return -1;}
+	if (getDomainFromCert() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed to get domain from certificate"); return -1;}
 
 	return 0;
 }
