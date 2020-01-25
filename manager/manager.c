@@ -46,9 +46,11 @@
 #define AEM_MAXPROCESSES 25
 
 #define AEM_PATH_CONF "/etc/allears"
+#define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
 #define AEM_PATH_KEY_ADR AEM_PATH_CONF"/Address.key"
 #define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
 #define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
+#define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
 
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
 #define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
@@ -59,15 +61,24 @@
 #define AEM_PATH_WEB_JSM AEM_PATH_CONF"/main.js"
 
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
+#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
+#define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
+#define AEM_LEN_KEY_STO 32
 #define AEM_LEN_FILE_MAX 8192
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
+static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_storage_api[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_storage_mta[AEM_LEN_ACCESSKEY];
+static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_adr[AEM_LEN_KEY_ADR];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
+static unsigned char key_sto[AEM_LEN_KEY_STO];
 
 static unsigned char tls_crt[AEM_LEN_FILE_MAX];
 static unsigned char tls_key[AEM_LEN_FILE_MAX];
@@ -97,11 +108,24 @@ void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
 	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
 }
 
+void setAccessKeys(void) {
+	randombytes_buf(accessKey_account_api, AEM_LEN_ACCESSKEY);
+	randombytes_buf(accessKey_account_mta, AEM_LEN_ACCESSKEY);
+	randombytes_buf(accessKey_storage_api, AEM_LEN_ACCESSKEY);
+	randombytes_buf(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
+}
+
 void wipeKeys(void) {
 	sodium_memzero(master, AEM_LEN_KEY_MASTER);
+	sodium_memzero(accessKey_account_api, AEM_LEN_ACCESSKEY);
+	sodium_memzero(accessKey_account_mta, AEM_LEN_ACCESSKEY);
+	sodium_memzero(accessKey_storage_api, AEM_LEN_ACCESSKEY);
+	sodium_memzero(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
+	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_adr, AEM_LEN_KEY_ADR);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
+	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
 
 	sodium_memzero(tls_crt, len_tls_crt);
 	sodium_memzero(tls_key, len_tls_key);
@@ -230,9 +254,11 @@ static int loadFile(const char * const path, unsigned char *target, size_t * con
 
 int loadFiles(void) {
 	return (
-	   loadFile(AEM_PATH_KEY_ADR, key_adr, NULL, AEM_LEN_KEY_ADR) == 0
+	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC) == 0
+	&& loadFile(AEM_PATH_KEY_ADR, key_adr, NULL, AEM_LEN_KEY_ADR) == 0
 	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API) == 0
 	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG) == 0
+	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO) == 0
 
 	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0) == 0
 	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0) == 0
@@ -382,6 +408,23 @@ static void process_spawn(const int type) {
 	close(fd[0]);
 
 	switch(type) {
+		case AEM_PROCESSTYPE_ACCOUNT:
+			if (
+			   write(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
+			|| write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+			|| write(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| write(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
+			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+		break;
+
+		case AEM_PROCESSTYPE_STORAGE:
+			if (
+			   write(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
+			|| write(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| write(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
+			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+		break;
+
 		case AEM_PROCESSTYPE_API:
 			if (
 			   write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
@@ -513,6 +556,8 @@ int receiveConnections(void) {
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	if (initSocket(&sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
+
+	setAccessKeys();
 
 	while (!terminate) {
 		sockClient = accept(sockMain, NULL, NULL);
