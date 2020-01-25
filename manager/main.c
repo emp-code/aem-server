@@ -23,12 +23,9 @@
 #include <sodium.h>
 
 #include "global.h"
+#include "mount.h"
 
 #include "manager.h"
-
-#define AEM_MODE_RO S_IRUSR | S_IRGRP
-#define AEM_MODE_RW S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
-#define AEM_MODE_RX S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP
 
 static void toggleEcho(const bool on) {
 	struct termios t;
@@ -154,89 +151,6 @@ static int setCaps() {
 	) ? 0 : -1;
 }
 
-static int rxbind(const char * const source, const char * const target) {
-	return (
-	   mount(source, target, NULL, MS_BIND, "") == 0
-	&& mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
-	) ? 0 : -1;
-}
-
-static int rwbind(const char * const source, const char * const target) {
-	return (
-	   mount(source, target, NULL, MS_BIND, "") == 0
-	&& mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_NOEXEC | MS_NOSUID | MS_NODEV | MS_NOATIME, NULL) == 0
-	) ? 0 : -1;
-}
-
-static int setMounts(void) {
-	const struct passwd * const p = getpwnam("allears");
-	gid_t allearsGroup = p->pw_gid;
-
-	char tmpfs_opts[50];
-	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
-
-	umask(0);
-
-	return (
-	   mkdir(AEM_CHROOT, 0) == 0
-	&& mount("tmpfs", AEM_CHROOT, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) == 0
-
-	&& mkdir(AEM_CHROOT"/usr",     AEM_MODE_RX) == 0
-	&& mkdir(AEM_CHROOT"/usr/bin", AEM_MODE_RX) == 0
-	&& mkdir(AEM_CHROOT"/dev",     AEM_MODE_RX) == 0
-	&& lchown(AEM_CHROOT"/usr",     0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/usr/bin", 0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/dev",     0, allearsGroup) == 0
-
-	&& mkdir(AEM_CHROOT"/lib",       0) == 0
-	&& mkdir(AEM_CHROOT"/lib64",     0) == 0
-	&& mkdir(AEM_CHROOT"/usr/lib",   0) == 0
-	&& mkdir(AEM_CHROOT"/usr/lib64", 0) == 0
-
-	&& rxbind("/lib",       AEM_CHROOT"/lib")       == 0
-	&& rxbind("/lib64",     AEM_CHROOT"/lib64")     == 0
-	&& rxbind("/usr/lib",   AEM_CHROOT"/usr/lib")   == 0
-	&& rxbind("/usr/lib64", AEM_CHROOT"/usr/lib64") == 0
-
-	&& mknod(AEM_CHROOT"/usr/bin/allears-api", S_IFREG, 0) == 0
-	&& mknod(AEM_CHROOT"/usr/bin/allears-mta", S_IFREG, 0) == 0
-	&& mknod(AEM_CHROOT"/usr/bin/allears-web", S_IFREG, 0) == 0
-	&& rxbind("/usr/bin/allears/allears-api", AEM_CHROOT"/usr/bin/allears-api") == 0
-	&& rxbind("/usr/bin/allears/allears-mta", AEM_CHROOT"/usr/bin/allears-mta") == 0
-	&& rxbind("/usr/bin/allears/allears-web", AEM_CHROOT"/usr/bin/allears-web") == 0
-
-	&& mknod(AEM_CHROOT"/dev/log", S_IFREG, 0) == 0
-	&& rwbind("/dev/log", AEM_CHROOT"/dev/log") == 0
-
-	&& mknod(AEM_CHROOT"/dev/null",    S_IFCHR | AEM_MODE_RW, makedev(1, 3)) == 0
-	&& mknod(AEM_CHROOT"/dev/zero",    S_IFCHR | AEM_MODE_RW, makedev(1, 5)) == 0
-	&& mknod(AEM_CHROOT"/dev/full",    S_IFCHR | AEM_MODE_RW, makedev(1, 7)) == 0
-	&& mknod(AEM_CHROOT"/dev/random",  S_IFCHR | AEM_MODE_RW, makedev(1, 8)) == 0
-	&& mknod(AEM_CHROOT"/dev/urandom", S_IFCHR | AEM_MODE_RW, makedev(1, 9)) == 0
-
-	&& lchown(AEM_CHROOT"/dev/null",    0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/dev/zero",    0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/dev/full",    0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/dev/random",  0, allearsGroup) == 0
-	&& lchown(AEM_CHROOT"/dev/urandom", 0, allearsGroup) == 0
-
-	&& mount(NULL, AEM_CHROOT, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME, tmpfs_opts) == 0
-	) ? 0 : -1;
-}
-
-static void unsetMounts(void) {
-	umount(AEM_CHROOT"/usr/bin/allears-web");
-	umount(AEM_CHROOT"/usr/bin/allears-api");
-	umount(AEM_CHROOT"/usr/bin/allears-mta");
-	umount(AEM_CHROOT"/lib");
-	umount(AEM_CHROOT"/lib64");
-	umount(AEM_CHROOT"/usr/lib");
-	umount(AEM_CHROOT"/usr/lib64");
-	umount(AEM_CHROOT"/dev/log");
-	umount(AEM_CHROOT); // tmpfs, unmounting discards data
-	rmdir(AEM_CHROOT);
-}
-
 static int setSignals(void) {
 	return (
 	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
@@ -278,8 +192,8 @@ int main(void) {
 	if (setCaps()    != 0) return 9;
 	if (dropBounds() != 0) return 10;
 
-	if (setMounts() != 0) {puts("Terminating: Failed to setup mounts"); return 11;}
-	if (getKey()    != 0) {puts("Terminating: Failed reading Master Key"); return 12;}
+	if (mkdir(AEM_CHROOT_TMP, 0) != 0) {puts("Terminating: /tmp/allears exists"); return 11;}
+	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 12;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 13;}
 
 	puts("Ready");
@@ -289,7 +203,5 @@ int main(void) {
 	close(STDERR_FILENO);
 
 	const int ret = receiveConnections();
-
-	unsetMounts();
 	return ret;
 }

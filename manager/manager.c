@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 #include "global.h"
+#include "mount.h"
 
 #include "manager.h"
 
@@ -41,10 +42,6 @@
 
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-
-#define AEM_PROCESSTYPE_MTA 0
-#define AEM_PROCESSTYPE_WEB 1
-#define AEM_PROCESSTYPE_API 2
 
 #define AEM_MAXPROCESSES 25
 
@@ -158,7 +155,10 @@ static bool process_verify(const pid_t pid) {
 static void refreshPids(void) {
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (!process_verify(pids[type][i])) pids[type][i] = 0;
+			if (!process_verify(pids[type][i])) {
+				deleteMount(pids[type][i], type);
+				pids[type][i] = 0;
+			}
 		}
 	}
 }
@@ -200,8 +200,9 @@ void killAll(int sig) {
 		}
 	}
 
-	if (sig == SIGUSR2) exit(EXIT_SUCCESS);
-	terminate = true;
+	refreshPids();
+	rmdir("/tmp/allears");
+	exit(EXIT_SUCCESS);
 }
 
 static int loadFile(const char * const path, unsigned char *target, size_t * const len, const off_t expectedLen) {
@@ -243,41 +244,66 @@ int loadFiles(void) {
 	) ? 0 : -1;
 }
 
-// Drop all unneeded capabilities and privileges, but allow service port binds
-static int setBindCap() {
+static int setCaps(const int type) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	// Make CAP_NET_BIND_SERVICE ambient
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0)                != 0) return -1;
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0) != 0) return -1;
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		// Make CAP_NET_BIND_SERVICE ambient
+		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0)                != 0) return -1;
+		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0) != 0) return -1;
 
-	// Allow changing SecureBits for the next part
-	const cap_value_t capPcap = CAP_SETPCAP;
-	cap_t caps = cap_get_proc();
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
+		// Allow changing SecureBits for the next part
+		const cap_value_t capPcap = CAP_SETPCAP;
+		cap_t caps = cap_get_proc();
+		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
 
-	// Disable and lock further ambient caps
-	const int ret = prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED);
-	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed to set SecureBits"); return -1;}
+		// Disable and lock further ambient caps
+		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed to set SecureBits");
+			return -1;
+		}
 
-	// Disable all but the one capability needed
-	const cap_value_t capBind = CAP_NET_BIND_SERVICE;
-	return (
-	   cap_clear(caps) == 0
-	&& cap_set_flag(caps, CAP_INHERITABLE, 1, &capBind, CAP_SET) == 0
-	&& cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) == 0
-	&& cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) == 0
-	&& cap_set_proc(caps) == 0
-	&& cap_free(caps) == 0
-	) ? 0 : -1;
+		// Disable all but the one capability needed
+		const cap_value_t capBind = CAP_NET_BIND_SERVICE;
+		return (
+			cap_clear(caps) == 0
+		&& cap_set_flag(caps, CAP_INHERITABLE, 1, &capBind, CAP_SET) == 0
+		&& cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) == 0
+		&& cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) == 0
+		&& cap_set_proc(caps) == 0
+		&& cap_free(caps) == 0
+		) ? 0 : -1;
+	} else if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) {
+		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
+
+		// Allow changing SecureBits for the next part
+		const cap_value_t capPcap = CAP_SETPCAP;
+		cap_t caps = cap_get_proc();
+		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
+
+		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed to set SecureBits");
+			return -1;
+		}
+
+		return (
+			cap_clear(caps) == 0
+		&& cap_set_proc(caps) == 0
+		&& cap_free(caps) == 0
+		) ? 0 : -1;
+	}
+
+	return -1;
 }
 
-static int setSubLimits() {
+static int setSubLimits(const int type) {
 	struct rlimit rlim;
 
-	rlim.rlim_cur = 0;
-	rlim.rlim_max = 0;
-	if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		rlim.rlim_cur = 0;
+		rlim.rlim_max = 0;
+		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
+	}
 
 	rlim.rlim_cur = 10;
 	rlim.rlim_max = 10;
@@ -287,13 +313,16 @@ static int setSubLimits() {
 }
 
 __attribute__((warn_unused_result))
-static int dropRoot(void) {
+static int dropRoot(const pid_t pid) {
 	const struct passwd * const p = getpwnam("allears");
+
+	char dir[50];
+	sprintf(dir, "/tmp/allears/%d", pid);
 
 	return (
 	   p != NULL
 
-	&& chroot(AEM_CHROOT) == 0
+	&& chroot(dir) == 0
 	&& chdir("/") == 0
 
 	&& setgroups(0, NULL) == 0
@@ -308,14 +337,16 @@ static int dropRoot(void) {
 static void process_spawn(const int type) {
 	int freeSlot = -1;
 
-	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-		if (pids[type][i] == 0) {
-			freeSlot = i;
-			break;
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
+			if (pids[type][i] == 0) {
+				freeSlot = i;
+				break;
+			}
 		}
-	}
 
-	if (freeSlot < 0) return;
+		if (freeSlot < 0) return;
+	}
 
 	int fd[2];
 	if (pipe2(fd, O_DIRECT) < 0) return;
@@ -325,12 +356,14 @@ static void process_spawn(const int type) {
 
 	if (pid == 0) { // Child process
 		wipeKeys();
+		pid = getpid();
 
 		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed prctl()"); exit(EXIT_FAILURE);}
 		if (close(sockClient) != 0 || close(sockMain) != 0 || close(fd[1]) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed closing fds"); exit(EXIT_FAILURE);}
-		if (setSubLimits() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
-		if (dropRoot() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed dropRoot()"); exit(EXIT_FAILURE);}
-		if (setBindCap() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setBindCap()"); exit(EXIT_FAILURE);}
+		if (createMount(pid, type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed createMount()"); exit(EXIT_FAILURE);}
+		if (setSubLimits(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
+		if (dropRoot(pid) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed dropRoot()"); exit(EXIT_FAILURE);}
+		if (setCaps(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
 		char arg1[] = {fd[0], '\0'};
 		char * const newargv[] = {arg1, NULL};
