@@ -32,9 +32,6 @@ static unsigned char *tls_key;
 static size_t len_tls_crt;
 static size_t len_tls_key;
 
-char domain[AEM_MAXLEN_HOST];
-size_t lenDomain;
-
 static bool terminate = false;
 
 static void sigTerm(int sig) {
@@ -105,11 +102,7 @@ static int getDomainFromCert() {
 	if (c == NULL) return -1;
 	c += 5;
 
-	lenDomain = strlen(c);
-	if (lenDomain > AEM_MAXLEN_HOST) return -1;
-
-	memcpy(domain, c, lenDomain);
-	return 0;
+	return setDomain(c, strlen(c));
 }
 
 __attribute__((warn_unused_result))
