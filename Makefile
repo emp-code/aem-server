@@ -6,6 +6,9 @@ all: allears-manager allears-api allears-web allears-mta
 allears-manager: manager/*.c
 	$(CC) $(CFLAGS) -o allears-manager manager/*.c -lsodium -lcap
 
+allears-account: account/*.c
+	$(CC) $(CFLAGS) -o allears-account account/*.c -lsodium -Wno-error=unused-function
+
 allears-api: api/*.c
 	$(CC) $(CFLAGS) -o allears-api api/*.c api/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lsqlite3
 

@@ -1,0 +1,379 @@
+#include <fcntl.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <syslog.h>
+#include <signal.h>
+#include <errno.h>
+#include <unistd.h>
+
+#include <sodium.h>
+
+#define AEM_ADDR_EXTMSG 0
+#define AEM_ADDR_INTMSG 1
+#define AEM_ADDR_USE_GK 2
+
+#define AEM_ADDRESS_ARGON2_OPSLIMIT 3
+#define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
+
+#define AEM_LEN_PERSONAL (4096 - crypto_box_PUBLICKEYBYTES - 5)
+
+#define AEM_API_GETUSERINFO 50
+#define AEM_API_GETADMINDATA 51
+
+#define AEM_USERLEVEL_MAX 3
+
+#define AEM_PATH_ADDR "Addr.aem"
+#define AEM_PATH_USER "User.aem"
+
+#define AEM_LIMIT_MIB 0
+#define AEM_LIMIT_NRM 1
+#define AEM_LIMIT_SHD 2
+
+unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
+//	 MiB, Nrm, Shd | MiB = value + 1; 1-256 MiB
+	{31,  0,   5},
+	{63,  5,   25},
+	{127, 25,  100},
+	{255, 100, 250} // Admin
+};
+
+struct aem_user {
+	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
+	uint16_t userId; // Max 65,536 users
+	unsigned char level;
+	unsigned char addrNormal;
+	unsigned char addrShield;
+	unsigned char personal[AEM_LEN_PERSONAL];
+};
+
+struct aem_addr {
+	unsigned char hash[13];
+	uint16_t userId;
+	unsigned char flags;
+};
+
+static struct aem_user *user = NULL;
+static struct aem_addr *addr = NULL;
+
+static int userCount = -1;
+static int addrCount = -1;
+
+static unsigned char accessKey_api[crypto_secretbox_KEYBYTES];
+static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
+
+static unsigned char accountKey[crypto_secretbox_KEYBYTES];
+static unsigned char addressKey[crypto_pwhash_SALTBYTES];
+
+static bool terminate = false;
+
+static void sigTerm(int sig) {
+	if (sig != SIGUSR2) {
+		terminate = true;
+		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
+		return;
+	}
+
+	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
+	sodium_memzero(addressKey, crypto_pwhash_SALTBYTES);
+
+	sodium_memzero(user, sizeof(struct aem_user) * userCount);
+	free(user);
+
+	if (addr != NULL) {
+		sodium_memzero(addr, sizeof(struct aem_addr) * addrCount);
+		free(addr);
+	}
+
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	exit(EXIT_SUCCESS);
+}
+
+// === Save and load functions
+
+static int saveUser() {
+	if (userCount <= 0) return -1;
+
+	size_t len = userCount * sizeof(struct aem_user);
+	size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
+	unsigned char *encrypted = malloc(lenEncrypted);
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, len, encrypted, accountKey);
+
+	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC);
+	if (fd < 0) {free(encrypted); return -1;}
+	if (write(fd, encrypted, lenEncrypted) != (ssize_t)lenEncrypted) {free(encrypted); return -1;}
+	free(encrypted);
+	close(fd);
+
+	return 0;
+}
+
+static int saveAddr() {
+	if (addrCount <= 0) return -1;
+
+	size_t len = addrCount * sizeof(struct aem_addr);
+	size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
+	unsigned char *encrypted = malloc(lenEncrypted);
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)addr, len, encrypted, accountKey);
+
+	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC);
+	if (fd < 0) {free(encrypted); return -1;}
+	if (write(fd, encrypted, lenEncrypted) != (ssize_t)lenEncrypted) {free(encrypted); return -1;}
+	free(encrypted);
+	close(fd);
+
+	return 0;
+}
+
+static int loadAddr(void) {
+	if (addrCount >= 0) return -1;
+
+	const int fd = open(AEM_PATH_ADDR, O_RDONLY);
+	if (fd < 0) {
+		return -1;
+	}
+
+	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
+	if (lenEncrypted < 0) {
+		close(fd);
+		return -1;
+	}
+
+	const size_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+	if (lenDecrypted < sizeof(struct aem_addr) || lenDecrypted % sizeof(struct aem_addr) != 0) {
+		close(fd);
+		return -1;
+	}
+
+	unsigned char encrypted[lenEncrypted];
+	if (pread(fd, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		close(fd);
+		return -1;
+	}
+	close(fd);
+
+	addr = malloc(lenDecrypted);
+
+	if (crypto_secretbox_open_easy((unsigned char*)addr, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
+		free(addr);
+		return -1;
+	}
+
+	addrCount = lenDecrypted / sizeof(struct aem_addr);
+	return 0;
+}
+
+static int loadUser(void) {
+	if (userCount != 0) return -1;
+
+	const int fd = open(AEM_PATH_USER, O_RDONLY);
+	if (fd < 0) {
+		return -1;
+	}
+
+	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
+	if (lenEncrypted < 0) {
+		close(fd);
+		return -1;
+	}
+
+	const size_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+	if (lenDecrypted < sizeof(struct aem_user) || lenDecrypted % sizeof(struct aem_user) != 0) {
+		close(fd);
+		return -1;
+	}
+
+	unsigned char encrypted[lenEncrypted];
+	if (pread(fd, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		close(fd);
+		return -1;
+	}
+	close(fd);
+
+	user = malloc(lenDecrypted);
+
+	if (crypto_secretbox_open_easy((unsigned char*)user, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
+		free(user);
+		return -1;
+	}
+
+	userCount = lenDecrypted / sizeof(struct aem_user);
+	return 0;
+}
+
+// === Address functions
+
+/*
+static int genShieldAddress(const uint64_t upk64) {
+//	randombytes_buf(
+
+	return 0;
+}
+*/
+
+// === Other functions
+
+__attribute__((warn_unused_result))
+static int addressToHash(const unsigned char * const addr, unsigned char * const target) {
+	if (addr == NULL || target == NULL) return -1;
+
+	unsigned char tmp[16];
+	return crypto_pwhash(tmp, 16, (const char * const)addr, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13);
+	memcpy(target, tmp, 13);
+}
+
+static int getUserNum(const uint16_t id) {
+	for (int i = 0; i < userCount; i++) {
+		if (user[i].userId == id) return i;
+	}
+
+	return -1;
+}
+
+/*
+static int addressToUpk(const unsigned char * const src, unsigned char * const upk, unsigned char * const flags) { // getPublicKeyFromAddress
+	if (src == NULL || upk == NULL) return -1;
+
+	unsigned char cmp[13];
+	if (addressToHash(src, cmp) == 0) {
+		for (int i = 0; i < addrCount; i++) {
+			if (memcmp(cmp, addr[i].hash, 13)) {
+				const int num = getUserNum(addr[i].userId);
+				if (num < 0) return -1;
+
+				memcpy(upk, user[num].pubkey, crypto_box_PUBLICKEYBYTES);
+				return 0;
+			}
+		}
+	}
+
+	return -1;
+}
+*/
+
+static int api_getUserInfo(const int sock) {
+	unsigned char upk[crypto_box_PUBLICKEYBYTES];
+	if (recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return -1;
+
+	int num = -1;
+	for (int i = 0; i < userCount; i++) {
+		if (memcmp(upk, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+			num = i;
+			break;
+		}
+	}
+	if (num < 0) return -1;
+
+	unsigned char response[13 + AEM_LEN_PERSONAL];
+	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
+	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
+	response[6] = limits[2][0]; response[7]  = limits[2][1]; response[8]  = limits[2][2];
+	response[9] = limits[3][0]; response[10] = limits[3][1]; response[11] = limits[3][2];
+
+	response[12] = user[num].level;
+	memcpy(response + 13, user[num].personal, AEM_LEN_PERSONAL);
+
+	send(sock, response, 13 + AEM_LEN_PERSONAL, 0);
+	return 0;
+}
+
+static int takeConnections() {
+	const int sockMain = socket(AF_UNIX, SOCK_STREAM, 0);
+
+	struct sockaddr_un local;
+	local.sun_family = AF_UNIX;
+	strcpy(local.sun_path, "Account.socket");
+	unlink(local.sun_path);
+	bind(sockMain, (struct sockaddr *)&local, strlen(local.sun_path) + sizeof(local.sun_family));
+
+	listen(sockMain, 50);
+
+	while (!terminate) {
+		const int sockClient = accept(sockMain, NULL, NULL);
+		if (sockClient < 0) continue;
+
+		const size_t bufLen = 1 + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
+		unsigned char buf[bufLen];
+
+		if (recv(sockClient, buf, bufLen, 0) == bufLen) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Invalid connection");
+			close(sockClient);
+			continue;
+		}
+
+		unsigned char req;
+		if (crypto_secretbox_open_easy(&req, buf + crypto_secretbox_NONCEBYTES, 1 + crypto_secretbox_MACBYTES, buf, accessKey_api) == 0) {
+			switch (req) {
+				case AEM_API_GETUSERINFO: api_getUserInfo(sockClient); break;
+				//case AEM_API_GETADMINDATA: api_getAdminData(sockClient); break;
+				//default: // Invalid
+			}
+
+			close(sockClient);
+			continue;
+		}
+
+		if (crypto_secretbox_open_easy(&req, buf + crypto_secretbox_NONCEBYTES, 1 + crypto_secretbox_MACBYTES, buf, accessKey_api) == 0) {
+			switch (req) {
+				//case AEM_MTA_: mta_(sockClient); break;
+				//case AEM_MTA_: mta_(sockClient); break;
+				//default: // Invalid
+			}
+
+			close(sockClient);
+			continue;
+		}
+
+		close(sockClient);
+		syslog(LOG_MAIL | LOG_NOTICE, "Invalid request");
+	}
+
+	return 0;
+}
+
+__attribute__((warn_unused_result))
+static int pipeLoad(const int fd) {
+	return (
+	   read(fd, accountKey,    crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	&& read(fd, addressKey,    crypto_pwhash_SALTBYTES)   == crypto_pwhash_SALTBYTES
+	&& read(fd, accessKey_api, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	&& read(fd, accessKey_mta, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	) ? 0 : -1;
+}
+
+static int setSignals(void) {
+	return (
+	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
+
+	&& signal(SIGINT,  sigTerm) != SIG_ERR
+	&& signal(SIGQUIT, sigTerm) != SIG_ERR
+	&& signal(SIGTERM, sigTerm) != SIG_ERR
+	&& signal(SIGUSR1, sigTerm) != SIG_ERR
+	&& signal(SIGUSR2, sigTerm) != SIG_ERR
+	) ? 0 : -1;
+}
+
+int main(int argc, char *argv[]) {
+	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
+	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+
+	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
+	close(argv[0][0]);
+
+	loadUser();
+//	loadAddr();
+
+	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+	takeConnections();
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
+	return EXIT_SUCCESS;
+}

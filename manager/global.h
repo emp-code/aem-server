@@ -1,6 +1,4 @@
-#define AEM_CHROOT_TMP "/tmp/allears"
-#define AEM_CHROOT_ACCOUNT "/var/lib/allears/account"
-#define AEM_CHROOT_STORAGE "/var/lib/allears/storage"
+#define AEM_CHROOT "/tmp/allears"
 
 #define AEM_PROCESSTYPE_MTA 0
 #define AEM_PROCESSTYPE_WEB 1

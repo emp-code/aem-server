@@ -95,6 +95,8 @@ static size_t len_web_jsa;
 static size_t len_web_jsm;
 
 static pid_t pids[3][AEM_MAXPROCESSES];
+static pid_t pid_account = 0;
+static pid_t pid_storage = 0;
 
 static unsigned char encrypted[AEM_LEN_ENCRYPTED];
 static unsigned char decrypted[AEM_LEN_MSG];
@@ -117,10 +119,12 @@ void setAccessKeys(void) {
 
 void wipeKeys(void) {
 	sodium_memzero(master, AEM_LEN_KEY_MASTER);
+
 	sodium_memzero(accessKey_account_api, AEM_LEN_ACCESSKEY);
 	sodium_memzero(accessKey_account_mta, AEM_LEN_ACCESSKEY);
 	sodium_memzero(accessKey_storage_api, AEM_LEN_ACCESSKEY);
 	sodium_memzero(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
+
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_adr, AEM_LEN_KEY_ADR);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
@@ -148,6 +152,8 @@ void wipeKeys(void) {
 }
 
 static bool process_verify(const pid_t pid) {
+	if (pid < 1) return false;
+
 	char path[22];
 	sprintf(path, "/proc/%u/stat", pid);
 	const int fd = open(path, O_RDONLY);
@@ -185,11 +191,23 @@ static void refreshPids(void) {
 			}
 		}
 	}
+
+	if (!process_verify(pid_account)) {
+		deleteMount(pid_account, AEM_PROCESSTYPE_ACCOUNT);
+		pid_account = 0;
+	}
+
+	if (!process_verify(pid_storage)) {
+		deleteMount(pid_storage, AEM_PROCESSTYPE_STORAGE);
+		pid_storage = 0;
+	}
+
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
 void killAll(int sig) {
 	wipeKeys();
+	refreshPids();
 
 	if (sig != SIGUSR1 && sig != SIGUSR2) sig = SIGUSR1;
 
@@ -201,6 +219,9 @@ void killAll(int sig) {
 
 	if (sig == SIGUSR1) {
 		// TODO: Connect to each service to make sure they'll terminate
+	} else {
+		if (pid_account > 0) kill(pid_account, SIGUSR2);
+//		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
 	}
 
 	// Processes should have terminated after one second
@@ -214,6 +235,9 @@ void killAll(int sig) {
 			}
 		}
 
+		if (pid_account > 0) kill(pid_account, SIGUSR1);
+//		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
+
 		sleep(1);
 		refreshPids();
 	}
@@ -224,8 +248,15 @@ void killAll(int sig) {
 		}
 	}
 
+	if (pid_account > 0) kill(pid_account, SIGUSR2);
+//	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+
+	sleep(1);
 	refreshPids();
-	rmdir(AEM_CHROOT_TMP);
+	if (pid_account > 0) kill(pid_account, SIGKILL);
+//	if (pid_storage > 0) kill(pid_storage, SIGKILL);
+
+	rmdir(AEM_CHROOT);
 	exit(EXIT_SUCCESS);
 }
 
@@ -343,7 +374,7 @@ static int dropRoot(const pid_t pid) {
 	const struct passwd * const p = getpwnam("allears");
 
 	char dir[50];
-	sprintf(dir, AEM_CHROOT_TMP"/%d", pid);
+	sprintf(dir, AEM_CHROOT"/%d", pid);
 
 	return (
 	   p != NULL
@@ -384,8 +415,12 @@ static void process_spawn(const int type) {
 		wipeKeys();
 		pid = getpid();
 
+		if (close(fd[1]) != 0 || ((type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) && (close(sockClient) != 0 || close(sockMain) != 0))) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed closing fds");
+			exit(EXIT_FAILURE);
+		}
+
 		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed prctl()"); exit(EXIT_FAILURE);}
-		if (close(sockClient) != 0 || close(sockMain) != 0 || close(fd[1]) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed closing fds"); exit(EXIT_FAILURE);}
 		if (createMount(pid, type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed createMount()"); exit(EXIT_FAILURE);}
 		if (setSubLimits(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 		if (dropRoot(pid) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed dropRoot()"); exit(EXIT_FAILURE);}
@@ -397,6 +432,8 @@ static void process_spawn(const int type) {
 			case AEM_PROCESSTYPE_WEB: execv("usr/bin/allears-web", newargv); break; 
 			case AEM_PROCESSTYPE_API: execv("usr/bin/allears-api", newargv); break; 
 			case AEM_PROCESSTYPE_MTA: execv("usr/bin/allears-mta", newargv); break;
+			case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
+			case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
 		}
 
 		// Only runs if exec failed
@@ -459,7 +496,12 @@ static void process_spawn(const int type) {
 
 	close(fd[1]);
 
-	pids[type][freeSlot] = pid;
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		pids[type][freeSlot] = pid;
+	}
+	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
+	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
+
 }
 
 static void process_kill(const int type, const pid_t pid, const int sig) {
@@ -552,12 +594,13 @@ static void setSocketTimeout(const int sock) {
 }
 
 int receiveConnections(void) {
+	setAccessKeys();
+	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
+
 	sockMain = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	if (initSocket(&sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
-
-	setAccessKeys();
 
 	while (!terminate) {
 		sockClient = accept(sockMain, NULL, NULL);
