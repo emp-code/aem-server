@@ -156,19 +156,19 @@ static int pipeLoadFiles(const int fd) {
 	unsigned char *buf;
 	size_t len;
 
-	return (
-	   pipeRead(fd, &buf, &len) == 0
-	&& setResponse(AEM_FILETYPE_CSS, buf, len) == 0
+	if (pipeRead(fd, &buf, &len) != 0) return -1;
+	setResponse(AEM_FILETYPE_CSS, buf, len);
 
-	&& pipeRead(fd, &buf, &len) == 0
-	&& setResponse(AEM_FILETYPE_HTM, buf, len) == 0
+	if (pipeRead(fd, &buf, &len) != 0) return -1;
+	setResponse(AEM_FILETYPE_HTM, buf, len);
 
-	&& pipeRead(fd, &buf, &len) == 0
-	&& setResponse(AEM_FILETYPE_JSA, buf, len) == 0
+	if (pipeRead(fd, &buf, &len) != 0) return -1;
+	setResponse(AEM_FILETYPE_JSA, buf, len);
 
-	&& pipeRead(fd, &buf, &len) == 0
-	&& setResponse(AEM_FILETYPE_JSM, buf, len) == 0
-	) ? 0 : -1;
+	if (pipeRead(fd, &buf, &len) != 0) return -1;
+	setResponse(AEM_FILETYPE_JSM, buf, len);
+
+	return 0;
 }
 
 static void setSocketTimeout(const int sock) {
