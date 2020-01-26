@@ -131,8 +131,8 @@ static void userViolation(const int64_t upk64, const int violation) {
 */
 
 static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char upk[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != 1) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
+	if (lenDecrypted != 1) return;
 
 	const size_t lenBody = 18 + AEM_LEN_PERSONAL + AEM_MAXMSGTOTALSIZE;
 	const size_t lenHead = 223 + numDigits(lenBody);
