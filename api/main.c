@@ -1,58 +1,83 @@
 #include <arpa/inet.h>
-#include <dirent.h>
-#include <fcntl.h>
 #include <locale.h> // for setlocale
-#include <pwd.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <syslog.h>
 #include <unistd.h>
+
+#include <errno.h>
 
 #include <sodium.h>
 #include <mbedtls/ssl.h>
 
-#include "Include/Database.h"
 #include "https.h"
 #include "https_post.h"
 
-#define AEM_CHROOT "/var/lib/allears" // Ownership root:allears; permissions 730 (rwx-wx---)
-#define AEM_PORT_HTTPS 302
-#define AEM_PATH_ADDRKEY "/etc/allears/Address.key"
-#define AEM_PATH_APIKEY "/etc/allears/API.key"
-#define AEM_PATH_TLSKEY "/etc/allears/TLS.key"
-#define AEM_PATH_TLSCRT "/etc/allears/TLS.crt"
+#define AEM_PORT_HTTPS 443
 #define AEM_SOCKET_TIMEOUT 15
+#define AEM_MINLEN_PIPEREAD 128
+
+#define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
+#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
+
+#define AEM_PIPE_BUFSIZE 8192
+#define AEM_MAXLEN_HOST 32
+
+mbedtls_x509_crt tlsCrt;
+mbedtls_pk_context tlsKey;
+
+static unsigned char *tls_crt;
+static unsigned char *tls_key;
+static size_t len_tls_crt;
+static size_t len_tls_key;
+
+char domain[AEM_MAXLEN_HOST];
+size_t lenDomain;
 
 static bool terminate = false;
 
-static void sigTerm() {
-	puts("Terminating after handling next connection");
-	terminate = true;
+static void sigTerm(int sig) {
+	if (sig != SIGUSR2) {
+		terminate = true;
+		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
+		return;
+	}
+
+	// SIGUSR2: Fast kill
+	mbedtls_x509_crt_free(&tlsCrt);
+	mbedtls_pk_free(&tlsKey);
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	exit(EXIT_SUCCESS);
 }
 
-__attribute__((warn_unused_result))
-static int dropRoot(void) {
-	const struct passwd * const p = getpwnam("allears");
-	if (p == NULL) return -1;
+static int setCaps(const bool allowBind) {
+	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	if (chroot(AEM_CHROOT) != 0) return -1;
-	if (chdir("/") != 0) return -1;
+	cap_t caps = cap_get_proc();
+	if (cap_clear(caps) != 0) return -1;
 
-	if (setgid(p->pw_gid) != 0) return -1;
-	if (setuid(p->pw_uid) != 0) return -1;
+	if (allowBind) {
+		const cap_value_t capBind = CAP_NET_BIND_SERVICE;
+		if (cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) != 0) return -1;
+		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) != 0) return -1;
+	}
 
-	if (getgid() != p->pw_gid || getuid() != p->pw_uid) return -1;
+	if (cap_set_proc(caps) != 0) return -1;
+	if (cap_free(caps) != 0) return -1;
 
 	return 0;
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int * const sock, const int port) {
+static int initSocket(const int sock, const int port) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
@@ -60,108 +85,19 @@ static int initSocket(const int * const sock, const int port) {
 	servAddr.sin_port = htons(port);
 
 	const int optval = 1;
-	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
+	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 
-	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
-	if (ret < 0) return ret;
+	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
+	if (setCaps(false) != 0) return -1;
 
-	listen(*sock, 10); // socket, backlog (# of connections to keep in queue)
+	listen(sock, 10); // socket, backlog (# of connections to keep in queue)
 	return 0;
 }
 
 __attribute__((warn_unused_result))
-static int loadTlsKey(mbedtls_pk_context * const key) {
-	mbedtls_pk_init(key);
-	const int ret = mbedtls_pk_parse_keyfile(key, AEM_PATH_TLSKEY, NULL);
-	if (ret == 0) return 0;
-
-	printf("mbedtls_pk_parse_key returned %d\n", ret);
-	return 1;
-}
-
-__attribute__((warn_unused_result))
-static int loadAddrKey(void) {
-	const int fd = open(AEM_PATH_ADDRKEY, O_RDONLY);
-	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_pwhash_SALTBYTES) return 1;
-
-	unsigned char addrKey[crypto_pwhash_SALTBYTES];
-	const off_t readBytes = pread(fd, addrKey, crypto_pwhash_SALTBYTES, 0);
-	close(fd);
-
-	if (readBytes != crypto_pwhash_SALTBYTES) {
-		printf("pread returned: %ld\n", readBytes);
-		return -1;
-	}
-
-	setAddrKey(addrKey);
-	sodium_memzero(addrKey, crypto_pwhash_SALTBYTES);
-	return 0;
-}
-
-static int loadApiKey(void) {
-	const int fd = open(AEM_PATH_APIKEY, O_RDONLY);
-	if (fd < 0 || lseek(fd, 0, SEEK_END) != crypto_box_SECRETKEYBYTES) return 1;
-
-	unsigned char apiKey[crypto_box_SECRETKEYBYTES];
-	const off_t readBytes = pread(fd, apiKey, crypto_box_SECRETKEYBYTES, 0);
-	close(fd);
-
-	if (readBytes != crypto_box_SECRETKEYBYTES) {
-		printf("pread returned: %ld\n", readBytes);
-		return -1;
-	}
-
-	setApiKey(apiKey);
-	sodium_memzero(apiKey, crypto_box_SECRETKEYBYTES);
-	return 0;
-}
-
-static void setSocketTimeout(const int sock) {
-	struct timeval tv;
-	tv.tv_sec = AEM_SOCKET_TIMEOUT;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
-}
-
-static int receiveConnections(mbedtls_x509_crt * const tlsCert) {
-	mbedtls_pk_context tlsKey;
-	if (loadTlsKey(&tlsKey) < 0) return 1;
-
-	int ret = loadAddrKey();
-	if (ret < 0) {puts("Terminating: failed to load address key"); return 1;}
-
-	ret = loadApiKey();
-	if (ret < 0) {puts("Terminating: failed to load API key"); return 1;}
-
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {ret = -1;}
-	if (ret == 0) {ret = initSocket(&sock, AEM_PORT_HTTPS);}
-	if (ret == 0) {ret = dropRoot();}
-	if (ret == 0) {ret = tlsSetup(tlsCert, &tlsKey);}
-
-	if (ret == 0) {
-		puts("Ready");
-
-		while (!terminate) {
-			const int newSock = accept(sock, NULL, NULL);
-			if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
-			setSocketTimeout(newSock);
-			respond_https(newSock);
-			close(newSock);
-		}
-	}
-
-	tlsFree();
-	mbedtls_x509_crt_free(tlsCert);
-	mbedtls_pk_free(&tlsKey);
-	close(sock);
-	return 0;
-}
-
-__attribute__((warn_unused_result))
-int getDomainFromCert(mbedtls_x509_crt * const cert) {
+static int getDomainFromCert() {
 	char certInfo[1000];
-	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", cert);
+	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", &tlsCrt);
 
 	char *c = strstr(certInfo, "\nAEM_subject name");
 	if (c == NULL) return -1;
@@ -174,42 +110,128 @@ int getDomainFromCert(mbedtls_x509_crt * const cert) {
 	if (c == NULL) return -1;
 	c += 5;
 
-	return setDomain(c, strlen(c));
+	lenDomain = strlen(c);
+	if (lenDomain > AEM_MAXLEN_HOST) return -1;
+
+	memcpy(domain, c, lenDomain);
+	return 0;
 }
 
-int main(void) {
-	if (getuid() != 0) {
-		puts("Terminating: Must be started as root");
-		return EXIT_FAILURE;
+__attribute__((warn_unused_result))
+static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
+	unsigned char buf[AEM_PIPE_BUFSIZE];
+	const off_t readBytes = read(fd, buf, AEM_PIPE_BUFSIZE);
+	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
+
+	*len = readBytes;
+	*target = sodium_malloc(*len);
+	memcpy(*target, buf, *len);
+	sodium_mprotect_readonly(*target);
+
+	sodium_memzero(buf, AEM_PIPE_BUFSIZE);
+	return 0;
+}
+
+__attribute__((warn_unused_result))
+static int pipeLoadTls(const int fd) {
+	if (
+	   pipeRead(fd, &tls_crt, &len_tls_crt) != 0
+	|| pipeRead(fd, &tls_key, &len_tls_key) != 0
+	) return -1;
+
+	mbedtls_x509_crt_init(&tlsCrt);
+	int ret = mbedtls_x509_crt_parse(&tlsCrt, tls_crt, len_tls_crt);
+	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_x509_crt_parse returned %d\n", ret); return -1;}
+
+	mbedtls_pk_init(&tlsKey);
+	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
+	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_pk_parse_key returned %d\n", ret); return -1;}
+
+	if (getDomainFromCert() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed to get domain from certificate"); return -1;}
+
+	return 0;
+}
+
+__attribute__((warn_unused_result))
+static int pipeLoadKeys(const int fd) {
+	unsigned char buf[AEM_PIPE_BUFSIZE];
+
+	if (read(fd, buf, AEM_PIPE_BUFSIZE) != AEM_LEN_KEY_API) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
+	setApiKey(buf);
+
+	if (read(fd, buf, AEM_PIPE_BUFSIZE) != AEM_LEN_ACCESSKEY) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
+	setAccessKey_account(buf);
+
+	if (read(fd, buf, AEM_PIPE_BUFSIZE) != AEM_LEN_ACCESSKEY) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
+	setAccessKey_storage(buf);
+
+	sodium_memzero(buf, AEM_PIPE_BUFSIZE);
+	return 0;
+}
+
+static void setSocketTimeout(const int sock) {
+	struct timeval tv;
+	tv.tv_sec = AEM_SOCKET_TIMEOUT;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+}
+
+static void quit() {
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
+	exit(EXIT_SUCCESS);
+}
+
+static void receiveConnections(void) {
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
+	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
+	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
+
+	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+
+	while (!terminate) {
+		const int newSock = accept(sock, NULL, NULL);
+		if (newSock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed accepting connection"); break;}
+		setSocketTimeout(newSock);
+		respond_https(newSock);
+		close(newSock);
 	}
 
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) { // Prevent writing to closed/invalid sockets from ending the process
-		puts("Terminating: Signal failed");
-		return EXIT_FAILURE;
-	}
+	tlsFree();
+	mbedtls_x509_crt_free(&tlsCrt);
+	mbedtls_pk_free(&tlsKey);
+	close(sock);
+}
 
-	signal(SIGINT, sigTerm);
-	signal(SIGQUIT, sigTerm);
-	signal(SIGTERM, sigTerm);
+static int setSignals(void) {
+	return (
+	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
 
-	if (sodium_init() < 0) {
-		puts("Terminating: Failed to initialize libsodium");
-		return EXIT_FAILURE;
-	}
+	&& signal(SIGINT,  sigTerm) != SIG_ERR
+	&& signal(SIGQUIT, sigTerm) != SIG_ERR
+	&& signal(SIGTERM, sigTerm) != SIG_ERR
+	&& signal(SIGUSR1, sigTerm) != SIG_ERR
+	&& signal(SIGUSR2, sigTerm) != SIG_ERR
+	) ? 0 : -1;
+}
 
+int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "C");
 
-	// Get domain from TLS certificate
-	mbedtls_x509_crt tlsCert;
-	mbedtls_x509_crt_init(&tlsCert);
-	int ret = mbedtls_x509_crt_parse_file(&tlsCert, AEM_PATH_TLSCRT);
-	if (ret != 0) {
-		printf("Terminating: mbedtls_x509_crt_parse returned %d\n", ret);
-		return EXIT_FAILURE;
-	}
+	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
+	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setCaps(true) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
-	ret = getDomainFromCert(&tlsCert);
-	if (ret != 0) {puts("Terminating: Failed to get domain from certificate"); return EXIT_FAILURE;}
+	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading All-Ears keys"); return EXIT_FAILURE;}
+	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
+	close(argv[0][0]);
 
-	return receiveConnections(&tlsCert);
+	atexit(quit);
+
+	receiveConnections();
+	return EXIT_SUCCESS;
 }

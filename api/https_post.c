@@ -1,21 +1,27 @@
-#include <string.h>
-#include <stdint.h>
-#include <time.h>
 #include <ctype.h> // for islower
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <syslog.h>
+#include <time.h>
 
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
-#include "Include/Addr32.h"
-#include "Include/CharToInt64.h"
-#include "Include/Database.h"
-#include "Include/Message.h"
 #include "Include/https_common.h"
 
 #include "https_post.h"
 
 #define AEM_USERLEVEL_MIN 0
 #define AEM_USERLEVEL_MAX 3
+
+#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
+#define AEM_LEN_PERSONAL (4096 - crypto_box_PUBLICKEYBYTES - 5)
 
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
 
@@ -24,14 +30,21 @@
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
 
-static unsigned char ssk[crypto_box_SECRETKEYBYTES];
+#define AEM_API_GETUSERINFO 50
+#define AEM_API_GETADMINDATA 51
 
-void setApiKey(const unsigned char sskNew[crypto_box_SECRETKEYBYTES]) {
-	memcpy(ssk, sskNew, crypto_box_PUBLICKEYBYTES);
+static unsigned char ssk[crypto_box_SECRETKEYBYTES];
+static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
+
+void setApiKey(const unsigned char * const newKey) {
+	memcpy(ssk, newKey, crypto_box_PUBLICKEYBYTES);
 }
 
+void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
+void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
+
 void https_pubkey(mbedtls_ssl_context * const ssl) {
-	if (crypto_box_PUBLICKEYBYTES != 32) {puts("PK is not 32 bytes"); return;}
 	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
 
 	memcpy(data,
@@ -72,6 +85,7 @@ static int numDigits(double number) {
 	return digits;
 }
 
+/*
 __attribute__((warn_unused_result))
 static int sendIntMsg(const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
 char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
@@ -114,44 +128,26 @@ char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypte
 
 	return 0;
 }
+*/
 
+/*
 static void userViolation(const int64_t upk64, const int violation) {
-	printf("[System] Destroying account %lx for violation %x\n", upk64, violation);
+	syslog(LOG_MAIL | LOG_NOTICE, "[System] Destroying account %lx for violation %x\n", upk64, violation);
 	destroyAccount(upk64);
 }
+*/
 
-static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
+static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char upk[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted != 1) {sodium_free(*decrypted); return;}
 	sodium_free(*decrypted);
 
-	unsigned char *noteData;
-	unsigned char *addrData;
-	unsigned char *gkData;
-	const int lenNote = AEM_NOTEDATA_LEN + crypto_box_SEALBYTES;
-	uint16_t lenAddr;
-	uint16_t lenGk;
-	uint8_t msgCount;
-	uint8_t level;
-	unsigned char limits[12]; // 4*3=12: 4 levels, 3 values (storage, addrnorm, addrshld)
-
-	const int ret = getUserInfo(upk64, &level, &noteData, &addrData, &lenAddr, &gkData, &lenGk, limits);
-	if (ret != 0) return;
-
-	const size_t lenAdmin = (level == AEM_USERLEVEL_MAX) ? AEM_ADMINDATA_LEN : 0;
-	unsigned char *adminData;
-	if (level == AEM_USERLEVEL_MAX) getAdminData(&adminData);
-
-	const size_t lenMsg = (level == AEM_USERLEVEL_MAX) ? AEM_MAXMSGTOTALSIZE - AEM_ADMINDATA_LEN : AEM_MAXMSGTOTALSIZE;
-	unsigned char * const msgData = getUserMessages(upk64, &msgCount, lenMsg);
-	if (msgData == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
-
-	const size_t lenBody = 18 + lenNote + lenAddr + lenGk + lenAdmin + lenMsg;
+	const size_t lenBody = 18 + AEM_LEN_PERSONAL + AEM_MAXMSGTOTALSIZE;
 	const size_t lenHead = 223 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
+	char response[lenResponse];
 
-	char * const data = malloc(lenResponse);
-	if (data == NULL) {free(addrData); free(noteData); free(gkData); if (level == AEM_USERLEVEL_MAX) {free(adminData);} return;}
-	sprintf(data,
+	// Headers
+	sprintf(response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
@@ -163,29 +159,38 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"\r\n"
 	, lenBody);
 
-	memcpy(data + lenHead, limits, 12);
-	memcpy(data + lenHead + 12, &level,    1);
-	memcpy(data + lenHead + 13, &msgCount, 1);
-	memcpy(data + lenHead + 14, &lenAddr,  2);
-	memcpy(data + lenHead + 16, &lenGk,    2);
+	// Get info from allears-account
+	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to allears-account"); return;}
 
-	size_t s = lenHead + 18;
-	memcpy(data + s, noteData,  lenNote); s += lenNote;
-	memcpy(data + s, addrData,  lenAddr); s += lenAddr;
-	memcpy(data + s, gkData,    lenGk);   s += lenGk;
-	if (level == AEM_USERLEVEL_MAX) {memcpy(data + s, adminData, lenAdmin); s += lenAdmin;}
-	memcpy(data + s, msgData,   lenMsg);  s += lenMsg;
+	struct sockaddr_un remote;
+	remote.sun_family = AF_UNIX;
+	strcpy(remote.sun_path, "Account.socket");
+	if (connect(sock, (struct sockaddr*)&remote, strlen(remote.sun_path) + sizeof(remote.sun_family)) == -1) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account");
+		return;
+	}
 
-	free(noteData);
-	free(addrData);
-	free(gkData);
-	if (level == AEM_USERLEVEL_MAX) free(adminData);
-	free(msgData);
+	unsigned char c = AEM_API_GETUSERINFO;
 
-	sendData(ssl, data, lenResponse);
-	free(data);
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1;
+	unsigned char encrypted[lenEncrypted];
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, &c, 1, encrypted, accessKey_account);
+
+	if (
+	   send(sock, encrypted, lenEncrypted, 0) != lenEncrypted
+	|| send(sock, upk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES
+	|| recv(sock, response + lenHead, 13 + AEM_LEN_PERSONAL, 0) != 13 + AEM_LEN_PERSONAL
+	) {syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");sodium_memzero(response, lenResponse); return;}
+
+	response[lenHead + 13] = 0; //msgCount
+	// TODO: AdminData, Messages
+
+	sendData(ssl, response, lenResponse);
+	sodium_memzero(response, lenResponse);
 }
 
+/*
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 
@@ -199,7 +204,9 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 8) {sodium_free(*decrypted); return;}
 
@@ -214,7 +221,9 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	const int ret = destroyAccount(target64);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void account_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 9) {sodium_free(*decrypted); return;}
 
@@ -233,7 +242,9 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	const int ret = setAccountLevel(target64, level);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	unsigned char addr[15];
 	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
@@ -276,7 +287,9 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	sendData(ssl, data, 248);
 }
+*/
 
+/*
 static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted < 10) {free(*decrypted); return;}
 	const int64_t hash = charToInt64(*decrypted);
@@ -289,7 +302,9 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted % 9 != 0) {free(*decrypted); return;}
 
@@ -307,7 +322,9 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	const int ret = updateAddressSettings(upk64, addrHash, addrFlags, addressCount);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 // Takes BodyBox from client and stores it
 static void message_assign(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, unsigned char * const upk) {
 	if ((lenDecrypted - crypto_box_SEALBYTES - 3) % 1024 != 0) {
@@ -325,7 +342,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	} else if ((*decrypted)[0] == 'T') {
 		header[0] |= AEM_FLAG_MSGTYPE_TEXTNOTE;
 	} else {
-		puts("message_assign: Unrecognized type");
+		syslog(LOG_MAIL | LOG_NOTICE, "message_assign: Unrecognized type");
 		sodium_free(*decrypted);
 		return;
 	}
@@ -345,15 +362,16 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	free(boxset);
 	if (ret == 0) send204(ssl);
 }
+*/
 
 // Creates BodyBox from client's instructions and stores it
-static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const upk) {
+//static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const upk) {
 /* Format:
 	(From)\n
 	(To)\n
 	(Title)\n
 	(Body)
-*/
+*//*
 	const char senderCopy = *decrypted[0];
 
 	const char *addrFrom = *decrypted + 1;
@@ -389,7 +407,9 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	uint8_t ids[lenDecrypted]; // 1 byte per ID
 	for (size_t i = 0; i < lenDecrypted; i++) {
@@ -400,7 +420,9 @@ static void message_delete(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (ret == 0) send204(ssl);
 }
+*/
 
+/*
 static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
 
@@ -418,26 +440,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	const int ret = updateLimits(maxStorage, maxAddrNrm, maxAddrShd);
 	if (ret == 0) send204(ssl);
 }
-
-static void storage_enaddr(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
-	const int ret = updateAddress(upk64, (unsigned char*)(*decrypted), lenDecrypted);
-	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
-}
-
-static void storage_engate(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char * const upk) {
-	const int ret = updateGatekeeper(upk, *decrypted, lenDecrypted);
-	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
-}
-
-static void storage_ennote(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
-	if (lenDecrypted != AEM_NOTEDATA_LEN + crypto_box_SEALBYTES) {sodium_free(*decrypted); return;}
-
-	const int ret = updateNoteData(upk64, (unsigned char*)*decrypted);
-	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
-}
+*/
 
 __attribute__((warn_unused_result))
 static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted) {
@@ -448,8 +451,7 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 
 	memcpy(upk, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
-	const int64_t upk64 = charToInt64(upk);
-	if (!upk64Exists(upk64)) return NULL;
+//	if (upkExists(upk)) return NULL; // XXX Important to re-enable
 
 	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE);
 	if (decrypted == NULL) return NULL;
@@ -473,10 +475,9 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 
 	char * const decrypted = openWebBox(post, upk, &lenDecrypted);
 	if (decrypted == NULL || lenDecrypted < 1) return;
-	const int64_t upk64 = charToInt64(upk);
 
-	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, upk64);
-
+	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, upk);
+/*
 	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, upk64);
 	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, upk64);
 	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, upk64);
@@ -494,4 +495,5 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, &decrypted, lenDecrypted, upk64);
 	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, &decrypted, lenDecrypted, upk);
 	if (memcmp(url, "storage/ennote", 14) == 0) return storage_ennote(ssl, &decrypted, lenDecrypted, upk64);
+*/
 }

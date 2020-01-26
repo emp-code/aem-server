@@ -452,6 +452,7 @@ static void process_spawn(const int type) {
 			if (
 			   write(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
 			|| write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+
 			|| write(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| write(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
@@ -460,6 +461,7 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
 			   write(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
+
 			|| write(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| write(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
@@ -467,8 +469,10 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_API:
 			if (
-			   write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
-			|| write(fd[1], key_api, AEM_LEN_KEY_API) < 0
+			   write(fd[1], key_api, AEM_LEN_KEY_API) < 0
+
+			|| write(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| write(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 
 			|| write(fd[1], tls_crt, len_tls_crt) < 0
 			|| write(fd[1], tls_key, len_tls_key) < 0
