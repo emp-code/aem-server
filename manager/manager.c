@@ -40,10 +40,9 @@
 #define AEM_PORT_MANAGER 940
 #define AEM_SOCKET_TIMEOUT 10
 
+#define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-
-#define AEM_MAXPROCESSES 25
 
 #define AEM_PATH_CONF "/etc/allears"
 #define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
@@ -67,13 +66,16 @@
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
+
 #define AEM_LEN_FILE_MAX 8192
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
+
 static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage_mta[AEM_LEN_ACCESSKEY];
+
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_adr[AEM_LEN_KEY_ADR];
 static unsigned char key_api[AEM_LEN_KEY_API];
@@ -429,11 +431,12 @@ static void process_spawn(const int type) {
 		char arg1[] = {fd[0], '\0'};
 		char * const newargv[] = {arg1, NULL};
 		switch(type) {
+			case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
+			case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
+
 			case AEM_PROCESSTYPE_WEB: execv("usr/bin/allears-web", newargv); break; 
 			case AEM_PROCESSTYPE_API: execv("usr/bin/allears-api", newargv); break; 
 			case AEM_PROCESSTYPE_MTA: execv("usr/bin/allears-mta", newargv); break;
-			case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
-			case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
 		}
 
 		// Only runs if exec failed
