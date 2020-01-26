@@ -31,8 +31,7 @@ function AllEars(domain, readyCallback) {
 
 // Private Variables
 	const _lenPost = 8192; // 8 KiB
-	const _lenNoteData_unsealed = 5122;
-	const _lenNoteData = _lenNoteData_unsealed + 48;
+	const _lenPersonal = 4096 - 13;
 	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
 	const _maxLevel = 3;
 
@@ -550,25 +549,23 @@ function AllEars(domain, readyCallback) {
 	this.Browse = function(page, callback) { nacl_factory.instantiate(function (nacl) {
 		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
 
-		_FetchEncrypted("account/browse", new Uint8Array([page]), nacl, function(fetchOk, loginData) {
+		_FetchEncrypted("account/browse", new Uint8Array([page]), nacl, function(fetchOk, browseData) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < 4; i++) {
-				_maxStorage.push(loginData[(i * 3) + 0]);
-				_maxAddressNormal.push(loginData[(i * 3) + 1]);
-				_maxAddressShield.push(loginData[(i * 3) + 2]);
+				_maxStorage.push(browseData[(i * 3) + 0]);
+				_maxAddressNormal.push(browseData[(i * 3) + 1]);
+				_maxAddressShield.push(browseData[(i * 3) + 2]);
 			}
 
-			_userLevel = loginData[12];
-			const msgCount = loginData[13];
-			const addrDataSize = new Uint16Array(loginData.slice(14, 16).buffer)[0];
-			const gkDataSize   = new Uint16Array(loginData.slice(16, 18).buffer)[0];
+			_userLevel = browseData[12];
+			const msgCount = browseData[13];
 
-			// Note Data
-			const noteDataStart = 18;
-			const noteData = nacl.crypto_box_seal_open(loginData.slice(noteDataStart, noteDataStart + _lenNoteData), _userKeys.boxPk, _userKeys.boxSk);
-			const noteDataSize = new Uint16Array(noteData.slice(0, 2).buffer)[0];
+			// Personal field
+			const personalData = nacl.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeys.boxPk, _userKeys.boxSk);
 
+			// Needs rewrite
+/*
 			const contactSet = new TextDecoder("utf-8").decode(noteData.slice(2)).split('\n');
 			for (let i = 0; i < (contactSet.length - 1); i += 3) {
 				_contactMail.push(contactSet[i]);
@@ -578,7 +575,7 @@ function AllEars(domain, readyCallback) {
 
 			// Address data
 			const addrDataStart = 18 + _lenNoteData;
-			const addrData = nacl.crypto_box_seal_open(loginData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+			const addrData = nacl.crypto_box_seal_open(browseData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
 
 			for (let i = 0; i < (addrData.length / 24); i++) {
 				const start = i * 24;
@@ -595,7 +592,7 @@ function AllEars(domain, readyCallback) {
 
 			// Gatekeeper data
 			const gkDataStart = 18 + _lenNoteData + addrDataSize;
-			const gkData = new TextDecoder("utf-8").decode(nacl.crypto_box_seal_open(loginData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkData = new TextDecoder("utf-8").decode(nacl.crypto_box_seal_open(browseData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
 			let gkCountDomain = 0;
@@ -617,19 +614,19 @@ function AllEars(domain, readyCallback) {
 			// Admin data
 			const lenAdmin = (_userLevel === _maxLevel) ? _lenAdminData : 0;
 			if (_userLevel === _maxLevel) {
-				const adminDataStart = 18 + _lenNoteData + addrDataSize + gkDataSize;
+				const adminDataStart = 18 + _lenPersonal;
 
 				for (let i = 0; i < (_lenAdminData / 11); i++) {
 					const pos = (adminDataStart + i * 11);
-					const newPk = loginData.slice(pos, pos + 8);
+					const newPk = browseData.slice(pos, pos + 8);
 
 					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
 					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
 
-					const newLevel = loginData[pos + 8] & 3;
-					const newSpace = loginData[pos + 8] >>> 2;
-					const newNaddr = loginData[pos + 9];
-					const newSaddr = loginData[pos + 10];
+					const newLevel = browseData[pos + 8] & 3;
+					const newSpace = browseData[pos + 8] >>> 2;
+					const newNaddr = browseData[pos + 9];
+					const newSaddr = browseData[pos + 10];
 
 					_admin_userPkHex.push(nacl.to_hex(newPk));
 					_admin_userSpace.push(newSpace);
@@ -642,17 +639,17 @@ function AllEars(domain, readyCallback) {
 			// Message data
 			let msgStart = 18 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
 			for (let i = 0; i < msgCount; i++) {
-				const msgId = loginData[msgStart];
-				const msgKilos = loginData[msgStart + 1] + 1;
+				const msgId = browseData[msgStart];
+				const msgKilos = browseData[msgStart + 1] + 1;
 
 				// HeadBox
-				const msgHeadBox = loginData.slice(msgStart + 2, msgStart + 85); // 85 = 2 + 35 + crypto_box_SEALBYTES (48)
+				const msgHeadBox = browseData.slice(msgStart + 2, msgStart + 85); // 85 = 2 + 35 + crypto_box_SEALBYTES (48)
 				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
 
 				// BodyBox
 				const lenBody = msgKilos * 1024;
 				const bbStart = msgStart + 85;
-				const msgBodyBox = loginData.slice(bbStart, bbStart + lenBody + 50); // 50 = 2 + crypto_box_SEALBYTES (48)
+				const msgBodyBox = browseData.slice(bbStart, bbStart + lenBody + 50); // 50 = 2 + crypto_box_SEALBYTES (48)
 				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
 				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody, lenBody + 2).buffer)[0];
 				const msgBody = msgBodyFull.slice(0, lenBody - padAmount);
@@ -725,6 +722,7 @@ function AllEars(domain, readyCallback) {
 
 				msgStart += (msgKilos * 1024) + 135; // 135 = 48 * 2 + 35 + 2 + 2
 			}
+*/
 
 			callback(true);
 		});
