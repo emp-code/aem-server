@@ -72,12 +72,12 @@ static int setCaps(const bool allowBind) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int sock, const int port) {
+static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(port);
+	servAddr.sin_port = htons(AEM_PORT_API);
 
 	const int optval = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
@@ -181,7 +181,7 @@ static void quit() {
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
-	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
+	if (initSocket(sock) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
