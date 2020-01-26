@@ -101,6 +101,19 @@ static int sockClient;
 
 static bool terminate = false;
 
+// For handling large writes on O_DIRECT pipes
+static int pipeWriteDirect(const int fd, const unsigned char * const data, const size_t len) {
+	size_t written = 0;
+
+	while (len - written > PIPE_BUF) {
+		const ssize_t ret = write(fd, data + written, len - written);
+		if (ret < 1) return -1;
+		written += len;
+	}
+
+	return write(fd, data + written, len - written);
+}
+
 void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
 	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
 }
@@ -443,53 +456,53 @@ static void process_spawn(const int type) {
 	switch(type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			if (
-			   write(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
-			|| write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+			   pipeWriteDirect(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
+			|| pipeWriteDirect(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
 
-			|| write(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| write(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
-			   write(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
+			   pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
 
-			|| write(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
-			|| write(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
 		break;
 
 		case AEM_PROCESSTYPE_API:
 			if (
-			   write(fd[1], key_api, AEM_LEN_KEY_API) < 0
+			   pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
 
-			|| write(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| write(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 
-			|| write(fd[1], tls_crt, len_tls_crt) < 0
-			|| write(fd[1], tls_key, len_tls_key) < 0
+			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
+			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
 			if (
-			   write(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+			   pipeWriteDirect(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
 
-			|| write(fd[1], tls_crt, len_tls_crt) < 0
-			|| write(fd[1], tls_key, len_tls_key) < 0
+			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
+			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
 		break;
 
 		case AEM_PROCESSTYPE_WEB:
 			if (
-			   write(fd[1], tls_crt, len_tls_crt) < 0
-			|| write(fd[1], tls_key, len_tls_key) < 0
+			   pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
+			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
 
-			|| write(fd[1], web_css, len_web_css) < 0
-			|| write(fd[1], web_htm, len_web_htm) < 0
-			|| write(fd[1], web_jsa, len_web_jsa) < 0
-			|| write(fd[1], web_jsm, len_web_jsm) < 0
+			|| pipeWriteDirect(fd[1], web_css, len_web_css) < 0
+			|| pipeWriteDirect(fd[1], web_htm, len_web_htm) < 0
+			|| pipeWriteDirect(fd[1], web_jsa, len_web_jsa) < 0
+			|| pipeWriteDirect(fd[1], web_jsm, len_web_jsm) < 0
 			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
 		break;
 	}

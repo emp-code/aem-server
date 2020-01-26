@@ -116,10 +116,23 @@ static int getDomainFromCert() {
 	return 0;
 }
 
+// For handling large reads on O_DIRECT pipes
+static ssize_t pipeReadDirect(const int fd, unsigned char *buf, const size_t maxLen) {
+	ssize_t readBytes = 0;
+
+	while(1) {
+		const ssize_t ret = read(fd, buf + readBytes, maxLen - readBytes);
+		if (ret < 1) return -1;
+
+		readBytes += ret;
+		if (ret != PIPE_BUF) return readBytes;
+	}
+}
+
 __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
 	unsigned char buf[AEM_PIPE_BUFSIZE];
-	const off_t readBytes = read(fd, buf, AEM_PIPE_BUFSIZE);
+	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
 	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
 
 	*len = readBytes;
