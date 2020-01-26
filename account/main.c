@@ -14,19 +14,14 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
+
 #define AEM_ADDR_EXTMSG 0
 #define AEM_ADDR_INTMSG 1
 #define AEM_ADDR_USE_GK 2
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
-
-#define AEM_LEN_PERSONAL (4096 - crypto_box_PUBLICKEYBYTES - 5)
-
-#define AEM_API_GETUSERINFO 50
-#define AEM_API_GETADMINDATA 51
-
-#define AEM_USERLEVEL_MAX 3
 
 #define AEM_PATH_ADDR "Addr.aem"
 #define AEM_PATH_USER "User.aem"

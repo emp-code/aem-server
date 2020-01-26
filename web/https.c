@@ -11,6 +11,8 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
+#include "../Global.h"
+
 #include "https.h"
 
 #include "global.h"

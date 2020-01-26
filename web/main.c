@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
@@ -11,10 +12,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <errno.h>
-
 #include <sodium.h>
 #include <mbedtls/ssl.h>
+
+#include "../Global.h"
 
 #include "global.h"
 #include "https.h"

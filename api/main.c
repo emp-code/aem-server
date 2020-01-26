@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
@@ -11,23 +12,17 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <errno.h>
-
 #include <sodium.h>
 #include <mbedtls/ssl.h>
+
+#include "../Global.h"
 
 #include "https.h"
 #include "https_post.h"
 
-#define AEM_PORT_HTTPS 443
 #define AEM_SOCKET_TIMEOUT 15
 #define AEM_MINLEN_PIPEREAD 128
-
-#define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
-#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
-
 #define AEM_PIPE_BUFSIZE 8192
-#define AEM_MAXLEN_HOST 32
 
 mbedtls_x509_crt tlsCrt;
 mbedtls_pk_context tlsKey;

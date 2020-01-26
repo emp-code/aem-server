@@ -7,17 +7,13 @@
 #include <unistd.h> // for write
 #include <string.h> // for memset
 
+#include "../Global.h"
+
 #define AEM_PATH_KEY_ACC "Account.key"
 #define AEM_PATH_KEY_ADR "Address.key"
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
 #define AEM_PATH_KEY_STO "Storage.key"
-
-#define AEM_LEN_KEY_ACC crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
-#define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_STO 32
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 

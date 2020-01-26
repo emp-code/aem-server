@@ -13,10 +13,10 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
+#include "../Global.h"
+
 #include "https.h"
 #include "https_post.h"
-
-#define AEM_MAXLEN_DOMAIN 32
 
 #define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800

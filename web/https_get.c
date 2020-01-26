@@ -6,6 +6,8 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
+#include "../Global.h"
+
 #include "https_get.h"
 
 #include "Include/https_common.h"

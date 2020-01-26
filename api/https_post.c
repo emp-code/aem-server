@@ -13,15 +13,11 @@
 #include <mbedtls/ssl.h>
 #include <sodium.h>
 
+#include "../Global.h"
+
 #include "Include/https_common.h"
 
 #include "https_post.h"
-
-#define AEM_USERLEVEL_MIN 0
-#define AEM_USERLEVEL_MAX 3
-
-#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
-#define AEM_LEN_PERSONAL (4096 - crypto_box_PUBLICKEYBYTES - 5)
 
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
 
@@ -29,9 +25,6 @@
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
-
-#define AEM_API_GETUSERINFO 50
-#define AEM_API_GETADMINDATA 51
 
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];

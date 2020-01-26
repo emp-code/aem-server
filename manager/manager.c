@@ -32,12 +32,13 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "../Global.h"
+
 #include "global.h"
 #include "mount.h"
 
 #include "manager.h"
 
-#define AEM_PORT_MANAGER 940
 #define AEM_SOCKET_TIMEOUT 10
 
 #define AEM_MAXPROCESSES 25
@@ -58,14 +59,6 @@
 #define AEM_PATH_WEB_HTM AEM_PATH_CONF"/index.html"
 #define AEM_PATH_WEB_JSA AEM_PATH_CONF"/all-ears.js"
 #define AEM_PATH_WEB_JSM AEM_PATH_CONF"/main.js"
-
-#define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
-#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
-#define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_STO 32
 
 #define AEM_LEN_FILE_MAX 8192
 
