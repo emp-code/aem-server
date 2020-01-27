@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function
+CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter
 
-all: allears-manager allears-api allears-web allears-mta
+all: allears-manager allears-account allears-api allears-web
 
 allears-manager: manager/*.c
 	$(CC) $(CFLAGS) -o allears-manager manager/*.c -lsodium -lcap
@@ -20,5 +20,5 @@ allears-mta: mta/*.c
 
 .PHONY: clean
 clean:
-	-rm allears-manager allears-api allears-web allears-mta
+	-rm allears-account allears-manager allears-api allears-web allears-mta
 
