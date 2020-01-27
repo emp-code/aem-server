@@ -253,13 +253,10 @@ static int addressToUpk(const unsigned char * const src, unsigned char * const u
 }
 */
 
-static int api_getUserInfo(const int sock) {
-	unsigned char upk[crypto_box_PUBLICKEYBYTES];
-	if (recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return -1;
-
+static int api_account_browse(const int sock, const unsigned char * const pubkey) {
 	int num = -1;
 	for (int i = 0; i < userCount; i++) {
-		if (memcmp(upk, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memcmp(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
 			num = i;
 			break;
 		}
@@ -296,20 +293,19 @@ static int takeConnections() {
 		const int sockClient = accept(sockMain, NULL, NULL);
 		if (sockClient < 0) continue;
 
-		const size_t bufLen = 1 + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
-		unsigned char buf[bufLen];
+		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + crypto_box_PUBLICKEYBYTES + 1;
+		unsigned char enc[encLen];
 
-		if (recv(sockClient, buf, bufLen, 0) != bufLen) {
+		if (recv(sockClient, enc, encLen, 0) != encLen) {
 			syslog(LOG_MAIL | LOG_NOTICE, "Invalid connection");
 			close(sockClient);
 			continue;
 		}
 
-		unsigned char req;
-		if (crypto_secretbox_open_easy(&req, buf + crypto_secretbox_NONCEBYTES, 1 + crypto_secretbox_MACBYTES, buf, accessKey_api) == 0) {
-			switch (req) {
-				case AEM_API_GETUSERINFO: api_getUserInfo(sockClient); break;
-				//case AEM_API_GETADMINDATA: api_getAdminData(sockClient); break;
+		unsigned char req[1 + crypto_box_PUBLICKEYBYTES];
+		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
+			switch (req[0]) {
+				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, req + 1); break;
 				//default: // Invalid
 			}
 
@@ -317,10 +313,10 @@ static int takeConnections() {
 			continue;
 		}
 
-		if (crypto_secretbox_open_easy(&req, buf + crypto_secretbox_NONCEBYTES, 1 + crypto_secretbox_MACBYTES, buf, accessKey_api) == 0) {
-			switch (req) {
-				//case AEM_MTA_: mta_(sockClient); break;
-				//case AEM_MTA_: mta_(sockClient); break;
+		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
+			switch (req[0]) {
+				//case AEM_MTA_: mta_(sockClient, req + 1); break;
+				//case AEM_MTA_: mta_(sockClient, req + 1); break;
 				//default: // Invalid
 			}
 

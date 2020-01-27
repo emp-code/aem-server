@@ -9,6 +9,7 @@
 #include <sys/un.h>
 #include <syslog.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <mbedtls/ssl.h>
 #include <sodium.h>
@@ -78,6 +79,40 @@ static int numDigits(double number) {
 	return digits;
 }
 
+static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
+	struct sockaddr_un sa;
+	sa.sun_family = AF_UNIX;
+	strcpy(sa.sun_path, "Account.sck");
+
+	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to allears-account");
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account");
+		return -1;
+	}
+
+	const size_t lenClear = crypto_box_PUBLICKEYBYTES + 1;
+	unsigned char clear[lenClear];
+	clear[0] = command;
+	memcpy(clear+ 1, pubkey, crypto_box_PUBLICKEYBYTES);
+
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	unsigned char encrypted[lenEncrypted];
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
+
+	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		close(sock);
+		return -1;
+	}
+
+	return sock;
+}
+
 /*
 __attribute__((warn_unused_result))
 static int sendIntMsg(const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
@@ -130,9 +165,12 @@ static void userViolation(const int64_t upk64, const int violation) {
 }
 */
 
-static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char upk[crypto_box_PUBLICKEYBYTES]) {
+static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
+
+	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
+	if (sock < 0) return;
 
 	const size_t lenBody = 18 + AEM_LEN_PERSONAL + AEM_MAXMSGTOTALSIZE;
 	const size_t lenHead = 223 + numDigits(lenBody);
@@ -152,32 +190,16 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"\r\n"
 	, lenBody);
 
-	// Get info from allears-account
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to allears-account"); return;}
-
-	struct sockaddr_un remote;
-	remote.sun_family = AF_UNIX;
-	strcpy(remote.sun_path, "Account.sck");
-	if (connect(sock, (struct sockaddr*)&remote, strlen(remote.sun_path) + sizeof(remote.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account");
+	if (recv(sock, response + lenHead, 13 + AEM_LEN_PERSONAL, 0) != 13 + AEM_LEN_PERSONAL) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_memzero(response, lenResponse);
+		close(sock);
 		return;
 	}
 
-	unsigned char c = AEM_API_GETUSERINFO;
-
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, &c, 1, encrypted, accessKey_account);
-
-	if (
-	   send(sock, encrypted, lenEncrypted, 0) != lenEncrypted
-	|| send(sock, upk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES
-	|| recv(sock, response + lenHead, 13 + AEM_LEN_PERSONAL, 0) != 13 + AEM_LEN_PERSONAL
-	) {syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");sodium_memzero(response, lenResponse); return;}
-
 	// TODO: AdminData, Messages
+
+	close(sock);
 
 	sendData(ssl, response, lenResponse);
 	sodium_memzero(response, lenResponse);
