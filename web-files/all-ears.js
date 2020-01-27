@@ -841,40 +841,17 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
-	this.SaveAddressData = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("address/update", _MakeAddrData_Server(), nacl, function(fetchOk) {
-			if (!fetchOk) {callback(false); return;}
-
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-			_FetchEncrypted("storage/enaddr", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
-		});
-	}); };
-
-	this.SaveGatekeeperData = function(lst, callback) { nacl_factory.instantiate(function (nacl) {
-		let gkText = "";
-		for (let i = 0; i < lst.length; i++) gkText += lst[i] + '\n';
-
-		_FetchEncrypted("storage/engate", nacl.encode_utf8(gkText), nacl, function(fetchOk) {callback(fetchOk);});
-	}); };
-
-	this.SaveNoteData = function(callback) { nacl_factory.instantiate(function (nacl) {
-		let noteText = "";
+	this.Private_Update = function(callback) { nacl_factory.instantiate(function (nacl) {
+		let privText = "";
 
 		for (let i = 0; i < _contactMail.length; i++) {
-			noteText += _contactMail[i] + '\n';
-			noteText += _contactName[i] + '\n';
-			noteText += _contactNote[i] + '\n';
+			privText += _contactMail[i] + '\n';
+			privText += _contactName[i] + '\n';
+			privText += _contactNote[i] + '\n';
 		}
 
-		const noteData = new Uint8Array(_lenNoteData_unsealed);
-		const noteUtf8 = nacl.encode_utf8(noteText);
-		noteData.set(noteUtf8, 2);
-
-		const n = noteUtf8.length;
-		noteData[0] = n & 0xFF;
-		noteData[1] = n >> 8 & 0xFF;
-
-		_FetchEncrypted("storage/ennote", nacl.crypto_box_seal(noteData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
+		const privData = nacl.encode_utf8(privText);
+		_FetchEncrypted("private/update", nacl.crypto_box_seal(privData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
 	}); };
 
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {

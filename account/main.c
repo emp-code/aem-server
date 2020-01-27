@@ -278,6 +278,20 @@ static int api_account_browse(const int sock, const unsigned char * const pubkey
 	return 0;
 }
 
+static int api_private_update(const int sock, const unsigned char * const pubkey) {
+	const int num = userNumFromPubkey(pubkey);
+	if (num < 0) return -1;
+
+	unsigned char buf[AEM_LEN_PRIVATE];
+	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
+		return -1;
+	}
+
+	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
+	return 0;
+}
+
 static int takeConnections() {
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
@@ -308,6 +322,7 @@ static int takeConnections() {
 		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
 			switch (req[0]) {
 				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, req + 1); break;
+				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, req + 1); break;
 				//default: // Invalid
 			}
 

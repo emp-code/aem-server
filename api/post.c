@@ -205,6 +205,25 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_memzero(response, lenResponse);
 }
 
+static void private_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted != AEM_LEN_PRIVATE) {sodium_free(*decrypted); return;}
+
+	const int sock = accountSocket(pubkey, AEM_API_PRIVATE_UPDATE);
+	if (sock < 0) return;
+
+	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
+	sodium_free(*decrypted);
+	close(sock);
+
+	send204(ssl);
+}
+
 /*
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
@@ -507,4 +526,5 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 
 	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
 */
+	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);
 }
