@@ -299,7 +299,7 @@ static int takeConnections() {
 		const size_t bufLen = 1 + crypto_secretbox_MACBYTES + crypto_secretbox_NONCEBYTES;
 		unsigned char buf[bufLen];
 
-		if (recv(sockClient, buf, bufLen, 0) == bufLen) {
+		if (recv(sockClient, buf, bufLen, 0) != bufLen) {
 			syslog(LOG_MAIL | LOG_NOTICE, "Invalid connection");
 			close(sockClient);
 			continue;
