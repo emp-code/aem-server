@@ -31,7 +31,7 @@ function AllEars(domain, readyCallback) {
 
 // Private Variables
 	const _lenPost = 8192; // 8 KiB
-	const _lenPersonal = 4096 - 13;
+	const _lenPersonal = 4096 - 32 - 5;
 	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
 	const _maxLevel = 3;
 
@@ -559,7 +559,6 @@ function AllEars(domain, readyCallback) {
 			}
 
 			_userLevel = browseData[12];
-			const msgCount = browseData[13];
 
 			// Personal field
 			const personalData = nacl.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeys.boxPk, _userKeys.boxSk);
