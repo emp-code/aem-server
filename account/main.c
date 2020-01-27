@@ -366,7 +366,7 @@ int main(int argc, char *argv[]) {
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	loadUser();
+	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading User.aem"); return EXIT_FAILURE;}
 //	loadAddr();
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
