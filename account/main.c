@@ -253,14 +253,16 @@ static int addressToUpk(const unsigned char * const src, unsigned char * const u
 }
 */
 
-static int api_account_browse(const int sock, const unsigned char * const pubkey) {
-	int num = -1;
+static int userNumFromPubkey(const unsigned char * const pubkey) {
 	for (int i = 0; i < userCount; i++) {
-		if (memcmp(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
-			num = i;
-			break;
-		}
+		if (memcmp(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) return i;
 	}
+
+	return -1;
+}
+
+static int api_account_browse(const int sock, const unsigned char * const pubkey) {
+	const int num = userNumFromPubkey(pubkey);
 	if (num < 0) return -1;
 
 	unsigned char response[13 + AEM_LEN_PRIVATE];
