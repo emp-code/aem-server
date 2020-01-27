@@ -44,7 +44,7 @@ struct aem_user {
 	unsigned char level;
 	unsigned char addrNormal;
 	unsigned char addrShield;
-	unsigned char personal[AEM_LEN_PERSONAL];
+	unsigned char private[AEM_LEN_PRIVATE];
 };
 
 struct aem_addr {
@@ -263,16 +263,16 @@ static int api_account_browse(const int sock, const unsigned char * const pubkey
 	}
 	if (num < 0) return -1;
 
-	unsigned char response[13 + AEM_LEN_PERSONAL];
+	unsigned char response[13 + AEM_LEN_PRIVATE];
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
 	response[6] = limits[2][0]; response[7]  = limits[2][1]; response[8]  = limits[2][2];
 	response[9] = limits[3][0]; response[10] = limits[3][1]; response[11] = limits[3][2];
 
 	response[12] = user[num].level;
-	memcpy(response + 13, user[num].personal, AEM_LEN_PERSONAL);
+	memcpy(response + 13, user[num].private, AEM_LEN_PRIVATE);
 
-	send(sock, response, 13 + AEM_LEN_PERSONAL, 0);
+	send(sock, response, 13 + AEM_LEN_PRIVATE, 0);
 	return 0;
 }
 

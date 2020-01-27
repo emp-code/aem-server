@@ -172,7 +172,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
 	if (sock < 0) return;
 
-	const size_t lenBody = 18 + AEM_LEN_PERSONAL + AEM_MAXMSGTOTALSIZE;
+	const size_t lenBody = 18 + AEM_LEN_PRIVATE + AEM_MAXMSGTOTALSIZE;
 	const size_t lenHead = 223 + numDigits(lenBody);
 	const size_t lenResponse = lenHead + lenBody;
 	char response[lenResponse];
@@ -190,7 +190,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"\r\n"
 	, lenBody);
 
-	if (recv(sock, response + lenHead, 13 + AEM_LEN_PERSONAL, 0) != 13 + AEM_LEN_PERSONAL) {
+	if (recv(sock, response + lenHead, 13 + AEM_LEN_PRIVATE, 0) != 13 + AEM_LEN_PRIVATE) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
 		sodium_memzero(response, lenResponse);
 		close(sock);
