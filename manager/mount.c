@@ -76,7 +76,10 @@ int createMount(const pid_t pid, const int type) {
 	setGroup();
 
 	char tmpfs_opts[50];
-	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
+	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE)
+		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=50", allearsGroup);
+	else
+		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
 
 	char path[50];
 	snprintf(path, 50, AEM_CHROOT"/%d", pid);
@@ -130,6 +133,8 @@ int createMount(const pid_t pid, const int type) {
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
 		if (rwbind("/var/lib/allears/Message.aem", path) != 0) return -1;
 	}
+
+	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
 	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
