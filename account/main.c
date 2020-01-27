@@ -261,10 +261,7 @@ static int userNumFromPubkey(const unsigned char * const pubkey) {
 	return -1;
 }
 
-static int api_account_browse(const int sock, const unsigned char * const pubkey) {
-	const int num = userNumFromPubkey(pubkey);
-	if (num < 0) return -1;
-
+static int api_account_browse(const int sock, const int num) {
 	unsigned char response[13 + AEM_LEN_PRIVATE];
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
@@ -278,10 +275,7 @@ static int api_account_browse(const int sock, const unsigned char * const pubkey
 	return 0;
 }
 
-static int api_private_update(const int sock, const unsigned char * const pubkey) {
-	const int num = userNumFromPubkey(pubkey);
-	if (num < 0) return -1;
-
+static int api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
@@ -320,9 +314,12 @@ static int takeConnections() {
 
 		unsigned char req[1 + crypto_box_PUBLICKEYBYTES];
 		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
+			const int num = userNumFromPubkey(req + 1);
+			if (num < 0) {close(sockClient); continue;}
+
 			switch (req[0]) {
-				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, req + 1); break;
-				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, req + 1); break;
+				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, num); break;
+				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 				//default: // Invalid
 			}
 
