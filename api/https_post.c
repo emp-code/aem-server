@@ -168,6 +168,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1;
 	unsigned char encrypted[lenEncrypted];
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, &c, 1, encrypted, accessKey_account);
 
 	if (
