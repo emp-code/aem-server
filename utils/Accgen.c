@@ -117,9 +117,10 @@ int main(void) {
 	const size_t lenHex = crypto_box_SECRETKEYBYTES * 2 + 1;
 	char hex[lenHex];
 	sodium_bin2hex(hex, lenHex, sk, crypto_box_SECRETKEYBYTES);
+	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
 	puts("Created User.aem with admin user");
 	printf("Secret Key (hex): %s\n", hex);
-	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
+	sodium_memzero(hex, crypto_box_SECRETKEYBYTES * 2);
 
 	return 0;
 }
