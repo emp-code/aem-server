@@ -280,13 +280,15 @@ static int api_getUserInfo(const int sock) {
 }
 
 static int takeConnections() {
-	const int sockMain = socket(AF_UNIX, SOCK_STREAM, 0);
-
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
-	strcpy(local.sun_path, "Account.socket");
-	unlink(local.sun_path);
-	bind(sockMain, (struct sockaddr *)&local, strlen(local.sun_path) + sizeof(local.sun_family));
+	strcpy(local.sun_path, "Account.sck");
+
+	const int sockMain = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (bind(sockMain, (struct sockaddr*)&local, strlen(local.sun_path) + sizeof(local.sun_family)) != 0) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed binding to socket: %s", strerror(errno));
+		return -1;
+	}
 
 	listen(sockMain, 50);
 
