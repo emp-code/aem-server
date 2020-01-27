@@ -158,7 +158,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	struct sockaddr_un remote;
 	remote.sun_family = AF_UNIX;
-	strcpy(remote.sun_path, "Account.socket");
+	strcpy(remote.sun_path, "Account.sck");
 	if (connect(sock, (struct sockaddr*)&remote, strlen(remote.sun_path) + sizeof(remote.sun_family)) == -1) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account");
 		return;
