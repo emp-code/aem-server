@@ -56,8 +56,8 @@ struct aem_addr {
 static struct aem_user *user = NULL;
 static struct aem_addr *addr = NULL;
 
-static int userCount = -1;
-static int addrCount = -1;
+static int userCount = 0;
+static int addrCount = 0;
 
 static unsigned char accessKey_api[crypto_secretbox_KEYBYTES];
 static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
