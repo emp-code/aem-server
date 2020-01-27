@@ -18,7 +18,7 @@
 
 #include "Include/https_common.h"
 
-#include "https_post.h"
+#include "post.h"
 
 #define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
 

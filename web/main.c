@@ -19,7 +19,7 @@
 
 #include "global.h"
 #include "https.h"
-#include "https_get.h"
+#include "get.h"
 
 #define AEM_PORT_HTTPS 443
 #define AEM_SOCKET_TIMEOUT 15

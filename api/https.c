@@ -16,7 +16,7 @@
 #include "../Global.h"
 
 #include "https.h"
-#include "https_post.h"
+#include "post.h"
 
 #define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 800
@@ -242,7 +242,7 @@ void respond_https(int sock) {
 		req[ret] = '\0';
 		switch (handleRequest(ret)) {
 			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl); break;
-			case AEM_HTTPS_REQUEST_POST: handlePost(&ssl, ret);
+			case AEM_HTTPS_REQUEST_POST: handlePost(&ssl, ret); break;
 		}
 	}
 

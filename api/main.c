@@ -18,7 +18,7 @@
 #include "../Global.h"
 
 #include "https.h"
-#include "https_post.h"
+#include "post.h"
 
 #define AEM_SOCKET_TIMEOUT 15
 #define AEM_MINLEN_PIPEREAD 128
