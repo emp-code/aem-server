@@ -71,7 +71,7 @@ static int makeSpecial(const pid_t pid, const char * const name, const unsigned 
 	) ? 0 : -1;
 }
 
-int createMount(const pid_t pid, const int type) {
+int createMount(const pid_t pid, const int type, const pid_t pid_account, const pid_t pid_storage) {
 	umask(0);
 	setGroup();
 
@@ -132,6 +132,19 @@ int createMount(const pid_t pid, const int type) {
 		sprintf(path, AEM_CHROOT"/%d/Message.aem", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
 		if (rwbind("/var/lib/allears/Message.aem", path) != 0) return -1;
+	}
+
+	if (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA) {
+		char pth2[50];
+		sprintf(path, AEM_CHROOT"/%d/Account.sck", pid);
+
+		sprintf(pth2, AEM_CHROOT"/%d/Account.sck", pid_account);
+		if (mknod(path, S_IFREG, 0) != 0) return -1;
+		if (rwbind(pth2, path) != 0) return -1;
+
+//		sprintf(pth2, AEM_CHROOT"/%d/Account.sck", pid_storage);
+//		if (mknod(path, S_IFREG, 0) != 0) return -1;
+//		if (rwbind(pth2, path) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;

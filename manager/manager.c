@@ -429,7 +429,7 @@ static void process_spawn(const int type) {
 		}
 
 		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed prctl()"); exit(EXIT_FAILURE);}
-		if (createMount(pid, type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed createMount()"); exit(EXIT_FAILURE);}
+		if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed createMount()"); exit(EXIT_FAILURE);}
 		if (setSubLimits(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 		if (dropRoot(pid) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 		if (setCaps(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setCaps()"); exit(EXIT_FAILURE);}
