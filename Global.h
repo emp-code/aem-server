@@ -7,7 +7,7 @@
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
-#define AEM_LEN_PERSONAL (4096 - 13)
+#define AEM_LEN_PERSONAL (4096 - crypto_box_PUBLICKEYBYTES - 5)
 #define AEM_MAXLEN_DOMAIN 32
 #define AEM_MAXLEN_HOST 32
 #define AEM_PORT_API 302
