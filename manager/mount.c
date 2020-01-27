@@ -170,8 +170,10 @@ int deleteMount(const pid_t pid, const int type) {
 	}
 	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 
-	snprintf(path, 50, AEM_CHROOT"/%d/User.aem", pid);    umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/Account.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/Storage.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	snprintf(path, 50, AEM_CHROOT"/%d/Message.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/User.aem", pid);    umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	snprintf(path, 50, AEM_CHROOT"/%d/dev/log", pid);     umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	snprintf(path, 50, AEM_CHROOT"/%d/lib64", pid);       umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	snprintf(path, 50, AEM_CHROOT"/%d/lib", pid);         umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
