@@ -458,20 +458,20 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 */
 
 __attribute__((warn_unused_result))
-static char *openWebBox(const unsigned char * const post, unsigned char * const upk, size_t * const lenDecrypted) {
+static char *openWebBox(const unsigned char * const post, unsigned char * const pubkey, size_t * const lenDecrypted) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
 
 	unsigned char nonce[crypto_box_NONCEBYTES];
 	memcpy(nonce, post, crypto_box_NONCEBYTES);
 
-	memcpy(upk, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
+	memcpy(pubkey, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
-//	if (upkExists(upk)) return NULL; // XXX Important to re-enable
+//	if (pubkeyExists(pubkey)) return NULL; // XXX Important to re-enable
 
 	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE);
 	if (decrypted == NULL) return NULL;
 
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, AEM_HTTPS_POST_SIZE + crypto_box_MACBYTES, nonce, upk, ssk);
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, AEM_HTTPS_POST_SIZE + crypto_box_MACBYTES, nonce, pubkey, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 	sodium_mprotect_readonly(decrypted);
 
@@ -485,30 +485,26 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
 	if (ssl == NULL || url == NULL || post == NULL) return;
 
-	unsigned char upk[crypto_box_PUBLICKEYBYTES];
+	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 
-	char * const decrypted = openWebBox(post, upk, &lenDecrypted);
+	char * const decrypted = openWebBox(post, pubkey, &lenDecrypted);
 	if (decrypted == NULL || lenDecrypted < 1) return;
 
-	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, upk);
+	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, pubkey);
 /*
-	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, upk64);
-	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, upk64);
-	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey;
+	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, pubkey;
+	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey;
 
-	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, upk64);
-	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, upk64);
-	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, upk);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, upk);
-	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, upk64);
-
-	if (memcmp(url, "storage/enaddr", 14) == 0) return storage_enaddr(ssl, &decrypted, lenDecrypted, upk64);
-	if (memcmp(url, "storage/engate", 14) == 0) return storage_engate(ssl, &decrypted, lenDecrypted, upk);
-	if (memcmp(url, "storage/ennote", 14) == 0) return storage_ennote(ssl, &decrypted, lenDecrypted, upk64);
+	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
 */
 }
