@@ -176,7 +176,6 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	|| recv(sock, response + lenHead, 13 + AEM_LEN_PERSONAL, 0) != 13 + AEM_LEN_PERSONAL
 	) {syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");sodium_memzero(response, lenResponse); return;}
 
-	response[lenHead + 13] = 0; //msgCount
 	// TODO: AdminData, Messages
 
 	sendData(ssl, response, lenResponse);
