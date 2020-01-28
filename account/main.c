@@ -318,6 +318,7 @@ static void api_account_create(const int sock, const int num) {
 	crypto_box_seal(user[userCount].private, empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES, pubkey_new);
 
 	userCount++;
+	saveUser();
 }
 
 static void api_private_update(const int sock, const int num) {
