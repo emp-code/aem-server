@@ -321,6 +321,31 @@ static void api_account_create(const int sock, const int num) {
 	saveUser();
 }
 
+static void api_account_delete(const int sock, const int num) {
+	if (user[num].level != AEM_USERLEVEL_MAX) {
+		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		send(sock, &violation, 1, 0);
+		return;
+	}
+
+	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
+	if (send(sock, &ok, 1, 0) != 1) return;
+
+	unsigned char pubkey_del[crypto_box_PUBLICKEYBYTES];
+	if (recv(sock, pubkey_del, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
+
+	const int delNum = userNumFromPubkey(pubkey_del);
+	if (delNum < 0) return;
+
+	if (delNum < (userCount - 1)) {
+		const size_t s = sizeof(struct aem_user);
+		memmove(user + s * num, user + s * (num + 1), s * (userCount - delNum - 1));
+	}
+
+	userCount--;
+	saveUser();
+}
+
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
@@ -364,8 +389,8 @@ static int takeConnections(void) {
 
 			switch (req[0]) {
 				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, num); break;
-
 				case AEM_API_ACCOUNT_CREATE: api_account_create(sockClient, num); break;
+				case AEM_API_ACCOUNT_DELETE: api_account_delete(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 				//default: // Invalid
