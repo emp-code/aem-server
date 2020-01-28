@@ -91,7 +91,7 @@ static void sigTerm(int sig) {
 
 // === Save and load functions
 
-static int saveUser() {
+static int saveUser(void) {
 	if (userCount <= 0) return -1;
 
 	const size_t len = userCount * sizeof(struct aem_user);
@@ -109,7 +109,7 @@ static int saveUser() {
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
 
-static int saveAddr() {
+static int saveAddr(void) {
 	if (addrCount <= 0) return -1;
 
 	const size_t len = addrCount * sizeof(struct aem_addr);
@@ -216,7 +216,7 @@ static int genShieldAddress(const uint64_t upk64) {
 // === Other functions
 
 // Return a random, unused ID
-static uint16_t newUserId() {
+static uint16_t newUserId(void) {
 	uint16_t newId;
 	randombytes_buf(&newId, 2);
 
@@ -331,7 +331,7 @@ static void api_private_update(const int sock, const int num) {
 	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
 }
 
-static int takeConnections() {
+static int takeConnections(void) {
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, "Account.sck");
