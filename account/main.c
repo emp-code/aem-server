@@ -94,37 +94,37 @@ static void sigTerm(int sig) {
 static int saveUser() {
 	if (userCount <= 0) return -1;
 
-	size_t len = userCount * sizeof(struct aem_user);
-	size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
-	unsigned char *encrypted = malloc(lenEncrypted);
+	const size_t len = userCount * sizeof(struct aem_user);
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
+	unsigned char * const encrypted = malloc(lenEncrypted);
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, len, encrypted, accountKey);
 
 	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC);
 	if (fd < 0) {free(encrypted); return -1;}
-	if (write(fd, encrypted, lenEncrypted) != (ssize_t)lenEncrypted) {free(encrypted); return -1;}
-	free(encrypted);
+	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
+	free(encrypted);
 
-	return 0;
+	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
 
 static int saveAddr() {
 	if (addrCount <= 0) return -1;
 
-	size_t len = addrCount * sizeof(struct aem_addr);
-	size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
-	unsigned char *encrypted = malloc(lenEncrypted);
+	const size_t len = addrCount * sizeof(struct aem_addr);
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
+	unsigned char * const encrypted = malloc(lenEncrypted);
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)addr, len, encrypted, accountKey);
 
 	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC);
 	if (fd < 0) {free(encrypted); return -1;}
-	if (write(fd, encrypted, lenEncrypted) != (ssize_t)lenEncrypted) {free(encrypted); return -1;}
-	free(encrypted);
+	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
+	free(encrypted);
 
-	return 0;
+	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
 
 static int loadAddr(void) {
