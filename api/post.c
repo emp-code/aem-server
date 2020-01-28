@@ -224,21 +224,37 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
-/*
-static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
+static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
-		userViolation(upk64, AEM_VIOLATION_ACCOUNT_CREATE);
+	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_CREATE);
+	if (sock < 0) return;
+
+	unsigned char response;
+	if (recv(sock, &response, 1, 0) != 1) {
+		sodium_free(*decrypted);
+		return;
+	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+//		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_CREATE);
+		sodium_free(*decrypted);
+		return;
+	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
 		return;
 	}
 
-	const int ret = addAccount((unsigned char*)*decrypted);
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
 	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
+	close(sock);
+
+	send204(ssl);
 }
-*/
 
 /*
 static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
@@ -511,8 +527,9 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (decrypted == NULL || lenDecrypted < 1) return;
 
 	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, pubkey);
+
+	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey);
 /*
-	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey;
 	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, pubkey;
 	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey;
 

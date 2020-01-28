@@ -215,6 +215,22 @@ static int genShieldAddress(const uint64_t upk64) {
 
 // === Other functions
 
+// Return a random, unused ID
+static uint16_t newUserId() {
+	uint16_t newId;
+	randombytes_buf(&newId, 2);
+
+	for (int i = 0; i < userCount; i++) {
+		if (user[i].userId == newId) {
+			newId++;
+			i = 0;
+			continue;
+		}
+	}
+
+	return newId;
+}
+
 __attribute__((warn_unused_result))
 static int addressToHash(const unsigned char * const addr, unsigned char * const target) {
 	if (addr == NULL || target == NULL) return -1;
@@ -274,6 +290,36 @@ static void api_account_browse(const int sock, const int num) {
 	send(sock, response, 13 + AEM_LEN_PRIVATE, 0);
 }
 
+static void api_account_create(const int sock, const int num) {
+	if (user[num].level != AEM_USERLEVEL_MAX) {
+		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		send(sock, &violation, 1, 0);
+		return;
+	}
+
+	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
+	if (send(sock, &ok, 1, 0) != 1) return;
+
+	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
+	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
+
+	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
+	if (user2 == NULL) return;
+	user = user2;
+
+	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
+	user[userCount].userId = newUserId();
+	user[userCount].level = AEM_USERLEVEL_MIN;
+	user[userCount].addrNormal = 0;
+	user[userCount].addrShield = 0;
+
+	unsigned char empty[AEM_LEN_PRIVATE - crypto_box_SEALBYTES];
+	bzero(empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES);
+	crypto_box_seal(user[userCount].private, empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES, pubkey_new);
+
+	userCount++;
+}
+
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
@@ -317,6 +363,9 @@ static int takeConnections() {
 
 			switch (req[0]) {
 				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, num); break;
+
+				case AEM_API_ACCOUNT_CREATE: api_account_create(sockClient, num); break;
+
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 				//default: // Invalid
 			}
