@@ -288,6 +288,38 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static void account_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(*decrypted); return;}
+
+	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_UPDATE);
+	if (sock < 0) return;
+
+	unsigned char response;
+	if (recv(sock, &response, 1, 0) != 1) {
+		sodium_free(*decrypted);
+		return;
+	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+//		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_UPDATE);
+		sodium_free(*decrypted);
+		return;
+	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
+		sodium_free(*decrypted);
+		return;
+	}
+
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
+	sodium_free(*decrypted);
+	close(sock);
+
+	send204(ssl);
+}
+
 /*
 static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
 	if (lenDecrypted != 8) {sodium_free(*decrypted); return;}
@@ -559,12 +591,10 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (decrypted == NULL || lenDecrypted < 1) return;
 
 	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, pubkey);
-
 	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey);
 /*
-	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey;
-
 	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
