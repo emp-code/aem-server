@@ -261,7 +261,7 @@ static int userNumFromPubkey(const unsigned char * const pubkey) {
 	return -1;
 }
 
-static int api_account_browse(const int sock, const int num) {
+static void api_account_browse(const int sock, const int num) {
 	unsigned char response[13 + AEM_LEN_PRIVATE];
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
@@ -272,18 +272,16 @@ static int api_account_browse(const int sock, const int num) {
 	memcpy(response + 13, user[num].private, AEM_LEN_PRIVATE);
 
 	send(sock, response, 13 + AEM_LEN_PRIVATE, 0);
-	return 0;
 }
 
-static int api_private_update(const int sock, const int num) {
+static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
-		return -1;
+		return;
 	}
 
 	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
-	return 0;
 }
 
 static int takeConnections() {
