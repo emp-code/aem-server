@@ -72,13 +72,6 @@ static void send204(mbedtls_ssl_context * const ssl) {
 	, 224);
 }
 
-__attribute__((warn_unused_result, const))
-static int numDigits(double number) {
-	int digits = 0;
-	while (number > 1) {number /= 10; digits++;}
-	return digits;
-}
-
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
@@ -173,12 +166,9 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) return;
 
 	const size_t lenBody = 18 + AEM_LEN_PRIVATE + AEM_MAXMSGTOTALSIZE;
-	const size_t lenHead = 223 + numDigits(lenBody);
-	const size_t lenResponse = lenHead + lenBody;
-	char response[lenResponse];
 
-	// Headers
-	sprintf(response,
+	char headers[300];
+	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
@@ -190,16 +180,38 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"\r\n"
 	, lenBody);
 
-	if (recv(sock, response + lenHead, 13 + AEM_LEN_PRIVATE, 0) != 13 + AEM_LEN_PRIVATE) {
+	const size_t lenHead = strlen(headers);
+
+	const size_t lenResponse = lenHead + lenBody;
+	unsigned char response[lenResponse];
+
+	memcpy(response, headers, lenHead);
+	size_t offset = lenHead;
+
+	if (recv(sock, response + offset, 13 + AEM_LEN_PRIVATE, 0) != 13 + AEM_LEN_PRIVATE) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
 		sodium_memzero(response, lenResponse);
 		close(sock);
 		return;
 	}
 
-	// TODO: AdminData, Messages
+	offset += 13 + AEM_LEN_PRIVATE;
+
+	// Admin Data
+	if (response[lenHead + 12] == AEM_USERLEVEL_MAX) {
+		if (recv(sock, response + offset, 35 * 1024, 0) != 35 * 1024) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+			sodium_memzero(response, lenResponse);
+			close(sock);
+			return;
+		}
+
+		offset += 35 * 1024;
+	}
 
 	close(sock);
+
+	// TODO: Messages
 
 	sendData(ssl, response, lenResponse);
 	sodium_memzero(response, lenResponse);

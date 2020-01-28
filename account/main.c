@@ -288,6 +288,22 @@ static void api_account_browse(const int sock, const int num) {
 	memcpy(response + 13, user[num].private, AEM_LEN_PRIVATE);
 
 	send(sock, response, 13 + AEM_LEN_PRIVATE, 0);
+
+	if (user[num].level != AEM_USERLEVEL_MAX) return;
+
+	// Admin Data
+	unsigned char adminData[35 * 1024];
+	bzero(adminData, 35 * 1024);
+
+	const int maxUsers = (userCount <= 1024) ? userCount : 1024;
+	for (int i = 0; i < maxUsers; i++) {
+		adminData[i * 35 + 0] = user[i].level;
+		adminData[i * 35 + 1] = user[i].addrNormal;
+		adminData[i * 35 + 2] = user[i].addrShield;
+		memcpy(adminData + i * 35 + 3, user[i].pubkey, 32);
+	}
+
+	send(sock, adminData, 35 * 1024, 0);
 }
 
 static void api_account_create(const int sock, const int num) {
