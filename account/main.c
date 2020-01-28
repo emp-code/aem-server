@@ -395,6 +395,24 @@ static void api_private_update(const int sock, const int num) {
 	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
 }
 
+static void api_setting_limits(const int sock, const int num) {
+	if (user[num].level != AEM_USERLEVEL_MAX) {
+		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		send(sock, &violation, 1, 0);
+		return;
+	}
+
+	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
+	if (send(sock, &ok, 1, 0) != 1) return;
+
+	unsigned char buf[12];
+	if (recv(sock, buf, 12, 0) != 12) return;
+
+	memcpy(limits, buf, 12);
+
+//	saveSettings(); // TODO
+}
+
 static int takeConnections(void) {
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
@@ -433,6 +451,9 @@ static int takeConnections(void) {
 				case AEM_API_ACCOUNT_UPDATE: api_account_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
+
+				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
+
 				//default: // Invalid
 			}
 

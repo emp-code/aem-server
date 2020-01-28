@@ -548,25 +548,37 @@ static void message_delete(mbedtls_ssl_context * const ssl, char * const * const
 }
 */
 
-/*
-static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
+static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
 
-	if (getUserLevel(upk64) != AEM_USERLEVEL_MAX) {
-		userViolation(upk64, AEM_VIOLATION_SETTING_LIMITS);
+	const int sock = accountSocket(pubkey, AEM_API_SETTING_LIMITS);
+	if (sock < 0) return;
+
+	unsigned char response;
+	if (recv(sock, &response, 1, 0) != 1) {
+		sodium_free(*decrypted);
+		return;
+	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+//		userViolation(pubkey, AEM_VIOLATION_SETTING_LIMITS);
+		sodium_free(*decrypted);
+		return;
+	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
 		return;
 	}
 
-	const int maxStorage[] = {(*decrypted)[0], (*decrypted)[3], (*decrypted)[6], (*decrypted)[9]};
-	const int maxAddrNrm[] = {(*decrypted)[1], (*decrypted)[4], (*decrypted)[7], (*decrypted)[10]};
-	const int maxAddrShd[] = {(*decrypted)[2], (*decrypted)[5], (*decrypted)[8], (*decrypted)[11]};
-	sodium_free(*decrypted);
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
 
-	const int ret = updateLimits(maxStorage, maxAddrNrm, maxAddrShd);
-	if (ret == 0) send204(ssl);
+	sodium_free(*decrypted);
+	close(sock);
+
+	send204(ssl);
 }
-*/
 
 __attribute__((warn_unused_result))
 static char *openWebBox(const unsigned char * const post, unsigned char * const pubkey, size_t * const lenDecrypted) {
@@ -614,8 +626,8 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
-
-	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
 */
 	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);
+
+	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
 }
