@@ -563,6 +563,28 @@ function AllEars(domain, readyCallback) {
 			// Personal field
 			const personalData = nacl.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeys.boxPk, _userKeys.boxSk);
 
+			// Admin Data
+			if (_userLevel == _maxLevel) {
+				const adminData = browseData.slice(13 + _lenPersonal, 13 + _lenPersonal + 35 * _adminData_users);
+				for (let i = 0; i < _adminData_users; i++) {
+					const s = adminData.slice(i * 35, (i + 1) * 35);
+
+					const pk_hex = nacl.to_hex(s.slice(3));
+					if (pk_hex == "0000000000000000000000000000000000000000000000000000000000000000") break;
+
+					const newLevel = s[0] & 3;
+					const newSpace = s[0] >>> 2;
+					const newNaddr = s[1];
+					const newSaddr = s[2];
+
+					_admin_userPkHex.push(pk_hex);
+					_admin_userLevel.push(newLevel);
+					_admin_userSpace.push(newSpace);
+					_admin_userNaddr.push(newNaddr);
+					_admin_userSaddr.push(newSaddr);
+				}
+			}
+
 			// Needs rewrite
 /*
 			const contactSet = new TextDecoder("utf-8").decode(noteData.slice(2)).split('\n');
@@ -607,31 +629,6 @@ function AllEars(domain, readyCallback) {
 				} else {
 					_gkCountry[gkCountCountry] = gkSet[i];
 					gkCountCountry++;
-				}
-			}
-
-			// Admin data
-			const lenAdmin = (_userLevel === _maxLevel) ? _lenAdminData : 0;
-			if (_userLevel === _maxLevel) {
-				const adminDataStart = 18 + _lenPersonal;
-
-				for (let i = 0; i < (_lenAdminData / 11); i++) {
-					const pos = (adminDataStart + i * 11);
-					const newPk = browseData.slice(pos, pos + 8);
-
-					if (newPk[0] == 0 && newPk[1] == 0 && newPk[2] == 0 && newPk[3] == 0
-					&& newPk[4] == 0 && newPk[5] == 0 && newPk[6] == 0 && newPk[7] == 0) break;
-
-					const newLevel = browseData[pos + 8] & 3;
-					const newSpace = browseData[pos + 8] >>> 2;
-					const newNaddr = browseData[pos + 9];
-					const newSaddr = browseData[pos + 10];
-
-					_admin_userPkHex.push(nacl.to_hex(newPk));
-					_admin_userSpace.push(newSpace);
-					_admin_userNaddr.push(newNaddr);
-					_admin_userSaddr.push(newSaddr);
-					_admin_userLevel.push(newLevel);
 				}
 			}
 
