@@ -446,6 +446,23 @@ static void api_address_delete(const int sock, const int num) {
 	saveAddr();
 }
 
+static void api_address_update(const int sock, const int num) {
+	unsigned char buf[8192];
+	const ssize_t len = recv(sock, buf, 8192, 0);
+	if (len < 1 || len % 14 != 0) return;
+
+	for (int i = 0; i < (len / 14); i++) {
+		for (int j = 0; j < addrCount; j++) {
+			if (memcmp(addr[j].hash, buf + (i * 14), 13) == 0 && addr[j].userId == user[num].userId) {
+				addr[j].flags = buf[i * 14 + 13];
+				break;
+			}
+		}
+	}
+
+	saveAddr();
+}
+
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
@@ -513,6 +530,7 @@ static int takeConnections(void) {
 
 				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 				case AEM_API_ADDRESS_DELETE: api_address_delete(sockClient, num); break;
+				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 
