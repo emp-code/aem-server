@@ -926,17 +926,27 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
-	this.SetAccountLevel = function(num, level, callback) { nacl_factory.instantiate(function (nacl) {
-		if (num >= _admin_userPkHex.length || level < 0 || level > _maxLevel) {callback(false); return;}
+	this.Account_Update = function(pk_hex, level, callback) { nacl_factory.instantiate(function (nacl) {
+		if (level < 0 || level > _maxLevel) {callback(false); return;}
 
-		const upData = new Uint8Array(9);
-		upData.set(nacl.from_hex(_admin_userPkHex[num]));
-		upData[8] = level;
+		const upData = new Uint8Array(33);
+		upData[0] = level;
+		upData.set(nacl.from_hex(pk_hex), 1);
 
 		_FetchEncrypted("account/update", upData, nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_admin_userLevel[num] = level;
+			let num = -1;
+			for (let i = 0; i < _admin_userPkHex.length; i++) {
+				if (pk_hex === _admin_userPkHex[i]) {
+					num = i;
+					break;
+				}
+			}
+
+			if (num >= 0)
+				_admin_userLevel[num] = level;
+
 			callback(true);
 		});
 	}); };
