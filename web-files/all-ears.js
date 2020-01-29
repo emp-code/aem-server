@@ -889,13 +889,15 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
-	this.AddAccount = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+	this.Account_Create = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
 		_FetchEncrypted("account/create", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_admin_userPkHex.push(pk_hex.substr(0, 16));
+			_admin_userPkHex.push(pk_hex);
 			_admin_userLevel.push(0);
 			_admin_userSpace.push(0);
+			_admin_userNaddr.push(0);
+			_admin_userSaddr.push(0);
 			callback(true);
 		});
 	}); };
