@@ -902,15 +902,26 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
-	this.DestroyAccount = function(num, callback) { nacl_factory.instantiate(function (nacl) {
-		if (num >= _admin_userPkHex.length) {callback(false); return;}
-
-		_FetchEncrypted("account/delete", nacl.from_hex(_admin_userPkHex[num]), nacl, function(fetchOk, byteArray) {
+	this.Account_Delete = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("account/delete", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			_admin_userPkHex.splice(num, 1);
-			_admin_userLevel.splice(num, 1);
-			_admin_userSpace.splice(num, 1);
+			let num = -1;
+			for (let i = 0; i < _admin_userPkHex.length; i++) {
+				if (pk_hex === _admin_userPkHex[i]) {
+					num = i;
+					break;
+				}
+			}
+
+			if (num >= 0) {
+				_admin_userPkHex.splice(num, 1);
+				_admin_userLevel.splice(num, 1);
+				_admin_userSpace.splice(num, 1);
+				_admin_userNaddr.splice(num, 1);
+				_admin_userSaddr.splice(num, 1);
+			}
+
 			callback(true);
 		});
 	}); };
