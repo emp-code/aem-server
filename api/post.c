@@ -386,20 +386,24 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	sendData(ssl, data, 238);
 }
 
-/*
-static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
-	if (lenDecrypted < 10) {free(*decrypted); return;}
-	const int64_t hash = charToInt64(*decrypted);
-	const bool isShield = ((*decrypted)[8] == 'S');
+static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted != 13) {sodium_free(*decrypted); return;}
 
-	const unsigned char * const addrData = (unsigned char*)((*decrypted) + 9);
-	const size_t lenAddrData = lenDecrypted - 9;
+	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_DELETE);
+	if (sock < 0) return;
 
-	const int ret = deleteAddress(upk64, hash, isShield, addrData, lenAddrData);
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
 	sodium_free(*decrypted);
-	if (ret == 0) send204(ssl);
+	close(sock);
+
+	send204(ssl);
 }
-*/
 
 /*
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
@@ -591,8 +595,8 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
-/*
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
+/*
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
