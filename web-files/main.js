@@ -320,7 +320,7 @@ function destroyAccount(upk_hex) {
 
 	if (rowid === -1) return;
 
-	ae.DestroyAccount(rowid, function(success) {
+	ae.Account_Delete(upk_hex, function(success) {
 		if (success) {
 			tbl.deleteRow(rowid);
 		} else {
@@ -343,7 +343,7 @@ function setAccountLevel(upk_hex, level) {
 
 	if (rowid === -1) return;
 
-	ae.SetAccountLevel(rowid, level, function(success) {
+	ae.Account_Update(upk_hex, level, function(success) {
 		if (!success) {
 			console.log("Failed to set account level");
 			return;
@@ -705,7 +705,7 @@ document.getElementById("btn_enter").onclick = function() {
 	this.disabled = true;
 	ae.SetKeys(txtSkey.value, function(successSetKeys) {
 		if (successSetKeys) {
-			ae.Browse(0, function(successBrowse) {
+			ae.Account_Browse(0, function(successBrowse) {
 				if (successBrowse) {
 					txtSkey.value = "";
 					reloadInterface();
@@ -727,7 +727,7 @@ document.getElementById("btn_refresh").onclick = function() {
 
 	ae.Reset();
 
-	ae.Browse(0, function(successBrowse) {
+	ae.Account_Browse(0, function(successBrowse) {
 		if (successBrowse) {
 			reloadInterface();
 			btn.disabled = false;
@@ -958,7 +958,7 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 	const btn = document.getElementById("btn_admin_addaccount");
 	btn.disabled = "disabled";
 
-	ae.AddAccount(txtPkey.value, function(success) {
+	ae.Account_Create(txtPkey.value, function(success) {
 		if (success) {
 			addRowAdmin(ae.Admin_GetUserCount() - 1);
 			txtPkey.value = "";
