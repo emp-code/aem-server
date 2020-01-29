@@ -232,11 +232,11 @@ static uint16_t newUserId(void) {
 }
 
 __attribute__((warn_unused_result))
-static int addressToHash(const unsigned char * const addr, unsigned char * const target) {
+static int addressToHash(const unsigned char * const source, unsigned char * const target) {
 	if (addr == NULL || target == NULL) return -1;
 
 	unsigned char tmp[16];
-	return crypto_pwhash(tmp, 16, (const char * const)addr, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13);
+	return crypto_pwhash(tmp, 16, (const char * const)source, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13);
 	memcpy(target, tmp, 13);
 }
 
