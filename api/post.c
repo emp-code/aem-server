@@ -332,33 +332,44 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
-/*
-static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
-	unsigned char addr[15];
-	const bool isShield = (lenDecrypted == 6 && memcmp(*decrypted, "SHIELD", 6) == 0);
-
-	if (isShield) {
+static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted > 24 || (lenDecrypted == 24 && (*decrypted)[23] == '5')) {
 		sodium_free(*decrypted);
-		randombytes_buf(addr, 15);
-		addr[0] &= 7; // Clear the first five bits (7=4+2+1)
-	} else {
-		if (lenDecrypted > 24 || (lenDecrypted == 24 && (*decrypted)[0] == '5')) {sodium_free(*decrypted); return;}
+		return;
+	}
 
+	if (lenDecrypted != 6 && memcmp(*decrypted, "SHIELD", 6) != 0) {
 		for (size_t i = 0; i < lenDecrypted; i++) {
 			if (!islower((*decrypted)[i]) && !isdigit((*decrypted)[i])) {
 				sodium_free(*decrypted);
 				return;
 			}
 		}
-
-		addr32_store(addr, *decrypted, lenDecrypted);
-		sodium_free(*decrypted);
 	}
 
-	const int64_t hash = addressToHash(addr);
-	if (addAddress(upk64, hash, isShield) != 0) return;
+	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_CREATE);
+	if (sock < 0) return;
 
-	char data[248];
+	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
+	sodium_free(*decrypted);
+
+	unsigned char hash[13];
+	if (recv(sock, hash, 13, 0) != 13) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
+	close(sock);
+
+	unsigned char data[238];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -366,16 +377,14 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Cache-Control: no-store\r\n"
 		"Connection: close\r\n"
-		"Content-Length: 23\r\n"
+		"Content-Length: 13\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 225);
-	memcpy(data + 225, &hash, 8);
-	memcpy(data + 233, addr, 15);
+	memcpy(data + 225, hash, 13);
 
-	sendData(ssl, data, 248);
+	sendData(ssl, data, 238);
 }
-*/
 
 /*
 static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const int64_t upk64) {
@@ -580,8 +589,9 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey);
-/*
+
 	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
+/*
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 

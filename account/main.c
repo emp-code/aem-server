@@ -16,6 +16,8 @@
 
 #include "../Global.h"
 
+#include "Addr32.h"
+
 #define AEM_ADDR_EXTMSG 0
 #define AEM_ADDR_INTMSG 1
 #define AEM_ADDR_USE_GK 2
@@ -385,6 +387,42 @@ static void api_account_update(const int sock, const int num) {
 	saveUser();
 }
 
+static void api_address_create(const int sock, const int num) {
+	char buf[AEM_MAXLEN_ADDRESS + 1];
+	const ssize_t bytes = recv(sock, buf, AEM_MAXLEN_ADDRESS + 1, 0);
+
+	if (bytes < 1 || bytes > AEM_MAXLEN_ADDRESS) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
+		return;
+	}
+
+	unsigned char bin[15];
+	if (bytes == 6 && memcmp(buf, "SHIELD", 6) == 0) {
+		randombytes_buf(bin, 15);
+		bin[0] &= 7; // Clear first five bits (all but 4,2,1)
+	} else {
+		addr32_store(bin, buf, bytes);
+	}
+
+	unsigned char hash[13];
+	if (addressToHash(bin, hash) != 0) return;
+
+	// Save address
+	struct aem_addr *addr2 = realloc(addr, (addrCount + 1) * sizeof(struct aem_addr));
+	if (addr2 == NULL) return;
+	addr = addr2;
+
+	memcpy(addr[addrCount].hash, hash, 13);
+	addr[addrCount].userId = user[num].userId;
+	addr[addrCount].flags = 0;
+
+	addrCount++;
+
+	send(sock, hash, 13, 0);
+
+	saveAddr();
+}
+
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
@@ -449,6 +487,8 @@ static int takeConnections(void) {
 				case AEM_API_ACCOUNT_CREATE: api_account_create(sockClient, num); break;
 				case AEM_API_ACCOUNT_DELETE: api_account_delete(sockClient, num); break;
 				case AEM_API_ACCOUNT_UPDATE: api_account_update(sockClient, num); break;
+
+				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 

@@ -6,6 +6,8 @@
 #define AEM_API_ACCOUNT_DELETE 12
 #define AEM_API_ACCOUNT_UPDATE 13
 
+#define AEM_API_ADDRESS_CREATE 20
+
 #define AEM_API_PRIVATE_UPDATE 40
 
 #define AEM_API_SETTING_LIMITS 50
@@ -18,6 +20,7 @@
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 5)
+#define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
 #define AEM_MAXLEN_HOST 32
 #define AEM_PORT_API 302
