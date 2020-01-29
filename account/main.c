@@ -429,7 +429,7 @@ static void api_address_delete(const int sock, const int num) {
 
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
-		if (memcmp(addr[i].hash, hash_del, 13) == 0) {
+		if (memcmp(addr[i].hash, hash_del, 13) == 0 && addr[i].userId == user[num].userId) {
 			delNum = i;
 			break;
 		}
