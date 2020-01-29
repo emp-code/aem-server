@@ -32,7 +32,7 @@ function AllEars(domain, readyCallback) {
 // Private Variables
 	const _lenPost = 8192; // 8 KiB
 	const _lenPersonal = 4096 - 32 - 5;
-	const _lenAdminData = 11264; // 11 KiB, space for 1024 users' data
+	const _adminData_users = 1024;
 	const _maxLevel = 3;
 
 	const _maxStorage = [];
