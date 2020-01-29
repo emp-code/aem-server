@@ -546,7 +546,7 @@ function AllEars(domain, readyCallback) {
 		callback(true);
 	}); };
 
-	this.Browse = function(page, callback) { nacl_factory.instantiate(function (nacl) {
+	this.Account_Browse = function(page, callback) { nacl_factory.instantiate(function (nacl) {
 		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
 
 		_FetchEncrypted("account/browse", new Uint8Array([page]), nacl, function(fetchOk, browseData) {
@@ -724,6 +724,82 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
+	this.Account_Create = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("account/create", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			_admin_userPkHex.push(pk_hex);
+			_admin_userLevel.push(0);
+			_admin_userSpace.push(0);
+			_admin_userNaddr.push(0);
+			_admin_userSaddr.push(0);
+			callback(true);
+		});
+	}); };
+
+	this.Account_Delete = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
+		_FetchEncrypted("account/delete", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			let num = -1;
+			for (let i = 0; i < _admin_userPkHex.length; i++) {
+				if (pk_hex === _admin_userPkHex[i]) {
+					num = i;
+					break;
+				}
+			}
+
+			if (num >= 0) {
+				_admin_userPkHex.splice(num, 1);
+				_admin_userLevel.splice(num, 1);
+				_admin_userSpace.splice(num, 1);
+				_admin_userNaddr.splice(num, 1);
+				_admin_userSaddr.splice(num, 1);
+			}
+
+			callback(true);
+		});
+	}); };
+
+	this.Account_Update = function(pk_hex, level, callback) { nacl_factory.instantiate(function (nacl) {
+		if (level < 0 || level > _maxLevel) {callback(false); return;}
+
+		const upData = new Uint8Array(33);
+		upData[0] = level;
+		upData.set(nacl.from_hex(pk_hex), 1);
+
+		_FetchEncrypted("account/update", upData, nacl, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			let num = -1;
+			for (let i = 0; i < _admin_userPkHex.length; i++) {
+				if (pk_hex === _admin_userPkHex[i]) {
+					num = i;
+					break;
+				}
+			}
+
+			if (num >= 0)
+				_admin_userLevel[num] = level;
+
+			callback(true);
+		});
+	}); };
+
+	this.Private_Update = function(callback) { nacl_factory.instantiate(function (nacl) {
+		let privText = "";
+
+		for (let i = 0; i < _contactMail.length; i++) {
+			privText += _contactMail[i] + '\n';
+			privText += _contactName[i] + '\n';
+			privText += _contactNote[i] + '\n';
+		}
+
+		const privData = nacl.encode_utf8(privText);
+		_FetchEncrypted("private/update", nacl.crypto_box_seal(privData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
+	}); };
+
+// need rewrite -->
 	this.Send = function(senderCopy, msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
 		const sc = senderCopy? "Y" : "N";
 		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
@@ -838,19 +914,6 @@ function AllEars(domain, readyCallback) {
 		});
 	}); };
 
-	this.Private_Update = function(callback) { nacl_factory.instantiate(function (nacl) {
-		let privText = "";
-
-		for (let i = 0; i < _contactMail.length; i++) {
-			privText += _contactMail[i] + '\n';
-			privText += _contactName[i] + '\n';
-			privText += _contactNote[i] + '\n';
-		}
-
-		const privData = nacl.encode_utf8(privText);
-		_FetchEncrypted("private/update", nacl.crypto_box_seal(privData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
-	}); };
-
 	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
 		const delCount = ids.length;
 
@@ -884,68 +947,6 @@ function AllEars(domain, readyCallback) {
 					else if (ids[i] < _fileNote[j].id) _fileNote[j].id -= 1;
 				}
 			}
-
-			callback(true);
-		});
-	}); };
-
-	this.Account_Create = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/create", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
-			if (!fetchOk) {callback(false); return;}
-
-			_admin_userPkHex.push(pk_hex);
-			_admin_userLevel.push(0);
-			_admin_userSpace.push(0);
-			_admin_userNaddr.push(0);
-			_admin_userSaddr.push(0);
-			callback(true);
-		});
-	}); };
-
-	this.Account_Delete = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/delete", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
-			if (!fetchOk) {callback(false); return;}
-
-			let num = -1;
-			for (let i = 0; i < _admin_userPkHex.length; i++) {
-				if (pk_hex === _admin_userPkHex[i]) {
-					num = i;
-					break;
-				}
-			}
-
-			if (num >= 0) {
-				_admin_userPkHex.splice(num, 1);
-				_admin_userLevel.splice(num, 1);
-				_admin_userSpace.splice(num, 1);
-				_admin_userNaddr.splice(num, 1);
-				_admin_userSaddr.splice(num, 1);
-			}
-
-			callback(true);
-		});
-	}); };
-
-	this.Account_Update = function(pk_hex, level, callback) { nacl_factory.instantiate(function (nacl) {
-		if (level < 0 || level > _maxLevel) {callback(false); return;}
-
-		const upData = new Uint8Array(33);
-		upData[0] = level;
-		upData.set(nacl.from_hex(pk_hex), 1);
-
-		_FetchEncrypted("account/update", upData, nacl, function(fetchOk, byteArray) {
-			if (!fetchOk) {callback(false); return;}
-
-			let num = -1;
-			for (let i = 0; i < _admin_userPkHex.length; i++) {
-				if (pk_hex === _admin_userPkHex[i]) {
-					num = i;
-					break;
-				}
-			}
-
-			if (num >= 0)
-				_admin_userLevel[num] = level;
 
 			callback(true);
 		});
