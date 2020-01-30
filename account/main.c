@@ -357,7 +357,7 @@ static void api_account_delete(const int sock, const int num) {
 
 	if (delNum < (userCount - 1)) {
 		const size_t s = sizeof(struct aem_user);
-		memmove(user + s * delNum, user + s * (delNum + 1), s * (userCount - delNum - 1));
+		memmove((unsigned char*)user + s * delNum, (unsigned char*)user + s * (delNum + 1), s * (userCount - delNum - 1));
 	}
 
 	userCount--;
@@ -439,7 +439,7 @@ static void api_address_delete(const int sock, const int num) {
 
 	if (delNum < (addrCount - 1)) {
 		const size_t s = sizeof(struct aem_addr);
-		memmove(addr + s * delNum, addr + s * (delNum + 1), s * (addrCount - delNum - 1));
+		memmove((unsigned char*)addr + s * delNum, (unsigned char*)addr + s * (delNum + 1), s * (addrCount - delNum - 1));
 	}
 
 	addrCount--;
