@@ -1,6 +1,8 @@
 "use strict";
 
-const ae = new AllEars(null /* domain, null means current domain */, function(ok) {
+sodium.ready.then(function() {
+
+const ae = new AllEars(null, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", function(ok) { // domain (null=automatic), API public key in hex
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
@@ -1046,3 +1048,5 @@ document.getElementById("txt_skey").onkeyup = function(e) {
 };
 
 navMenu(0);
+
+});

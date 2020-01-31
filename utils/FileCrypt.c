@@ -145,8 +145,8 @@ int main(int argc, char *argv[]) {
 				"Content-Length: %zd\r\n"
 
 				"Content-Security-Policy: "
-					"connect-src"     " https://%s:302/api/;"
-					"script-src"      " https://%s/files/main.js https://%s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdnjs.cloudflare.com/ajax/libs/js-nacl/1.3.2/nacl_factory.min.js;"
+					"connect-src"     " https://%s:302/api/ data:;"
+					"script-src"      " https://%s/files/main.js https://%s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js;"
 					"style-src"       " https://%s/files/main.css;"
 
 					"base-uri"        " 'none';"

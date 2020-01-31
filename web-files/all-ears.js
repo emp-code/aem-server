@@ -1,6 +1,6 @@
 "use strict";
 
-function AllEars(domain, readyCallback) {
+function AllEars(domain, serverPkHex, readyCallback) {
 	try {
 		if (!window.isSecureContext
 		|| window.self !== window.top
@@ -12,26 +12,11 @@ function AllEars(domain, readyCallback) {
 	if (!domain || typeof(domain) !== "string")
 		domain = document.location.hostname;
 
-	let _serverPk;
-
-	fetch("https://" + domain + ":302/api/pubkey", {
-		method: "GET",
-		cache: "no-store",
-		credentials: "omit",
-		redirect: "error",
-		referrer: "no-referrer",
-	}).then(function(response) {
-		return response.ok ? response.arrayBuffer() : false;
-	}).then(function(ab) {
-		if (ab === false) return readyCallback(false);
-
-		_serverPk = new Uint8Array(ab);
-		return readyCallback((_serverPk.length === 32));
-	});
+	const _serverPk = sodium.from_hex(serverPkHex);
 
 // Private Variables
 	const _lenPost = 8192; // 8 KiB
-	const _lenPersonal = 4096 - 32 - 5;
+	const _lenPersonal = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
 	const _adminData_users = 1024;
 	const _maxLevel = 3;
 
@@ -39,7 +24,8 @@ function AllEars(domain, readyCallback) {
 	const _maxAddressNormal = [];
 	const _maxAddressShield = [];
 
-	let _userKeys;
+	let _userKeyPublic;
+	let _userKeySecret;
 
 	let _userLevel = 0;
 	const _userAddress = [];
@@ -134,7 +120,7 @@ function AllEars(domain, readyCallback) {
 		});
 	};
 
-	const _FetchEncrypted = function(url, cleartext, nacl, callback) {
+	const _FetchEncrypted = function(url, cleartext, callback) {
 		if (cleartext.length > _lenPost - 2) {callback(false); return;}
 
 		// Cleartext is padded to _lenPost bytes
@@ -147,16 +133,16 @@ function AllEars(domain, readyCallback) {
 		const u8len = new Uint8Array(u16len.buffer);
 		clearU8.set(u8len, _lenPost - 2);
 
-		const nonce = nacl.crypto_box_random_nonce();
+		const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
 
 		// postBox: the encrypted data to be sent
-		const postBox = nacl.crypto_box(clearU8, nonce, _serverPk, _userKeys.boxSk);
+		const postBox = sodium.crypto_box_easy(clearU8, nonce, _serverPk, _userKeySecret);
 
 		// postMsg: Nonce + User Public Key + postBox
-		const postMsg = new Uint8Array(24 + _userKeys.boxPk.length + postBox.length);
+		const postMsg = new Uint8Array(sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES + postBox.length);
 		postMsg.set(nonce);
-		postMsg.set(_userKeys.boxPk, 24);
-		postMsg.set(postBox, 24 + _userKeys.boxPk.length);
+		postMsg.set(_userKeyPublic, sodium.crypto_box_NONCEBYTES);
+		postMsg.set(postBox, sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES);
 
 		_FetchBinary("https://" + domain + ":302/api/" + url, postMsg, callback);
 	};
@@ -535,21 +521,23 @@ function AllEars(domain, readyCallback) {
 		_contactNote.splice(index, 1);
 	};
 
-	this.SetKeys = function(skey_hex, callback) { nacl_factory.instantiate(function (nacl) {
+	this.SetKeys = function(skey_hex, callback) {
 		if (typeof(skey_hex) !== "string" || skey_hex.length !== 64) {
-			_userKeys = null;
+			_userKeySecret = null;
+			_userKeyPublic = null;
 			callback(false);
 			return;
 		}
 
-		_userKeys = nacl.crypto_box_keypair_from_raw_sk(nacl.from_hex(skey_hex));
+		_userKeySecret = sodium.from_hex(skey_hex);
+		_userKeyPublic = sodium.crypto_scalarmult_base(_userKeySecret);
 		callback(true);
-	}); };
+	};
 
-	this.Account_Browse = function(page, callback) { nacl_factory.instantiate(function (nacl) {
+	this.Account_Browse = function(page, callback) {
 		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
 
-		_FetchEncrypted("account/browse", new Uint8Array([page]), nacl, function(fetchOk, browseData) {
+		_FetchEncrypted("account/browse", new Uint8Array([page]), function(fetchOk, browseData) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < 4; i++) {
@@ -561,7 +549,7 @@ function AllEars(domain, readyCallback) {
 			_userLevel = browseData[12];
 
 			// Personal field
-			const personalData = nacl.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeys.boxPk, _userKeys.boxSk);
+			const personalData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeyPublic, _userKeySecret);
 
 			// Admin Data
 			if (_userLevel == _maxLevel) {
@@ -569,7 +557,7 @@ function AllEars(domain, readyCallback) {
 				for (let i = 0; i < _adminData_users; i++) {
 					const s = adminData.slice(i * 35, (i + 1) * 35);
 
-					const pk_hex = nacl.to_hex(s.slice(3));
+					const pk_hex = sodium.to_hex(s.slice(3));
 					if (pk_hex == "0000000000000000000000000000000000000000000000000000000000000000") break;
 
 					const newLevel = s[0] & 3;
@@ -596,7 +584,7 @@ function AllEars(domain, readyCallback) {
 
 			// Address data
 			const addrDataStart = 18 + _lenNoteData;
-			const addrData = nacl.crypto_box_seal_open(browseData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeys.boxPk, _userKeys.boxSk);
+			const addrData = sodium.crypto_box_seal_open(browseData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeyPublic, _userKeySecret);
 
 			for (let i = 0; i < (addrData.length / 24); i++) {
 				const start = i * 24;
@@ -613,7 +601,7 @@ function AllEars(domain, readyCallback) {
 
 			// Gatekeeper data
 			const gkDataStart = 18 + _lenNoteData + addrDataSize;
-			const gkData = new TextDecoder("utf-8").decode(nacl.crypto_box_seal_open(browseData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeys.boxPk, _userKeys.boxSk));
+			const gkData = new TextDecoder("utf-8").decode(sodium.crypto_box_seal_open(browseData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeyPublic, _userKeySecret));
 			const gkSet = gkData.split('\n');
 			let gkCountCountry = 0;
 			let gkCountDomain = 0;
@@ -640,13 +628,13 @@ function AllEars(domain, readyCallback) {
 
 				// HeadBox
 				const msgHeadBox = browseData.slice(msgStart + 2, msgStart + 85); // 85 = 2 + 35 + crypto_box_SEALBYTES (48)
-				const msgHead = nacl.crypto_box_seal_open(msgHeadBox, _userKeys.boxPk, _userKeys.boxSk);
+				const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
 
 				// BodyBox
 				const lenBody = msgKilos * 1024;
 				const bbStart = msgStart + 85;
 				const msgBodyBox = browseData.slice(bbStart, bbStart + lenBody + 50); // 50 = 2 + crypto_box_SEALBYTES (48)
-				const msgBodyFull = nacl.crypto_box_seal_open(msgBodyBox, _userKeys.boxPk, _userKeys.boxSk);
+				const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
 				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody, lenBody + 2).buffer)[0];
 				const msgBody = msgBodyFull.slice(0, lenBody - padAmount);
 
@@ -722,10 +710,10 @@ function AllEars(domain, readyCallback) {
 
 			callback(true);
 		});
-	}); };
+	};
 
-	this.Account_Create = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/create", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
+	this.Account_Create = function(pk_hex, callback) {
+		_FetchEncrypted("account/create", sodium.from_hex(pk_hex), function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_admin_userPkHex.push(pk_hex);
@@ -735,10 +723,10 @@ function AllEars(domain, readyCallback) {
 			_admin_userSaddr.push(0);
 			callback(true);
 		});
-	}); };
+	};
 
-	this.Account_Delete = function(pk_hex, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("account/delete", nacl.from_hex(pk_hex), nacl, function(fetchOk, byteArray) {
+	this.Account_Delete = function(pk_hex, callback) {
+		_FetchEncrypted("account/delete", sodium.from_hex(pk_hex), function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			let num = -1;
@@ -759,16 +747,16 @@ function AllEars(domain, readyCallback) {
 
 			callback(true);
 		});
-	}); };
+	};
 
-	this.Account_Update = function(pk_hex, level, callback) { nacl_factory.instantiate(function (nacl) {
+	this.Account_Update = function(pk_hex, level, callback) {
 		if (level < 0 || level > _maxLevel) {callback(false); return;}
 
 		const upData = new Uint8Array(33);
 		upData[0] = level;
-		upData.set(nacl.from_hex(pk_hex), 1);
+		upData.set(sodium.from_hex(pk_hex), 1);
 
-		_FetchEncrypted("account/update", upData, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("account/update", upData, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			let num = -1;
@@ -784,9 +772,9 @@ function AllEars(domain, readyCallback) {
 
 			callback(true);
 		});
-	}); };
+	};
 
-	this.Private_Update = function(callback) { nacl_factory.instantiate(function (nacl) {
+	this.Private_Update = function(callback) {
 		let privText = "";
 
 		for (let i = 0; i < _contactMail.length; i++) {
@@ -795,20 +783,20 @@ function AllEars(domain, readyCallback) {
 			privText += _contactNote[i] + '\n';
 		}
 
-		const privData = nacl.encode_utf8(privText);
-		_FetchEncrypted("private/update", nacl.crypto_box_seal(privData, _userKeys.boxPk), nacl, function(fetchOk) {callback(fetchOk);});
-	}); };
+		const privData = sodium.from_string(privText);
+		_FetchEncrypted("private/update", sodium.crypto_box_seal(privData, _userKeyPublic), function(fetchOk) {callback(fetchOk);});
+	};
 
 // need rewrite -->
-	this.Send = function(senderCopy, msgFrom, msgTo, msgTitle, msgBody, callback) { nacl_factory.instantiate(function (nacl) {
+	this.Send = function(senderCopy, msgFrom, msgTo, msgTitle, msgBody, callback) {
 		const sc = senderCopy? "Y" : "N";
-		const cleartext = nacl.encode_utf8(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
+		const cleartext = sodium.from_string(sc + msgFrom + '\n' + msgTo + '\n' + msgTitle + '\n' + msgBody);
 
-		_FetchEncrypted("message/create", cleartext, nacl, function(fetchOk) {callback(fetchOk);});
-	}); };
+		_FetchEncrypted("message/create", cleartext, function(fetchOk) {callback(fetchOk);});
+	};
 
 	// Notes are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
-	this.SaveNote = function(title, body, callback) { nacl_factory.instantiate(function (nacl) {
+	this.SaveNote = function(title, body, callback) {
 		const txt = title + '\n' + body;
 		const lenTxt = new Blob([txt]).size;
 		if (lenTxt > _lenPost) {callback(false); return;}
@@ -817,29 +805,29 @@ function AllEars(domain, readyCallback) {
 		const paddedLen = lenTxt + lenPad;
 
 		const u8data = new Uint8Array(paddedLen + 2);
-		u8data.set(nacl.encode_utf8(txt));
+		u8data.set(sodium.from_string(txt));
 
 		// Last two bytes store the padding length
 		const u16pad = new Uint16Array([lenPad]);
 		const u8pad = new Uint8Array(u16pad.buffer);
 		u8data.set(u8pad, paddedLen);
 
-		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
+		const sealbox = sodium.crypto_box_seal(u8data, _userKeyPublic);
 
 		const finalData = new Uint8Array(sealbox.length + 1);
-		finalData.set(nacl.encode_utf8("T"));
+		finalData.set(sodium.from_string("T"));
 		finalData.set(sealbox, 1);
 
-		_FetchEncrypted("message/assign", finalData, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("message/assign", finalData, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_textNote.push(new _NewTextNote(-1, Date.now() / 1000, title, body));
 			callback(true);
 		});
-	}); };
+	};
 
 	// Files are padded to the nearest 1024 bytes and encrypted into a sealed box before sending
-	this.SaveFile = function(fileData, fileName, fileType, fileSize, callback) { nacl_factory.instantiate(function (nacl) {
+	this.SaveFile = function(fileData, fileName, fileType, fileSize, callback) {
 		const lenFn = (new Blob([fileName]).size);
 		const lenFt = (new Blob([fileType]).size);
 		if (lenFn > 255 || lenFt > 255) {callback(false); return;}
@@ -852,10 +840,10 @@ function AllEars(domain, readyCallback) {
 
 		const u8data = new Uint8Array(paddedLen + 2);
 		u8data[0] = lenFn;
-		u8data.set(nacl.encode_utf8(fileName), 1);
+		u8data.set(sodium.from_string(fileName), 1);
 
 		u8data[1 + lenFn] = lenFt;
-		u8data.set(nacl.encode_utf8(fileType), 2 + lenFn);
+		u8data.set(sodium.from_string(fileType), 2 + lenFn);
 
 		u8data.set(fileData, 2 + lenFn + lenFt);
 
@@ -864,57 +852,57 @@ function AllEars(domain, readyCallback) {
 		const u8pad = new Uint8Array(u16pad.buffer);
 		u8data.set(u8pad, paddedLen);
 
-		const sealbox = nacl.crypto_box_seal(u8data, _userKeys.boxPk);
+		const sealbox = sodium.crypto_box_seal(u8data, _userKeyPublic);
 
 		const finalData = new Uint8Array(sealbox.length + 1);
-		finalData.set(nacl.encode_utf8("F"));
+		finalData.set(sodium.from_string("F"));
 		finalData.set(sealbox, 1);
 
-		_FetchEncrypted("message/assign", finalData, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("message/assign", finalData, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileData.length, fileName, fileType));
 			callback(true);
 		});
-	}); };
+	};
 
-	this.DeleteAddress = function(num, callback) { nacl_factory.instantiate(function (nacl) {
-		const shieldByte = (_userAddress[num].decoded.length === 24 && _userAddress[num].decoded[0] === '5') ? nacl.encode_utf8("S") : nacl.encode_utf8("N");
+	this.DeleteAddress = function(num, callback) {
+		const shieldByte = (_userAddress[num].decoded.length === 24 && _userAddress[num].decoded[0] === '5') ? sodium.from_string("S") : sodium.from_string("N");
 		const hash = _userAddress[num].hash;
 		_userAddress.splice(num, 1);
 
-		const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
+		const boxAddrData = sodium.crypto_box_seal(_MakeAddrData(), _userKeyPublic);
 		const postData = new Uint8Array(9 + boxAddrData.length);
 		postData.set(hash);
 		postData.set(shieldByte, 8);
 		postData.set(boxAddrData, 9);
 
-		_FetchEncrypted("address/delete", postData, nacl, function(fetchOk) {callback(fetchOk);});
-	}); };
+		_FetchEncrypted("address/delete", postData, function(fetchOk) {callback(fetchOk);});
+	};
 
-	this.AddAddress = function(addr, callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("address/create", nacl.encode_utf8(addr), nacl, function(fetchOk, byteArray) {
+	this.AddAddress = function(addr, callback) {
+		_FetchEncrypted("address/create", sodium.from_string(addr), function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), addr, false, false, false, true));
 
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-			_FetchEncrypted("storage/enaddr", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+			const boxAddrData = sodium.crypto_box_seal(_MakeAddrData(), _userKeyPublic);
+			_FetchEncrypted("storage/enaddr", boxAddrData, function(fetchOk) {callback(fetchOk);});
 		});
-	}); };
+	};
 
-	this.AddShieldAddress = function(callback) { nacl_factory.instantiate(function (nacl) {
-		_FetchEncrypted("address/create", nacl.encode_utf8("SHIELD"), nacl, function(fetchOk, byteArray) {
+	this.AddShieldAddress = function(callback) {
+		_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			_userAddress.push(new _NewAddress(byteArray.slice(8), byteArray.slice(0, 8), _DecodeAddress(byteArray.slice(8)), false, false, false, true));
 
-			const boxAddrData = nacl.crypto_box_seal(_MakeAddrData(), _userKeys.boxPk);
-			_FetchEncrypted("storage/enaddr", boxAddrData, nacl, function(fetchOk) {callback(fetchOk);});
+			const boxAddrData = sodium.crypto_box_seal(_MakeAddrData(), _userKeyPublic);
+			_FetchEncrypted("storage/enaddr", boxAddrData, function(fetchOk) {callback(fetchOk);});
 		});
-	}); };
+	};
 
-	this.DeleteMessages = function(ids, callback) { nacl_factory.instantiate(function (nacl) {
+	this.DeleteMessages = function(ids, callback) {
 		const delCount = ids.length;
 
 		const data = new Uint8Array(delCount);
@@ -923,7 +911,7 @@ function AllEars(domain, readyCallback) {
 			data[i] = ids[i];
 		}
 
-		_FetchEncrypted("message/delete", data, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("message/delete", data, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < delCount; i++) {
@@ -950,9 +938,9 @@ function AllEars(domain, readyCallback) {
 
 			callback(true);
 		});
-	}); };
+	};
 
-	this.SetLimits = function(storage, addrNrm, addrShd, callback) { nacl_factory.instantiate(function (nacl) {
+	this.SetLimits = function(storage, addrNrm, addrShd, callback) {
 		if (storage.length !== 4 || addrNrm.length !== 4 || addrShd.length !== 4) {callback(false); return;}
 
 		const newLimits = new Uint8Array(12);
@@ -962,7 +950,7 @@ function AllEars(domain, readyCallback) {
 			newLimits[(i * 3) + 2] = addrShd[i];
 		}
 
-		_FetchEncrypted("setting/limits", newLimits, nacl, function(fetchOk, byteArray) {
+		_FetchEncrypted("setting/limits", newLimits, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			for (let i = 0; i < 4; i++) {
@@ -973,10 +961,12 @@ function AllEars(domain, readyCallback) {
 
 			callback(true);
 		});
-	}); };
+	};
 
-	this.NewKeys = function(callback) { nacl_factory.instantiate(function (nacl) {
-		const newKeys = nacl.crypto_box_keypair();
-		callback(nacl.to_hex(newKeys.boxPk), nacl.to_hex(newKeys.boxSk));
-	}); };
+	this.NewKeys = function(callback) {
+		const newKeys = sodium.crypto_box_keypair();
+		callback(sodium.to_hex(newKeys.publicKey), sodium.to_hex(newKeys.privateKey));
+	};
+
+	return readyCallback(true);
 }
