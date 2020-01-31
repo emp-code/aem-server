@@ -52,7 +52,7 @@ static int getKey(void) {
 }
 
 int main(int argc, char *argv[]) {
-	puts("allears-encrypt: Encrypt files for All-Ears Mail");
+	puts("FileCrypt: Encrypt files for All-Ears Mail");
 
 	if (argc < 2) {puts("Terminating: Use filename as parameter"); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {puts("Terminating: Failed to initialize libsodium"); return EXIT_FAILURE;}
