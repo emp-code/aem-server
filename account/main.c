@@ -416,7 +416,7 @@ static void api_address_create(const int sock, const int num) {
 
 //	saveAddr();
 
-	if (len == 1) { // Shield
+	if (len == 6) { // Shield
 		unsigned char combined[28];
 		memcpy(combined, hash, 13);
 		memcpy(combined + 13, bin, 15);
