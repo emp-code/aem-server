@@ -342,7 +342,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) return;
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to allears-account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -359,7 +359,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	// Shield
 	unsigned char response[28]; // 13 + 15
 	if (recv(sock, response, 28, 0) != 28) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from allears-account");
 		close(sock);
 		return;
 	}
