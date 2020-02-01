@@ -804,7 +804,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), addr, true, false, false, false));
+				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), _addr32_decode(byteArray.slice(13, 28)), true, false, false, false));
 				callback(true);
 			});
 		} else {
@@ -814,7 +814,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(hash, addr32, addr, true, false, false, false));
+				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), true, false, false, false));
 				callback(true);
 			});
 		}

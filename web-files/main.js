@@ -864,18 +864,22 @@ document.getElementById("btn_newaddress").onclick = function() {
 };
 
 document.getElementById("btn_newshieldaddress").onclick = function() {
-	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield()) return;
+	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield(ae.GetUserLevel())) return;
 
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
-	ae.Address_Create("SHIELD", function(success) {
+	ae.Address_Create("SHIELD", function(success1) {
 		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
 		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 
-		if (success) {
-			document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
-			addAddress(ae.GetAddressCount() - 1);
+		if (success1) {
+			ae.Private_Update(function(success2) {
+				document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
+				addAddress(ae.GetAddressCount() - 1);
+
+				if (!success2) console.log("Failed to update the Private field");
+			});
 		} else {
 			console.log("Failed to add Shield address");
 		}
