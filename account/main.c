@@ -18,9 +18,11 @@
 
 #include "Addr32.h"
 
-#define AEM_ADDR_EXTMSG 0
-#define AEM_ADDR_INTMSG 1
-#define AEM_ADDR_USE_GK 2
+#define AEM_ADDR_FLAG_EXTMSG 128
+#define AEM_ADDR_FLAG_INTMSG 64
+#define AEM_ADDR_FLAG_USE_GK 32
+#define AEM_ADDR_FLAG_SHR_PK 16
+// 8,4,2,1 unused
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
@@ -130,7 +132,7 @@ static int saveAddr(void) {
 }
 
 static int loadAddr(void) {
-	if (addrCount >= 0) return -1;
+	if (addrCount > 0) return -1;
 
 	const int fd = open(AEM_PATH_ADDR, O_RDONLY);
 	if (fd < 0) {
@@ -168,7 +170,7 @@ static int loadAddr(void) {
 }
 
 static int loadUser(void) {
-	if (userCount != 0) return -1;
+	if (userCount > 0) return -1;
 
 	const int fd = open(AEM_PATH_USER, O_RDONLY);
 	if (fd < 0) {
@@ -414,7 +416,7 @@ static void api_address_create(const int sock, const int num) {
 
 	addrCount++;
 
-//	saveAddr();
+	saveAddr();
 
 	if (len == 6) { // Shield
 		unsigned char combined[28];
@@ -472,6 +474,8 @@ static void api_private_update(const int sock, const int num) {
 	}
 
 	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
+
+	saveUser();
 }
 
 static void api_setting_limits(const int sock, const int num) {
@@ -594,7 +598,7 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading User.aem"); return EXIT_FAILURE;}
-//	loadAddr();
+	if (loadAddr() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Addr.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 	takeConnections();

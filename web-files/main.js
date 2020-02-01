@@ -845,14 +845,18 @@ document.getElementById("btn_newaddress").onclick = function() {
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
-	ae.Address_Create(txtNewAddr.value, function(success) {
+	ae.Address_Create(txtNewAddr.value, function(success1) {
 		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
 		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 
-		if (success) {
-			document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
-			addAddress(ae.GetAddressCount() - 1);
-			txtNewAddr.value = "";
+		if (success1) {
+			ae.Private_Update(function(success2) {
+				document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
+				addAddress(ae.GetAddressCount() - 1);
+				txtNewAddr.value = "";
+
+				if (!success2) console.log("Failed to update the Private field");
+			});
 		} else {
 			console.log("Failed to add address");
 		}

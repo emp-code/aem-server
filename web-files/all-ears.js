@@ -14,15 +14,24 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 	const _serverPk = sodium.from_hex(serverPkHex);
 
-// Private Variables
-	const _lenPost = 8192; // 8 KiB
-	const _lenPersonal = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
-	const _adminData_users = 1024;
-	const _maxLevel = 3;
-	const _addressKey = sodium.from_hex(addrKeyHex);
-	const _AEM_ARGON2_OPSLIMIT = 3;
-	const _AEM_ARGON2_MEMLIMIT = 67108864;
+// Private constants - must match server
+	const _AEM_ADDR_FLAG_EXTMSG = 128;
+	const _AEM_ADDR_FLAG_INTMSG = 64;
+	const _AEM_ADDR_FLAG_SHR_PK = 16;
+	const _AEM_ADDR_FLAG_USE_GK = 32;
+	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_EXTMSG;
 
+	const _AEM_ARGON2_MEMLIMIT = 67108864;
+	const _AEM_ARGON2_OPSLIMIT = 3;
+
+	const _adminData_users = 1024;
+	const _lenPost = 8192;
+	const _lenPrivate = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
+	const _maxLevel = 3;
+
+	const _addressKey = sodium.from_hex(addrKeyHex);
+
+// Private variables
 	const _maxStorage = [];
 	const _maxAddressNormal = [];
 	const _maxAddressShield = [];
@@ -51,7 +60,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	const _admin_userSaddr = [];
 	const _admin_userLevel = [];
 
-// Private Functions
+// Private functions
 	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
 		this.id = id;
 		this.isSent = isSent;
@@ -95,14 +104,14 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		this.fileType = fileType;
 	}
 
-	function _NewAddress(hash, addr32, decoded, accInt, spk, accExt, gk) {
+	function _NewAddress(hash, addr32, decoded, accExt, accInt, gk, spk) {
 		this.hash = hash;
 		this.addr32 = addr32;
 		this.decoded = decoded;
-		this.acceptIntMsg = accInt;
-		this.sharePk = spk;
 		this.acceptExtMsg = accExt;
+		this.acceptIntMsg = accInt;
 		this.useGatekeeper = gk;
+		this.sharePk = spk;
 	}
 
 	const _FetchBinary = function(url, postData, callback) {
@@ -252,43 +261,6 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		}
 
 		return count;
-	};
-
-	const _MakeAddrData = function() {
-		const addrData = new Uint8Array(_userAddress.length * 24);
-
-		for (let i = 0; i < _userAddress.length; i++) {
-			const pos = i * 24;
-			addrData[pos] = 0;
-
-			if (_userAddress[i].useGatekeeper) addrData[pos] |= 2;
-			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 4;
-			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 8;
-			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
-
-			addrData.set(_userAddress[i].addr32, pos + 1);
-			addrData.set(_userAddress[i].hash, pos + 16);
-		}
-
-		return addrData;
-	};
-
-	const _MakeAddrData_Server = function() {
-		const addrData = new Uint8Array(_userAddress.length * 9);
-
-		for (let i = 0; i < _userAddress.length; i++) {
-			const pos = i * 9;
-			addrData[pos] = 0;
-
-			if (_userAddress[i].useGatekeeper) addrData[pos] |= 2;
-			if (_userAddress[i].acceptIntMsg)  addrData[pos] |= 4;
-			if (_userAddress[i].acceptExtMsg)  addrData[pos] |= 8;
-			if (_userAddress[i].sharePk)       addrData[pos] |= 16;
-
-			addrData.set(_userAddress[i].hash, pos + 1);
-		}
-
-		return addrData;
 	};
 
 	const _IsOwnAddress = function(addr) {
@@ -589,12 +561,24 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 			_userLevel = browseData[12];
 
-			// Personal field
-			const personalData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _lenPersonal), _userKeyPublic, _userKeySecret);
+			// Private field
+			const privData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _lenPrivate), _userKeyPublic, _userKeySecret);
+
+			for (let i = 0; i < privData[0]; i++) {
+				const start = (i * 29) + 1;
+				const hash = privData.slice(start, start + 13);
+				const addr32 = privData.slice(start + 13, start + 28);
+				const accExt = (privData[start + 28] & _AEM_ADDR_FLAG_EXTMSG > 0) ? true : false;
+				const accInt = (privData[start + 28] & _AEM_ADDR_FLAG_INTMSG > 0) ? true : false;
+				const use_gk = (privData[start + 28] & _AEM_ADDR_FLAG_USE_GK > 0) ? true : false;
+				const shr_pk = (privData[start + 28] & _AEM_ADDR_FLAG_SHR_PK > 0) ? true : false;
+
+				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), accExt, accInt, use_gk, shr_pk));
+			}
 
 			// Admin Data
 			if (_userLevel == _maxLevel) {
-				const adminData = browseData.slice(13 + _lenPersonal, 13 + _lenPersonal + 35 * _adminData_users);
+				const adminData = browseData.slice(13 + _lenPrivate, 13 + _lenPrivate + 35 * _adminData_users);
 				for (let i = 0; i < _adminData_users; i++) {
 					const s = adminData.slice(i * 35, (i + 1) * 35);
 
@@ -820,7 +804,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), addr, false, false, false, true));
+				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), addr, true, false, false, false));
 				callback(true);
 			});
 		} else {
@@ -830,22 +814,21 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(hash, addr32, addr, false, false, false, true));
+				_userAddress.push(new _NewAddress(hash, addr32, addr, true, false, false, false));
 				callback(true);
 			});
 		}
 	};
 
 	this.Private_Update = function(callback) {
-		let privText = "";
-
-		for (let i = 0; i < _contactMail.length; i++) {
-			privText += _contactMail[i] + '\n';
-			privText += _contactName[i] + '\n';
-			privText += _contactNote[i] + '\n';
+		const privData = new Uint8Array(_lenPrivate - sodium.crypto_box_SEALBYTES);
+		privData[0] = _userAddress.length;
+		for (let i = 0; i < _userAddress.length; i++) {
+			privData.set(_userAddress[i].hash, (i * 29) + 1);
+			privData.set(_userAddress[i].addr32, (i * 29) + 14);
+			privData[(i * 29) + 29] = _AEM_ADDR_FLAGS_DEFAULT;
 		}
 
-		const privData = sodium.from_string(privText);
 		_FetchEncrypted("private/update", sodium.crypto_box_seal(privData, _userKeyPublic), function(fetchOk) {callback(fetchOk);});
 	};
 
