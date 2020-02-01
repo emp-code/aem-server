@@ -386,7 +386,7 @@ function deleteAddress(addr) {
 
 	if (addressToDelete === -1) return;
 
-	ae.DeleteAddress(addressToDelete, function(success) {
+	ae.Address_Delete(addressToDelete, function(success) {
 		if (success) {
 			document.getElementById("tbody_opt_addr").deleteRow(addressToDelete);
 			document.getElementById("send_from").remove(addressToDelete);
@@ -396,6 +396,10 @@ function deleteAddress(addr) {
 
 			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
 			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
+
+			ae.Private_Update(function(success2) {
+				if (!success2) console.log("Failed to update the Private field");
+			});
 		} else {
 			console.log("Failed to delete address");
 		}

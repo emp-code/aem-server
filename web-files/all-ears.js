@@ -820,6 +820,18 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		}
 	};
 
+	this.Address_Delete = function(num, callback) {
+		_FetchEncrypted("address/delete", _userAddress[num].hash, function(fetchOk) {
+			if (!fetchOk) {
+				callback(false);
+				return;
+			}
+
+			_userAddress.splice(num, 1);
+			callback(true);
+		});
+	};
+
 	this.Private_Update = function(callback) {
 		const privData = new Uint8Array(_lenPrivate - sodium.crypto_box_SEALBYTES);
 		privData[0] = _userAddress.length;
@@ -909,20 +921,6 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_fileNote.push(new _NewFileNote(-1, Date.now() / 1000, fileData, fileData.length, fileName, fileType));
 			callback(true);
 		});
-	};
-
-	this.DeleteAddress = function(num, callback) {
-		const shieldByte = (_userAddress[num].decoded.length === 24 && _userAddress[num].decoded[0] === '5') ? sodium.from_string("S") : sodium.from_string("N");
-		const hash = _userAddress[num].hash;
-		_userAddress.splice(num, 1);
-
-		const boxAddrData = sodium.crypto_box_seal(_MakeAddrData(), _userKeyPublic);
-		const postData = new Uint8Array(9 + boxAddrData.length);
-		postData.set(hash);
-		postData.set(shieldByte, 8);
-		postData.set(boxAddrData, 9);
-
-		_FetchEncrypted("address/delete", postData, function(fetchOk) {callback(fetchOk);});
 	};
 
 	this.DeleteMessages = function(ids, callback) {
