@@ -146,10 +146,10 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
 		if (rwbind(pth2, path) != 0) return -1;
 
-//		sprintf(path, AEM_CHROOT"/%d/Storage.sck", pid);
-//		sprintf(pth2, AEM_CHROOT"/%d/Storage.sck", pid_storage);
-//		if (mknod(path, S_IFREG, 0) != 0) return -1;
-//		if (rwbind(pth2, path) != 0) return -1;
+		sprintf(path, AEM_CHROOT"/%d/Storage.sck", pid);
+		sprintf(pth2, AEM_CHROOT"/%d/Storage.sck", pid_storage);
+		if (mknod(path, S_IFREG, 0) != 0) return -1;
+		if (rwbind(pth2, path) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
@@ -164,7 +164,7 @@ int deleteMount(const pid_t pid, const int type) {
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-account", pid); break;
-//		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-storage", pid); break;
+		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-storage", pid); break;
 
 		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-web", pid); break;
 		case AEM_PROCESSTYPE_API: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-api", pid); break;

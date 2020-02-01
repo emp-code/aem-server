@@ -229,7 +229,7 @@ void killAll(int sig) {
 		// TODO: Connect to each service to make sure they'll terminate
 	} else {
 		if (pid_account > 0) kill(pid_account, SIGUSR2);
-//		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
 	}
 
 	// Processes should have terminated after one second
@@ -244,7 +244,7 @@ void killAll(int sig) {
 		}
 
 		if (pid_account > 0) kill(pid_account, SIGUSR1);
-//		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
+		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
 
 		sleep(1);
 		refreshPids();
@@ -257,12 +257,12 @@ void killAll(int sig) {
 	}
 
 	if (pid_account > 0) kill(pid_account, SIGUSR2);
-//	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
 
 	sleep(1);
 	refreshPids();
 	if (pid_account > 0) kill(pid_account, SIGKILL);
-//	if (pid_storage > 0) kill(pid_storage, SIGKILL);
+	if (pid_storage > 0) kill(pid_storage, SIGKILL);
 
 	rmdir(AEM_CHROOT);
 	exit(EXIT_SUCCESS);
@@ -609,6 +609,7 @@ static void setSocketTimeout(const int sock) {
 int receiveConnections(void) {
 	setAccessKeys();
 	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
+	process_spawn(AEM_PROCESSTYPE_STORAGE);
 
 	sockMain = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
