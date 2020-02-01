@@ -363,6 +363,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		close(sock);
 		return;
 	}
+	close(sock);
 
 	unsigned char data[253];
 	memcpy(data,
