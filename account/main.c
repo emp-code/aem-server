@@ -420,7 +420,7 @@ static void api_address_create(const int sock, const int num) {
 		unsigned char combined[28];
 		memcpy(combined, hash, 13);
 		memcpy(combined + 13, bin, 15);
-		send(sock, combined, 28, 0);
+		if (send(sock, combined, 28, 0) != 28) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
 	}
 }
 
