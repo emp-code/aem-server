@@ -341,7 +341,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_CREATE);
 	if (sock < 0) return;
 
-	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
 		sodium_free(*decrypted);
 		close(sock);
