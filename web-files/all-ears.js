@@ -817,7 +817,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 	this.Address_Create = function(addr, callback) {
 		if (addr == "SHIELD") {
-			_FetchEncrypted("address/create", sodium.from_string("S"), function(fetchOk, byteArray) {
+			_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
 				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), addr, false, false, false, true));

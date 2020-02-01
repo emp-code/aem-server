@@ -333,7 +333,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != 1 && lenDecrypted != 13) {
+	if (lenDecrypted != 13 && (lenDecrypted != 6 || memcmp(*decrypted, "SHIELD", 6) != 0) {
 		sodium_free(*decrypted);
 		return;
 	}

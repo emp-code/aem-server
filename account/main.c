@@ -393,7 +393,7 @@ static void api_address_create(const int sock, const int num) {
 	unsigned char hash[13];
 
 	const ssize_t len = recv(sock, hash, 13, 0);
-	if (len == 1) { // Shield
+	if (len == 6 && memcmp(hash, "SHIELD", 6) == 0) {
 		randombytes_buf(bin, 15);
 		bin[0] &= 7; // Clear first five bits (all but 4,2,1)
 
