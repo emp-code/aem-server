@@ -2,7 +2,7 @@
 
 sodium.ready.then(function() {
 
-const ae = new AllEars(null, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", function(ok) { // domain (null=automatic), API public key in hex
+const ae = new AllEars(null, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // domain (null=automatic), API public key in hex, Address Key
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
@@ -845,7 +845,7 @@ document.getElementById("btn_newaddress").onclick = function() {
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
-	ae.AddAddress(txtNewAddr.value, function(success) {
+	ae.Address_Create(txtNewAddr.value, function(success) {
 		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
 		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 
@@ -865,7 +865,7 @@ document.getElementById("btn_newshieldaddress").onclick = function() {
 	document.getElementById("btn_newaddress").disabled = true;
 	document.getElementById("btn_newshieldaddress").disabled = true;
 
-	ae.AddShieldAddress(function(success) {
+	ae.Address_Create("SHIELD", function(success) {
 		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
 		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
 

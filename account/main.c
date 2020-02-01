@@ -234,12 +234,13 @@ static uint16_t newUserId(void) {
 }
 
 __attribute__((warn_unused_result))
-static int addressToHash(const unsigned char * const source, unsigned char * const target) {
+static int addressToHash(unsigned char * const target, const unsigned char * const source) {
 	if (addr == NULL || target == NULL) return -1;
 
 	unsigned char tmp[16];
-	return crypto_pwhash(tmp, 16, (const char * const)source, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13);
+	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
 	memcpy(target, tmp, 13);
+	return 0;
 }
 
 static int getUserNum(const uint16_t id) {
@@ -255,7 +256,7 @@ static int addressToUpk(const unsigned char * const src, unsigned char * const u
 	if (src == NULL || upk == NULL) return -1;
 
 	unsigned char cmp[13];
-	if (addressToHash(src, cmp) == 0) {
+	if (addressToHash(cmp, src) == 0) {
 		for (int i = 0; i < addrCount; i++) {
 			if (memcmp(cmp, addr[i].hash, 13)) {
 				const int num = getUserNum(addr[i].userId);
@@ -388,24 +389,19 @@ static void api_account_update(const int sock, const int num) {
 }
 
 static void api_address_create(const int sock, const int num) {
-	char buf[AEM_MAXLEN_ADDRESS + 1];
-	const ssize_t bytes = recv(sock, buf, AEM_MAXLEN_ADDRESS + 1, 0);
+	unsigned char bin[15];
+	unsigned char hash[13];
 
-	if (bytes < 1 || bytes > AEM_MAXLEN_ADDRESS) {
+	const ssize_t len = recv(sock, hash, 13, 0);
+	if (len == 1) { // Shield
+		randombytes_buf(bin, 15);
+		bin[0] &= 7; // Clear first five bits (all but 4,2,1)
+
+		if (addressToHash(hash, bin) != 0) return;
+	} else if (len != 13) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
 		return;
 	}
-
-	unsigned char bin[15];
-	if (bytes == 6 && memcmp(buf, "SHIELD", 6) == 0) {
-		randombytes_buf(bin, 15);
-		bin[0] &= 7; // Clear first five bits (all but 4,2,1)
-	} else {
-		addr32_store(bin, buf, bytes);
-	}
-
-	unsigned char hash[13];
-	if (addressToHash(bin, hash) != 0) return;
 
 	// Save address
 	struct aem_addr *addr2 = realloc(addr, (addrCount + 1) * sizeof(struct aem_addr));
@@ -418,9 +414,14 @@ static void api_address_create(const int sock, const int num) {
 
 	addrCount++;
 
-	send(sock, hash, 13, 0);
+//	saveAddr();
 
-	saveAddr();
+	if (len == 1) { // Shield
+		unsigned char combined[28];
+		memcpy(combined, hash, 13);
+		memcpy(combined + 13, bin, 15);
+		send(sock, combined, 28, 0);
+	}
 }
 
 static void api_address_delete(const int sock, const int num) {
