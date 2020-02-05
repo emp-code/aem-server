@@ -233,8 +233,8 @@ void takeConnections(void) {
 __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
 	return (
-	   read(fd, stindexKey, 32) == AEM_LEN_KEY_STI
-	&& read(fd, storageKey, 32) == AEM_LEN_KEY_STO
+	   read(fd, stindexKey, AEM_LEN_KEY_STI) == AEM_LEN_KEY_STI
+	&& read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	) ? 0 : -1;
