@@ -155,7 +155,7 @@ int loadStindex() {
 	}
 
 	unsigned char *encd = malloc(sz);
-	if (pread(fd, encd, sz, 0) != sz) return -1;
+	if (pread(fd, encd, sz, 0) != sz) {close(fd); return -1;}
 	close(fd);
 
 	unsigned char data[sz];
