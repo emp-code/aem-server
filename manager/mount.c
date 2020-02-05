@@ -136,6 +136,10 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 		sprintf(path, AEM_CHROOT"/%d/Message.aem", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
 		if (rwbind("/var/lib/allears/Message.aem", path) != 0) return -1;
+
+		sprintf(path, AEM_CHROOT"/%d/Stindex.aem", pid);
+		if (mknod(path, S_IFREG, 0) != 0) return -1;
+		if (rwbind("/var/lib/allears/Stindex.aem", path) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA) {

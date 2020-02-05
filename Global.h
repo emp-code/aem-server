@@ -15,12 +15,15 @@
 #define AEM_API_SETTING_LIMITS 50
 
 #define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
+#define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
+
 #define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
+#define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
+
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 5)
 #define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32

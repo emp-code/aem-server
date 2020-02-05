@@ -13,6 +13,7 @@
 #define AEM_PATH_KEY_ADR "Address.key"
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
+#define AEM_PATH_KEY_STI "Stindex.key"
 #define AEM_PATH_KEY_STO "Storage.key"
 
 unsigned char master[crypto_secretbox_KEYBYTES];
@@ -70,6 +71,7 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_ADR, AEM_LEN_KEY_ADR);
 	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
+	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);

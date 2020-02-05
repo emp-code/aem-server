@@ -50,6 +50,7 @@
 #define AEM_PATH_KEY_ADR AEM_PATH_CONF"/Address.key"
 #define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
 #define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
+#define AEM_PATH_KEY_STI AEM_PATH_CONF"/Stindex.key"
 #define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
 
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
@@ -73,6 +74,7 @@ static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_adr[AEM_LEN_KEY_ADR];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
+static unsigned char key_sti[AEM_LEN_KEY_STI];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
 
 static unsigned char tls_crt[AEM_LEN_FILE_MAX];
@@ -466,7 +468,8 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
-			   pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
+			   pipeWriteDirect(fd[1], key_sti, AEM_LEN_KEY_STI) < 0
+			|| pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
