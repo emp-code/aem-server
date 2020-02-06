@@ -490,7 +490,8 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_MTA:
 			if (
-			   pipeWriteDirect(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+			   pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
