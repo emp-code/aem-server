@@ -282,8 +282,10 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	};
 
 	const _DecodeAddress = function(addr32) {
+		if (addr32.length !== 15) return "(error)";
+
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (_userAddress[i].addr32 === addr32) return _userAddress[i].decoded;
+			if (addr32.every((val, j) => val === _userAddress[i].addr32[j])) return _userAddress[i].decoded;
 		}
 
 		return "(unknown)";
