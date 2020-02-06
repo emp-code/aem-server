@@ -111,15 +111,12 @@ static int storageSocket(const unsigned char *msg, const size_t lenMsg) {
 		return -1;
 	}
 
-// TODO: Enable encryption
-/*
 	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenMsg;
 	unsigned char encrypted[lenEncrypted];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, msg, lenMsg, encrypted, accessKey_storage);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-*/	if (send(sock, msg, lenMsg, 0) != (ssize_t)lenMsg) {
 		close(sock);
 		return -1;
 	}
@@ -175,16 +172,12 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 
 		// Deliver
 		unsigned char cmd[1 + crypto_box_PUBLICKEYBYTES];
-		cmd[0] = 'W';
+		cmd[0] = bsLen / 1024;
 		memcpy(cmd + 1, pubkey, crypto_box_PUBLICKEYBYTES);
 
 		const int stoSock = storageSocket(cmd, 1 + crypto_box_PUBLICKEYBYTES);
 		if (stoSock < 0) syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
-
-		const unsigned char sz = bsLen / 1024;
-		if (send(stoSock, &sz, 1, 0) != 1) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending to Storage");
-		if (send(stoSock, boxSet, bsLen, 0) != (ssize_t)bsLen) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending to Storage");
-
+		else if (send(stoSock, boxSet, bsLen, 0) != (ssize_t)bsLen) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending to Storage");
 		close(stoSock);
 
 		free(boxSet);

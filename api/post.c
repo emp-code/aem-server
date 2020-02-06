@@ -127,14 +127,12 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	clear[0] = command;
 	memcpy(clear + 1, pubkey, crypto_box_PUBLICKEYBYTES);
 
-// TODO: encrypt
-/*	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char encrypted[lenEncrypted];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-*/	if (send(sock, clear, lenClear, 0) != lenClear) {
 		close(sock);
 		return -1;
 	}
@@ -249,7 +247,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	close(sock);
 
 	// Messages
-	const int stoSock = storageSocket(pubkey, 'R');
+	const int stoSock = storageSocket(pubkey, 0);
 	if (stoSock > 0) {
 		while(1) {
 			unsigned char buf[131072];

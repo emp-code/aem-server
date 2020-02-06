@@ -211,53 +211,43 @@ void takeConnections(void) {
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, AEM_SOCK_QUEUE);
 
-	unsigned char cmd_buf[1 + crypto_box_PUBLICKEYBYTES];
 	while (!terminate) {
 		const int sock = accept(sockListen, NULL, NULL);
 
-// TODO: Encryption with Access Keys
-
-		if (recv(sock, cmd_buf, 1 + crypto_box_PUBLICKEYBYTES, 0) != 1 + crypto_box_PUBLICKEYBYTES) {
+		const size_t lenClr = 1 + crypto_box_PUBLICKEYBYTES;
+		const size_t lenEnc = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClr;
+		unsigned char enc[lenEnc];
+		if (recv(sock, enc, lenEnc, 0) != lenEnc) {
 			close(sock);
 			continue;
 		}
 
-		switch (cmd_buf[0]) {
-//			case 'D': delete(); break;
+		unsigned char clr[lenClr];
+		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
+			const int rfd = open("Message.aem", O_RDONLY);
 
-			case 'R': {
-				const int rfd = open("Message.aem", O_RDONLY);
+			for (int i = 0; i < stindex[0].msgCount; i++) {
+				const ssize_t len = ((stindex[0].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
+				const size_t pos = (stindex[0].msg[i] >> 7) * AEM_BLOCKSIZE;
 
-				for (int i = 0; i < stindex[0].msgCount; i++) {
-					const ssize_t len = ((stindex[0].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
-					const size_t pos = (stindex[0].msg[i] >> 7) * AEM_BLOCKSIZE;
-
-					unsigned char buf[len];
-					if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
-					if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
-					recv(sock, buf, 1, 0);
-				}
-
-				close(rfd);
-				break;
+				unsigned char buf[len];
+				if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
+				if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
+				recv(sock, buf, 1, 0);
 			}
-			case 'W': {
-				unsigned char sz;
-				if (recv(sock, &sz, 1, 0) != 1) break;
 
-				const ssize_t bytes = sz * AEM_BLOCKSIZE;
-				unsigned char * const msg = malloc(bytes);
-				if (msg == NULL) break;
+			close(rfd);
+		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
+			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
+			unsigned char * const msg = malloc(bytes);
+			if (msg == NULL) break;
 
-				if (recv(sock, msg, bytes, 0) != bytes) break;
-
-				storage_write(cmd_buf + 1, msg, sz);
+			if (recv(sock, msg, bytes, 0) == bytes) {
+				storage_write(clr + 1, msg, clr[0]);
 				saveStindex();
-				break;
-			}
+			} else syslog(LOG_MAIL | LOG_NOTICE, "Failed to receive data from MTA");
 		}
 
-		explicit_bzero(cmd_buf, 5);
 		close(sock);
 	}
 
