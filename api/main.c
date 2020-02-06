@@ -24,8 +24,8 @@
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192
 
-mbedtls_x509_crt tlsCrt;
-mbedtls_pk_context tlsKey;
+static mbedtls_x509_crt tlsCrt;
+static mbedtls_pk_context tlsKey;
 
 static unsigned char *tls_crt;
 static unsigned char *tls_key;
