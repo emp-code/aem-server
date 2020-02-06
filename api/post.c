@@ -272,7 +272,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_CREATE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
@@ -304,7 +304,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_DELETE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
@@ -336,7 +336,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_UPDATE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
@@ -371,7 +371,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_CREATE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to allears-account");
@@ -418,7 +418,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != 13) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_DELETE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
@@ -437,7 +437,7 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted % 14 != 0) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_UPDATE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
@@ -554,7 +554,7 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != AEM_LEN_PRIVATE) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_PRIVATE_UPDATE);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
@@ -573,7 +573,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_SETTING_LIMITS);
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
