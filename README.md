@@ -4,7 +4,7 @@ All-Ears Mail is a private email solution. It was designed from the ground up to
 
 All-Ears consists of a number of processes, which are divided into three tiers, creating a barrier between the public-facing processes and sensitive data.
 
-The top-tier process, Manager, has full access to all data, but only has one purpose: to start the other processes and hand them the data they need at startup.
+The top-tier process, Manager, has full access to all data, but only has one purpose: to start the other processes and give them the data they need at startup.
 
 The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through a local Unix socket requiring an Access Key.
 
@@ -115,7 +115,7 @@ The following information is stored about users:
 * Shield address count
 * The `private` data field
 
-The `private` data field can be used by clients to store 4059 bytes of arbitary data. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The server does nothing with the data, and it can technically be used by clients for any purpose. The official clients encrypt it with the user's public key using libsodium's Sealed Box, and use it to store Address/Gatekeeper/Contacts data.
+The `private` data field can be used by clients to store 4059 bytes of arbitrary data. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The server does nothing with the data, and it can technically be used by clients for any purpose. The official clients encrypt it with the user's public key using libsodium's Sealed Box, and use it to store Address/Gatekeeper/Contacts data.
 
 ## Addresses ##
 
