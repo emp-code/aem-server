@@ -145,7 +145,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		const u8len = new Uint8Array(u16len.buffer);
 		clearU8.set(u8len, _lenPost - 2);
 
-		const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
+		const nonce = new Uint8Array(sodium.crypto_box_NONCEBYTES);
+		window.crypto.getRandomValues(nonce);
 
 		// postBox: the encrypted data to be sent
 		const postBox = sodium.crypto_box_easy(clearU8, nonce, _serverPk, _userKeySecret);
