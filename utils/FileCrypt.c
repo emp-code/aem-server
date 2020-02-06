@@ -192,6 +192,7 @@ int main(int argc, char *argv[]) {
 					"xr-spatial-tracking"  " 'none';"
 				"\r\n"
 
+				"Cross-Origin-Opener-Policy: same-origin\r\n"
 				"Referrer-Policy: no-referrer\r\n"
 				"X-Content-Type-Options: nosniff\r\n"
 				"X-Frame-Options: deny\r\n"
