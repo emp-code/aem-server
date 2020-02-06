@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <syslog.h>
 
-#include <maxminddb.h>
 #include <sodium.h>
 
 #include <mbedtls/ctr_drbg.h>
@@ -15,19 +15,18 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "Include/Addr32.h"
 #include "Include/Base64.h"
 #include "Include/Brotli.h"
-#include "Include/CharToInt64.h"
-#include "Include/Database.h"
-#include "Include/Message.h"
 #include "Include/QuotedPrintable.h"
 #include "Include/ToUtf8.h"
 #include "Include/Trim.h"
 
+#include "delivery.h"
 #include "processing.h"
 
 #include "smtp.h"
+
+#include "../Global.h"
 
 #define AEM_MAXLEN_DOMAIN 32
 
@@ -188,42 +187,6 @@ int setDomain(const char * const new, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
-	if (sockAddr == NULL) return 0;
-
-	MMDB_s mmdb;
-	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
-
-	if (status != MMDB_SUCCESS) {
-		printf("getCountryCode: Can't open database: %s\n", MMDB_strerror(status));
-		return 0;
-	}
-
-	int mmdb_error;
-	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &mmdb_error);
-
-	if (mmdb_error != MMDB_SUCCESS) {
-		printf("getCountryCode: Got an error from libmaxminddb: %s\n", MMDB_strerror(mmdb_error));
-		return 0;
-	}
-
-	int16_t ret = 0;
-	if (mmdb_result.found_entry) {
-		MMDB_entry_data_s entry_data;
-		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
-
-		if (status == MMDB_SUCCESS) {
-			memcpy(&ret, entry_data.utf8_string, 2);
-		} else {
-			printf("getCountryCode: Error looking up the entry data: %s\n", MMDB_strerror(status));
-		}
-	} else puts("getCountryCode: No entry for the IP address was found");
-
-	MMDB_close(&mmdb);
-	return ret;
-}
-
-__attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
 	if (buf == NULL || maxSize < 1) return -1;
 
@@ -342,7 +305,7 @@ static void tlsClose(mbedtls_ssl_context * const tls) {
 
 static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const clientAddr, const int code) {
 	tlsClose(tls);
-	printf("Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
+	syslog(LOG_MAIL | LOG_NOTICE, "Error receiving message (Code: %d, IP: %s)\n", code, inet_ntoa(clientAddr->sin_addr));
 }
 
 void tlsFree(void) {
@@ -350,60 +313,6 @@ void tlsFree(void) {
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_entropy_free(&entropy);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
-}
-
-static void deliverMessage(const char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const char * const msgBody, const size_t lenMsgBody,
-const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte) {
-	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL) return;
-
-	const char *toStart = to;
-	const char * const toEnd = to + lenToTotal;
-
-	while(1) {
-		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
-		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
-		if (lenTo < 1) break;
-
-		unsigned char binTo[15];
-		addr32_store(binTo, toStart, lenTo);
-
-		unsigned char pk[crypto_box_PUBLICKEYBYTES];
-		unsigned char flags;
-		int ret = getPublicKeyFromAddress(binTo, pk, &flags);
-		if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_EXTMSG)) {
-			if (nextTo == NULL) return;
-			toStart = nextTo + 1;
-			continue;
-		}
-
-		const char *domain = strchr(from, '@');
-		if (domain == NULL) return;
-		domain++;
-		const size_t lenDomain = (from + lenFrom) - domain;
-
-		const uint8_t attach = 0; // TODO
-		const uint8_t spamByte = 0; // TODO
-		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
-
-		if (flags & AEM_FLAGS_ADDR_USE_GK && isBlockedByGatekeeper(&geoId, domain, lenDomain, from, lenFrom, charToInt64(pk))) return;
-
-		size_t bodyLen = lenMsgBody;
-		unsigned char * const boxSet = makeMsg_Ext(pk, binTo, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
-		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-
-		if (boxSet == NULL) {
-			puts("Failed to deliver email: makeMsg_Ext failed");
-			toStart = nextTo + 1;
-			continue;
-		}
-
-		ret = addUserMessage(charToInt64(pk), boxSet, bsLen);
-		free(boxSet);
-		if (ret != 0) puts("Failed to deliver email: addUserMessage failed");
-
-		if (nextTo == NULL) return;
-		toStart = nextTo + 1;
-	}
 }
 
 __attribute__((warn_unused_result))
@@ -454,7 +363,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {
-		printf("mbedtls_ssl_config_defaults returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_config_defaults returned %d\n", ret);
 		return -1;
 	}
 
@@ -465,19 +374,19 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
-		printf("mbedtls_ctr_drbg_seed returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ctr_drbg_seed returned %d\n", ret);
 		return -1;
 	}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
 	if (ret != 0) {
-		printf("mbedtls_ssl_conf_own_cert returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_conf_own_cert returned %d\n", ret);
 		return -1;
 	}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {
-		printf("mbedtls_ssl_setup returned %d\n", ret);
+		syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_ssl_setup returned %d\n", ret);
 		return -1;
 	}
 
@@ -514,7 +423,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				printf("Terminating: mbedtls_ssl_handshake returned %d\n", ret);
+				syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_ssl_handshake returned %d\n", ret);
 				tlsClose(tls);
 				return;
 			}
@@ -522,22 +431,22 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
-			printf("Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			tlsClose(tls);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
-			printf("Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
 			tlsClose(tls);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
-			printf("Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
+			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s\n", (int)bytes, buf);
 			tlsClose(tls);
 			return;
 		}
 
 		if (!smtp_shlo(tls, domain, lenDomain)) {
-			puts("Terminating: Failed to send greeting following StartTLS");
+			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed to send greeting following StartTLS");
 			tlsClose(tls);
 			return;
 		}
@@ -554,8 +463,8 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes < 1) printf("Terminating: Client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else printf("Terminating: Invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Client closed connection (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			else syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)\n", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
@@ -693,11 +602,11 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			removeSpaceEnd(body, &lenBody);
 			trimLinebreaks(body, &lenBody);
 			removeSpaceBegin(body, &lenBody);
-			brotliCompress(&body, &lenBody);
+			brotliCompress((unsigned char**)&body, &lenBody);
 
 			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 			const uint8_t tlsVersion = getTlsVersion(tls);
-			deliverMessage(to, lenTo, from, lenFrom, body, lenBody, clientAddr, cs, tlsVersion, infoByte);
+			deliverMessage(to, lenTo, from, lenFrom, (unsigned char*)body, lenBody, clientAddr, cs, tlsVersion, infoByte);
 
 			sodium_memzero(from, lenFrom);
 			sodium_memzero(to, lenTo);

@@ -11,6 +11,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #include <sodium.h>
 
@@ -208,19 +211,50 @@ void takeConnections(void) {
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, AEM_SOCK_QUEUE);
 
-	char cmd_buf[5];
+	unsigned char cmd_buf[1 + crypto_box_PUBLICKEYBYTES];
 	while (!terminate) {
 		const int sock = accept(sockListen, NULL, NULL);
 
-		if (recv(sock, cmd_buf, 5, 0) != 5) {
+// TODO: Encryption with Access Keys
+
+		if (recv(sock, cmd_buf, 1 + crypto_box_PUBLICKEYBYTES, 0) != 1 + crypto_box_PUBLICKEYBYTES) {
 			close(sock);
 			continue;
 		}
 
 		switch (cmd_buf[0]) {
 //			case 'D': delete(); break;
-//			case 'R': read(); break;
-//			case 'W': storage_write(); break;
+
+			case 'R': {
+				const int rfd = open("Message.aem", O_RDONLY);
+
+				for (int i = 0; i < stindex[0].msgCount; i++) {
+					const ssize_t len = ((stindex[0].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
+					const size_t pos = (stindex[0].msg[i] >> 7) * AEM_BLOCKSIZE;
+
+					unsigned char buf[len];
+					if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
+					if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
+					recv(sock, buf, 1, 0);
+				}
+
+				close(rfd);
+				break;
+			}
+			case 'W': {
+				unsigned char sz;
+				if (recv(sock, &sz, 1, 0) != 1) break;
+
+				const ssize_t bytes = sz * AEM_BLOCKSIZE;
+				unsigned char * const msg = malloc(bytes);
+				if (msg == NULL) break;
+
+				if (recv(sock, msg, bytes, 0) != bytes) break;
+
+				storage_write(cmd_buf + 1, msg, sz);
+				saveStindex();
+				break;
+			}
 		}
 
 		explicit_bzero(cmd_buf, 5);

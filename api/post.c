@@ -106,6 +106,42 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	return sock;
 }
 
+static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
+	struct sockaddr_un sa;
+	sa.sun_family = AF_UNIX;
+	strcpy(sa.sun_path, "Storage.sck");
+
+	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to Storage");
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
+		return -1;
+	}
+
+	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
+	unsigned char clear[lenClear];
+	clear[0] = command;
+	memcpy(clear + 1, pubkey, crypto_box_PUBLICKEYBYTES);
+
+// TODO: encrypt
+/*	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	unsigned char encrypted[lenEncrypted];
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
+
+	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+*/	if (send(sock, clear, lenClear, 0) != lenClear) {
+		close(sock);
+		return -1;
+	}
+
+	return sock;
+}
+
 /*
 __attribute__((warn_unused_result))
 static int sendIntMsg(const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
@@ -184,6 +220,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	const size_t lenResponse = lenHead + lenBody;
 	unsigned char response[lenResponse];
+	bzero(response, lenResponse);
 
 	memcpy(response, headers, lenHead);
 	size_t offset = lenHead;
@@ -211,8 +248,24 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	close(sock);
 
-	// TODO: Messages
+	// Messages
+	const int stoSock = storageSocket(pubkey, 'R');
+	if (stoSock > 0) {
+		while(1) {
+			unsigned char buf[131072];
+			const ssize_t r = recv(stoSock, buf, 131072, 0);
+			if (r < 1 || r % 1024 != 0) break;
 
+			response[offset] = (r / 1024);
+			offset++;
+			memcpy(response + offset, buf, r);
+			offset += r;
+
+			send(stoSock, buf, 1, 0);
+		}
+	} else syslog(LOG_MAIL | LOG_NOTICE, "Failed stoSock");
+
+	close(stoSock);
 	sendData(ssl, response, lenResponse);
 	sodium_memzero(response, lenResponse);
 }

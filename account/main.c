@@ -16,7 +16,7 @@
 
 #include "../Global.h"
 
-#include "Addr32.h"
+#include "Include/Addr32.h"
 
 #define AEM_ADDR_FLAG_EXTMSG 128
 #define AEM_ADDR_FLAG_INTMSG 64
@@ -496,6 +496,30 @@ static void api_setting_limits(const int sock, const int num) {
 //	saveSettings(); // TODO
 }
 
+static int hashToUserId(const unsigned char * const hash) {
+	for (int i = 0; i < addrCount; i++) {
+		if (memcmp(hash, addr[i].hash, 13) == 0) return addr[i].userId;
+	}
+
+	return -1;
+}
+
+static void mta_getPubKey(const int sock, const unsigned char * const addr32) {
+	unsigned char hash[13];
+	if (addressToHash(hash, addr32) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	const int userId = hashToUserId(hash);
+	if (userId < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
+
+	for (int i = 0; i < userCount; i++) {
+		if (userId == user[i].userId) {
+			send(sock, user[i].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+			return;
+		}
+	}
+
+	syslog(LOG_MAIL | LOG_NOTICE, "Address without matching userId");
+}
+
 static int takeConnections(void) {
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
@@ -513,17 +537,19 @@ static int takeConnections(void) {
 		const int sockClient = accept(sockMain, NULL, NULL);
 		if (sockClient < 0) continue;
 
-		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + crypto_box_PUBLICKEYBYTES + 1;
+		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1 + crypto_box_PUBLICKEYBYTES;
 		unsigned char enc[encLen];
 
-		if (recv(sockClient, enc, encLen, 0) != encLen) {
+		ssize_t reqLen = recv(sockClient, enc, encLen, 0);
+		if (reqLen < 1) {
 			syslog(LOG_MAIL | LOG_NOTICE, "Invalid connection");
 			close(sockClient);
 			continue;
 		}
+		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES);
 
-		unsigned char req[1 + crypto_box_PUBLICKEYBYTES];
-		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
+		unsigned char req[reqLen];
+		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
 			const int num = userNumFromPubkey(req + 1);
 			if (num < 0) {close(sockClient); continue;}
 
@@ -538,7 +564,6 @@ static int takeConnections(void) {
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
-
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 
 				//default: // Invalid
@@ -548,12 +573,8 @@ static int takeConnections(void) {
 			continue;
 		}
 
-		if (crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
-			switch (req[0]) {
-				//case AEM_MTA_: mta_(sockClient, req + 1); break;
-				//case AEM_MTA_: mta_(sockClient, req + 1); break;
-				//default: // Invalid
-			}
+		if (reqLen == 16 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 16 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
+			if (req[0] == AEM_MTA_GETPUBKEY) mta_getPubKey(sockClient, req + 1);
 
 			close(sockClient);
 			continue;

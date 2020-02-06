@@ -280,6 +280,14 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		return false;
 	};
 
+	const _DecodeAddress = function(addr32) {
+		for (let i = 0; i < _userAddress.length; i++) {
+			if (_userAddress[i].addr32 === addr32) return _userAddress[i].decoded;
+		}
+
+		return "(unknown)";
+	}
+
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
@@ -598,90 +606,27 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 				}
 			}
 
-			// Needs rewrite
-/*
-			const contactSet = new TextDecoder("utf-8").decode(noteData.slice(2)).split('\n');
-			for (let i = 0; i < (contactSet.length - 1); i += 3) {
-				_contactMail.push(contactSet[i]);
-				_contactName.push(contactSet[i + 1]);
-				_contactNote.push(contactSet[i + 2]);
-			}
+			// Messages
+			let msgStart = 13 + _lenPrivate + (35 * _adminData_users);
 
-			// Address data
-			const addrDataStart = 18 + _lenNoteData;
-			const addrData = sodium.crypto_box_seal_open(browseData.slice(addrDataStart, addrDataStart + addrDataSize), _userKeyPublic, _userKeySecret);
+			while (msgStart < browseData.length) {
+				const kib = browseData[msgStart];
+				if (kib == 0) break;
+				msgStart++;
 
-			for (let i = 0; i < (addrData.length / 24); i++) {
-				const start = i * 24;
-				const useGatekeeper = addrData[start] & 2;
-				const acceptIntMsg  = addrData[start] & 4;
-				const acceptExtMsg  = addrData[start] & 8;
-				const sharePk       = addrData[start] & 16;
-				const addr = addrData.slice(start + 1, start + 16);
-				const hash = addrData.slice(start + 16, start + 24);
-				const decoded = _DecodeAddress(addr);
+				const msgData = browseData.slice(msgStart, msgStart + (kib * 1024));
 
-				_userAddress.push(new _NewAddress(addr, hash, decoded, acceptIntMsg, sharePk, acceptExtMsg, useGatekeeper));
-			}
-
-			// Gatekeeper data
-			const gkDataStart = 18 + _lenNoteData + addrDataSize;
-			const gkData = new TextDecoder("utf-8").decode(sodium.crypto_box_seal_open(browseData.slice(gkDataStart, gkDataStart + gkDataSize), _userKeyPublic, _userKeySecret));
-			const gkSet = gkData.split('\n');
-			let gkCountCountry = 0;
-			let gkCountDomain = 0;
-			let gkCountAddress = 0;
-
-			for (let i = 0; i < gkSet.length; i++) {
-				if (gkSet[i].indexOf('@') != -1) {
-					_gkAddress[gkCountAddress] = gkSet[i];
-					gkCountAddress++;
-				} else if (gkSet[i].indexOf('.') != -1) {
-					_gkDomain[gkCountDomain] = gkSet[i];
-					gkCountDomain++;
-				} else {
-					_gkCountry[gkCountCountry] = gkSet[i];
-					gkCountCountry++;
-				}
-			}
-
-			// Message data
-			let msgStart = 18 + _lenNoteData + addrDataSize + gkDataSize + lenAdmin;
-			for (let i = 0; i < msgCount; i++) {
-				const msgId = browseData[msgStart];
-				const msgKilos = browseData[msgStart + 1] + 1;
-
-				// HeadBox
-				const msgHeadBox = browseData.slice(msgStart + 2, msgStart + 85); // 85 = 2 + 35 + crypto_box_SEALBYTES (48)
+				const msgHeadBox = msgData.slice(0, 83); // 83 = 35 + crypto_box_SEALBYTES (48)
 				const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
 
 				// BodyBox
-				const lenBody = msgKilos * 1024;
-				const bbStart = msgStart + 85;
-				const msgBodyBox = browseData.slice(bbStart, bbStart + lenBody + 50); // 50 = 2 + crypto_box_SEALBYTES (48)
+				const msgBodyBox = msgData.slice(83, 1024 * kib);
 				const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
-				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody, lenBody + 2).buffer)[0];
-				const msgBody = msgBodyFull.slice(0, lenBody - padAmount);
+				const lenBody = (1024 * kib) - 83 - 48; //crypto_box_SEALBYTES
+				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody - 2, lenBody).buffer)[0];
+				const msgBody = msgBodyFull.slice(0, lenBody - padAmount - 2);
 
-				if ((msgHead[0] & 3) === 3) { // xxxxxx11 FileNote
-					const note_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const lenFn = msgBody[0];
-					const fileName = new TextDecoder("utf-8").decode(msgBody.slice(1, 1 + lenFn));
-					const lenFt = msgBody[1 + lenFn];
-					const fileType = new TextDecoder("utf-8").decode(msgBody.slice(2 + lenFn, 2 + lenFn + lenFt));
-					const fileData = msgBody.slice(2 + lenFn + lenFt);
-
-					_fileNote.push(new _NewFileNote(msgId, note_ts, fileData, fileData.length, fileName, fileType));
-				} else if ((msgHead[0] & 2) === 2) { // xxxxxx10 TextNote
-					const note_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
-
-					const ln = msgBodyUtf8.indexOf('\n');
-					if (ln > 0)
-						_textNote.push(new _NewTextNote(msgId, note_ts, msgBodyUtf8.substr(0, ln), msgBodyUtf8.substr(ln + 1)));
-					else
-						console.log("Received corrupted TextNote");
-				} else if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
+				if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
 					const em_infobyte = msgHead[0];
 					const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 					const em_ip = msgHead.slice(5, 9);
@@ -711,27 +656,11 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 					const em_headers = body.slice(1, headersEnd);
 					const em_body = body.slice(headersEnd + 2);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
-				} else { // xxxxxx00 IntMsg
-					const im_sml = (msgHead[0] >>> 4) & 3;
-					const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const im_from_bin = msgHead.slice(5, 20);
-					const im_from = _DecodeAddress(im_from_bin);
-					const im_isSent = _IsOwnAddress(im_from_bin);
-					const im_to = _DecodeAddress(msgHead.slice(20));
+					_extMsg.push(new _NewExtMsg(0, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+				} else console.log("not-extmsg");
 
-					// BodyBox
-					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBody);
-					const firstLf = msgBodyUtf8.indexOf('\n');
-					const im_title = msgBodyUtf8.slice(0, firstLf);
-					const im_body = msgBodyUtf8.slice(firstLf + 1);
-
-					_intMsg.push(new _NewIntMsg(msgId, im_isSent, im_sml, im_ts, im_from, im_to, im_title, im_body));
-				}
-
-				msgStart += (msgKilos * 1024) + 135; // 135 = 48 * 2 + 35 + 2 + 2
+				msgStart += (kib * 1024);
 			}
-*/
 
 			callback(true);
 		});

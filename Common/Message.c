@@ -5,6 +5,8 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
+
 #include "Message.h"
 
 /*
@@ -78,16 +80,17 @@ TextNote/FileNote
 */
 
 __attribute__((warn_unused_result))
-static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const char * const bodyText, size_t * const bodyLen, const unsigned char * const headBox) {
-	const uint16_t padLen = (*bodyLen % 1024 == 0) ? 0 : 1024 - (*bodyLen % 1024);
-	const size_t bodyLenPadded = *bodyLen + padLen;
+static unsigned char *msg_makeBodyBox(const unsigned char * const pk, const unsigned char * const bodyText, size_t * const bodyLen) {
+	const unsigned int setSize = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + 2 + crypto_box_SEALBYTES;
+	const uint16_t padLen = (setSize % 1024 == 0) ? 0 : 1024 - (setSize % 1024);
+	const size_t bodyLenPadded = *bodyLen + padLen + 2;
 
-	unsigned char body[bodyLenPadded + 2];
+	unsigned char body[bodyLenPadded];
 	memcpy(body, bodyText, *bodyLen);
-	if (padLen > 0) randombytes_buf_deterministic(body + *bodyLen, padLen, headBox);
-	memcpy(body + bodyLenPadded, &padLen, 2);
+	if (padLen > 0) bzero(body + *bodyLen, padLen);
+	memcpy(body + bodyLenPadded - 2, &padLen, 2);
 
-	*bodyLen = bodyLenPadded + 2;
+	*bodyLen = bodyLenPadded;
 
 	unsigned char * const ciphertext = malloc(*bodyLen + crypto_box_SEALBYTES);
 	if (ciphertext == NULL) return NULL;
@@ -116,11 +119,11 @@ static unsigned char *intMsg_makeHeadBox(const unsigned char * const pk, const u
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen, const int senderLevel) {
+unsigned char *makeMsg_Int(const unsigned char * const pk, const unsigned char * const binFrom, const unsigned char * const binTo, const unsigned char * const bodyText, size_t * const bodyLen, const int senderLevel) {
 	unsigned char * const headBox = intMsg_makeHeadBox(pk, binFrom, binTo, senderLevel);
 	if (headBox == NULL) return NULL;
 
-	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen, headBox);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
@@ -163,12 +166,12 @@ const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigne
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const char * const bodyText, size_t * const bodyLen,
+unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const unsigned char * const bodyText, size_t * const bodyLen,
 const uint32_t ip, const int cs, const uint8_t tlsVersion, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
 	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, tlsVersion, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
-	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen, headBox);
+	unsigned char * const bodyBox = msg_makeBodyBox(pk, bodyText, bodyLen);
 	if (bodyBox == NULL) {free(headBox); return NULL;}
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + *bodyLen + crypto_box_SEALBYTES;
