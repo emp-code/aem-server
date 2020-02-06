@@ -235,10 +235,24 @@ void takeConnections(void) {
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
 			const int rfd = open("Message.aem", O_RDONLY);
 
-			for (int i = 0; i < stindex[0].msgCount; i++) {
-				const int kib = (stindex[0].msg[i] & 127) + 1;
+			int stindexNum = -1;
+			for (int i = 0; i < stindexCount; i++) {
+				if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
+					stindexNum = i;
+					break;
+				}
+			}
+
+			if (stindexNum < 0) {
+				close(rfd);
+				close(sock);
+				continue;
+			}
+
+			for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
+				const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
 				const ssize_t len = kib * AEM_BLOCKSIZE;
-				const size_t pos = (stindex[0].msg[i] >> 7) * AEM_BLOCKSIZE;
+				const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
 
 				unsigned char buf[len];
 				if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
