@@ -53,6 +53,7 @@ static void sigTerm(const int sig) {
 		return;
 	}
 
+	sodium_memzero(stindexKey, 32);
 	sodium_memzero(storageKey, 32);
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
