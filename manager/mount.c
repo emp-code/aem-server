@@ -116,6 +116,12 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 	if (mknod(path, S_IFREG, 0) != 0) return -1;
 	if (rwbind("/dev/log", path) != 0) return -1;
 
+	if (type == AEM_PROCESSTYPE_MTA) {
+		snprintf(path, 50, AEM_CHROOT"/%d/GeoLite2-Country.mmdb", pid);
+		if (mknod(path, S_IFREG, 0) != 0) return -1;
+		if (rxbind("/var/lib/allears/GeoLite2-Country.mmdb", path) != 0) return -1;
+	}
+
 	if (
 	   makeSpecial(pid, "null",    1, 3) != 0
 	|| makeSpecial(pid, "zero",    1, 5) != 0
