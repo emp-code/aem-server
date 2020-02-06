@@ -17,6 +17,8 @@
 
 #include <sodium.h>
 
+#include "aes.h"
+
 #include "../Global.h"
 
 #define AEM_BLOCKSIZE 1024
@@ -60,7 +62,7 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char *data, int size) {
+static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, int size) {
 	if (size < 1 || size > 128) return -1;
 
 	// TODO: Check emptyBlocks
@@ -69,10 +71,16 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
 	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
 
-	// TODO: Encrypt data with Storage Key
+	// Encrypt & Write
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, storageKey);
+
+	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
+		AES_ECB_encrypt(&aes, data + i * 16);
 
 	if (write(fdMsg, data, size * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
 
+	// Stindex
 	int num = -1;
 	for (int i = 0; i < stindexCount; i++) {
 		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
@@ -228,11 +236,19 @@ void takeConnections(void) {
 			const int rfd = open("Message.aem", O_RDONLY);
 
 			for (int i = 0; i < stindex[0].msgCount; i++) {
-				const ssize_t len = ((stindex[0].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
+				const int kib = (stindex[0].msg[i] & 127) + 1;
+				const ssize_t len = kib * AEM_BLOCKSIZE;
 				const size_t pos = (stindex[0].msg[i] >> 7) * AEM_BLOCKSIZE;
 
 				unsigned char buf[len];
 				if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
+
+				struct AES_ctx aes;
+				AES_init_ctx(&aes, storageKey);
+
+				for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
+					AES_ECB_decrypt(&aes, buf + i * 16);
+
 				if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
 				recv(sock, buf, 1, 0);
 			}
