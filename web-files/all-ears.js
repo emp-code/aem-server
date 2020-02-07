@@ -590,6 +590,10 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 				const msgData = browseData.slice(msgStart, msgStart + (kib * 1024));
 
+				// Message ID: Every 64th byte of first kilo of encrypted data
+				const msgId = Uint8Array(16);
+				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
+
 				const msgHeadBox = msgData.slice(0, 83); // 83 = 35 + crypto_box_SEALBYTES (48)
 				const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
 
@@ -630,7 +634,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 					const em_headers = body.slice(1, headersEnd);
 					const em_body = body.slice(headersEnd + 2);
 
-					_extMsg.push(new _NewExtMsg(0, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else console.log("not-extmsg");
 
 				msgStart += (kib * 1024);
