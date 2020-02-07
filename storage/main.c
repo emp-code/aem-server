@@ -25,7 +25,7 @@
 #define AEM_SOCK_QUEUE 50
 
 #define AEM_PATH_STINDEX "Stindex.aem"
-#define AEM_PATH_STORAGE "Storage.aem"
+#define AEM_PATH_MESSAGE "Message.aem"
 
 static unsigned char accessKey_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_mta[AEM_LEN_ACCESSKEY];
@@ -233,7 +233,7 @@ void takeConnections(void) {
 
 		unsigned char clr[lenClr];
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
-			const int rfd = open("Message.aem", O_RDONLY);
+			const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY);
 
 			int stindexNum = -1;
 			for (int i = 0; i < stindexCount; i++) {
