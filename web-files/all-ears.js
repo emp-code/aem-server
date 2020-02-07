@@ -21,6 +21,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	const _AEM_ADDR_FLAG_USE_GK = 32;
 	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_EXTMSG;
 
+	const _AEM_BYTES_HEADBOX = 35;
+
 	const _AEM_ARGON2_MEMLIMIT = 67108864;
 	const _AEM_ARGON2_OPSLIMIT = 3;
 
@@ -591,16 +593,16 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 				const msgData = browseData.slice(msgStart, msgStart + (kib * 1024));
 
 				// Message ID: Every 64th byte of first kilo of encrypted data
-				const msgId = Uint8Array(16);
+				const msgId = new Uint8Array(16);
 				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
 
-				const msgHeadBox = msgData.slice(0, 83); // 83 = 35 + crypto_box_SEALBYTES (48)
+				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
 				const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
 
 				// BodyBox
-				const msgBodyBox = msgData.slice(83, 1024 * kib);
+				const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
 				const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
-				const lenBody = (1024 * kib) - 83 - 48; //crypto_box_SEALBYTES
+				const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
 				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody - 2, lenBody).buffer)[0];
 				const msgBody = msgBodyFull.slice(0, lenBody - padAmount - 2);
 
