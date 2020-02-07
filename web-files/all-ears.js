@@ -581,7 +581,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			}
 
 			// Messages
-			let msgStart = 13 + _lenPrivate + (35 * _adminData_users);
+			let msgStart = 13 + _lenPrivate;
+			if (_userLevel == _maxLevel) msgStart += (35 * _adminData_users);
 
 			while (msgStart < browseData.length) {
 				const kib = browseData[msgStart];
