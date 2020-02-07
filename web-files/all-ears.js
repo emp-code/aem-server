@@ -174,33 +174,12 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		src[byte] |= 1 << (7 - bit);
 	}
 
-	const _DecodeShieldAddress = function(byteArray) {
-		const shld32_chars = "567890abcdefghijklmnopqrstuvwxyz";
-
-		let decoded = "";
-
-		for (let i = 0; i < 24; i++) {
-			let num = 0;
-			const skipBits = i * 5;
-
-			if (_GetBit(byteArray, skipBits + 0)) num += 16;
-			if (_GetBit(byteArray, skipBits + 1)) num +=  8;
-			if (_GetBit(byteArray, skipBits + 2)) num +=  4;
-			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
-			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
-
-			decoded += shld32_chars[num];
-		}
-
-		return decoded;
-	};
-
-	const addr32_chars = "#0123456789abcdefghkmnpqrstuwxyz";
-
 	const _addr32_decode = function(byteArray) {
 		if (byteArray.length != 15) return "addr32:BadLen";
 
-		if ((byteArray[0] & 248) == 0) return _DecodeShieldAddress(byteArray); // If first five bits (128+64+32+16+8=248) are off, this is a Shield address
+		// If first five bits (128+64+32+16+8=248) are off, this is a Shield address
+		const isShield = ((byteArray[0] & 248) == 0) ? true : false;
+		const addr32_chars = (isShield) ? "567890abcdefghijklmnopqrstuvwxyz" : "#0123456789abcdefghkmnpqrstuwxyz";
 
 		let decoded = "";
 
@@ -214,7 +193,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
 			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
 
-			if (num === 0) return decoded;
+			if (!isShield && num === 0) break;
 
 			decoded += addr32_chars[num];
 		}
