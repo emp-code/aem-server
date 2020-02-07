@@ -2,7 +2,9 @@
 
 sodium.ready.then(function() {
 
-const ae = new AllEars(null, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // domain (null=automatic), API public key in hex, Address Key
+const aeDomain = document.domain;
+
+const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Address Key
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
@@ -422,7 +424,7 @@ function addAddress(num) {
 	cellAddr.textContent = ae.GetAddress(num);
 	if (cellAddr.textContent.length == 24 && cellAddr.textContent.startsWith("5")) cellAddr.className = "mono";
 	cellAddr.onclick = function() {
-		navigator.clipboard.writeText(cellAddr.textContent + "@" + document.domain);
+		navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
 	}
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
@@ -444,7 +446,7 @@ function addAddress(num) {
 
 	const opt = document.createElement("option");
 	opt.value = cellAddr.textContent;
-	opt.textContent = cellAddr.textContent + "@" + document.domain;
+	opt.textContent = cellAddr.textContent + "@" + aeDomain;
 	document.getElementById("send_from").appendChild(opt);
 }
 
