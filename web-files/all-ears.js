@@ -202,6 +202,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	};
 
 	const _addr32_charToUint5 = function(c) {
+		const addr32_chars = "#0123456789abcdefghkmnpqrstuwxyz";
+
 		for (let i = 1; i < 32; i++) {
 			if (c == addr32_chars[i]) return i;
 		}
