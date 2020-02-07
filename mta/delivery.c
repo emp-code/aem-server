@@ -145,11 +145,6 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
 
-		if (lenTo == 24 && toStart[23] == '5') {
-			toStart[23] = toStart[0];
-			toStart[0] = '5';
-		}
-
 		unsigned char addr32[15];
 		addr32_store(addr32, toStart, lenTo);
 

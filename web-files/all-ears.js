@@ -31,6 +31,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 	const _addressKey = sodium.from_hex(addrKeyHex);
 
+	const addr32_chars = "0123456789abcdefghjkmnpqrstuwxyz";
+
 // Private variables
 	const _maxStorage = [];
 	const _maxAddressNormal = [];
@@ -177,15 +179,13 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	const _addr32_decode = function(byteArray) {
 		if (byteArray.length != 15) return "addr32:BadLen";
 
-		// If first five bits (128+64+32+16+8=248) are off, this is a Shield address
-		const isShield = ((byteArray[0] & 248) == 0) ? true : false;
-		const addr32_chars = (isShield) ? "567890abcdefghijklmnopqrstuvwxyz" : "#0123456789abcdefghkmnpqrstuwxyz";
+		const len = (byteArray[0] & 248) >> 3; // First five bits (128+64+32+16+8=248) store length; 0 = Shield
 
 		let decoded = "";
 
-		for (let i = 0; i < 24; i++) {
+		for (let i = 0; i < ((len === 0) ? 23 : len); i++) {
 			let num = 0;
-			const skipBits = i * 5;
+			const skipBits = (i + 1) * 5;
 
 			if (_GetBit(byteArray, skipBits + 0)) num += 16;
 			if (_GetBit(byteArray, skipBits + 1)) num +=  8;
@@ -193,37 +193,36 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
 			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
 
-			if (!isShield && num === 0) break;
-
 			decoded += addr32_chars[num];
 		}
 
-		return (isShield) ? decoded.substr(23) + decoded.substr(1, 22) + decoded.substr(0, 1) : decoded;
+		return (len === 0) ? decoded + '5' : decoded;
 	};
 
 	const _addr32_charToUint5 = function(c) {
-		const addr32_chars = "#0123456789abcdefghkmnpqrstuwxyz";
-
-		for (let i = 1; i < 32; i++) {
+		for (let i = 0; i < 32; i++) {
 			if (c == addr32_chars[i]) return i;
 		}
 
-		if (c == 'o') return 1; // 0
-		if (c == 'j' || c == 'i' || c == 'l') return 2; // 1
-		if (c == 'v') return 28; // w
+		if (c == 'o') return 0; // '0'
+		if (c == 'i' || c == 'l') return 1; // '1'
+		if (c == 'v') return 28; // 'w'
 
-		return 0;
+		return -1;
 	}
 
+	// Only for Normal, not Shield addresses
 	const _addr32_encode = function(source) {
-		if (source.length < 1 || source.length > 24) return null;
+		if (source.length < 1 || source.length > 23) return null;
 
 		let encoded = new Uint8Array(15);
+		encoded[0] = source.length << 3; // First five bits store length
 
 		for (let i = 0; i < source.length; i++) {
-			const skipBits = i * 5;
+			const skipBits = (i + 1) * 5;
 
 			let num = _addr32_charToUint5(source[i]);
+			if (num < 0) return null;
 			if (num >= 16) {_SetBit(encoded, skipBits + 0); num -= 16;}
 			if (num >=  8) {_SetBit(encoded, skipBits + 1); num -=  8;}
 			if (num >=  4) {_SetBit(encoded, skipBits + 2); num -=  4;}
@@ -238,8 +237,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (isShield && _userAddress[i].decoded.length === 24 && _userAddress[i].decoded.endsWith('5')) count++;
-			else if (!isShield && (_userAddress[i].decoded.length < 24 || !(_userAddress[i].decoded.endsWith('5')))) count++;
+			if (isShield && _userAddress[i].decoded.length === 24) count++;
+			else if (!isShield && (_userAddress[i].decoded.length < 24)) count++;
 		}
 
 		return count;
