@@ -214,7 +214,7 @@ void addr32_store(unsigned char * const out, const char * const src, const size_
 	int bit = 0;
 	int byte = 0;
 
-	const bool shield = (len == 24 && src[23] == SHLD32_CHAR_0);
+	const bool shield = (len == 24 && src[0] == SHLD32_CHAR_0);
 
 	for (size_t i = 0; i < 24; i++) {
 		int num = shield ? shldToUint5(src[i]) : (i < len) ? charToUint5(src[i]) : ADDR32_CHAR_0;
