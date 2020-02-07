@@ -191,6 +191,8 @@ static void setBit(unsigned char *target, int * const bit, int * const byte, con
 	}
 }
 
+// Unused
+/*
 __attribute__((warn_unused_result))
 static bool getBit(const unsigned char * const src, int * const bit, int * const byte) {
 	const bool result = (1 & (src[*byte] >> (7 - *bit)));
@@ -203,6 +205,7 @@ static bool getBit(const unsigned char * const src, int * const bit, int * const
 
 	return result;
 }
+*/
 
 // out must be 15 bytes
 void addr32_store(unsigned char * const out, const char * const src, const size_t len) {
@@ -229,6 +232,8 @@ void addr32_store(unsigned char * const out, const char * const src, const size_
 	}
 }
 
+// Unused
+/*
 // bin must be 15 bytes; out must be 24 bytes
 void addr32_fetch(char * const out, const unsigned char * const bin) {
 	int bit = 0;
@@ -248,4 +253,10 @@ void addr32_fetch(char * const out, const unsigned char * const bin) {
 
 		out[i] = shield ? shld32_chars[num] : addr32_chars[num];
 	}
+
+	if (shield) {
+		out[0] = out[23];
+		out[23] = shld32_chars[0];
+	}
 }
+*/
