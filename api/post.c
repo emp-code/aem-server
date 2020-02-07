@@ -389,14 +389,6 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	// Shield
-	unsigned char response[28]; // 13 + 15
-	if (recv(sock, response, 28, 0) != 28) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from allears-account");
-		close(sock);
-		return;
-	}
-	close(sock);
-
 	unsigned char data[253];
 	memcpy(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -409,7 +401,13 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 225);
-	memcpy(data + 225, response, 28);
+
+	if (
+	   recv(sock, data + 225, 13, 0) != 13
+	|| recv(sock, data + 238, 15, 0) != 15
+	) {syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from Account"); close(sock); return;}
+
+	close(sock);
 
 	sendData(ssl, data, 253);
 }

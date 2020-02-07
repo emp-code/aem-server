@@ -16,8 +16,6 @@
 
 #include "../Global.h"
 
-#include "Include/Addr32.h"
-
 #define AEM_ADDR_FLAG_EXTMSG 128
 #define AEM_ADDR_FLAG_INTMSG 64
 #define AEM_ADDR_FLAG_USE_GK 32
@@ -207,16 +205,6 @@ static int loadUser(void) {
 	return 0;
 }
 
-// === Address functions
-
-/*
-static int genShieldAddress(const uint64_t upk64) {
-//	randombytes_buf(
-
-	return 0;
-}
-*/
-
 // === Other functions
 
 // Return a random, unused ID
@@ -391,15 +379,15 @@ static void api_account_update(const int sock, const int num) {
 }
 
 static void api_address_create(const int sock, const int num) {
-	unsigned char bin[15];
+	unsigned char addr32[15];
 	unsigned char hash[13];
 
 	const ssize_t len = recv(sock, hash, 13, 0);
 	if (len == 6 && memcmp(hash, "SHIELD", 6) == 0) {
-		randombytes_buf(bin, 15);
-		bin[0] &= 7; // Clear first five bits (all but 4,2,1)
+		randombytes_buf(addr32, 15);
+		addr32[0] &= 7; // Clear first five bits (all but 4,2,1)
 
-		if (addressToHash(hash, bin) != 0) return;
+		if (addressToHash(hash, addr32) != 0) return;
 	} else if (len != 13) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
 		return;
@@ -419,10 +407,10 @@ static void api_address_create(const int sock, const int num) {
 	saveAddr();
 
 	if (len == 6) { // Shield
-		unsigned char combined[28];
-		memcpy(combined, hash, 13);
-		memcpy(combined + 13, bin, 15);
-		if (send(sock, combined, 28, 0) != 28) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
+		if (
+		   send(sock, hash, 13, 0) != 13
+		|| send(sock, addr32, 15, 0) != 15
+		) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
 	}
 }
 
