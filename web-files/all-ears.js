@@ -262,16 +262,6 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		return false;
 	};
 
-	const _DecodeAddress = function(addr32) {
-		if (addr32.length !== 15) return "(error)";
-
-		for (let i = 0; i < _userAddress.length; i++) {
-			if (addr32.every((val, j) => val === _userAddress[i].addr32[j])) return _userAddress[i].decoded;
-		}
-
-		return "(unknown)";
-	}
-
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
@@ -619,7 +609,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 					// msgHead[12] = SpamByte
 					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
 					// 16-19 unused
-					const em_to = _DecodeAddress(msgHead.slice(20));
+					const em_to = _addr32_decode(msgHead.slice(20));
 
 					// Bodybox
 					const msgBodyBrI8 = new Int8Array(msgBody);
