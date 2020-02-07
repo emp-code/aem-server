@@ -4,7 +4,7 @@ sodium.ready.then(function() {
 
 const aeDomain = document.domain;
 
-const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Address Key
+const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Address Key (hex)
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
@@ -120,7 +120,7 @@ function addExtMessage(i) {
 	divFrom2.appendChild(fromText);
 
 	divTo.textContent = ae.GetExtMsgTo(i);
-	divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
+	divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).endsWith("5")) ? "mono" : "";
 
 	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetExtMsgId(i) + "\">";
 
@@ -158,7 +158,7 @@ function addExtMessage(i) {
 		document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
 
 		document.getElementById("readmsg_from").className = "";
-		document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).startsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).endsWith("5")) ? "mono" : "";
 	};
 
 	divDel.children[0].onchange = function() {
@@ -207,8 +207,8 @@ function addIntMessage(i) {
 	divFrom1.textContent = ae.GetIntMsgFrom(i);
 	divTo.textContent = ae.GetIntMsgTo(i);
 
-	divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
-	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).starsWith("5")) ? "mono" : "";
+	divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).endsWith("5")) ? "mono" : "";
+	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).endsWith("5")) ? "mono" : "";
 
 	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgId(i) + "\">";
 
@@ -232,8 +232,8 @@ function addIntMessage(i) {
 		document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
 		document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
-		document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).startsWith("5")) ? "mono" : "";
-		document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).startsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).endsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).endsWith("5")) ? "mono" : "";
 	};
 
 	divDel.children[0].onchange = function() {
@@ -422,7 +422,7 @@ function addAddress(num) {
 	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent = ae.GetAddress(num);
-	if (cellAddr.textContent.length == 24 && cellAddr.textContent.startsWith("5")) cellAddr.className = "mono";
+	if (cellAddr.textContent.length == 24 && cellAddr.textContent.endsWith("5")) cellAddr.className = "mono";
 	cellAddr.onclick = function() {
 		navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
 	}

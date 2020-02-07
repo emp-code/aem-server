@@ -133,17 +133,22 @@ static int getPublicKey(const unsigned char * const addr32, unsigned char * cons
 	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
 }
 
-void deliverMessage(const char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const unsigned char * const msgBody, const size_t lenMsgBody,
+void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const unsigned char * const msgBody, const size_t lenMsgBody,
 const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte) {
 	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL) return;
 
-	const char *toStart = to;
+	char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
 	while(1) {
 		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1) break;
+
+		if (lenTo == 24 && toStart[23] == '5') {
+			toStart[23] = toStart[0];
+			toStart[0] = '5';
+		}
 
 		unsigned char addr32[15];
 		addr32_store(addr32, toStart, lenTo);

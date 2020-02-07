@@ -198,7 +198,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			decoded += addr32_chars[num];
 		}
 
-		return decoded;
+		return (isShield) ? decoded.substr(23) + decoded.substr(1, 22) + decoded.substr(0, 1) : decoded;
 	};
 
 	const _addr32_charToUint5 = function(c) {
@@ -238,8 +238,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (isShield && _userAddress[i].decoded.length === 24 && _userAddress[i].decoded[0] === '5') count++;
-			else if (!isShield && (_userAddress[i].decoded.length < 24 || _userAddress[i].decoded[0] !== '5')) count++;
+			if (isShield && _userAddress[i].decoded.length === 24 && _userAddress[i].decoded.endsWith('5')) count++;
+			else if (!isShield && (_userAddress[i].decoded.length < 24 || !(_userAddress[i].decoded.endsWith('5')))) count++;
 		}
 
 		return count;
