@@ -243,23 +243,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		return count;
 	};
 
-	const _IsOwnAddress = function(addr) {
-		for (let i = 0; i < _userAddress.length; i++) {
-			let isOwn = true;
-
-			for (let j = 0; j < 15; j++) {
-				if (addr[j] != _userAddress[i].addr32[j]) {
-					isOwn = false;
-					break;
-				}
-			}
-
-			if (isOwn) return true;
-		}
-
-		return false;
-	};
-
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
@@ -652,6 +635,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_admin_userSpace.push(0);
 			_admin_userNaddr.push(0);
 			_admin_userSaddr.push(0);
+
 			callback(true);
 		});
 	};
