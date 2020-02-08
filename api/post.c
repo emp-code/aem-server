@@ -140,12 +140,10 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	return sock;
 }
 
-/*
-static void userViolation(const int64_t upk64, const int violation) {
-	syslog(LOG_MAIL | LOG_NOTICE, "[System] Destroying account %lx for violation %x\n", upk64, violation);
-	destroyAccount(upk64);
+static void userViolation(const int violation, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	syslog(LOG_MAIL | LOG_NOTICE, "Violation");
+	// ...
 }
-*/
 
 static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	sodium_free(*decrypted);
@@ -234,7 +232,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 		sodium_free(*decrypted);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-//		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_CREATE);
+		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_CREATE);
 		sodium_free(*decrypted);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
@@ -266,7 +264,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 		sodium_free(*decrypted);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-//		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_DELETE);
+		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_DELETE);
 		sodium_free(*decrypted);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
@@ -298,7 +296,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 		sodium_free(*decrypted);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-//		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_UPDATE);
+		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_UPDATE);
 		sodium_free(*decrypted);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
@@ -435,7 +433,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 		sodium_free(*decrypted);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-//		userViolation(pubkey, AEM_VIOLATION_SETTING_LIMITS);
+		userViolation(pubkey, AEM_VIOLATION_SETTING_LIMITS);
 		sodium_free(*decrypted);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
