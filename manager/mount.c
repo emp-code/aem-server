@@ -31,6 +31,13 @@ static void setGroup(void) {
 	allearsGroup = p->pw_gid;
 }
 
+static int robind(const char * const source, const char * const target) {
+	return (
+	   mount(source, target, NULL, MS_BIND, "") == 0
+	&& mount(NULL,   target, NULL, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOATIME | MS_NOEXEC, NULL) == 0
+	) ? 0 : -1;
+}
+
 static int rxbind(const char * const source, const char * const target) {
 	return (
 	   mount(source, target, NULL, MS_BIND, "") == 0
@@ -119,7 +126,7 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 	if (type == AEM_PROCESSTYPE_MTA) {
 		snprintf(path, 50, AEM_CHROOT"/%d/GeoLite2-Country.mmdb", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
-		if (rxbind("/var/lib/allears/GeoLite2-Country.mmdb", path) != 0) return -1;
+		if (robind("/var/lib/allears/GeoLite2-Country.mmdb", path) != 0) return -1;
 	}
 
 	if (
