@@ -68,8 +68,9 @@ static void send204(mbedtls_ssl_context * const ssl) {
 		"Cache-Control: no-store\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"Ignore: padded-to-253-bytes\r\n"
 		"\r\n"
-	, 224);
+	, 253);
 }
 
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
