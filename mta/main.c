@@ -39,7 +39,7 @@ static size_t len_tls_key;
 static bool terminate = false;
 
 static void sigTerm() {
-	puts("Terminating after handling next connection");
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating after handling next connection");
 	terminate = true;
 }
 
@@ -101,7 +101,7 @@ static int takeConnections(void) {
 
 	while (!terminate) {
 		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
-		if (newSock < 0) {puts("Failed to create socket for accepting connection"); break;}
+		if (newSock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); break;}
 		setSocketTimeout(newSock);
 		respond_smtp(newSock, &clientAddr);
 		close(newSock);
