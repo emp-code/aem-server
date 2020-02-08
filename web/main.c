@@ -27,8 +27,8 @@
 
 #define AEM_PIPE_BUFSIZE 8192
 
-mbedtls_x509_crt tlsCrt;
-mbedtls_pk_context tlsKey;
+static mbedtls_x509_crt tlsCrt;
+static mbedtls_pk_context tlsKey;
 
 static unsigned char *tls_crt;
 static unsigned char *tls_key;
@@ -94,7 +94,7 @@ static int initSocket(const int sock, const int port) {
 }
 
 __attribute__((warn_unused_result))
-static int getDomainFromCert() {
+static int getDomainFromCert(void) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", &tlsCrt);
 
@@ -191,7 +191,7 @@ static void setSocketTimeout(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
 }
 
-static void quit() {
+static void quit(void) {
 	sodium_free(tls_crt);
 	sodium_free(tls_key);
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
