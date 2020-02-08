@@ -12,8 +12,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	if (!domain || typeof(domain) !== "string")
 		domain = document.location.hostname;
 
-	const _serverPk = sodium.from_hex(serverPkHex);
-
 // Private constants - must match server
 	const _AEM_ADDR_FLAG_EXTMSG = 128;
 	const _AEM_ADDR_FLAG_INTMSG = 64;
@@ -30,6 +28,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	const _AEM_ADDR32_CHARS = "0123456789abcdefghjkmnpqrstuwxyz";
 	const _AEM_ADMINDATA_USERS = 1024;
+	const _AEM_PUBKEY_SERVER = sodium.from_hex(serverPkHex);
 	const _AEM_SALT_NORMAL = sodium.from_hex(saltNormalHex);
 	const _AEM_USER_MAXLEVEL = 3;
 
@@ -151,7 +150,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		window.crypto.getRandomValues(nonce);
 
 		// postBox: the encrypted data to be sent
-		const postBox = sodium.crypto_box_easy(clearU8, nonce, _serverPk, _userKeySecret);
+		const postBox = sodium.crypto_box_easy(clearU8, nonce, _AEM_PUBKEY_SERVER, _userKeySecret);
 
 		// postMsg: Nonce + User Public Key + postBox
 		const postMsg = new Uint8Array(sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES + postBox.length);
