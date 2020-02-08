@@ -141,51 +141,6 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 }
 
 /*
-__attribute__((warn_unused_result))
-static int sendIntMsg(const char * const addrFrom, const size_t lenFrom, const char * const addrTo, const size_t lenTo,
-char * const * const decrypted, const size_t bodyBegin, const size_t lenDecrypted, const unsigned char * const sender_pk, const char senderCopy) {
-	if (addrFrom == NULL || addrTo == NULL || lenFrom < 1 || lenTo < 1 || lenFrom > 24 || lenTo > 24) return -1;
-
-	unsigned char binFrom[15];
-	addr32_store(binFrom, addrFrom, lenFrom);
-
-	unsigned char binTo[15];
-	addr32_store(binTo, addrTo, lenTo);
-
-	unsigned char recv_pk[crypto_box_PUBLICKEYBYTES];
-	unsigned char flags;
-	int ret = getPublicKeyFromAddress(binTo, recv_pk, &flags);
-	if (ret != 0 || !(flags & AEM_FLAGS_ADDR_ACC_INTMSG) || memcmp(recv_pk, sender_pk, crypto_box_PUBLICKEYBYTES) == 0) return -1;
-
-	const int64_t sender_pk64 = charToInt64(sender_pk);
-	const int memberLevel = getUserLevel(sender_pk64);
-	if (memberLevel < AEM_USERLEVEL_MIN || memberLevel > AEM_USERLEVEL_MAX) return -1;
-
-	size_t bodyLen = lenDecrypted - bodyBegin;
-	unsigned char *boxSet = makeMsg_Int(recv_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
-	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-	if (boxSet == NULL) return -1;
-
-	const int64_t recv_pk64 = charToInt64(recv_pk);
-	ret = addUserMessage(recv_pk64, boxSet, bsLen);
-	free(boxSet);
-	if (ret != 0) return -1;
-
-	if (senderCopy == 'Y') {
-		bodyLen = lenDecrypted - bodyBegin;
-		boxSet = makeMsg_Int(sender_pk, binFrom, binTo, *decrypted + bodyBegin, &bodyLen, memberLevel);
-		if (boxSet == NULL) return -1;
-
-		ret = addUserMessage(sender_pk64, boxSet, bsLen);
-		free(boxSet);
-		if (ret != 0) return -1;
-	}
-
-	return 0;
-}
-*/
-
-/*
 static void userViolation(const int64_t upk64, const int violation) {
 	syslog(LOG_MAIL | LOG_NOTICE, "[System] Destroying account %lx for violation %x\n", upk64, violation);
 	destroyAccount(upk64);
