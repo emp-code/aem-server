@@ -38,7 +38,7 @@ static size_t len_tls_key;
 
 static bool terminate = false;
 
-static void sigTerm() {
+static void sigTerm(void) {
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating after handling next connection");
 	terminate = true;
 }
@@ -112,7 +112,7 @@ static int takeConnections(void) {
 }
 
 __attribute__((warn_unused_result))
-int getDomainFromCert() {
+static int getDomainFromCert(void) {
 	char certInfo[1000];
 	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", &tlsCrt);
 
