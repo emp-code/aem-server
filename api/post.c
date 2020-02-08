@@ -140,7 +140,7 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	return sock;
 }
 
-static void userViolation(const int violation, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+static void userViolation(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const int violation) {
 	syslog(LOG_MAIL | LOG_NOTICE, "Violation");
 	// ...
 }
