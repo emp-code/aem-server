@@ -1,6 +1,6 @@
 "use strict";
 
-function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
+function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	try {
 		if (!window.isSecureContext
 		|| window.self !== window.top
@@ -22,18 +22,16 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_EXTMSG;
 
 	const _AEM_BYTES_HEADBOX = 35;
+	const _AEM_BYTES_POST = 8192;
+	const _AEM_BYTES_PRIVATE = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
 
 	const _AEM_ARGON2_MEMLIMIT = 67108864;
 	const _AEM_ARGON2_OPSLIMIT = 3;
 
-	const _adminData_users = 1024;
-	const _lenPost = 8192;
-	const _lenPrivate = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
-	const _maxLevel = 3;
-
-	const _addressKey = sodium.from_hex(addrKeyHex);
-
-	const addr32_chars = "0123456789abcdefghjkmnpqrstuwxyz";
+	const _AEM_ADDR32_CHARS = "0123456789abcdefghjkmnpqrstuwxyz";
+	const _AEM_ADMINDATA_USERS = 1024;
+	const _AEM_SALT_NORMAL = sodium.from_hex(saltNormalHex);
+	const _AEM_USER_MAXLEVEL = 3;
 
 // Private variables
 	const _maxStorage = [];
@@ -137,17 +135,17 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	};
 
 	const _FetchEncrypted = function(url, cleartext, callback) {
-		if (cleartext.length > _lenPost - 2) {callback(false); return;}
+		if (cleartext.length > _AEM_BYTES_POST - 2) {callback(false); return;}
 
-		// Cleartext is padded to _lenPost bytes
-		const clearU8 = new Uint8Array(_lenPost);
+		// Cleartext is padded to _AEM_BYTES_POST bytes
+		const clearU8 = new Uint8Array(_AEM_BYTES_POST);
 		window.crypto.getRandomValues(clearU8);
 		clearU8.set(cleartext);
 
 		// Last two bytes store the length
 		const u16len = new Uint16Array([cleartext.length]);
 		const u8len = new Uint8Array(u16len.buffer);
-		clearU8.set(u8len, _lenPost - 2);
+		clearU8.set(u8len, _AEM_BYTES_POST - 2);
 
 		const nonce = new Uint8Array(sodium.crypto_box_NONCEBYTES);
 		window.crypto.getRandomValues(nonce);
@@ -195,7 +193,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			if (_GetBit(byteArray, skipBits + 3)) num +=  2;
 			if (_GetBit(byteArray, skipBits + 4)) num +=  1;
 
-			decoded += addr32_chars[num];
+			decoded += _AEM_ADDR32_CHARS[num];
 		}
 
 		return (len === 0) ? decoded + '5' : decoded;
@@ -203,7 +201,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 
 	const _addr32_charToUint5 = function(c) {
 		for (let i = 0; i < 32; i++) {
-			if (c == addr32_chars[i]) return i;
+			if (c == _AEM_ADDR32_CHARS[i]) return i;
 		}
 
 		if (c == 'o') return 0; // '0'
@@ -425,7 +423,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 		_admin_userLevel.splice(0);
 	}
 
-	this.GetLevelMax = function() {return _maxLevel;};
+	this.GetLevelMax = function() {return _AEM_USER_MAXLEVEL;};
 
 	this.GetAddress = function(num) {return _userAddress[num].decoded;};
 	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;};
@@ -442,7 +440,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);};
 	this.GetAddressCountShield = function() {return _GetAddressCount(true);};
 
-	this.IsUserAdmin = function() {return (_userLevel === _maxLevel);};
+	this.IsUserAdmin = function() {return (_userLevel === _AEM_USER_MAXLEVEL);};
 	this.GetUserLevel = function() {return _userLevel;};
 	this.GetStorageLimit = function(lvl) {return _maxStorage[lvl];};
 	this.GetAddressLimitNormal = function(lvl) {return _maxAddressNormal[lvl];};
@@ -545,7 +543,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			_userLevel = browseData[12];
 
 			// Private field
-			const privData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _lenPrivate), _userKeyPublic, _userKeySecret);
+			const privData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _AEM_BYTES_PRIVATE), _userKeyPublic, _userKeySecret);
 
 			for (let i = 0; i < privData[0]; i++) {
 				const start = (i * 29) + 1;
@@ -560,9 +558,9 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			}
 
 			// Admin Data
-			if (_userLevel == _maxLevel) {
-				const adminData = browseData.slice(13 + _lenPrivate, 13 + _lenPrivate + 35 * _adminData_users);
-				for (let i = 0; i < _adminData_users; i++) {
+			if (_userLevel == _AEM_USER_MAXLEVEL) {
+				const adminData = browseData.slice(13 + _AEM_BYTES_PRIVATE, 13 + _AEM_BYTES_PRIVATE + 35 * _AEM_ADMINDATA_USERS);
+				for (let i = 0; i < _AEM_ADMINDATA_USERS; i++) {
 					const s = adminData.slice(i * 35, (i + 1) * 35);
 
 					const pk_hex = sodium.to_hex(s.slice(3));
@@ -582,8 +580,8 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			}
 
 			// Messages
-			let msgStart = 13 + _lenPrivate;
-			if (_userLevel == _maxLevel) msgStart += (35 * _adminData_users);
+			let msgStart = 13 + _AEM_BYTES_PRIVATE;
+			if (_userLevel == _AEM_USER_MAXLEVEL) msgStart += (35 * _AEM_ADMINDATA_USERS);
 
 			while (msgStart < browseData.length) {
 				const kib = browseData[msgStart];
@@ -684,7 +682,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	};
 
 	this.Account_Update = function(pk_hex, level, callback) {
-		if (level < 0 || level > _maxLevel) {callback(false); return;}
+		if (level < 0 || level > _AEM_USER_MAXLEVEL) {callback(false); return;}
 
 		const upData = new Uint8Array(33);
 		upData[0] = level;
@@ -718,7 +716,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 			});
 		} else {
 			const addr32 = _addr32_encode(addr);
-			const hash = sodium.crypto_pwhash(16, addr32, _addressKey, _AEM_ARGON2_OPSLIMIT, _AEM_ARGON2_MEMLIMIT, sodium.crypto_pwhash_ALG_ARGON2ID13).slice(0, 13);
+			const hash = sodium.crypto_pwhash(16, addr32, _AEM_SALT_NORMAL, _AEM_ARGON2_OPSLIMIT, _AEM_ARGON2_MEMLIMIT, sodium.crypto_pwhash_ALG_ARGON2ID13).slice(0, 13);
 
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
@@ -742,7 +740,7 @@ function AllEars(domain, serverPkHex, addrKeyHex, readyCallback) {
 	};
 
 	this.Private_Update = function(callback) {
-		const privData = new Uint8Array(_lenPrivate - sodium.crypto_box_SEALBYTES);
+		const privData = new Uint8Array(_AEM_BYTES_PRIVATE - sodium.crypto_box_SEALBYTES);
 		privData[0] = _userAddress.length;
 		for (let i = 0; i < _userAddress.length; i++) {
 			privData.set(_userAddress[i].hash, (i * 29) + 1);
