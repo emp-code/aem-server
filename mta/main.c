@@ -38,9 +38,20 @@ static size_t len_tls_key;
 
 static bool terminate = false;
 
-static void sigTerm(void) {
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating after handling next connection");
-	terminate = true;
+static void sigTerm(const int sig) {
+	if (sig != SIGUSR2) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after handling next connection");
+		terminate = true;
+		return;
+	}
+
+	// SIGUSR2: Fast kill
+	mbedtls_x509_crt_free(&tlsCrt);
+	mbedtls_pk_free(&tlsKey);
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
+	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	exit(EXIT_SUCCESS);
 }
 
 static int setCaps(const bool allowBind) {
