@@ -79,12 +79,12 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket to Account");
 		return -1;
 	}
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Account");
 		return -1;
 	}
 
@@ -177,7 +177,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	size_t offset = lenHead;
 
 	if (recv(sock, response + offset, 13 + AEM_LEN_PRIVATE, 0) != 13 + AEM_LEN_PRIVATE) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_memzero(response, lenResponse);
 		close(sock);
 		return;
@@ -188,7 +188,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	// Admin Data
 	if (response[lenHead + 12] == AEM_USERLEVEL_MAX) {
 		if (recv(sock, response + offset, 35 * 1024, 0) != 35 * 1024) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 			sodium_memzero(response, lenResponse);
 			close(sock);
 			return;
@@ -241,7 +241,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -273,7 +273,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -305,7 +305,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -327,7 +327,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -372,7 +372,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -391,7 +391,7 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -410,7 +410,7 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -442,7 +442,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with allears-account");
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		return;
@@ -496,11 +496,11 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
-/*
-	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
-*/
+
+//	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
+//	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
+//	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
+
 	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
