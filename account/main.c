@@ -105,8 +105,16 @@ static int saveUser(void) {
 	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
-	close(fd);
 	free(encrypted);
+
+	struct timespec zeroTime[2];
+	zeroTime[0].tv_sec = 0;
+	zeroTime[0].tv_nsec = 0;
+	zeroTime[1].tv_sec = 0;
+	zeroTime[1].tv_nsec = 0;
+	futimens(fd, zeroTime);
+
+	close(fd);
 
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
@@ -123,8 +131,16 @@ static int saveAddr(void) {
 	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
-	close(fd);
 	free(encrypted);
+
+	struct timespec zeroTime[2];
+	zeroTime[0].tv_sec = 0;
+	zeroTime[0].tv_nsec = 0;
+	zeroTime[1].tv_sec = 0;
+	zeroTime[1].tv_nsec = 0;
+	futimens(fd, zeroTime);
+
+	close(fd);
 
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
