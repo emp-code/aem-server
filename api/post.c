@@ -201,7 +201,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	close(sock);
 
 	// Messages
-	const int stoSock = storageSocket(pubkey, 0);
+	const int stoSock = storageSocket(pubkey, 1);
 	if (stoSock > 0) {
 		while(1) {
 			unsigned char buf[131072];
@@ -404,6 +404,25 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted % 16 != 0) {sodium_free(*decrypted); return;}
+
+	const int sock = storageSocket(pubkey, 0);
+	if (sock < 0) {sodium_free(*decrypted); return;}
+
+	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Storage");
+		sodium_free(*decrypted);
+		close(sock);
+		return;
+	}
+
+	sodium_free(*decrypted);
+	close(sock);
+
+	send204(ssl);
+}
+
 static void private_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted != AEM_LEN_PRIVATE) {sodium_free(*decrypted); return;}
 
@@ -500,7 +519,7 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 
 //	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
 //	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
-//	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);
 

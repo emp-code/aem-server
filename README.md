@@ -58,7 +58,7 @@ AllEars-Storage handles the storage and retrieval of encrypted message data (see
 
 AllEars-API and AllEars-MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
 
-Message data is stored in the file `/var/lib/allears/Message.aem`, encrypted using the Storage Key.
+Message data is stored in the file `/var/lib/allears/Message.aem`, encrypted using the Storage Key. Deleted messages are overwritten with zeroes.
 
 An index of messages is kept, containing the owner's public key, the position/size of the data in Message.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with the Stindex Key.
 

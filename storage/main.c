@@ -62,62 +62,6 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, int size) {
-	if (size < 1 || size > 128) return -1;
-
-	// TODO: Check emptyBlocks
-
-	const off_t pos = lseek(fdMsg, 0, SEEK_END);
-	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
-	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
-
-	// Encrypt & Write
-	struct AES_ctx aes;
-	AES_init_ctx(&aes, storageKey);
-
-	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
-		AES_ECB_encrypt(&aes, data + i * 16);
-
-	if (write(fdMsg, data, size * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
-
-	// Stindex
-	int num = -1;
-	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
-			num = i;
-			break;
-		}
-	}
-
-	if (num == -1) {
-		stindexCount++;
-		struct aem_stindex *stindex2 = realloc(stindex, sizeof(struct aem_stindex) * stindexCount);
-		if (stindex2 == NULL) {
-			// TODO
-			return -1;
-		}
-		stindex = stindex2;
-
-		num = stindexCount - 1;
-		memcpy(stindex[num].pubkey, pubkey, crypto_box_PUBLICKEYBYTES);
-		stindex[num].msgCount = 0;
-		stindex[num].msg = malloc(4);
-	} else {
-		uint32_t *newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 4);
-		if (newMsg == NULL) {
-			// TODO
-			return -1;
-		}
-		stindex[num].msg = newMsg;
-	}
-
-	const int msgNum = stindex[num].msgCount;
-	stindex[num].msg[msgNum] = ((pos / 1024) << 7) | (size - 1);
-	stindex[num].msgCount++;
-
-	return 0;
-}
-
 static int saveStindex(void) {
 	if (stindexCount <= 0) return -1;
 
@@ -153,6 +97,113 @@ static int saveStindex(void) {
 	free(encrypted);
 
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
+}
+
+static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, int size) {
+	if (size < 1 || size > 128) return -1;
+
+	// TODO: Check emptyBlocks
+
+	const off_t pos = lseek(fdMsg, 0, SEEK_END);
+	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
+	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
+
+	// Encrypt & Write
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, storageKey);
+
+	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
+		AES_ECB_encrypt(&aes, data + i * 16);
+
+	if (write(fdMsg, data, size * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
+
+	// Stindex
+	int num = -1;
+	for (int i = 0; i < stindexCount; i++) {
+		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+			num = i;
+		}
+	}
+
+	if (num == -1) {
+		stindexCount++;
+		struct aem_stindex *stindex2 = realloc(stindex, sizeof(struct aem_stindex) * stindexCount);
+		if (stindex2 == NULL) {
+			// TODO
+			return -1;
+		}
+		stindex = stindex2;
+
+		num = stindexCount - 1;
+		memcpy(stindex[num].pubkey, pubkey, crypto_box_PUBLICKEYBYTES);
+		stindex[num].msgCount = 0;
+		stindex[num].msg = malloc(4);
+	} else {
+		uint32_t *newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 4);
+		if (newMsg == NULL) {
+			// TODO
+			return -1;
+		}
+		stindex[num].msg = newMsg;
+	}
+
+	const int msgNum = stindex[num].msgCount;
+	stindex[num].msg[msgNum] = ((pos / 1024) << 7) | (size - 1);
+	stindex[num].msgCount++;
+
+	return 0;
+}
+
+static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
+	int num = -1;
+	for (int i = 0; i < stindexCount; i++) {
+		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+			num = i;
+			break;
+		}
+	}
+
+	if (num == -1) {syslog(LOG_MAIL | LOG_NOTICE, "Invalid pubkey in delete request"); return -1;}
+
+	for (int i = 0; i < stindex[num].msgCount; i++) {
+		unsigned char buf[AEM_BLOCKSIZE];
+		const ssize_t readBytes = pread(fdMsg, buf, AEM_BLOCKSIZE, (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE);
+		if (readBytes != AEM_BLOCKSIZE) {
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed reading "AEM_PATH_MESSAGE);
+			return -1;
+		}
+
+		struct AES_ctx aes;
+		AES_init_ctx(&aes, storageKey);
+
+		for (int j = 0; j < AEM_BLOCKSIZE / 16; j++)
+			AES_ECB_decrypt(&aes, buf + j * 16);
+
+		bool found = true;
+		for (int j = 0; j < 16; j++) {
+			if (id[j] != buf[j * 64]) {
+				found = false;
+				break;
+			}
+		}
+
+		if (found) {
+			const int pos = (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE;
+			const int sze = ((stindex[num].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
+
+			memmove((unsigned char*)stindex[num].msg + i * 4, (unsigned char*)stindex[num].msg + 4 * (i + 1), 4 * (stindex[num].msgCount - i - 1));
+
+			stindex[num].msgCount--;
+			saveStindex();
+
+			unsigned char zero[sze];
+			bzero(zero, sze);
+			pwrite(fdMsg, zero, sze, pos);
+			syslog(LOG_MAIL | LOG_NOTICE, "Del-Msg: %x%x%x... Pos=%d Sze=%d", id[0], id[1], id[2], pos, sze);
+		}
+	}
+
+	return 0;
 }
 
 int loadStindex() {
@@ -234,41 +285,51 @@ void takeConnections(void) {
 
 		unsigned char clr[lenClr];
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
-			const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY);
+			if (clr[0] == 0) { // Delete
+				unsigned char ids[8192];
+				const ssize_t lenIds = recv(sock, ids, 8192, 0);
+				if (lenIds % 16 == 0) {
+					for (int i = 0; i < lenIds / 16; i++) {
+						storage_delete(clr + 1, ids + i * 16);
+					}
+				} else syslog(LOG_MAIL | LOG_NOTICE, "Invalid data received");
+			} else { // Browse
+				const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY);
 
-			int stindexNum = -1;
-			for (int i = 0; i < stindexCount; i++) {
-				if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
-					stindexNum = i;
-					break;
+				int stindexNum = -1;
+				for (int i = 0; i < stindexCount; i++) {
+					if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
+						stindexNum = i;
+						break;
+					}
 				}
-			}
 
-			if (stindexNum < 0) {
+				if (stindexNum < 0) {
+					close(rfd);
+					close(sock);
+					continue;
+				}
+
+				for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
+					const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
+					const ssize_t len = kib * AEM_BLOCKSIZE;
+					const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
+
+					unsigned char buf[len];
+					if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
+
+					struct AES_ctx aes;
+					AES_init_ctx(&aes, storageKey);
+
+					for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
+						AES_ECB_decrypt(&aes, buf + i * 16);
+
+					if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
+					recv(sock, buf, 1, 0);
+				}
+
 				close(rfd);
-				close(sock);
-				continue;
 			}
-
-			for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
-				const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
-				const ssize_t len = kib * AEM_BLOCKSIZE;
-				const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
-
-				unsigned char buf[len];
-				if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
-
-				struct AES_ctx aes;
-				AES_init_ctx(&aes, storageKey);
-
-				for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
-					AES_ECB_decrypt(&aes, buf + i * 16);
-
-				if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
-				recv(sock, buf, 1, 0);
-			}
-
-			close(rfd);
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
 			unsigned char * const msg = malloc(bytes);

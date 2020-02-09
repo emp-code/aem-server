@@ -722,6 +722,25 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		});
 	};
 
+	this.Message_Delete = function(ids, callback) {
+		const delCount = ids.length;
+
+		const data = new Uint8Array(delCount * 16);
+		for (let i = 0; i < ids.length; i++) {
+			data.set(_extMsg[ids[i]].id, i * 16);
+		}
+
+		_FetchEncrypted("message/delete", data, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			for (let i = ids.length - 1; i >= 0; i--) {
+				_extMsg.splice(ids[i], 1);
+			}
+
+			callback(true);
+		});
+	};
+
 	this.Private_Update = function(callback) {
 		const privData = new Uint8Array(_AEM_BYTES_PRIVATE - sodium.crypto_box_SEALBYTES);
 		privData[0] = _userAddress.length;
