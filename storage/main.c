@@ -122,6 +122,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	for (int i = 0; i < stindexCount; i++) {
 		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
 			num = i;
+			break;
 		}
 	}
 
