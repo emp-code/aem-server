@@ -311,7 +311,7 @@ void takeConnections(void) {
 					continue;
 				}
 
-				for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
+				for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
 					const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
 					const ssize_t len = kib * AEM_BLOCKSIZE;
 					const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
