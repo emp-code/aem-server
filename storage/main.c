@@ -103,11 +103,29 @@ static int saveStindex(void) {
 static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, int size) {
 	if (size < 1 || size > 128) return -1;
 
-	// TODO: Check emptyBlocks
+	off_t pos = (off_t)-1;
+	for (int i = 0; i < emptyCount; i++) {
+		int emptyPos = empty[i] >> 7;
+		int emptySze = empty[i] & 127;
 
-	const off_t pos = lseek(fdMsg, 0, SEEK_END);
-	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
-	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
+		if (emptySze >= size - 1) {
+			pos = emptyPos * AEM_BLOCKSIZE;
+
+			if (emptySze - (size - 1) < 0) {
+				memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
+				emptyCount--;
+			} else {
+				emptySze -= (size - 1);
+				empty[i] = emptyPos | emptySze;
+			}
+		}
+	}
+
+	if (pos == (off_t)-1) {
+		pos = lseek(fdMsg, 0, SEEK_END);
+		if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
+		if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
+	}
 
 	// Encrypt & Write
 	struct AES_ctx aes;
@@ -116,7 +134,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
 		AES_ECB_encrypt(&aes, data + i * 16);
 
-	if (write(fdMsg, data, size * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
+	if (pwrite(fdMsg, data, size * AEM_BLOCKSIZE, pos) != size * AEM_BLOCKSIZE) return -1;
 
 	// Stindex
 	int num = -1;
