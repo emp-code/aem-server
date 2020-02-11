@@ -225,7 +225,6 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 			unsigned char zero[sze];
 			bzero(zero, sze);
 			pwrite(fdMsg, zero, sze, pos);
-			syslog(LOG_MAIL | LOG_NOTICE, "Del-Msg: %x%x%x... Pos=%d Sze=%d", id[0], id[1], id[2], pos, sze);
 		}
 	}
 
