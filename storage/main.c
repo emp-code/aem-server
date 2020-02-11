@@ -111,7 +111,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		if (emptySze >= size - 1) {
 			pos = emptyPos * AEM_BLOCKSIZE;
 
-			if (emptySze - (size - 1) < 0) {
+			if (emptySze - size < 0) {
 				memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
 				emptyCount--;
 			} else {
@@ -212,7 +212,6 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 			const int sze = ((stindex[num].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
 
 			memmove((unsigned char*)stindex[num].msg + i * 4, (unsigned char*)stindex[num].msg + 4 * (i + 1), 4 * (stindex[num].msgCount - i - 1));
-
 			stindex[num].msgCount--;
 			saveStindex();
 
@@ -282,6 +281,7 @@ static int loadEmpty(void) {
 	if (total % AEM_BLOCKSIZE != 0) return -1;
 
 	empty = malloc(1);
+	emptyCount = 0;
 
 	int blocks = 0;
 	int pos = -1;
