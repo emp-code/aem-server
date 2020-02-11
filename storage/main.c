@@ -280,7 +280,7 @@ static int loadEmpty(void) {
 		if (isEmpty) {
 			// TODO handle >128 blocks
 
-			if (pos == -1) pos = i * AEM_BLOCKSIZE;
+			if (pos == -1) pos = i;
 
 			blocks++;
 		} else if (blocks > 0) {
