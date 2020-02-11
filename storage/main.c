@@ -115,8 +115,10 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 				memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
 				emptyCount--;
 			} else {
-				emptySze -= (size - 1);
-				empty[i] = emptyPos | emptySze;
+				emptySze -= size;
+				emptyPos += size;
+
+				empty[i] = (emptyPos << 7) | emptySze;
 			}
 		}
 	}
