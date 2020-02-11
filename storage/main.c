@@ -208,6 +208,13 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 		}
 
 		if (found) {
+			uint32_t *empty2 = realloc(empty, 4 * (emptyCount + 1));
+			if (empty2 != NULL) {
+				empty = empty2;
+				empty[emptyCount] = stindex[num].msg[i];
+				emptyCount++;
+			}
+
 			const int pos = (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE;
 			const int sze = ((stindex[num].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
 
