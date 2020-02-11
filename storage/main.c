@@ -43,6 +43,7 @@ static struct aem_stindex *stindex;
 static uint16_t stindexCount;
 
 static uint32_t *empty;
+static int emptyCount;
 
 static int fdMsg;
 
@@ -258,6 +259,46 @@ void freeStindex(void) {
 	free(stindex);
 }
 
+static int loadEmpty(void) {
+	const off_t total = lseek(fdMsg, 0, SEEK_END);
+	if (total % AEM_BLOCKSIZE != 0) return -1;
+
+	empty = malloc(1);
+
+	int blocks = 0;
+	int pos = -1;
+
+	for (int i = 0; i < (total / AEM_BLOCKSIZE); i++) {
+		unsigned char buf[AEM_BLOCKSIZE];
+		if (pread(fdMsg, buf, AEM_BLOCKSIZE, i * AEM_BLOCKSIZE) != AEM_BLOCKSIZE) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); free(empty); return -1;}
+
+		bool isEmpty = true;
+		for (int j = 0; j < AEM_BLOCKSIZE; j++) {
+			if (buf[j] != 0) {isEmpty = false; break;}
+		}
+
+		if (isEmpty) {
+			// TODO handle >128 blocks
+
+			if (pos == -1) pos = i * AEM_BLOCKSIZE;
+
+			blocks++;
+		} else if (blocks > 0) {
+			uint32_t *empty2 = realloc(empty, (emptyCount + 1) * 4);
+			if (empty2 == NULL) {free(empty); return -1;}
+			empty = empty2;
+
+			empty[emptyCount] = pos << 7 | (blocks - 1);
+
+			blocks = 0;
+			pos = -1;
+			emptyCount++;
+		}
+	}
+
+	return 0;
+}
+
 static int bindSocket(const int sock) {
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
@@ -382,10 +423,12 @@ int main(int argc, char *argv[]) {
 
 	if (loadStindex() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
 	if ((fdMsg = open("Message.aem", O_RDWR)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Message.aem"); return EXIT_FAILURE;}
+	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Message.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 	takeConnections();
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
 	freeStindex();
+	free(empty);
 	return EXIT_SUCCESS;
 }
