@@ -20,20 +20,23 @@
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 
 #define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_ADR crypto_pwhash_SALTBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
 
+#define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 5)
+
 #define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
 #define AEM_MAXLEN_HOST 32
+
 #define AEM_PORT_API 302
 #define AEM_PORT_HTTPS 443
 #define AEM_PORT_MANAGER 940
 #define AEM_PORT_SMTP 25
+
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 

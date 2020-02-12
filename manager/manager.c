@@ -47,11 +47,13 @@
 
 #define AEM_PATH_CONF "/etc/allears"
 #define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
-#define AEM_PATH_KEY_ADR AEM_PATH_CONF"/Address.key"
 #define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
 #define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
 #define AEM_PATH_KEY_STI AEM_PATH_CONF"/Stindex.key"
 #define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
+
+#define AEM_PATH_SLT_NRM AEM_PATH_CONF"/Normal.slt"
+#define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
 
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
 #define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
@@ -71,11 +73,13 @@ static unsigned char accessKey_storage_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage_mta[AEM_LEN_ACCESSKEY];
 
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
-static unsigned char key_adr[AEM_LEN_KEY_ADR];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_sti[AEM_LEN_KEY_STI];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
+
+static unsigned char slt_nrm[AEM_LEN_SALT_ADDR];
+static unsigned char slt_shd[AEM_LEN_SALT_ADDR];
 
 static unsigned char tls_crt[AEM_LEN_FILE_MAX];
 static unsigned char tls_key[AEM_LEN_FILE_MAX];
@@ -136,10 +140,12 @@ void wipeKeys(void) {
 	sodium_memzero(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
 
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
-	sodium_memzero(key_adr, AEM_LEN_KEY_ADR);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
+
+	sodium_memzero(slt_nrm, AEM_LEN_SALT_ADDR);
+	sodium_memzero(slt_shd, AEM_LEN_SALT_ADDR);
 
 	sodium_memzero(tls_crt, len_tls_crt);
 	sodium_memzero(tls_key, len_tls_key);
@@ -296,10 +302,12 @@ static int loadFile(const char * const path, unsigned char *target, size_t * con
 int loadFiles(void) {
 	return (
 	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC) == 0
-	&& loadFile(AEM_PATH_KEY_ADR, key_adr, NULL, AEM_LEN_KEY_ADR) == 0
 	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API) == 0
 	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG) == 0
 	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO) == 0
+
+	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_ADDR) == 0
+	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_ADDR) == 0
 
 	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0) == 0
 	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0) == 0
@@ -418,7 +426,7 @@ static void process_spawn(const int type) {
 	int fd[2];
 	if (pipe2(fd, O_DIRECT) < 0) return;
 
-	pid_t pid = fork(); // todo: use clone()
+	pid_t pid = fork();
 	if (pid < 0) return;
 
 	if (pid == 0) { // Child process
@@ -459,7 +467,9 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			if (
 			   pipeWriteDirect(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
-			|| pipeWriteDirect(fd[1], key_adr, AEM_LEN_KEY_ADR) < 0
+
+			|| pipeWriteDirect(fd[1], slt_nrm, AEM_LEN_SALT_ADDR) < 0
+			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_ADDR) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0

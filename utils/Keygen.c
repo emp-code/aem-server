@@ -10,11 +10,13 @@
 #include "../Global.h"
 
 #define AEM_PATH_KEY_ACC "Account.key"
-#define AEM_PATH_KEY_ADR "Address.key"
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
 #define AEM_PATH_KEY_STI "Stindex.key"
 #define AEM_PATH_KEY_STO "Storage.key"
+
+#define AEM_PATH_SLT_NRM "Normal.slt"
+#define AEM_PATH_SLT_SHD "Shield.slt"
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
@@ -68,11 +70,13 @@ int main(void) {
 	sodium_memzero(master_hex, lenHex);
 
 	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC);
-	writeRandomEncrypted(AEM_PATH_KEY_ADR, AEM_LEN_KEY_ADR);
 	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
 	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
+
+	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_ADDR);
+	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_ADDR);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;

@@ -4,7 +4,7 @@ sodium.ready.then(function() {
 
 const aeDomain = document.domain;
 
-const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Address Key (hex)
+const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Normal Address Salt (hex)
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {

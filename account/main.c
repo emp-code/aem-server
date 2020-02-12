@@ -1,4 +1,6 @@
+#include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -8,8 +10,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <syslog.h>
-#include <signal.h>
-#include <errno.h>
 #include <unistd.h>
 
 #include <sodium.h>
@@ -65,7 +65,9 @@ static unsigned char accessKey_api[crypto_secretbox_KEYBYTES];
 static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
 
 static unsigned char accountKey[crypto_secretbox_KEYBYTES];
-static unsigned char addressKey[crypto_pwhash_SALTBYTES];
+
+static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
+static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 
 static bool terminate = false;
 
@@ -77,7 +79,9 @@ static void sigTerm(int sig) {
 	}
 
 	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
-	sodium_memzero(addressKey, crypto_pwhash_SALTBYTES);
+
+	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
+	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
 
 	sodium_memzero(user, sizeof(struct aem_user) * userCount);
 	free(user);
@@ -240,11 +244,11 @@ static uint16_t newUserId(void) {
 }
 
 __attribute__((warn_unused_result))
-static int addressToHash(unsigned char * const target, const unsigned char * const source) {
+static int addressToHash(unsigned char * const target, const unsigned char * const source, const bool shield) {
 	if (addr == NULL || target == NULL) return -1;
 
 	unsigned char tmp[16];
-	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, addressKey, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
+	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, shield? salt_shield : salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
 	memcpy(target, tmp, 13);
 	return 0;
 }
@@ -403,7 +407,7 @@ static void api_address_create(const int sock, const int num) {
 		randombytes_buf(addr32, 15);
 		addr32[0] &= 7; // Clear first five bits (all but 4,2,1)
 
-		if (addressToHash(hash, addr32) != 0) return;
+		if (addressToHash(hash, addr32, true) != 0) return;
 	} else if (len != 13) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
 		return;
@@ -510,7 +514,7 @@ static int hashToUserId(const unsigned char * const hash) {
 
 static void mta_getPubKey(const int sock, const unsigned char * const addr32) {
 	unsigned char hash[13];
-	if (addressToHash(hash, addr32) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	if (addressToHash(hash, addr32, (addr32[0] & 248) == 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
 	const int userId = hashToUserId(hash);
 	if (userId < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
 
@@ -594,8 +598,9 @@ static int takeConnections(void) {
 __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
 	return (
-	   read(fd, accountKey,    crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
-	&& read(fd, addressKey,    crypto_pwhash_SALTBYTES)   == crypto_pwhash_SALTBYTES
+	   read(fd, accountKey, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	&& read(fd, salt_normal, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
+	&& read(fd, salt_shield, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
 	&& read(fd, accessKey_api, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
 	&& read(fd, accessKey_mta, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
 	) ? 0 : -1;
