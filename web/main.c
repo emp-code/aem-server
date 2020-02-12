@@ -40,7 +40,7 @@ size_t lenDomain;
 
 static bool terminate = false;
 
-static void sigTerm(int sig) {
+static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
 		terminate = true;
 		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
