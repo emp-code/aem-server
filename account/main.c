@@ -72,7 +72,7 @@ static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 static bool terminate = false;
 
 static void sigTerm(int sig) {
-	if (sig != SIGUSR2) {
+	if (sig == SIGUSR1) {
 		terminate = true;
 		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
 		return;
