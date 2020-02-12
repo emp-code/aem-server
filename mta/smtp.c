@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include <sodium.h>
 
@@ -15,7 +15,6 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "Include/Base64.h"
 #include "Include/Brotli.h"
 #include "Include/QuotedPrintable.h"
 #include "Include/ToUtf8.h"
