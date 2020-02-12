@@ -254,11 +254,11 @@ __attribute__((warn_unused_result))
 static bool smtp_greet(const int sock, const char * const domain, const size_t lenDomain) {
 	if (domain == NULL || lenDomain < 1) return false;
 
-	const int lenGreet = 12 + lenDomain;
+	const int lenGreet = 6 + lenDomain;
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
 	memcpy(ourGreeting + 4, domain, lenDomain);
-	memcpy(ourGreeting + 4 + lenDomain, " ESMTP\r\n", 8);
+	memcpy(ourGreeting + 4 + lenDomain, "\r\n", 2);
 	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
 }
 
@@ -500,6 +500,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
+
 				continue;
 			}
 
