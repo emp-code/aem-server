@@ -389,10 +389,10 @@ static int setSubLimits(const int type) {
 
 __attribute__((warn_unused_result))
 static int dropRoot(const pid_t pid) {
-	const struct passwd * const p = getpwnam("allears");
-
 	char dir[50];
 	sprintf(dir, AEM_CHROOT"/%d", pid);
+
+	const struct passwd * const p = getpwnam("allears");
 
 	return (
 	   p != NULL
