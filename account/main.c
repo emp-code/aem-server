@@ -161,6 +161,11 @@ static int loadAddr(void) {
 	if (lenEncrypted < 0) {
 		close(fd);
 		return -1;
+	} else if (lenEncrypted == 0) {
+		close(fd);
+		addr = malloc(1);
+		addrCount = 0;
+		return 0;
 	}
 
 	const size_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
