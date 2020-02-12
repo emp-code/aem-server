@@ -106,7 +106,7 @@ static int saveUser(void) {
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, len, encrypted, accountKey);
 
-	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC);
+	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
@@ -132,7 +132,7 @@ static int saveAddr(void) {
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)addr, len, encrypted, accountKey);
 
-	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC);
+	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
@@ -152,7 +152,7 @@ static int saveAddr(void) {
 static int loadAddr(void) {
 	if (addrCount > 0) return -1;
 
-	const int fd = open(AEM_PATH_ADDR, O_RDONLY);
+	const int fd = open(AEM_PATH_ADDR, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}
@@ -195,7 +195,7 @@ static int loadAddr(void) {
 static int loadUser(void) {
 	if (userCount > 0) return -1;
 
-	const int fd = open(AEM_PATH_USER, O_RDONLY);
+	const int fd = open(AEM_PATH_USER, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}

@@ -88,7 +88,7 @@ static int saveStindex(void) {
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, stindexKey);
 
-	const int fd = open(AEM_PATH_STINDEX, O_WRONLY | O_TRUNC);
+	const int fd = open(AEM_PATH_STINDEX, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
@@ -231,7 +231,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 }
 
 int loadStindex() {
-	const int fd = open(AEM_PATH_STINDEX, O_RDONLY);
+	const int fd = open(AEM_PATH_STINDEX, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) return -1;
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
@@ -359,7 +359,7 @@ void takeConnections(void) {
 					}
 				} else syslog(LOG_MAIL | LOG_NOTICE, "Invalid data received");
 			} else { // Browse
-				const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY);
+				const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 
 				int stindexNum = -1;
 				for (int i = 0; i < stindexCount; i++) {
@@ -445,7 +445,7 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	if (loadStindex() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
-	if ((fdMsg = open("Message.aem", O_RDWR)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Message.aem"); return EXIT_FAILURE;}
+	if ((fdMsg = open("Message.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Message.aem"); return EXIT_FAILURE;}
 	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Message.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");

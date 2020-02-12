@@ -172,7 +172,7 @@ static bool process_verify(const pid_t pid) {
 
 	char path[22];
 	sprintf(path, "/proc/%u/stat", pid);
-	const int fd = open(path, O_RDONLY);
+	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) return false;
 
 	char buf[41];
@@ -277,7 +277,7 @@ void killAll(int sig) {
 }
 
 static int loadFile(const char * const path, unsigned char *target, size_t * const len, const off_t expectedLen) {
-	const int fd = open(path, O_RDONLY);
+	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) return -1;
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
