@@ -490,9 +490,6 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
 			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
-			if (lenNewTo < 1) {
-				return smtp_fail(tls, clientAddr, 102);
-			}
 
 			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
