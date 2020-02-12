@@ -603,11 +603,11 @@ static int takeConnections(void) {
 __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
 	return (
-	   read(fd, accountKey, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	   read(fd, accountKey, AEM_LEN_KEY_ACC) == AEM_LEN_KEY_ACC
 	&& read(fd, salt_normal, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
 	&& read(fd, salt_shield, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
-	&& read(fd, accessKey_api, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
-	&& read(fd, accessKey_mta, crypto_secretbox_KEYBYTES) == crypto_secretbox_KEYBYTES
+	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
+	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	) ? 0 : -1;
 }
 
