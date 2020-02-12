@@ -266,27 +266,6 @@ static int getUserNum(const uint16_t id) {
 	return -1;
 }
 
-/*
-static int addressToUpk(const unsigned char * const src, unsigned char * const upk, unsigned char * const flags) { // getPublicKeyFromAddress
-	if (src == NULL || upk == NULL) return -1;
-
-	unsigned char cmp[13];
-	if (addressToHash(cmp, src) == 0) {
-		for (int i = 0; i < addrCount; i++) {
-			if (memcmp(cmp, addr[i].hash, 13)) {
-				const int num = getUserNum(addr[i].userId);
-				if (num < 0) return -1;
-
-				memcpy(upk, user[num].pubkey, crypto_box_PUBLICKEYBYTES);
-				return 0;
-			}
-		}
-	}
-
-	return -1;
-}
-*/
-
 static int userNumFromPubkey(const unsigned char * const pubkey) {
 	for (int i = 0; i < userCount; i++) {
 		if (memcmp(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) return i;
@@ -625,9 +604,9 @@ static int setSignals(void) {
 
 int main(int argc, char *argv[]) {
 	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
-	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (getuid()     == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setSignals() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
