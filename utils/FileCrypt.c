@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 			sprintf(headers,
 				"HTTP/1.1 200 aem\r\n"
 				"Tk: N\r\n"
-				"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 				"Expect-CT: enforce, max-age=99999999\r\n"
 				"Connection: close\r\n"
 				"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
 			sprintf(headers,
 				"HTTP/1.1 200 aem\r\n"
 				"Tk: N\r\n"
-				"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 				"Expect-CT: enforce, max-age=99999999\r\n"
 				"Connection: close\r\n"
 				"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
