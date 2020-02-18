@@ -494,7 +494,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
-			char newTo[AEM_SMTP_MAX_ADDRSIZE];
+			char newTo[AEM_MAXLEN_ADDRESS];
 			int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
 
 			if (lenNewTo < 1) {
