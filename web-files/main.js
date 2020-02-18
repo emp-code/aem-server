@@ -411,6 +411,31 @@ function deleteAddress(addr) {
 	});
 }
 
+function shieldMix(addr) {
+	let newAddr = "";
+
+	for (let i = 0; i < 23; i++) {
+		switch (addr.charAt(i)) {
+			case '1':
+				newAddr += "1iIlL".charAt(Math.floor(Math.random() * 5));
+				break;
+			case '0':
+				newAddr += "0oO".charAt(Math.floor(Math.random() * 3));
+				break;
+			case 'w':
+				newAddr += "VvWw".charAt(Math.floor(Math.random() * 4));
+				break;
+			default:
+				newAddr += (Math.random() > 0.5) ? addr.charAt(i) : addr.charAt(i).toUpperCase();
+		}
+	}
+
+	const c = "0123456789abcdefghijklmnopqrstuvwxyz";
+	const r = Math.floor(Math.random() * 35);
+
+	return newAddr + ((Math.random() > 0.5) ? c.charAt(r) : c.charAt(r).toUpperCase());
+}
+
 function addAddress(num) {
 	const addrTable = document.getElementById("tbody_opt_addr");
 	const row = addrTable.insertRow(-1);
@@ -424,7 +449,10 @@ function addAddress(num) {
 	cellAddr.textContent = ae.GetAddress(num);
 	if (cellAddr.textContent.length == 24 && cellAddr.textContent.endsWith("5")) cellAddr.className = "mono";
 	cellAddr.onclick = function() {
-		navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
+		if (cellAddr.textContent.length == 24)
+			navigator.clipboard.writeText(shieldMix(cellAddr.textContent) + "@" + aeDomain);
+		else
+			navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
 	}
 
 	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
