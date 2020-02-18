@@ -269,7 +269,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 	int addrChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
 		if (isalnum(buf[skipBytes + i])) {
-			if (addrChars + 1 > AEM_SMTP_MAX_ADDRSIZE) return 0;
+			if (addrChars + 1 > AEM_MAXLEN_ADDRESS) return 0;
 			addr[addrChars] = tolower(buf[skipBytes + i]);
 			addrChars++;
 		} else if (buf[skipBytes + i] == '@') {
