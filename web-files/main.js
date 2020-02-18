@@ -431,7 +431,7 @@ function shieldMix(addr) {
 	}
 
 	const c = "0123456789abcdefghijklmnopqrstuvwxyz";
-	const r = Math.floor(Math.random() * 35);
+	const r = Math.floor(Math.random() * 36);
 
 	return newAddr + ((Math.random() > 0.5) ? c.charAt(r) : c.charAt(r).toUpperCase());
 }
