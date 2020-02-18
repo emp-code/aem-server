@@ -32,7 +32,7 @@
 #define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
 
 #define AEM_SMTP_MAX_ADDRSIZE 200
-#define AEM_SMTP_MAX_ADDRSIZE_TO 5000 // RFC5321: must accept 100 recipients at minimum
+#define AEM_SMTP_MAX_ADDRSIZE_TO 4096 // RFC5321: must accept 100 recipients at minimum
 
 #define AEM_SMTP_SIZE_BODY 262144 // RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 
