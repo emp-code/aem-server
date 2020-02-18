@@ -229,7 +229,7 @@ static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const 
 }
 
 __attribute__((warn_unused_result))
-static size_t smtp_addr(const char * const buf, const size_t len, char * const addr) {
+static size_t smtp_addr_sender(const char * const buf, const size_t len, char * const addr) {
 	if (buf == NULL || len < 1 || addr == NULL) return 0;
 
 	size_t skipBytes = 0;
@@ -247,6 +247,38 @@ static size_t smtp_addr(const char * const buf, const size_t len, char * const a
 
 	memcpy(addr, buf + skipBytes, lenAddr);
 	return lenAddr;
+}
+
+__attribute__((warn_unused_result))
+static size_t smtp_addr_our(const char * const buf, const size_t len, char * const addr) {
+	if (buf == NULL || len < 1 || addr == NULL) return 0;
+
+	size_t skipBytes = 0;
+	while (isspace(buf[skipBytes]) && skipBytes < len) skipBytes++;
+	if (skipBytes >= len) return 0;
+
+	if (buf[skipBytes] != '<') return 0;
+	skipBytes++;
+
+	const int max = len - skipBytes - 1;
+	int lenAddr = 0;
+	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
+
+	if (lenAddr < 1) return 0;
+
+	int addrChars = 0;
+	for (int i = 0; i < lenAddr; i++) {
+		if (isalnum(buf[skipBytes + i])) {
+			if (addrChars + 1 > AEM_SMTP_MAX_ADDRSIZE) return 0;
+			addr[addrChars] = tolower(buf[skipBytes + i]);
+			addrChars++;
+		} else if (buf[skipBytes + i] == '@') {
+			if (lenAddr - i - 1 != (int)lenDomain || strncasecmp(buf + skipBytes + i + 1, domain, lenDomain) != 0) return 0;
+			break;
+		}
+	}
+
+	return addrChars;
 }
 
 __attribute__((warn_unused_result))
@@ -312,29 +344,6 @@ void tlsFree(void) {
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_entropy_free(&entropy);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
-}
-
-__attribute__((warn_unused_result))
-static bool isAddressAem(const char * const c, const size_t len) {
-	if (c == NULL || len < 1 || len > 24) return false;
-
-	for (size_t i = 0; i < len; i++) {
-		if (!isalnum(c[i])) return false;
-	}
-
-	return true;
-}
-
-__attribute__((warn_unused_result))
-static bool isAddressOurs(const char * const addr, const size_t lenAddr, const char * const domain, const size_t lenDomain) {
-	if (addr == NULL || lenAddr < 1 || domain == NULL || lenDomain < 1) return false;
-
-	return (
-	   lenAddr > (lenDomain + 1)
-	&& addr[lenAddr - lenDomain - 1] == '@'
-	&& strncasecmp(addr + lenAddr - lenDomain, domain, lenDomain) == 0
-	&& isAddressAem(addr, lenAddr - lenDomain - 1)
-	);
 }
 
 __attribute__((warn_unused_result))
@@ -468,7 +477,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			lenFrom = smtp_addr(buf + 10, bytes - 10, from);
+			lenFrom = smtp_addr_sender(buf + 10, bytes - 10, from);
 			if (lenFrom < 1) {
 				return smtp_fail(tls, clientAddr, 100);
 			}
@@ -488,22 +497,15 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			char newTo[AEM_SMTP_MAX_ADDRSIZE];
-			size_t lenNewTo = smtp_addr(buf + 8, bytes - 8, newTo);
+			int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
 
-			if (!isAddressOurs(newTo, lenNewTo, domain, lenDomain)) {
+			if (lenNewTo < 1) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
 					return smtp_fail(tls, clientAddr, 103);
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
-
 				continue;
-			}
-
-			lenNewTo -= (lenDomain + 1);
-
-			for (size_t i = 0; i < lenNewTo; i++) {
-				if (isupper(newTo[i])) newTo[i] = tolower(newTo[i]);
 			}
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_ADDRSIZE_TO) {
