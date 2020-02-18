@@ -282,9 +282,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_greet(const int sock, const char * const domain, const size_t lenDomain) {
-	if (domain == NULL || lenDomain < 1) return false;
-
+static bool smtp_greet(const int sock) {
 	const int lenGreet = 6 + lenDomain;
 	char ourGreeting[lenGreet];
 	memcpy(ourGreeting, "220 ", 4);
@@ -294,8 +292,8 @@ static bool smtp_greet(const int sock, const char * const domain, const size_t l
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain, const size_t lenDomain) {
-	if (tls == NULL || domain == NULL || lenDomain < 1) return false;
+static bool smtp_shlo(mbedtls_ssl_context * const tls) {
+	if (tls == NULL) return false;
 
 	const ssize_t lenShlo = 4 + lenDomain + AEM_SHLO_RESPONSE_LEN;
 	char shlo[lenShlo];
@@ -306,8 +304,8 @@ static bool smtp_shlo(mbedtls_ssl_context * const tls, const char * const domain
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_helo(const int sock, const char * const domain, const size_t lenDomain, const char * const buf, const ssize_t bytes) {
-	if (domain == NULL || lenDomain < 1 || buf == NULL || bytes < 4) return false;
+static bool smtp_helo(const int sock, const char * const buf, const ssize_t bytes) {
+	if (buf == NULL || bytes < 4) return false;
 
 	if (strncasecmp(buf, "EHLO", 4) == 0) {
 		const ssize_t lenHelo = 4 + lenDomain + AEM_EHLO_RESPONSE_LEN;
@@ -404,13 +402,13 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
 
-	if (!smtp_greet(sock, domain, lenDomain)) return smtp_fail(NULL, clientAddr, 0);
+	if (!smtp_greet(sock)) return smtp_fail(NULL, clientAddr, 0);
 
 	char buf[AEM_SMTP_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 	if (bytes < 7) return smtp_fail(NULL, clientAddr, 1); // HELO \r\n
 
-	if (!smtp_helo(sock, domain, lenDomain, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
+	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
 
 	uint8_t infoByte = 0;
 	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_ESMTP;
@@ -453,7 +451,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
-		if (!smtp_shlo(tls, domain, lenDomain)) {
+		if (!smtp_shlo(tls)) {
 			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed to send greeting following StartTLS");
 			tlsClose(tls);
 			return;
