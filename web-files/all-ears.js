@@ -699,6 +699,8 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			});
 		} else {
 			const addr32 = _addr32_encode(addr);
+			if (addr32 === null) {callback(false); return;}
+
 			const hash = sodium.crypto_pwhash(16, addr32, _AEM_SALT_NORMAL, _AEM_ARGON2_OPSLIMIT, _AEM_ARGON2_MEMLIMIT, sodium.crypto_pwhash_ALG_ARGON2ID13).slice(0, 13);
 
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
