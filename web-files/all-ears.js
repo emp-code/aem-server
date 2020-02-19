@@ -13,11 +13,10 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		domain = document.location.hostname;
 
 // Private constants - must match server
-	const _AEM_ADDR_FLAG_EXTMSG = 128;
-	const _AEM_ADDR_FLAG_INTMSG = 64;
-	const _AEM_ADDR_FLAG_SHR_PK = 16;
+	const _AEM_ADDR_FLAG_ACCEXT = 128;
+	const _AEM_ADDR_FLAG_ACCINT = 64;
 	const _AEM_ADDR_FLAG_USE_GK = 32;
-	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_EXTMSG;
+	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_ACCEXT;
 
 	const _AEM_BYTES_HEADBOX = 35;
 	const _AEM_BYTES_POST = 8192;
@@ -42,8 +41,8 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	let _userLevel = 0;
 	const _userAddress = [];
-	const _intMsg = [];
 	const _extMsg = [];
+	const _intMsg = [];
 	const _textNote = [];
 	const _fileNote = [];
 
@@ -62,17 +61,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	const _admin_userLevel = [];
 
 // Private functions
-	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
-		this.id = id;
-		this.isSent = isSent;
-		this.senderMemberLevel = sml;
-		this.ts = ts;
-		this.from = from;
-		this.to = to;
-		this.title = title;
-		this.body = body;
-	}
-
 	function _NewExtMsg(id, ts, ip, cs, tlsver, greet, infobyte, countrycode, from, to, title, headers, body) {
 		this.id = id;
 		this.ts = ts;
@@ -86,6 +74,17 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		this.to = to;
 		this.title = title;
 		this.headers = headers;
+		this.body = body;
+	}
+
+	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
+		this.id = id;
+		this.isSent = isSent;
+		this.senderMemberLevel = sml;
+		this.ts = ts;
+		this.from = from;
+		this.to = to;
+		this.title = title;
 		this.body = body;
 	}
 
@@ -105,14 +104,13 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		this.fileType = fileType;
 	}
 
-	function _NewAddress(hash, addr32, decoded, accExt, accInt, gk, spk) {
+	function _NewAddress(hash, addr32, decoded, accExt, accInt, use_gk) {
 		this.hash = hash;
 		this.addr32 = addr32;
 		this.decoded = decoded;
-		this.acceptExtMsg = accExt;
-		this.acceptIntMsg = accInt;
-		this.useGatekeeper = gk;
-		this.sharePk = spk;
+		this.accExt = accExt;
+		this.accInt = accInt;
+		this.use_gk = use_gk;
 	}
 
 	const _FetchBinary = function(url, postData, callback) {
@@ -385,8 +383,8 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		_maxAddressShield.splice(0);
 		_userLevel = 0;
 		_userAddress.splice(0);
-		_intMsg.splice(0);
 		_extMsg.splice(0);
+		_intMsg.splice(0);
 		_textNote.splice(0);
 		_fileNote.splice(0);
 
@@ -408,15 +406,13 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetLevelMax = function() {return _AEM_USER_MAXLEVEL;};
 
 	this.GetAddress = function(num) {return _userAddress[num].decoded;};
-	this.IsAddressAcceptIntMsg = function(num) {return _userAddress[num].acceptIntMsg;};
-	this.IsAddressAcceptExtMsg = function(num) {return _userAddress[num].acceptExtMsg;};
-	this.IsAddressSharePk      = function(num) {return _userAddress[num].sharePk;};
-	this.IsAddressGatekeeper   = function(num) {return _userAddress[num].useGatekeeper;};
+	this.GetAddressAccExt = function(num) {return _userAddress[num].accExt;};
+	this.GetAddressAccInt = function(num) {return _userAddress[num].accInt;};
+	this.GetAddressUse_Gk = function(num) {return _userAddress[num].use_gk;};
 
-	this.SetAddressAcceptIntMsg = function(num, val) {_userAddress[num].acceptIntMsg = val;};
-	this.SetAddressAcceptExtMsg = function(num, val) {_userAddress[num].acceptExtMsg = val;};
-	this.SetAddressSharePk      = function(num, val) {_userAddress[num].sharePk = val;};
-	this.SetAddressGatekeeper   = function(num, val) {_userAddress[num].useGatekeeper = val;};
+	this.SetAddressAccExt = function(num, val) {_userAddress[num].accExt = val;};
+	this.SetAddressAccInt = function(num, val) {_userAddress[num].accInt = val;};
+	this.SetAddressUse_Gk = function(num, val) {_userAddress[num].use_gk = val;};
 
 	this.GetAddressCount = function() {return _userAddress.length;};
 	this.GetAddressCountNormal = function() {return _GetAddressCount(false);};
@@ -427,16 +423,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetStorageLimit = function(lvl) {return _maxStorage[lvl];};
 	this.GetAddressLimitNormal = function(lvl) {return _maxAddressNormal[lvl];};
 	this.GetAddressLimitShield = function(lvl) {return _maxAddressShield[lvl];};
-
-	this.GetIntMsgCount = function() {return _intMsg.length;};
-	this.GetIntMsgId     = function(num) {return _intMsg[num].id;};
-	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
-	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
-	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
-	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;};
-	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;};
-	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;};
-	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;};
 
 	this.GetExtMsgCount = function() {return _extMsg.length;};
 	this.GetExtMsgId      = function(num) {return _extMsg[num].id;};
@@ -456,6 +442,16 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetExtMsgFlagRare = function(num) {return _extMsg[num].info &  32;}; // Rare/unusual command used
 	this.GetExtMsgFlagQuit = function(num) {return _extMsg[num].info &  64;}; // QUIT command issued
 	this.GetExtMsgFlagPExt = function(num) {return _extMsg[num].info & 128;}; // Protocol Extended (ESMTP)
+
+	this.GetIntMsgCount = function() {return _intMsg.length;};
+	this.GetIntMsgId     = function(num) {return _intMsg[num].id;};
+	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
+	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
+	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
+	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;};
+	this.GetIntMsgTo     = function(num) {return _intMsg[num].to;};
+	this.GetIntMsgTitle  = function(num) {return _intMsg[num].title;};
+	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;};
 
 	this.GetNoteCount = function() {return _textNote.length;};
 	this.GetNoteId = function(num) {return _textNote[num].id;};
@@ -531,12 +527,11 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				const start = (i * 29) + 1;
 				const hash = privData.slice(start, start + 13);
 				const addr32 = privData.slice(start + 13, start + 28);
-				const accExt = (privData[start + 28] & _AEM_ADDR_FLAG_EXTMSG > 0) ? true : false;
-				const accInt = (privData[start + 28] & _AEM_ADDR_FLAG_INTMSG > 0) ? true : false;
+				const accExt = (privData[start + 28] & _AEM_ADDR_FLAG_ACCEXT > 0) ? true : false;
+				const accInt = (privData[start + 28] & _AEM_ADDR_FLAG_ACCINT > 0) ? true : false;
 				const use_gk = (privData[start + 28] & _AEM_ADDR_FLAG_USE_GK > 0) ? true : false;
-				const shr_pk = (privData[start + 28] & _AEM_ADDR_FLAG_SHR_PK > 0) ? true : false;
 
-				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), accExt, accInt, use_gk, shr_pk));
+				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), accExt, accInt, use_gk));
 			}
 
 			// Admin Data
@@ -694,7 +689,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), _addr32_decode(byteArray.slice(13, 28)), true, false, false, false));
+				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), _addr32_decode(byteArray.slice(13, 28)), true, false, false));
 				callback(true);
 			});
 		} else {
@@ -706,7 +701,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), true, false, false, false));
+				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), true, false, false));
 				callback(true);
 			});
 		}
@@ -722,6 +717,23 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_userAddress.splice(num, 1);
 			callback(true);
 		});
+	};
+
+	this.Address_Update = function(callback) {
+		const data = new Uint8Array(_userAddress.length * 14);
+
+		for (let i = 0; i < _userAddress.length; i++) {
+			data.set(_userAddress[i].hash, (i * 14));
+
+			let flags = 0;
+			if (_userAddress[i].accExt) flags |= _AEM_ADDR_FLAG_ACCEXT;
+			if (_userAddress[i].accInt) flags |= _AEM_ADDR_FLAG_ACCINT;
+			if (_userAddress[i].use_gk) flags |= _AEM_ADDR_FLAG_USE_GK;
+
+			data[i * 14 + 13] = flags;
+		}
+
+		_FetchEncrypted("address/update", data, function(fetchOk) {callback(fetchOk);});
 	};
 
 	this.Message_Delete = function(ids, callback) {

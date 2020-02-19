@@ -16,11 +16,10 @@
 
 #include "../Global.h"
 
-#define AEM_ADDR_FLAG_EXTMSG 128
-#define AEM_ADDR_FLAG_INTMSG 64
+#define AEM_ADDR_FLAG_ACCEXT 128
+#define AEM_ADDR_FLAG_ACCINT 64
 #define AEM_ADDR_FLAG_USE_GK 32
-#define AEM_ADDR_FLAG_SHR_PK 16
-// 8,4,2,1 unused
+// 16, 8, 4, 2, 1 unused
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
@@ -107,7 +106,7 @@ static int saveUser(void) {
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, len, encrypted, accountKey);
 
 	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0) {free(encrypted); return -1;}
+	if (fd < 0) {free(encrypted); syslog(LOG_MAIL | LOG_NOTICE, "Failed to open "AEM_PATH_USER); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
 
@@ -448,8 +447,8 @@ static void api_address_update(const int sock, const int num) {
 
 	for (int i = 0; i < (len / 14); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if (memcmp(addr[j].hash, buf + (i * 14), 13) == 0 && addr[j].userId == user[num].userId) {
-				addr[j].flags = buf[i * 14 + 13];
+			if (addr[j].userId == user[num].userId && memcmp(addr[j].hash, buf + (i * 14), 13) == 0) {
+				addr[j].flags = (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK) & buf[i * 14 + 13];
 				break;
 			}
 		}

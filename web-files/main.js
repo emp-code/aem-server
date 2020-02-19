@@ -443,7 +443,6 @@ function addAddress(num) {
 	const cellChk1 = row.insertCell(-1);
 	const cellChk2 = row.insertCell(-1);
 	const cellChk3 = row.insertCell(-1);
-	const cellChk4 = row.insertCell(-1);
 	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent = ae.GetAddress(num);
@@ -455,19 +454,13 @@ function addAddress(num) {
 			navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
 	}
 
-	cellChk1.innerHTML = ae.IsAddressAcceptIntMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk3.innerHTML = ae.IsAddressAcceptExtMsg(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk4.innerHTML = ae.IsAddressGatekeeper(num)   ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-
-	if (ae.IsUserAdmin())
-		cellChk2.innerHTML = "<input type=\"checkbox\" checked=\"checked\" readonly=\"readonly\" disabled=\"disabled\">";
-	else
-		cellChk2.innerHTML = ae.IsAddressSharePk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk1.innerHTML = ae.GetAddressAccInt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk2.innerHTML = ae.GetAddressAccExt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk3.innerHTML = ae.GetAddressUse_Gk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
 	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
 	cellChk2.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
 	cellChk3.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
-	cellChk4.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
 
 	cellBtnD.innerHTML = "<button type=\"button\">X</button>";
 	cellBtnD.onclick = function() {deleteAddress(cellAddr.textContent);};
@@ -925,13 +918,12 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	const tbl = document.getElementById("tbody_opt_addr");
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		ae.SetAddressAcceptIntMsg(i, tbl.rows[i].cells[1].firstChild.checked);
-		ae.SetAddressSharePk     (i, tbl.rows[i].cells[2].firstChild.checked);
-		ae.SetAddressAcceptExtMsg(i, tbl.rows[i].cells[3].firstChild.checked);
-		ae.SetAddressGatekeeper  (i, tbl.rows[i].cells[4].firstChild.checked);
+		ae.SetAddressAccInt(i, tbl.rows[i].cells[1].firstChild.checked);
+		ae.SetAddressAccExt(i, tbl.rows[i].cells[2].firstChild.checked);
+		ae.SetAddressUse_Gk(i, tbl.rows[i].cells[3].firstChild.checked);
 	}
 
-	ae.SaveAddressData(function(success) {
+	ae.Address_Update(function(success) {
 		if (success) {
 			document.getElementById("btn_saveaddrdata").hidden = true;
 		} else {
