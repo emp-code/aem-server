@@ -203,6 +203,7 @@ int main(int argc, char *argv[]) {
 				"Cross-Origin-Opener-Policy: same-origin\r\n"
 				"Referrer-Policy: no-referrer\r\n"
 				"X-Content-Type-Options: nosniff\r\n"
+				"X-DNS-Prefetch-Control: off\r\n"
 				"X-Frame-Options: deny\r\n"
 				"X-XSS-Protection: 1; mode=block\r\n"
 				"\r\n"
