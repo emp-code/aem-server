@@ -118,23 +118,26 @@ int main(void) {
 
 	// Encrypt with Account Key
 	const size_t lenEncrypted = lenPadded + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
-	unsigned char encrypted[lenEncrypted];
+	unsigned char * const encrypted = malloc(lenEncrypted);
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, key_account);
 	sodium_free(padded);
 
 	const int fd = open("Account.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
+		free(encrypted);
 		puts("Failed to create Account.aem");
 		return EXIT_FAILURE;
 	}
 
 	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {
+		free(encrypted);
 		perror("Failed to write Account.aem");
 		close(fd);
 		return EXIT_FAILURE;
 	}
 
+	free(encrypted);
 	close(fd);
 
 	const size_t lenHex = crypto_box_SECRETKEYBYTES * 2 + 1;
