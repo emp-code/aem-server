@@ -20,11 +20,11 @@
 #define AEM_ADDR_FLAG_ACCINT 64
 #define AEM_ADDR_FLAG_USE_GK 32
 // 16, 8, 4, 2, 1 unused
+#define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
-#define AEM_PATH_ADDR "Addr.aem"
 #define AEM_PATH_USER "User.aem"
 
 #define AEM_LIMIT_MIB 0
@@ -34,31 +34,23 @@
 unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
 //	 MiB, Nrm, Shd | MiB = value + 1; 1-256 MiB
 	{31,  0,   5},
-	{63,  5,   25},
-	{127, 25,  100},
-	{255, 100, 250} // Admin
+	{63,  3,  10},
+	{127, 10, 30},
+	{255, 50, 50} // Admin
 };
 
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	uint16_t userId; // Max 65,536 users
 	unsigned char level;
 	unsigned char addrNormal;
 	unsigned char addrShield;
 	unsigned char private[AEM_LEN_PRIVATE];
-};
-
-struct aem_addr {
-	unsigned char hash[13];
-	uint16_t userId;
-	unsigned char flags;
+	unsigned char addrHash[AEM_ADDRESSES_PER_USER][13];
+	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
 };
 
 static struct aem_user *user = NULL;
-static struct aem_addr *addr = NULL;
-
 static int userCount = 0;
-static int addrCount = 0;
 
 static unsigned char accessKey_api[crypto_secretbox_KEYBYTES];
 static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
@@ -85,16 +77,9 @@ static void sigTerm(const int sig) {
 	sodium_memzero(user, sizeof(struct aem_user) * userCount);
 	free(user);
 
-	if (addr != NULL) {
-		sodium_memzero(addr, sizeof(struct aem_addr) * addrCount);
-		free(addr);
-	}
-
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
-
-// === Save and load functions
 
 static int saveUser(void) {
 	if (userCount <= 0) return -1;
@@ -120,75 +105,6 @@ static int saveUser(void) {
 	close(fd);
 
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
-}
-
-static int saveAddr(void) {
-	if (addrCount <= 0) return -1;
-
-	const size_t len = addrCount * sizeof(struct aem_addr);
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
-	unsigned char * const encrypted = malloc(lenEncrypted);
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)addr, len, encrypted, accountKey);
-
-	const int fd = open(AEM_PATH_ADDR, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0) {free(encrypted); return -1;}
-	const ssize_t ret = write(fd, encrypted, lenEncrypted);
-	free(encrypted);
-
-	struct timespec zeroTime[2];
-	zeroTime[0].tv_sec = 0;
-	zeroTime[0].tv_nsec = 0;
-	zeroTime[1].tv_sec = 0;
-	zeroTime[1].tv_nsec = 0;
-	futimens(fd, zeroTime);
-
-	close(fd);
-
-	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
-}
-
-static int loadAddr(void) {
-	if (addrCount > 0) return -1;
-
-	const int fd = open(AEM_PATH_ADDR, O_RDONLY | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0) {
-		return -1;
-	}
-
-	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
-	if (lenEncrypted < 0) {
-		close(fd);
-		return -1;
-	} else if (lenEncrypted == 0) {
-		close(fd);
-		addr = malloc(1);
-		addrCount = 0;
-		return 0;
-	}
-
-	const size_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
-	if (lenDecrypted < sizeof(struct aem_addr) || lenDecrypted % sizeof(struct aem_addr) != 0) {
-		close(fd);
-		return -1;
-	}
-
-	unsigned char encrypted[lenEncrypted];
-	if (pread(fd, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		close(fd);
-		return -1;
-	}
-	close(fd);
-
-	addr = malloc(lenDecrypted);
-
-	if (crypto_secretbox_open_easy((unsigned char*)addr, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
-		free(addr);
-		return -1;
-	}
-
-	addrCount = lenDecrypted / sizeof(struct aem_addr);
-	return 0;
 }
 
 static int loadUser(void) {
@@ -229,40 +145,14 @@ static int loadUser(void) {
 	return 0;
 }
 
-// === Other functions
-
-// Return a random, unused ID
-static uint16_t newUserId(void) {
-	uint16_t newId;
-	randombytes_buf(&newId, 2);
-
-	for (int i = 0; i < userCount; i++) {
-		if (user[i].userId == newId) {
-			newId++;
-			i = 0;
-			continue;
-		}
-	}
-
-	return newId;
-}
-
 __attribute__((warn_unused_result))
 static int addressToHash(unsigned char * const target, const unsigned char * const source, const bool shield) {
-	if (addr == NULL || target == NULL) return -1;
+	if (target == NULL || source == NULL) return -1;
 
 	unsigned char tmp[16];
 	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, shield? salt_shield : salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
 	memcpy(target, tmp, 13);
 	return 0;
-}
-
-static int getUserNum(const uint16_t id) {
-	for (int i = 0; i < userCount; i++) {
-		if (user[i].userId == id) return i;
-	}
-
-	return -1;
 }
 
 static int userNumFromPubkey(const unsigned char * const pubkey) {
@@ -274,32 +164,44 @@ static int userNumFromPubkey(const unsigned char * const pubkey) {
 }
 
 static void api_account_browse(const int sock, const int num) {
-	unsigned char response[13 + AEM_LEN_PRIVATE];
+	const int addrCount = user[num].addrNormal + user[num].addrShield;
+	const int maxUsers = (user[num].level != AEM_USERLEVEL_MAX) ? 0 : ((userCount > 1024) ? 1024 : userCount);
+
+	unsigned char response[14 + (addrCount * 14) + AEM_LEN_PRIVATE + (maxUsers * 35)];
+
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
 	response[6] = limits[2][0]; response[7]  = limits[2][1]; response[8]  = limits[2][2];
 	response[9] = limits[3][0]; response[10] = limits[3][1]; response[11] = limits[3][2];
 
 	response[12] = user[num].level;
-	memcpy(response + 13, user[num].private, AEM_LEN_PRIVATE);
+	response[13] = addrCount;
+	int lenResponse = 14;
 
-	send(sock, response, 13 + AEM_LEN_PRIVATE, 0);
-
-	if (user[num].level != AEM_USERLEVEL_MAX) return;
-
-	// Admin Data
-	unsigned char adminData[35 * 1024];
-	bzero(adminData, 35 * 1024);
-
-	const int maxUsers = (userCount <= 1024) ? userCount : 1024;
-	for (int i = 0; i < maxUsers; i++) {
-		adminData[i * 35 + 0] = user[i].level;
-		adminData[i * 35 + 1] = user[i].addrNormal;
-		adminData[i * 35 + 2] = user[i].addrShield;
-		memcpy(adminData + i * 35 + 3, user[i].pubkey, 32);
+	for (int i = 0; i < addrCount; i++) {
+		memcpy(response + lenResponse, user[num].addrHash[i], 13);
+		response[lenResponse + 13] = user[num].addrFlag[i];
+		lenResponse += 14;
 	}
 
-	send(sock, adminData, 35 * 1024, 0);
+	memcpy(response + lenResponse, user[num].private, AEM_LEN_PRIVATE);
+	lenResponse += AEM_LEN_PRIVATE;
+
+	if (user[num].level == AEM_USERLEVEL_MAX) {
+		const uint32_t numUsers = userCount;
+		memcpy(response + lenResponse, &numUsers, 4);
+		lenResponse += 4;
+
+		for (int i = 0; i < maxUsers; i++) {
+			response[lenResponse + 0] = user[i].level;
+			response[lenResponse + 1] = user[i].addrNormal;
+			response[lenResponse + 2] = user[i].addrShield;
+			memcpy(response + lenResponse + 3, user[i].pubkey, 32);
+			lenResponse += 35;
+		}
+	}
+
+	send(sock, response, lenResponse, 0);
 }
 
 static void api_account_create(const int sock, const int num) {
@@ -320,7 +222,6 @@ static void api_account_create(const int sock, const int num) {
 	user = user2;
 
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
-	user[userCount].userId = newUserId();
 	user[userCount].level = AEM_USERLEVEL_MIN;
 	user[userCount].addrNormal = 0;
 	user[userCount].addrShield = 0;
@@ -382,6 +283,9 @@ static void api_account_update(const int sock, const int num) {
 }
 
 static void api_address_create(const int sock, const int num) {
+	const int addrCount = user[num].addrNormal + user[num].addrShield;
+	if (addrCount >= AEM_ADDRESSES_PER_USER) return;
+
 	unsigned char addr32[15];
 	unsigned char hash[13];
 
@@ -391,23 +295,18 @@ static void api_address_create(const int sock, const int num) {
 		addr32[0] &= 7; // Clear first five bits (all but 4,2,1)
 
 		if (addressToHash(hash, addr32, true) != 0) return;
-	} else if (len != 13) {
+		user[num].addrShield++;
+	} else if (len == 13) {
+		user[num].addrNormal++;
+	} else {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
 		return;
 	}
 
-	// Save address
-	struct aem_addr *addr2 = realloc(addr, (addrCount + 1) * sizeof(struct aem_addr));
-	if (addr2 == NULL) return;
-	addr = addr2;
+	memcpy(user[num].addrHash[addrCount], hash, 13);
+	user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
 
-	memcpy(addr[addrCount].hash, hash, 13);
-	addr[addrCount].userId = user[num].userId;
-	addr[addrCount].flags = 0;
-
-	addrCount++;
-
-	saveAddr();
+	saveUser();
 
 	if (len == 6) { // Shield
 		if (
@@ -421,9 +320,10 @@ static void api_address_delete(const int sock, const int num) {
 	unsigned char hash_del[13];
 	if (recv(sock, hash_del, 13, 0) != 13) return;
 
+	const int addrCount = user[num].addrNormal + user[num].addrShield;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
-		if (memcmp(addr[i].hash, hash_del, 13) == 0 && addr[i].userId == user[num].userId) {
+		if (memcmp(user[num].addrHash[i], hash_del, 13) == 0) {
 			delNum = i;
 			break;
 		}
@@ -432,12 +332,11 @@ static void api_address_delete(const int sock, const int num) {
 	if (delNum < 0) return;
 
 	if (delNum < (addrCount - 1)) {
-		const size_t s = sizeof(struct aem_addr);
-		memmove((unsigned char*)addr + s * delNum, (unsigned char*)addr + s * (delNum + 1), s * (addrCount - delNum - 1));
+		memmove(user[num].addrHash + 13 * delNum, user[num].addrHash + 13 * (delNum + 1), 13 * (addrCount - delNum - 1));
 	}
 
-	addrCount--;
-	saveAddr();
+	// TODO: Decrease AddressCount
+	saveUser();
 }
 
 static void api_address_update(const int sock, const int num) {
@@ -445,16 +344,18 @@ static void api_address_update(const int sock, const int num) {
 	const ssize_t len = recv(sock, buf, 8192, 0);
 	if (len < 1 || len % 14 != 0) return;
 
+	const int addrCount = user[num].addrNormal + user[num].addrShield;
+
 	for (int i = 0; i < (len / 14); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if (addr[j].userId == user[num].userId && memcmp(addr[j].hash, buf + (i * 14), 13) == 0) {
-				addr[j].flags = (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK) & buf[i * 14 + 13];
+			if (memcmp(user[num].addrHash[j], buf + (i * 14), 13) == 0) {
+				user[num].addrFlag[j] = (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK) & buf[i * 14 + 13];
 				break;
 			}
 		}
 	}
 
-	saveAddr();
+	saveUser();
 }
 
 static void api_private_update(const int sock, const int num) {
@@ -487,9 +388,13 @@ static void api_setting_limits(const int sock, const int num) {
 //	saveSettings(); // TODO
 }
 
-static int hashToUserId(const unsigned char * const hash) {
-	for (int i = 0; i < addrCount; i++) {
-		if (memcmp(hash, addr[i].hash, 13) == 0) return addr[i].userId;
+static int hashToUserNum(const unsigned char * const hash) {
+	for (int userNum = 0; userNum < userCount; userNum++) {
+		const int addrCount = user[userNum].addrNormal + user[userNum].addrShield;
+
+		for (int addrNum = 0; addrNum < addrCount; addrNum++) {
+			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) return userNum;
+		}
 	}
 
 	return -1;
@@ -498,17 +403,11 @@ static int hashToUserId(const unsigned char * const hash) {
 static void mta_getPubKey(const int sock, const unsigned char * const addr32) {
 	unsigned char hash[13];
 	if (addressToHash(hash, addr32, (addr32[0] & 248) == 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
-	const int userId = hashToUserId(hash);
-	if (userId < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
 
-	for (int i = 0; i < userCount; i++) {
-		if (userId == user[i].userId) {
-			send(sock, user[i].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-			return;
-		}
-	}
+	const int userNum = hashToUserNum(hash);
+	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Address without matching userId");
+	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
 
 static int takeConnections(void) {
@@ -611,7 +510,6 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading User.aem"); return EXIT_FAILURE;}
-	if (loadAddr() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Addr.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 	takeConnections();

@@ -19,11 +19,12 @@
 
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	uint16_t userId; // Max 65,536 users
 	unsigned char level;
 	unsigned char addrNormal;
 	unsigned char addrShield;
 	unsigned char private[AEM_LEN_PRIVATE];
+	unsigned char addrHash[AEM_ADDRESSES_PER_USER][13];
+	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
 };
 
 static unsigned char key_account[crypto_secretbox_KEYBYTES];
@@ -95,7 +96,6 @@ int main(void) {
 	admin.level = AEM_USERLEVEL_MAX;
 	admin.addrNormal = 0;
 	admin.addrShield = 0;
-	admin.userId = 0;
 	memcpy(admin.pubkey, pk, crypto_box_PUBLICKEYBYTES);
 
 	const size_t lenZero = AEM_LEN_PRIVATE - crypto_box_SEALBYTES;

@@ -25,8 +25,9 @@
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32
 
+#define AEM_ADDRESSES_PER_USER 50
 #define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
-#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 5)
+#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - (AEM_ADDRESSES_PER_USER * 14))
 
 #define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
@@ -45,8 +46,8 @@
 #define AEM_FILETYPE_JSA 3
 #define AEM_FILETYPE_JSM 4
 
-#define AEM_INFOBYTE_PROTOERR 8  // bit 3: protocol violation (commands out of order etc)
-#define AEM_INFOBYTE_CMD_FAIL 16 // bit 4: invalid command
-#define AEM_INFOBYTE_CMD_RARE 32 // bit 5: rare/unusual command (NOOP/RSET etc)
-#define AEM_INFOBYTE_CMD_QUIT 64 // bit 6: QUIT issued
-#define AEM_INFOBYTE_ESMTP 128   // bit 7: ESMTP
+#define AEM_INFOBYTE_ESMTP 128   // Extended protocol version
+#define AEM_INFOBYTE_CMD_QUIT 64 // QUIT issued
+#define AEM_INFOBYTE_CMD_RARE 32 // Rare command (NOOP/RSET etc)
+#define AEM_INFOBYTE_CMD_FAIL 16 // Invalid command
+#define AEM_INFOBYTE_PROTOERR 8  // Protocol violation (commands out of order etc)

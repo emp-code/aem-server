@@ -20,7 +20,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	const _AEM_BYTES_HEADBOX = 35;
 	const _AEM_BYTES_POST = 8192;
-	const _AEM_BYTES_PRIVATE = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 5;
+	const _AEM_BYTES_PRIVATE = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 700;
 
 	const _AEM_ARGON2_MEMLIMIT = 67108864;
 	const _AEM_ARGON2_OPSLIMIT = 3;
@@ -520,8 +520,16 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 			_userLevel = browseData[12];
 
+			// Addresses
+			let offset = 14;
+			for (let i = 0; i < browseData[13]; i++) {
+				// TODO: Utilize address data sent by server
+				offset += 14;
+			}
+
 			// Private field
-			const privData = sodium.crypto_box_seal_open(browseData.slice(13, 13 + _AEM_BYTES_PRIVATE), _userKeyPublic, _userKeySecret);
+			const privData = sodium.crypto_box_seal_open(browseData.slice(offset, offset + _AEM_BYTES_PRIVATE), _userKeyPublic, _userKeySecret);
+			offset += _AEM_BYTES_PRIVATE;
 
 			for (let i = 0; i < privData[0]; i++) {
 				const start = (i * 29) + 1;
@@ -536,36 +544,35 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 			// Admin Data
 			if (_userLevel == _AEM_USER_MAXLEVEL) {
-				const adminData = browseData.slice(13 + _AEM_BYTES_PRIVATE, 13 + _AEM_BYTES_PRIVATE + 35 * _AEM_ADMINDATA_USERS);
-				for (let i = 0; i < _AEM_ADMINDATA_USERS; i++) {
-					const s = adminData.slice(i * 35, (i + 1) * 35);
+				const userCount = new Uint32Array(browseData.slice(offset, offset + 4).buffer)[0];
+				offset += 4;
 
-					const pk_hex = sodium.to_hex(s.slice(3));
-					if (pk_hex == "0000000000000000000000000000000000000000000000000000000000000000") break;
+				for (let i = 0; i < ((userCount > 1024) ? 1024 : userCount); i++) {
+					const s = browseData.slice(offset, offset + 35);
 
+					const newPkHex = sodium.to_hex(s.slice(3));
 					const newLevel = s[0] & 3;
 					const newSpace = s[0] >>> 2;
 					const newNaddr = s[1];
 					const newSaddr = s[2];
 
-					_admin_userPkHex.push(pk_hex);
+					_admin_userPkHex.push(newPkHex);
 					_admin_userLevel.push(newLevel);
 					_admin_userSpace.push(newSpace);
 					_admin_userNaddr.push(newNaddr);
 					_admin_userSaddr.push(newSaddr);
+
+					offset += 35;
 				}
 			}
 
 			// Messages
-			let msgStart = 13 + _AEM_BYTES_PRIVATE;
-			if (_userLevel == _AEM_USER_MAXLEVEL) msgStart += (35 * _AEM_ADMINDATA_USERS);
-
-			while (msgStart < browseData.length) {
-				const kib = browseData[msgStart];
+			while (offset < browseData.length) {
+				const kib = browseData[offset];
 				if (kib == 0) break;
-				msgStart++;
+				offset++;
 
-				const msgData = browseData.slice(msgStart, msgStart + (kib * 1024));
+				const msgData = browseData.slice(offset, offset + (kib * 1024));
 
 				// Message ID: Every 64th byte of first kilo of encrypted data
 				const msgId = new Uint8Array(16);
@@ -614,7 +621,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 				} else console.log("not-extmsg");
 
-				msgStart += (kib * 1024);
+				offset += (kib * 1024);
 			}
 
 			callback(true);

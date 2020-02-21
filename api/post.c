@@ -20,7 +20,7 @@
 
 #include "post.h"
 
-#define AEM_MAXMSGTOTALSIZE 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Move this to config
+#define AEM_LEN_BROWSEDATA 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Make this configurable
 
 #define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
@@ -150,11 +150,6 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
-	if (sock < 0) return;
-
-	const size_t lenBody = 18 + AEM_LEN_PRIVATE + AEM_MAXMSGTOTALSIZE;
-
 	char headers[300];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
@@ -163,61 +158,54 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Cache-Control: no-store\r\n"
-		"Content-Length: %zd\r\n"
+		"Content-Length: %d\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, lenBody);
+	, AEM_LEN_BROWSEDATA);
 
 	const size_t lenHead = strlen(headers);
-
-	const size_t lenResponse = lenHead + lenBody;
+	const size_t lenResponse = lenHead + AEM_LEN_BROWSEDATA;
 	unsigned char response[lenResponse];
 	bzero(response, lenResponse);
 
 	memcpy(response, headers, lenHead);
 	size_t offset = lenHead;
 
-	if (recv(sock, response + offset, 13 + AEM_LEN_PRIVATE, 0) != 13 + AEM_LEN_PRIVATE) {
+	int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
+	if (sock < 0) return;
+
+	const ssize_t lenAcc = recv(sock, response + offset, AEM_LEN_BROWSEDATA, 0);
+	close(sock);
+
+	if (lenAcc < 15) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
 		sodium_memzero(response, lenResponse);
-		close(sock);
 		return;
 	}
 
-	offset += 13 + AEM_LEN_PRIVATE;
+	offset += lenAcc;
 
-	// Admin Data
-	if (response[lenHead + 12] == AEM_USERLEVEL_MAX) {
-		if (recv(sock, response + offset, 35 * 1024, 0) != 35 * 1024) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
-			sodium_memzero(response, lenResponse);
-			close(sock);
-			return;
-		}
+	// Messages
+	if ((sock = storageSocket(pubkey, 1)) < 1) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
+		sodium_memzero(response, lenResponse);
+		return;
+	}
 
-		offset += 35 * 1024;
+	while(1) {
+		unsigned char buf[131072];
+		const ssize_t r = recv(sock, buf, 131072, 0);
+		if (r < 1 || r % 1024 != 0) break;
+
+		response[offset] = (r / 1024);
+		offset++;
+		memcpy(response + offset, buf, r);
+		offset += r;
+
+		send(sock, buf, 1, 0);
 	}
 
 	close(sock);
-
-	// Messages
-	const int stoSock = storageSocket(pubkey, 1);
-	if (stoSock > 0) {
-		while(1) {
-			unsigned char buf[131072];
-			const ssize_t r = recv(stoSock, buf, 131072, 0);
-			if (r < 1 || r % 1024 != 0) break;
-
-			response[offset] = (r / 1024);
-			offset++;
-			memcpy(response + offset, buf, r);
-			offset += r;
-
-			send(stoSock, buf, 1, 0);
-		}
-	} else syslog(LOG_MAIL | LOG_NOTICE, "Failed stoSock");
-
-	close(stoSock);
 	sendData(ssl, response, lenResponse);
 	sodium_memzero(response, lenResponse);
 }
