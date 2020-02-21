@@ -124,8 +124,17 @@ int main(void) {
 	sodium_free(padded);
 
 	const int fd = open("Account.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
-	if (fd < 0) {puts("Failed to create Account.aem"); return EXIT_FAILURE;}
-	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {perror("Failed to write Account.aem"); close(fd); return EXIT_FAILURE;}
+	if (fd < 0) {
+		puts("Failed to create Account.aem");
+		return EXIT_FAILURE;
+	}
+
+	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {
+		perror("Failed to write Account.aem");
+		close(fd);
+		return EXIT_FAILURE;
+	}
+
 	close(fd);
 
 	const size_t lenHex = crypto_box_SECRETKEYBYTES * 2 + 1;
