@@ -13,14 +13,15 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		domain = document.location.hostname;
 
 // Private constants - must match server
-	const _AEM_ADDR_FLAG_ACCEXT = 128;
-	const _AEM_ADDR_FLAG_ACCINT = 64;
-	const _AEM_ADDR_FLAG_USE_GK = 32;
+	const _AEM_ADDR_FLAG_SHIELD = 128;
+	const _AEM_ADDR_FLAG_USE_GK = 4;
+	const _AEM_ADDR_FLAG_ACCINT = 2;
+	const _AEM_ADDR_FLAG_ACCEXT = 1;
 	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_ACCEXT;
 
 	const _AEM_BYTES_HEADBOX = 35;
 	const _AEM_BYTES_POST = 8192;
-	const _AEM_BYTES_PRIVATE = 4096 - 3 - sodium.crypto_box_PUBLICKEYBYTES - 700;
+	const _AEM_BYTES_PRIVATE = 4096 - 1 - sodium.crypto_box_PUBLICKEYBYTES - 700;
 
 	const _AEM_ARGON2_MEMLIMIT = 67108864;
 	const _AEM_ARGON2_OPSLIMIT = 3;

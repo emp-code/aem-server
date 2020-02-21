@@ -16,10 +16,11 @@
 
 #include "../Global.h"
 
-#define AEM_ADDR_FLAG_ACCEXT 128
-#define AEM_ADDR_FLAG_ACCINT 64
-#define AEM_ADDR_FLAG_USE_GK 32
-// 16, 8, 4, 2, 1 unused
+#define AEM_ADDR_FLAGS_SHIELD 128
+// 64/32/16/8 unused
+#define AEM_ADDR_FLAG_USE_GK 4
+#define AEM_ADDR_FLAG_ACCINT 2
+#define AEM_ADDR_FLAG_ACCEXT 1
 #define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
@@ -39,9 +40,7 @@ unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
 
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	unsigned char level;
-	unsigned char addrNormal;
-	unsigned char addrShield;
+	unsigned char info; // & 3 = level; >> 2 = addresscount
 	unsigned char private[AEM_LEN_PRIVATE];
 	unsigned char addrHash[AEM_ADDRESSES_PER_USER][13];
 	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
@@ -185,9 +184,20 @@ static int userNumFromPubkey(const unsigned char * const pubkey) {
 	return -1;
 }
 
+static int numAddresses(const int num, const bool shield) {
+	int counter = 0;
+
+	for (int i = 0; i < user[num].info >> 2; i++) {
+		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAGS_SHIELD) == AEM_ADDR_FLAGS_SHIELD;
+		if (isShield == shield) counter++;
+	}
+
+	return counter;
+}
+
 static void api_account_browse(const int sock, const int num) {
-	const int addrCount = user[num].addrNormal + user[num].addrShield;
-	const int maxUsers = (user[num].level != AEM_USERLEVEL_MAX) ? 0 : ((userCount > 1024) ? 1024 : userCount);
+	const int addrCount = user[num].info >> 2;
+	const int maxUsers = ((user[num].info & 3) != 3) ? 0 : ((userCount > 1024) ? 1024 : userCount);
 
 	unsigned char response[14 + (addrCount * 14) + AEM_LEN_PRIVATE + (maxUsers * 35)];
 
@@ -196,7 +206,7 @@ static void api_account_browse(const int sock, const int num) {
 	response[6] = limits[2][0]; response[7]  = limits[2][1]; response[8]  = limits[2][2];
 	response[9] = limits[3][0]; response[10] = limits[3][1]; response[11] = limits[3][2];
 
-	response[12] = user[num].level;
+	response[12] = user[num].info & 3;
 	response[13] = addrCount;
 	int lenResponse = 14;
 
@@ -209,15 +219,15 @@ static void api_account_browse(const int sock, const int num) {
 	memcpy(response + lenResponse, user[num].private, AEM_LEN_PRIVATE);
 	lenResponse += AEM_LEN_PRIVATE;
 
-	if (user[num].level == AEM_USERLEVEL_MAX) {
+	if ((user[num].info & 3) == 3) {
 		const uint32_t numUsers = userCount;
 		memcpy(response + lenResponse, &numUsers, 4);
 		lenResponse += 4;
 
 		for (int i = 0; i < maxUsers; i++) {
-			response[lenResponse + 0] = user[i].level;
-			response[lenResponse + 1] = user[i].addrNormal;
-			response[lenResponse + 2] = user[i].addrShield;
+			response[lenResponse + 0] = user[i].info & 3;
+			response[lenResponse + 1] = numAddresses(i, false);
+			response[lenResponse + 2] = numAddresses(i, true);
 			memcpy(response + lenResponse + 3, user[i].pubkey, 32);
 			lenResponse += 35;
 		}
@@ -227,7 +237,7 @@ static void api_account_browse(const int sock, const int num) {
 }
 
 static void api_account_create(const int sock, const int num) {
-	if (user[num].level != AEM_USERLEVEL_MAX) {
+	if ((user[num].info & 3) != 3) {
 		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
@@ -244,9 +254,7 @@ static void api_account_create(const int sock, const int num) {
 	user = user2;
 
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
-	user[userCount].level = AEM_USERLEVEL_MIN;
-	user[userCount].addrNormal = 0;
-	user[userCount].addrShield = 0;
+	user[userCount].info = 0;
 
 	unsigned char empty[AEM_LEN_PRIVATE - crypto_box_SEALBYTES];
 	bzero(empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES);
@@ -257,7 +265,7 @@ static void api_account_create(const int sock, const int num) {
 }
 
 static void api_account_delete(const int sock, const int num) {
-	if (user[num].level != AEM_USERLEVEL_MAX) {
+	if ((user[num].info & 3) != 3) {
 		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
@@ -282,7 +290,7 @@ static void api_account_delete(const int sock, const int num) {
 }
 
 static void api_account_update(const int sock, const int num) {
-	if (user[num].level != AEM_USERLEVEL_MAX) {
+	if ((user[num].info & 3) != 3) {
 		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
@@ -299,13 +307,14 @@ static void api_account_update(const int sock, const int num) {
 	const int updateNum = userNumFromPubkey(buf + 1);
 	if (updateNum < 0) return;
 
-	user[updateNum].level = buf[0];
+	user[updateNum].info &= 252;
+	user[updateNum].info |= buf[0] & 3;
 
 	saveUser();
 }
 
 static void api_address_create(const int sock, const int num) {
-	const int addrCount = user[num].addrNormal + user[num].addrShield;
+	int addrCount = user[num].info >> 2;
 	if (addrCount >= AEM_ADDRESSES_PER_USER) return;
 
 	unsigned char addr32[15];
@@ -317,16 +326,18 @@ static void api_address_create(const int sock, const int num) {
 		addr32[0] &= 7; // Clear first five bits (all but 4,2,1)
 
 		if (addressToHash(hash, addr32, true) != 0) return;
-		user[num].addrShield++;
+
+		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAGS_SHIELD;
 	} else if (len == 13) {
-		user[num].addrNormal++;
+		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
 	} else {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
 		return;
 	}
 
 	memcpy(user[num].addrHash[addrCount], hash, 13);
-	user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
+	addrCount++;
+	user[num].info = (user[num].info & 3) + (addrCount << 2);
 
 	saveUser();
 
@@ -342,7 +353,7 @@ static void api_address_delete(const int sock, const int num) {
 	unsigned char hash_del[13];
 	if (recv(sock, hash_del, 13, 0) != 13) return;
 
-	const int addrCount = user[num].addrNormal + user[num].addrShield;
+	unsigned char addrCount = user[num].info >> 2;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
 		if (memcmp(user[num].addrHash[i], hash_del, 13) == 0) {
@@ -354,10 +365,15 @@ static void api_address_delete(const int sock, const int num) {
 	if (delNum < 0) return;
 
 	if (delNum < (addrCount - 1)) {
-		memmove(user[num].addrHash + 13 * delNum, user[num].addrHash + 13 * (delNum + 1), 13 * (addrCount - delNum - 1));
+		for (int i = delNum; i < addrCount - 1; i++) {
+			memcpy(user[num].addrHash[i], user[num].addrHash[i + 1], 13);
+			user[num].addrFlag[i] = user[num].addrFlag[i + 1];
+		}
 	}
 
-	// TODO: Decrease AddressCount
+	addrCount--;
+	user[num].info = (user[num].info & 3) | (addrCount << 2);
+
 	saveUser();
 }
 
@@ -366,7 +382,7 @@ static void api_address_update(const int sock, const int num) {
 	const ssize_t len = recv(sock, buf, 8192, 0);
 	if (len < 1 || len % 14 != 0) return;
 
-	const int addrCount = user[num].addrNormal + user[num].addrShield;
+	const int addrCount = user[num].info >> 2;
 
 	for (int i = 0; i < (len / 14); i++) {
 		for (int j = 0; j < addrCount; j++) {
@@ -393,7 +409,7 @@ static void api_private_update(const int sock, const int num) {
 }
 
 static void api_setting_limits(const int sock, const int num) {
-	if (user[num].level != AEM_USERLEVEL_MAX) {
+	if ((user[num].info & 3) != 3) {
 		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
@@ -412,9 +428,7 @@ static void api_setting_limits(const int sock, const int num) {
 
 static int hashToUserNum(const unsigned char * const hash) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
-		const int addrCount = user[userNum].addrNormal + user[userNum].addrShield;
-
-		for (int addrNum = 0; addrNum < addrCount; addrNum++) {
+		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
 			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) return userNum;
 		}
 	}
