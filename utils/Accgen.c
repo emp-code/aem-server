@@ -103,11 +103,22 @@ int main(void) {
 	bzero(zero, lenZero);
 	crypto_box_seal(admin.private, zero, lenZero, admin.pubkey);
 
+	// Pad
+	const uint32_t lenPadding = sizeof(struct aem_user) * 1023;
+
+	const size_t lenPadded = 4 + sizeof(struct aem_user) * 1024;
+	unsigned char * const padded = sodium_malloc(lenPadded);
+
+	memcpy(padded, &lenPadding, 4);
+	memcpy(padded + 4, (unsigned char*)&admin, sizeof(struct aem_user));
+	randombytes_buf_deterministic(padded + 4 + sizeof(struct aem_user), lenPadded - 4 - sizeof(struct aem_user), padded);
+
 	// Encrypt with Account Key
-	const size_t lenEncrypted = sizeof(struct aem_user) + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
+	const size_t lenEncrypted = lenPadded + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 	unsigned char encrypted[lenEncrypted];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)&admin, sizeof(struct aem_user), encrypted, key_account);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, key_account);
+	sodium_free(padded);
 
 	const int fd = open("User.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {puts("Failed to create User.aem"); return EXIT_FAILURE;}

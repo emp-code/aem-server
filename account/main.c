@@ -74,8 +74,7 @@ static void sigTerm(const int sig) {
 	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
 	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
 
-	sodium_memzero(user, sizeof(struct aem_user) * userCount);
-	free(user);
+	sodium_free(user);
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -84,14 +83,31 @@ static void sigTerm(const int sig) {
 static int saveUser(void) {
 	if (userCount <= 0) return -1;
 
-	const size_t len = userCount * sizeof(struct aem_user);
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + len;
+	const size_t lenClear = sizeof(struct aem_user) * userCount;
+	const size_t lenBlock = sizeof(struct aem_user) * 1024;
+	const uint32_t lenPadding = lenBlock - (lenClear % lenBlock);
+
+	const size_t lenPadded = 4 + lenClear + lenPadding;
+	unsigned char * const padded = sodium_malloc(lenPadded);
+
+	memcpy(padded, &lenPadding, 4);
+	memcpy(padded + 4, (unsigned char*)user, lenClear);
+	randombytes_buf_deterministic(padded + 4 + lenClear, lenPadded - 4 - lenClear, padded);
+
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenPadded;
 	unsigned char * const encrypted = malloc(lenEncrypted);
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, len, encrypted, accountKey);
+
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
+	sodium_free(padded);
 
 	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0) {free(encrypted); syslog(LOG_MAIL | LOG_NOTICE, "Failed to open "AEM_PATH_USER); return -1;}
+	if (fd < 0) {
+		free(encrypted);
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed to open "AEM_PATH_USER);
+		return -1;
+	}
+
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
 
@@ -115,14 +131,10 @@ static int loadUser(void) {
 		return -1;
 	}
 
+	const size_t lenBlock = sizeof(struct aem_user) * 1024;
 	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
-	if (lenEncrypted < 0) {
-		close(fd);
-		return -1;
-	}
-
-	const size_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
-	if (lenDecrypted < sizeof(struct aem_user) || lenDecrypted % sizeof(struct aem_user) != 0) {
+	const off_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+	if (lenDecrypted < 1 || lenDecrypted % lenBlock != 4) {
 		close(fd);
 		return -1;
 	}
@@ -134,14 +146,26 @@ static int loadUser(void) {
 	}
 	close(fd);
 
-	user = malloc(lenDecrypted);
-
-	if (crypto_secretbox_open_easy((unsigned char*)user, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
-		free(user);
+	unsigned char* decrypted = sodium_malloc(lenDecrypted);
+	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
+		sodium_free(decrypted);
 		return -1;
 	}
 
-	userCount = lenDecrypted / sizeof(struct aem_user);
+	uint32_t lenPadding;
+	memcpy(&lenPadding, decrypted, 4);
+
+	const size_t lenUserData = lenDecrypted - 4 - lenPadding;
+	if (lenUserData % sizeof(struct aem_user) != 0) {
+		sodium_free(decrypted);
+		return -1;
+	}
+
+	user = sodium_malloc(lenUserData);
+	memcpy(user, decrypted + 4, lenUserData);
+	sodium_free(decrypted);
+
+	userCount = lenUserData / sizeof(struct aem_user);
 	return 0;
 }
 
@@ -512,7 +536,10 @@ int main(int argc, char *argv[]) {
 	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading User.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+
 	takeConnections();
+	sodium_free(user);
+
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
 	return EXIT_SUCCESS;
 }

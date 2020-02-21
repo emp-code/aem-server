@@ -20,7 +20,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	const _AEM_BYTES_HEADBOX = 35;
 	const _AEM_BYTES_POST = 8192;
-	const _AEM_BYTES_PRIVATE = 4096 - sodium.crypto_box_PUBLICKEYBYTES - 700;
+	const _AEM_BYTES_PRIVATE = 4096 - 3 - sodium.crypto_box_PUBLICKEYBYTES - 700;
 
 	const _AEM_ARGON2_MEMLIMIT = 67108864;
 	const _AEM_ARGON2_OPSLIMIT = 3;
