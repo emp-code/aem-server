@@ -58,9 +58,9 @@ AllEars-Storage handles the storage and retrieval of encrypted message data (see
 
 AllEars-API and AllEars-MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
 
-Message data is stored in the file `/var/lib/allears/Message.aem`, encrypted with AES-ECB using the Storage Key. Deleted messages are overwritten with zeroes.
+Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted with AES-ECB using the Storage Key. Deleted messages are overwritten with zeroes.
 
-An index of messages is kept, containing the owner's public key, the position/size of the data in Message.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using the Stindex Key.
+An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using the Stindex Key.
 
 With the current design, AllEars-Storage is capable of storing up to 32 GiB of data, with individual messages being 1 to 128 KiB in size.
 
@@ -93,7 +93,7 @@ Received email is processed for compactness and simplified formatting. The publi
 ## Utilities ##
 
 The `utils` folder contains miscellaneous utilities:
-* `Accgen`: Generates User.aem
+* `Accgen`: Generates Account.aem
 * `Keygen`: Generates key files
 * `CertCrypt`: Encrypts the TLS certificate and private key
 * `FileCrypt`: Encrypts the web interface files (index.html, all-ears.js, main.js, main.css), compresses them and adds the HTTP headers
@@ -118,7 +118,7 @@ AllEars-Account allocates 4 KiB for each user, storing:
 
 The `private` data field can be used by clients to store 3361 bytes of arbitrary data. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The server does nothing with the data, and it can technically be used by clients for any purpose. The official clients encrypt it with libsodium's Sealed Box using the user's public key, and use it to store Address/Gatekeeper/Contacts data.
 
-User data is held in memory by AllEars-Account, and written to `/var/lib/allears/User.aem`. Prior to writing, the data is padded to a multiple of 1024 users (4 MiB), and encrypted with libsodium's Secret Box using the Account Key.
+User data is held in memory by AllEars-Account, and written to `/var/lib/allears/Account.aem`. Prior to writing, the data is padded to a multiple of 1024 users (4 MiB), and encrypted with libsodium's Secret Box using the Account Key.
 
 ### Addresses ###
 

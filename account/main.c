@@ -25,8 +25,6 @@
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
-#define AEM_PATH_USER "User.aem"
-
 #define AEM_LIMIT_MIB 0
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
@@ -101,10 +99,10 @@ static int saveUser(void) {
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
 	sodium_free(padded);
 
-	const int fd = open(AEM_PATH_USER, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		free(encrypted);
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed to open "AEM_PATH_USER);
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed to open Account.aem");
 		return -1;
 	}
 
@@ -126,7 +124,7 @@ static int saveUser(void) {
 static int loadUser(void) {
 	if (userCount > 0) return -1;
 
-	const int fd = open(AEM_PATH_USER, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Account.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		return -1;
 	}
@@ -533,7 +531,7 @@ int main(int argc, char *argv[]) {
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading User.aem"); return EXIT_FAILURE;}
+	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 

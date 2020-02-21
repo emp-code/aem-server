@@ -138,13 +138,13 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		sprintf(path, AEM_CHROOT"/%d/User.aem", pid);
+		sprintf(path, AEM_CHROOT"/%d/Account.aem", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
-		if (rwbind("/var/lib/allears/User.aem", path) != 0) return -1;
+		if (rwbind("/var/lib/allears/Account.aem", path) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		sprintf(path, AEM_CHROOT"/%d/Message.aem", pid);
+		sprintf(path, AEM_CHROOT"/%d/Storage.aem", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
-		if (rwbind("/var/lib/allears/Message.aem", path) != 0) return -1;
+		if (rwbind("/var/lib/allears/Storage.aem", path) != 0) return -1;
 
 		sprintf(path, AEM_CHROOT"/%d/Stindex.aem", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
@@ -189,13 +189,16 @@ int deleteMount(const pid_t pid, const int type) {
 
 	snprintf(path, 50, AEM_CHROOT"/%d/Account.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	snprintf(path, 50, AEM_CHROOT"/%d/Storage.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/Message.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/User.aem", pid);    umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/dev/log", pid);     umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/lib64", pid);       umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/lib", pid);         umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib64/", pid);  umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib/", pid);    umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+
+	snprintf(path, 50, AEM_CHROOT"/%d/Account.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/Stindex.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/Storage.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+
+	snprintf(path, 50, AEM_CHROOT"/%d/dev/log",    pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/lib64",      pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/lib",        pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib64/", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
+	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib/",   pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 
 	snprintf(path, 50, AEM_CHROOT"/%d", pid);
 	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);

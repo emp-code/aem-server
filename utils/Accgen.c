@@ -1,4 +1,4 @@
-// Accgen.c: Generate User.aem for All-Ears Mail
+// Accgen.c: Generate Account.aem for All-Ears Mail
 // Compile: gcc -lsodium Accgen.c -o Accgen
 
 #include <fcntl.h>
@@ -120,16 +120,16 @@ int main(void) {
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, key_account);
 	sodium_free(padded);
 
-	const int fd = open("User.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
-	if (fd < 0) {puts("Failed to create User.aem"); return EXIT_FAILURE;}
-	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {perror("Failed to write User.aem"); close(fd); return EXIT_FAILURE;}
+	const int fd = open("Account.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
+	if (fd < 0) {puts("Failed to create Account.aem"); return EXIT_FAILURE;}
+	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {perror("Failed to write Account.aem"); close(fd); return EXIT_FAILURE;}
 	close(fd);
 
 	const size_t lenHex = crypto_box_SECRETKEYBYTES * 2 + 1;
 	char hex[lenHex];
 	sodium_bin2hex(hex, lenHex, sk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
-	puts("Created User.aem with admin user");
+	puts("Created Account.aem with admin user");
 	printf("Secret Key (hex): %s\n", hex);
 	sodium_memzero(hex, crypto_box_SECRETKEYBYTES * 2);
 

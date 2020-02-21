@@ -21,9 +21,6 @@
 #define AEM_BLOCKSIZE 1024
 #define AEM_SOCK_QUEUE 50
 
-#define AEM_PATH_STINDEX "Stindex.aem"
-#define AEM_PATH_MESSAGE "Message.aem"
-
 static unsigned char accessKey_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_mta[AEM_LEN_ACCESSKEY];
 
@@ -88,7 +85,7 @@ static int saveStindex(void) {
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, stindexKey);
 
-	const int fd = open(AEM_PATH_STINDEX, O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
@@ -188,7 +185,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 		unsigned char buf[AEM_BLOCKSIZE];
 		const ssize_t readBytes = pread(fdMsg, buf, AEM_BLOCKSIZE, (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE);
 		if (readBytes != AEM_BLOCKSIZE) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed reading "AEM_PATH_MESSAGE);
+			syslog(LOG_MAIL | LOG_NOTICE, "Failed reading Storage.aem");
 			return -1;
 		}
 
@@ -231,7 +228,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 }
 
 int loadStindex() {
-	const int fd = open(AEM_PATH_STINDEX, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Stindex.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) return -1;
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
@@ -359,7 +356,7 @@ void takeConnections(void) {
 					}
 				} else syslog(LOG_MAIL | LOG_NOTICE, "Invalid data received");
 			} else { // Browse
-				const int rfd = open(AEM_PATH_MESSAGE, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+				const int rfd = open("Storage.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 
 				int stindexNum = -1;
 				for (int i = 0; i < stindexCount; i++) {
@@ -445,8 +442,8 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	if (loadStindex() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
-	if ((fdMsg = open("Message.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Message.aem"); return EXIT_FAILURE;}
-	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Message.aem"); return EXIT_FAILURE;}
+	if ((fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}
+	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Storage.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 	takeConnections();
