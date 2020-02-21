@@ -98,6 +98,9 @@ int main(void) {
 	admin.addrShield = 0;
 	memcpy(admin.pubkey, pk, crypto_box_PUBLICKEYBYTES);
 
+	bzero(admin.addrHash, AEM_ADDRESSES_PER_USER * 13);
+	bzero(admin.addrFlag, AEM_ADDRESSES_PER_USER);
+
 	const size_t lenZero = AEM_LEN_PRIVATE - crypto_box_SEALBYTES;
 	unsigned char zero[lenZero];
 	bzero(zero, lenZero);
