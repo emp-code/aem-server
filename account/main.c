@@ -71,7 +71,7 @@ static void sigTerm(const int sig) {
 	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
 	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
 
-	sodium_free(user);
+	free(user);
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -158,7 +158,7 @@ static int loadUser(void) {
 		return -1;
 	}
 
-	user = sodium_malloc(lenUserData);
+	user = malloc(lenUserData);
 	memcpy(user, decrypted + 4, lenUserData);
 	sodium_free(decrypted);
 
@@ -553,7 +553,7 @@ int main(int argc, char *argv[]) {
 	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
 
 	takeConnections();
-	sodium_free(user);
+	free(user);
 
 	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
 	return EXIT_SUCCESS;
