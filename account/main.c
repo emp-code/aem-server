@@ -326,8 +326,6 @@ static void api_address_create(const int sock, const int num) {
 	const ssize_t len = recv(sock, hash, 13, 0);
 	if (len == 6 && memcmp(hash, "SHIELD", 6) == 0) {
 		randombytes_buf(addr32, 15);
-		addr32[0] &= 7; // Clear first five bits (all but 4,2,1)
-
 		if (addressToHash(hash, addr32, true) != 0) return;
 
 		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
@@ -439,9 +437,9 @@ static int hashToUserNum(const unsigned char * const hash) {
 	return -1;
 }
 
-static void mta_getPubKey(const int sock, const unsigned char * const addr32) {
+static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	unsigned char hash[13];
-	if (addressToHash(hash, addr32, (addr32[0] & 248) == 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
 
 	const int userNum = hashToUserNum(hash);
 	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
@@ -503,7 +501,10 @@ static int takeConnections(void) {
 		}
 
 		if (reqLen == 16 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 16 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
-			if (req[0] == AEM_MTA_GETPUBKEY) mta_getPubKey(sockClient, req + 1);
+			switch(req[0]) {
+				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;
+				case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sockClient, req + 1, true);  break;
+			}
 
 			close(sockClient);
 			continue;

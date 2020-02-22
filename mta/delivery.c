@@ -124,8 +124,8 @@ static int storageSocket(const unsigned char *msg, const size_t lenMsg) {
 	return sock;
 }
 
-static int getPublicKey(const unsigned char * const addr32, unsigned char * const pubkey) {
-	const int sock = accountSocket(AEM_MTA_GETPUBKEY, addr32, 15);
+static int getPublicKey(const unsigned char * const addr32, unsigned char * const pubkey, const bool isShield) {
+	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 15);
 	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to allears-account"); return -1;}
 
 	const ssize_t ret = recv(sock, pubkey, crypto_box_PUBLICKEYBYTES, 0);
@@ -133,8 +133,7 @@ static int getPublicKey(const unsigned char * const addr32, unsigned char * cons
 	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
 }
 
-void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const unsigned char * const msgBody, const size_t lenMsgBody,
-const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersion, const unsigned char infoByte) {
+void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const unsigned char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVer, unsigned char infoByte) {
 	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL) return;
 
 	char *toStart = to;
@@ -143,13 +142,14 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 	while(1) {
 		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
-		if (lenTo < 1) break;
+		if (lenTo < 1 || lenTo > 24) break;
+		if (lenTo == 24) infoByte |= AEM_INFOBYTE_ISSHIELD; else infoByte &= ~AEM_INFOBYTE_ISSHIELD;
 
 		unsigned char addr32[15];
 		addr32_store(addr32, toStart, lenTo);
 
 		unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-		int ret = getPublicKey(addr32, pubkey);
+		int ret = getPublicKey(addr32, pubkey, lenTo == 24);
 		if (ret != 0) {
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
@@ -161,7 +161,7 @@ const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVersio
 		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
 
 		size_t bodyLen = lenMsgBody;
-		unsigned char * const boxSet = makeMsg_Ext(pubkey, addr32, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVersion, geoId, attach, infoByte, spamByte);
+		unsigned char * const boxSet = makeMsg_Ext(pubkey, addr32, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVer, geoId, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {

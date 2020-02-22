@@ -39,7 +39,7 @@ ExtMsg
 			 32: Unusual commands (NOOP/RSET/etc) received
 			 16: Invalid commands received
 			  8: Protocol violation (commands out of order, etc)
-			  4:
+			  4: Shield address
 			  2: Message type (off)
 			  1: Message type (on)
 		[4B uint32_t] Timestamp

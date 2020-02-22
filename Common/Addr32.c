@@ -5,7 +5,7 @@
 		- The letter o is treated as the digit 0
 		- The letter v is treated as the letter w
 
-	Stores 23 characters in 15 bytes.
+	Stores 24 characters (or length + 23) in 15 bytes
 */
 
 #include <stdbool.h>
@@ -133,13 +133,14 @@ void addr32_store(unsigned char * const out, const char * const src, size_t len)
 
 	bzero(out, 15);
 
-	if (len < 24)
-		out[0] = len << 3; // Normal address: First five bits store length
-	else
-		len = 23; // Shield address: Ignore last character
-
-	int bit = 5;
+	int bit = 0;
 	int byte = 0;
+
+	if (len < 24) {
+		// Normal address: First five bits store length
+		out[0] = len << 3;
+		bit = 5;
+	}
 
 	for (size_t i = 0; i < len; i++) {
 		int num = charToUint5(src[i]);

@@ -13,7 +13,8 @@
 #define AEM_API_PRIVATE_UPDATE 40
 #define AEM_API_SETTING_LIMITS 50
 
-#define AEM_MTA_GETPUBKEY 10
+#define AEM_MTA_GETPUBKEY_NORMAL 10
+#define AEM_MTA_GETPUBKEY_SHIELD 11
 #define AEM_MTA_ADDMESSAGE 20
 
 #define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
@@ -51,3 +52,4 @@
 #define AEM_INFOBYTE_CMD_RARE 32 // Rare command (NOOP/RSET etc)
 #define AEM_INFOBYTE_CMD_FAIL 16 // Invalid command
 #define AEM_INFOBYTE_PROTOERR 8  // Protocol violation (commands out of order etc)
+#define AEM_INFOBYTE_ISSHIELD 4  // Is receiving address a Shield address?

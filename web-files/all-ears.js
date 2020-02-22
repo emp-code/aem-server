@@ -174,16 +174,16 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		src[byte] |= 1 << (7 - bit);
 	}
 
-	const _addr32_decode = function(byteArray) {
+	const _addr32_decode = function(byteArray, is_shd) {
 		if (!byteArray || byteArray.length != 15) return "???";
 
-		const len = (byteArray[0] & 248) >> 3; // First five bits (128+64+32+16+8=248) store length; 0 = Shield
+		const len = is_shd ? 24 : (byteArray[0] & 248) >> 3; // First five bits (128+64+32+16+8=248) store length for Normal addresses
 
 		let decoded = "";
 
-		for (let i = 0; i < ((len === 0) ? 23 : len); i++) {
+		for (let i = 0; i < len; i++) {
 			let num = 0;
-			const skipBits = (i + 1) * 5;
+			const skipBits = (is_shd ? i : i + 1) * 5;
 
 			if (_GetBit(byteArray, skipBits + 0)) num += 16;
 			if (_GetBit(byteArray, skipBits + 1)) num +=  8;
@@ -194,7 +194,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			decoded += _AEM_ADDR32_CHARS[num];
 		}
 
-		return (len === 0) ? decoded + '5' : decoded;
+		return decoded;
 	};
 
 	const _addr32_charToUint5 = function(c) {
@@ -406,7 +406,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	this.GetLevelMax = function() {return _AEM_USER_MAXLEVEL;};
 
-	this.GetAddress = function(num) {return _addr32_decode(_userAddress[num].addr32);};
+	this.GetAddress = function(num) {return _addr32_decode(_userAddress[num].addr32, _userAddress[num].is_shd);};
 	this.GetAddressAccExt = function(num) {return _userAddress[num].accExt;};
 	this.GetAddressAccInt = function(num) {return _userAddress[num].accInt;};
 	this.GetAddressUse_Gk = function(num) {return _userAddress[num].use_gk;};
@@ -615,7 +615,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 					// msgHead[12] = SpamByte
 					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
 					// 16-19 unused
-					const em_to = _addr32_decode(msgHead.slice(20));
+					const em_to = _addr32_decode(msgHead.slice(20), (em_infobyte & 4) == 4);
 
 					// Bodybox
 					const msgBodyBrI8 = new Int8Array(msgBody);

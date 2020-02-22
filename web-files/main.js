@@ -120,7 +120,7 @@ function addExtMessage(i) {
 	divFrom2.appendChild(fromText);
 
 	divTo.textContent = ae.GetExtMsgTo(i);
-	divTo.className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).endsWith("5")) ? "mono" : "";
+	divTo.className = (ae.GetExtMsgTo(i).length === 24) ? "mono" : "";
 
 	divDel.innerHTML = "<input class=\"delExt\" type=\"checkbox\" data-id=\"" + i + "\">";
 
@@ -158,7 +158,7 @@ function addExtMessage(i) {
 		document.getElementById("readmsg_headers").textContent = ae.GetExtMsgHeaders(i);
 
 		document.getElementById("readmsg_from").className = "";
-		document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24 && ae.GetExtMsgTo(i).endsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_to").className = (ae.GetExtMsgTo(i).length === 24) ? "mono" : "";
 	};
 
 	divDel.children[0].onchange = function() {
@@ -207,8 +207,8 @@ function addIntMessage(i) {
 	divFrom1.textContent = ae.GetIntMsgFrom(i);
 	divTo.textContent = ae.GetIntMsgTo(i);
 
-	divTo.className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).endsWith("5")) ? "mono" : "";
-	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).endsWith("5")) ? "mono" : "";
+	divTo.className = (ae.GetIntMsgTo(i).length === 24) ? "mono" : "";
+	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24) ? "mono" : "";
 
 	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + i + "\">";
 
@@ -232,8 +232,8 @@ function addIntMessage(i) {
 		document.getElementById("readmsg_body").textContent  = ae.GetIntMsgBody(i);
 		document.getElementById("readmsg_level").textContent = ae.GetIntMsgLevel(i);
 
-		document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24 && ae.GetIntMsgFrom(i).endsWith("5")) ? "mono" : "";
-		document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24 && ae.GetIntMsgTo(i).endsWith("5")) ? "mono" : "";
+		document.getElementById("readmsg_from").className = (ae.GetIntMsgFrom(i).length === 24) ? "mono" : "";
+		document.getElementById("readmsg_to").className = (ae.GetIntMsgTo(i).length === 24) ? "mono" : "";
 	};
 
 	divDel.children[0].onchange = function() {
@@ -414,7 +414,7 @@ function deleteAddress(addr) {
 function shieldMix(addr) {
 	let newAddr = "";
 
-	for (let i = 0; i < 23; i++) {
+	for (let i = 0; i < 24; i++) {
 		switch (addr.charAt(i)) {
 			case '1':
 				newAddr += "1iIlL".charAt(Math.floor(Math.random() * 5));
@@ -430,10 +430,7 @@ function shieldMix(addr) {
 		}
 	}
 
-	const c = "0123456789abcdefghijklmnopqrstuvwxyz";
-	const r = Math.floor(Math.random() * 36);
-
-	return newAddr + ((Math.random() > 0.5) ? c.charAt(r) : c.charAt(r).toUpperCase());
+	return newAddr;
 }
 
 function addAddress(num) {
@@ -446,7 +443,7 @@ function addAddress(num) {
 	const cellBtnD = row.insertCell(-1);
 
 	cellAddr.textContent = ae.GetAddress(num);
-	if (cellAddr.textContent.length == 24 && cellAddr.textContent.endsWith("5")) cellAddr.className = "mono";
+	if (cellAddr.textContent.length == 24) cellAddr.className = "mono";
 	cellAddr.onclick = function() {
 		if (cellAddr.textContent.length == 24)
 			navigator.clipboard.writeText(shieldMix(cellAddr.textContent) + "@" + aeDomain);
