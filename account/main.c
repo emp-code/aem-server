@@ -430,7 +430,9 @@ static void api_setting_limits(const int sock, const int num) {
 static int hashToUserNum(const unsigned char * const hash) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
 		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
-			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) return userNum;
+			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) {
+				return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_ACCEXT) > 0) ? userNum : -1;
+			}
 		}
 	}
 
