@@ -16,7 +16,7 @@
 
 #include "../Global.h"
 
-#define AEM_ADDR_FLAGS_SHIELD 128
+#define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8 unused
 #define AEM_ADDR_FLAG_USE_GK 4
 #define AEM_ADDR_FLAG_ACCINT 2
@@ -188,7 +188,7 @@ static int numAddresses(const int num, const bool shield) {
 	int counter = 0;
 
 	for (int i = 0; i < user[num].info >> 2; i++) {
-		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAGS_SHIELD) == AEM_ADDR_FLAGS_SHIELD;
+		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAG_SHIELD) == AEM_ADDR_FLAG_SHIELD;
 		if (isShield == shield) counter++;
 	}
 
@@ -327,7 +327,7 @@ static void api_address_create(const int sock, const int num) {
 
 		if (addressToHash(hash, addr32, true) != 0) return;
 
-		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAGS_SHIELD;
+		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else if (len == 13) {
 		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
 	} else {
@@ -387,7 +387,7 @@ static void api_address_update(const int sock, const int num) {
 	for (int i = 0; i < (len / 14); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (memcmp(user[num].addrHash[j], buf + (i * 14), 13) == 0) {
-				user[num].addrFlag[j] = (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK) & buf[i * 14 + 13];
+				user[num].addrFlag[j] = (buf[(i * 14) + 13] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				break;
 			}
 		}
