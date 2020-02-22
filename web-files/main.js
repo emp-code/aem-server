@@ -454,8 +454,8 @@ function addAddress(num) {
 			navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
 	}
 
-	cellChk1.innerHTML = ae.GetAddressAccInt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
-	cellChk2.innerHTML = ae.GetAddressAccExt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk1.innerHTML = ae.GetAddressAccExt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
+	cellChk2.innerHTML = ae.GetAddressAccInt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk3.innerHTML = ae.GetAddressUse_Gk(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 
 	cellChk1.onchange = function() {document.getElementById("btn_saveaddrdata").hidden = false;};
@@ -918,8 +918,8 @@ document.getElementById("btn_saveaddrdata").onclick = function() {
 	const tbl = document.getElementById("tbody_opt_addr");
 
 	for (let i = 0; i < tbl.rows.length; i++) {
-		ae.SetAddressAccInt(i, tbl.rows[i].cells[1].firstChild.checked);
-		ae.SetAddressAccExt(i, tbl.rows[i].cells[2].firstChild.checked);
+		ae.SetAddressAccExt(i, tbl.rows[i].cells[1].firstChild.checked);
+		ae.SetAddressAccInt(i, tbl.rows[i].cells[2].firstChild.checked);
 		ae.SetAddressUse_Gk(i, tbl.rows[i].cells[3].firstChild.checked);
 	}
 
