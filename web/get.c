@@ -33,12 +33,10 @@ void freeFiles(void) {
 }
 
 void setResponse(const int type, unsigned char * const data, const size_t len) {
-	switch (type) {
-		case AEM_FILETYPE_CSS: responseCss = data; lenResponseCss = len; break;
-		case AEM_FILETYPE_HTM: responseHtm = data; lenResponseHtm = len; break;
-		case AEM_FILETYPE_JSA: responseJsa = data; lenResponseJsa = len; break;
-		case AEM_FILETYPE_JSM: responseJsm = data; lenResponseJsm = len; break;
-	}
+	if (type == AEM_FILETYPE_CSS && responseCss == NULL && lenResponseCss == 0) {responseCss = data; lenResponseCss = len; return;}
+	if (type == AEM_FILETYPE_HTM && responseHtm == NULL && lenResponseHtm == 0) {responseHtm = data; lenResponseHtm = len; return;}
+	if (type == AEM_FILETYPE_JSA && responseJsa == NULL && lenResponseJsa == 0) {responseJsa = data; lenResponseJsa = len; return;}
+	if (type == AEM_FILETYPE_JSM && responseJsm == NULL && lenResponseJsm == 0) {responseJsm = data; lenResponseJsm = len; return;}
 }
 
 void https_respond(mbedtls_ssl_context * const ssl, const char * const url, const size_t len) {
