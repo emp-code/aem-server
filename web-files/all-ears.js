@@ -530,7 +530,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				const use_gk = (browseData[offset + 13] & _AEM_ADDR_FLAG_USE_GK) > 0 ? true : false;
 				const is_shd = (browseData[offset + 13] & _AEM_ADDR_FLAG_SHIELD) > 0 ? true : false;
 
-				_userAddress.push(new _NewAddress(hash, null, null, is_shd, accExt, accInt, use_gk));
+				_userAddress.push(new _NewAddress(hash, null, is_shd, accExt, accInt, use_gk));
 				offset += 14;
 			}
 
@@ -714,7 +714,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_FetchEncrypted("address/create", sodium.from_string("SHIELD"), function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), _addr32_decode(byteArray.slice(13, 28)), true, false, false));
+				_userAddress.push(new _NewAddress(byteArray.slice(0, 13), byteArray.slice(13, 28), true, true, false, false));
 				callback(true);
 			});
 		} else {
@@ -726,7 +726,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			_FetchEncrypted("address/create", hash, function(fetchOk, byteArray) {
 				if (!fetchOk) {callback(false); return;}
 
-				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), true, false, false));
+				_userAddress.push(new _NewAddress(hash, addr32, false, true, false, false));
 				callback(true);
 			});
 		}
