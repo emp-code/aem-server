@@ -105,10 +105,10 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		this.fileType = fileType;
 	}
 
-	function _NewAddress(hash, addr32, decoded, accExt, accInt, use_gk) {
+	function _NewAddress(hash, addr32, is_shd, accExt, accInt, use_gk) {
 		this.hash = hash;
 		this.addr32 = addr32;
-		this.decoded = decoded;
+		this.is_shd = is_shd;
 		this.accExt = accExt;
 		this.accInt = accInt;
 		this.use_gk = use_gk;
@@ -175,7 +175,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	}
 
 	const _addr32_decode = function(byteArray) {
-		if (byteArray.length != 15) return "addr32:BadLen";
+		if (!byteArray || byteArray.length != 15) return "???";
 
 		const len = (byteArray[0] & 248) >> 3; // First five bits (128+64+32+16+8=248) store length; 0 = Shield
 
@@ -235,8 +235,8 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		let count = 0;
 
 		for (let i = 0; i < _userAddress.length; i++) {
-			if (isShield && _userAddress[i].decoded.length === 24) count++;
-			else if (!isShield && (_userAddress[i].decoded.length < 24)) count++;
+			if (isShield && _userAddress[i].is_shd) count++;
+			else if (!isShield && ! _userAddress[i].is_shd) count++;
 		}
 
 		return count;
@@ -406,7 +406,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	this.GetLevelMax = function() {return _AEM_USER_MAXLEVEL;};
 
-	this.GetAddress = function(num) {return _userAddress[num].decoded;};
+	this.GetAddress = function(num) {return _addr32_decode(_userAddress[num].addr32);};
 	this.GetAddressAccExt = function(num) {return _userAddress[num].accExt;};
 	this.GetAddressAccInt = function(num) {return _userAddress[num].accInt;};
 	this.GetAddressUse_Gk = function(num) {return _userAddress[num].use_gk;};
@@ -524,7 +524,13 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			// Addresses
 			let offset = 14;
 			for (let i = 0; i < browseData[13]; i++) {
-				// TODO: Utilize address data sent by server
+				const hash = browseData.slice(offset, offset + 13);
+				const accExt = (browseData[offset + 13] & _AEM_ADDR_FLAG_ACCEXT) > 0 ? true : false;
+				const accInt = (browseData[offset + 13] & _AEM_ADDR_FLAG_ACCINT) > 0 ? true : false;
+				const use_gk = (browseData[offset + 13] & _AEM_ADDR_FLAG_USE_GK) > 0 ? true : false;
+				const is_shd = (browseData[offset + 13] & _AEM_ADDR_FLAG_SHIELD) > 0 ? true : false;
+
+				_userAddress.push(new _NewAddress(hash, null, null, is_shd, accExt, accInt, use_gk));
 				offset += 14;
 			}
 
@@ -537,7 +543,21 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				const hash = privData.slice(start, start + 13);
 				const addr32 = privData.slice(start + 13, start + 28);
 
-				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), accExt, accInt, use_gk));
+				for (let j = 0; j < _userAddress.length; j++) {
+					let wasFound = true;
+
+					for (let k = 0; k < 13; k ++) {
+						if (hash[k] !== _userAddress[j].hash[k]) {
+							wasFound = false;
+							break;
+						}
+					}
+
+					if (wasFound) {
+						_userAddress[j].addr32 = addr32;
+						break;
+					}
+				}
 			}
 
 			// Admin Data
@@ -764,8 +784,8 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		const privData = new Uint8Array(_AEM_BYTES_PRIVATE - sodium.crypto_box_SEALBYTES);
 		privData[0] = _userAddress.length;
 		for (let i = 0; i < _userAddress.length; i++) {
-			privData.set(_userAddress[i].hash, (i * 29) + 1);
-			privData.set(_userAddress[i].addr32, (i * 29) + 14);
+			privData.set(_userAddress[i].hash, (i * 28) + 1);
+			privData.set(_userAddress[i].addr32, (i * 28) + 14);
 		}
 
 		_FetchEncrypted("private/update", sodium.crypto_box_seal(privData, _userKeyPublic), function(fetchOk) {callback(fetchOk);});
