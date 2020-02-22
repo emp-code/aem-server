@@ -21,10 +21,10 @@ static size_t lenResponseJsm = 0;
 static size_t lenResponseJsa = 0;
 
 void freeFiles(void) {
-	if (responseCss != NULL) sodium_free(responseCss);
-	if (responseHtm != NULL) sodium_free(responseHtm);
-	if (responseJsa != NULL) sodium_free(responseJsa);
-	if (responseJsm != NULL) sodium_free(responseJsm);
+	if (lenResponseCss > 0) sodium_free(responseCss);
+	if (lenResponseHtm > 0) sodium_free(responseHtm);
+	if (lenResponseJsa > 0) sodium_free(responseJsa);
+	if (lenResponseJsm > 0) sodium_free(responseJsm);
 
 	lenResponseCss = 0;
 	lenResponseHtm = 0;
