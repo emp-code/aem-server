@@ -533,12 +533,9 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			offset += _AEM_BYTES_PRIVATE;
 
 			for (let i = 0; i < privData[0]; i++) {
-				const start = (i * 29) + 1;
+				const start = 1 + (i * 28);
 				const hash = privData.slice(start, start + 13);
 				const addr32 = privData.slice(start + 13, start + 28);
-				const accExt = (privData[start + 28] & _AEM_ADDR_FLAG_ACCEXT > 0) ? true : false;
-				const accInt = (privData[start + 28] & _AEM_ADDR_FLAG_ACCINT > 0) ? true : false;
-				const use_gk = (privData[start + 28] & _AEM_ADDR_FLAG_USE_GK > 0) ? true : false;
 
 				_userAddress.push(new _NewAddress(hash, addr32, _addr32_decode(addr32), accExt, accInt, use_gk));
 			}
@@ -769,7 +766,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		for (let i = 0; i < _userAddress.length; i++) {
 			privData.set(_userAddress[i].hash, (i * 29) + 1);
 			privData.set(_userAddress[i].addr32, (i * 29) + 14);
-			privData[(i * 29) + 29] = _AEM_ADDR_FLAGS_DEFAULT;
 		}
 
 		_FetchEncrypted("private/update", sodium.crypto_box_seal(privData, _userKeyPublic), function(fetchOk) {callback(fetchOk);});
