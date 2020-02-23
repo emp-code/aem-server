@@ -417,7 +417,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetAddressLimitShield = function(lvl) {return _maxAddressShield[lvl];};
 
 	this.GetExtMsgCount = function() {return _extMsg.length;};
-	this.GetExtMsgId      = function(num) {return _extMsg[num].id;};
+	this.GetExtMsgIdHex   = function(num) {return sodium.to_hex(_extMsg[num].id);};
 	this.GetExtMsgTime    = function(num) {return _extMsg[num].ts;};
 	this.GetExtMsgTLS     = function(num) {return _GetTlsVersion(_extMsg[num].tlsver) + " " + _GetCiphersuite(_extMsg[num].cs);};
 	this.GetExtMsgGreet   = function(num) {return _extMsg[num].greet;};
@@ -436,7 +436,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetExtMsgFlagPExt = function(num) {return _extMsg[num].info & 128;}; // Protocol Extended (ESMTP)
 
 	this.GetIntMsgCount = function() {return _intMsg.length;};
-	this.GetIntMsgId     = function(num) {return _intMsg[num].id;};
+	this.GetIntMsgIdHex  = function(num) {return sodium.to_hex(_intMsg[num].id);};
 	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
 	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
@@ -446,13 +446,13 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetIntMsgBody   = function(num) {return _intMsg[num].body;};
 
 	this.GetNoteCount = function() {return _textNote.length;};
-	this.GetNoteId = function(num) {return _textNote[num].id;};
-	this.GetNoteTime = function(num) {return _textNote[num].timestamp;};
+	this.GetNoteIdHex = function(num) {return sodium.to_hex(_textNote[num].id);};
+	this.GetNoteTime  = function(num) {return _textNote[num].timestamp;};
 	this.GetNoteTitle = function(num) {return _textNote[num].title;};
-	this.GetNoteBody = function(num) {return _textNote[num].body;};
+	this.GetNoteBody  = function(num) {return _textNote[num].body;};
 
 	this.GetFileCount = function() {return _fileNote.length;};
-	this.GetFileId   = function(num) {return _fileNote[num].id;};
+	this.GetFileIdHex = function(num) {return sodium.to_hex(_fileNote[num].id);};
 	this.GetFileTime = function(num) {return _fileNote[num].timestamp;};
 	this.GetFileName = function(num) {return _fileNote[num].fileName;};
 	this.GetFileType = function(num) {return _fileNote[num].fileType;};
@@ -474,11 +474,13 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetContactMail = function(num) {return _contactMail[num];};
 	this.GetContactName = function(num) {return _contactName[num];};
 	this.GetContactNote = function(num) {return _contactNote[num];};
+
 	this.AddContact = function(mail, name, note) {
 		_contactMail.push(mail);
 		_contactName.push(name);
 		_contactNote.push(note);
 	};
+
 	this.DeleteContact = function(index) {
 		_contactMail.splice(index, 1);
 		_contactName.splice(index, 1);
@@ -655,9 +657,9 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 					const note_body = comboBox.slice(6 + note_title_len);
 
 					if (note_isFile)
-						_fileNote.push(new _NewNote(null, note_ts, note_title, note_body));
+						_fileNote.push(new _NewNote(msgId, note_ts, note_title, note_body));
 					else
-						_textNote.push(new _NewNote(null, note_ts, note_title, sodium.to_string(note_body)));
+						_textNote.push(new _NewNote(msgId, note_ts, note_title, sodium.to_string(note_body)));
 				}
 
 				offset += (kib * 1024);
@@ -832,19 +834,63 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		});
 	}
 
-	this.Message_Delete = function(ids, callback) {
-		const delCount = ids.length;
+	this.Message_Delete = function(hexIds, callback) {
+		const delCount = hexIds.length;
 
 		const data = new Uint8Array(delCount * 16);
-		for (let i = 0; i < ids.length; i++) {
-			data.set(_extMsg[ids[i]].id, i * 16);
+
+		for (let i = 0; i < hexIds.length; i++) {
+			const id = sodium.from_hex(hexIds[i]);
+			if (id.length !== 16) {callback(false); return;}
+
+			data.set(id, i * 16);
 		}
 
 		_FetchEncrypted("message/delete", data, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
-			for (let i = ids.length - 1; i >= 0; i--) {
-				_extMsg.splice(ids[i], 1);
+			for (let i = 0; i < hexIds.length; i++) {
+				const id = sodium.from_hex(hexIds[i]);
+
+				for (let j = 0; j < _extMsg.length; j++) {
+					let matches = true;
+
+					for (let k = 0; k < 16; k++) {
+						if (id[k] !== _extMsg[j].id[k]) {matches = false; break;}
+					}
+
+					if (matches) _extMsg.splice(j, 1);
+				}
+
+				for (let j = 0; j < _intMsg.length; j++) {
+					let matches = true;
+
+					for (let k = 0; k < 16; k++) {
+						if (id[k] !== _intMsg[j].id[k]) {matches = false; break;}
+					}
+
+					if (matches) _intMsg.splice(j, 1);
+				}
+
+				for (let j = 0; j < _textNote.length; j++) {
+					let matches = true;
+
+					for (let k = 0; k < 16; k++) {
+						if (id[k] !== _textNote[j].id[k]) {matches = false; break;}
+					}
+
+					if (matches) _textNote.splice(j, 1);
+				}
+
+				for (let j = 0; j < _fileNote.length; j++) {
+					let matches = true;
+
+					for (let k = 0; k < 16; k++) {
+						if (id[k] !== _fileNote[j].id[k]) {matches = false; break;}
+					}
+
+					if (matches) _fileNote.splice(j, 1);
+				}
 			}
 
 			callback(true);

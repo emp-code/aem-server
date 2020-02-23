@@ -122,7 +122,7 @@ function addExtMessage(i) {
 	divTo.textContent = ae.GetExtMsgTo(i);
 	divTo.className = (ae.GetExtMsgTo(i).length === 24) ? "mono" : "";
 
-	divDel.innerHTML = "<input class=\"delExt\" type=\"checkbox\" data-id=\"" + i + "\">";
+	divDel.innerHTML = "<input class=\"delExt\" type=\"checkbox\" data-id=\"" + ae.GetExtMsgIdHex(i) + "\">";
 
 	elmt.appendChild(divTime);
 	elmt.appendChild(divSubj);
@@ -210,7 +210,7 @@ function addIntMessage(i) {
 	divTo.className = (ae.GetIntMsgTo(i).length === 24) ? "mono" : "";
 	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24) ? "mono" : "";
 
-	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + i + "\">";
+	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgIdHex(i) + "\">";
 
 	elmt.appendChild(divTime);
 	elmt.appendChild(divSubj);
@@ -641,7 +641,8 @@ function reloadInterface() {
 
 		cellBtnDe.children[0].onclick = function() {
 			const parentRow = this.parentElement.parentElement;
-			ae.DeleteMessages([ae.GetNoteId(parentRow.rowIndex - 1)], function(success) {
+
+			ae.Message_Delete([ae.GetNoteIdHex(i)], function(success) {
 				if (success) {
 					table.deleteRow(parentRow.rowIndex - 1);
 				} else {
