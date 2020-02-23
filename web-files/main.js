@@ -1000,7 +1000,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 
 		ae.Message_Assign(true, f.name, u8data, function(success) {
 			if (success) {
-				addFileNote(ae.GetFileCount() - 1);
+				addFile(ae.GetFileCount() - 1);
 				fileSelector.value = "";
 			} else {
 				console.log("Failed to upload file");
