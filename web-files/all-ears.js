@@ -821,13 +821,17 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 		const sealBox = sodium.crypto_box_seal(u8data, _userKeyPublic);
 
+		// Message ID: Every 64th byte of first kilo of encrypted data
+		const msgId = new Uint8Array(16);
+		for (let i = 0; i < 16; i++) msgId[i] = sealBox[i * 64];
+
 		_FetchEncrypted("message/assign", sealBox, function(fetchOk, byteArray) {
 			if (!fetchOk) {callback(false); return;}
 
 			if (isFile)
-				_fileNote.push(new _NewNote(null, Date.now() / 1000, title, body));
+				_fileNote.push(new _NewNote(msgId, Date.now() / 1000, title, body));
 			else
-				_textNote.push(new _NewNote(null, Date.now() / 1000, title, body));
+				_textNote.push(new _NewNote(msgId, Date.now() / 1000, title, body));
 
 			callback(true);
 		});

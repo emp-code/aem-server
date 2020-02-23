@@ -845,7 +845,19 @@ document.getElementById("btn_newnote_save").onclick = function() {
 
 			cellTime.textContent = "new";
 			cellTitle.textContent = txtTitle.value;
-			cellBtnDe.innerHTML = "<button type=\"button\" disabled=\"disabled\" title=\"Reload page to delete\">X</button>";
+			cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
+
+			cellBtnDe.children[0].onclick = function() {
+				const parentRow = this.parentElement.parentElement;
+
+				ae.Message_Delete([ae.GetNoteIdHex(parentRow.rowIndex - 1)], function(success) {
+					if (success) {
+						table.deleteRow(parentRow.rowIndex - 1);
+					} else {
+						console.log("Failed to delete note");
+					}
+				});
+			};
 
 			document.getElementById("txt_newnote_title").value = "";
 			document.getElementById("txt_newnote_body").value = "";
