@@ -89,20 +89,11 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		this.body = body;
 	}
 
-	function _NewTextNote(id, ts, title, body) {
+	function _NewNote(id, ts, title, body) {
 		this.id = id;
 		this.timestamp = ts;
 		this.title = title;
 		this.body = body;
-	}
-
-	function _NewFileNote(id, ts, fileData, fileSize, fileName, fileType) {
-		this.id = id;
-		this.timestamp = ts;
-		this.fileData = fileData;
-		this.fileSize = fileSize;
-		this.fileName = fileName;
-		this.fileType = fileType;
 	}
 
 	function _NewAddress(hash, addr32, is_shd, accExt, accInt, use_gk) {
@@ -596,48 +587,78 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				const msgId = new Uint8Array(16);
 				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
 
-				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
-				const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
+				try {
+					const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
+					const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
 
-				// BodyBox
-				const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
-				const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
-				const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
-				const padAmount = new Uint16Array(msgBodyFull.slice(lenBody - 2, lenBody).buffer)[0];
-				const msgBody = msgBodyFull.slice(0, lenBody - padAmount - 2);
+					// BodyBox
+					const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
+					const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
+					const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
+					const padAmount = new Uint16Array(msgBodyFull.slice(lenBody - 2, lenBody).buffer)[0];
+					const msgBody = msgBodyFull.slice(0, lenBody - padAmount - 2);
 
-				if ((msgHead[0] & 1) === 1) { // xxxxxx01 ExtMsg
-					const em_infobyte = msgHead[0];
-					const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-					const em_ip = msgHead.slice(5, 9);
-					const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
-					const em_tlsver = msgHead[11];
-					// msgHead[12] = SpamByte
-					const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
-					// 16-19 unused
-					const em_to = _addr32_decode(msgHead.slice(20), (em_infobyte & 4) == 4);
+					if ((msgHead[0] & 1) === 1) { // ExtMsg
+						const em_infobyte = msgHead[0];
+						const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
+						const em_ip = msgHead.slice(5, 9);
+						const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
+						const em_tlsver = msgHead[11];
+						// msgHead[12] = SpamByte
+						const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
+						// 16-19 unused
+						const em_to = _addr32_decode(msgHead.slice(20), (em_infobyte & 4) == 4);
 
-					// Bodybox
-					const msgBodyBrI8 = new Int8Array(msgBody);
-					const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
-					const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
+						// Bodybox
+						const msgBodyBrI8 = new Int8Array(msgBody);
+						const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
+						const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
 
-					const firstLf = msgBodyUtf8.indexOf('\n');
-					const em_greet = msgBodyUtf8.slice(0, firstLf);
-					const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
-					const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-					const body = msgBodyUtf8.slice(secondLf);
+						const firstLf = msgBodyUtf8.indexOf('\n');
+						const em_greet = msgBodyUtf8.slice(0, firstLf);
+						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
+						const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
+						const body = msgBodyUtf8.slice(secondLf);
 
-					const titleStart = body.indexOf("\nSubject: ");
-					const titleEnd = (titleStart < 0) ? -1 : body.slice(titleStart + 10).indexOf("\n");
-					const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
+						const titleStart = body.indexOf("\nSubject: ");
+						const titleEnd = (titleStart < 0) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+						const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
 
-					const headersEnd = body.indexOf("\n\n");
-					const em_headers = body.slice(1, headersEnd);
-					const em_body = body.slice(headersEnd + 2);
+						const headersEnd = body.indexOf("\n\n");
+						const em_headers = body.slice(1, headersEnd);
+						const em_body = body.slice(headersEnd + 2);
 
-					_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
-				} else console.log("not-extmsg");
+						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+					} else {
+						console.log("TODO: IntMsg");
+					}
+				} catch(e) {
+					// Assume ComboBox
+					const comboBox = sodium.crypto_box_seal_open(msgData, _userKeyPublic, _userKeySecret);
+
+					/* ComboBox
+						[4B uint32] Timestamp
+						[2B uint16] Info
+							32768-2048: Title/Filename length (5 bits, 1-32)
+							1024: Type (On=File, Off=Text)
+							512-1: Amount of padding (10 bits, 0-1023)
+						[1-32B uint8] Title/Filename
+						[-- uint8] Message data
+					*/
+
+					const note_ts = new Uint32Array(comboBox.slice(0, 4).buffer)[0];
+					const note_info = new Uint16Array(comboBox.slice(4, 6).buffer)[0];
+
+					const note_isFile = (note_info & 1024) > 0;
+					const note_title_len = ((note_info & 63488) >> 11) + 1; // 0=1, etc
+					const note_title = sodium.to_string(comboBox.slice(6, 6 + note_title_len));
+					const note_body = comboBox.slice(6 + note_title_len);
+
+					if (note_isFile)
+						_fileNote.push(new _NewNote(null, note_ts, note_title, note_body));
+					else
+						_textNote.push(new _NewNote(null, note_ts, note_title, sodium.to_string(note_body)));
+				}
 
 				offset += (kib * 1024);
 			}
@@ -760,6 +781,56 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 		_FetchEncrypted("address/update", data, function(fetchOk) {callback(fetchOk);});
 	};
+
+	// Creates Text/File Note in a ComboBox, and asks the server to store it. Title + Data = 8138 bytes max. Fully private.
+	this.Message_Assign = function(isFile, title, body, callback) {
+		/* ComboBox
+			[4B uint32] Timestamp
+			[2B uint16] Info
+				32768-2048: Title/Filename length (5 bits, 1-32)
+				1024: Type (On=File, Off=Text)
+				512-1: Amount of padding (10 bits, 0-1023)
+			[1-32B uint8] Title/Filename
+			[-- uint8] Message data
+		*/
+
+		if (typeof(isFile) !== "boolean" || typeof(title) !== "string" || body.constructor !== Uint8Array) {callback(false); return;}
+
+		const u8title = sodium.from_string(title);
+
+		const lenData = 6 + u8title.length + body.length + sodium.crypto_box_SEALBYTES;
+		const lenPad = (lenData % 1024 === 0) ? 0 : 1024 - (lenData % 1024);
+
+		if (lenData + lenPad > _AEM_BYTES_POST) {callback(false); return;}
+
+		let info = lenPad | ((title.length - 1) << 11);
+		if (isFile) info += 1024;
+
+		const u16info = new Uint16Array([info]);
+		const u8info = new Uint8Array(u16info.buffer);
+
+		const u32time = new Uint32Array([Date.now() / 1000]);
+		const u8time = new Uint8Array(u32time.buffer);
+
+		const u8data = new Uint8Array(lenData + lenPad - sodium.crypto_box_SEALBYTES);
+		u8data.set(u8time);
+		u8data.set(u8info, 4);
+		u8data.set(u8title, 6);
+		u8data.set(body, 6 + u8title.length);
+
+		const sealBox = sodium.crypto_box_seal(u8data, _userKeyPublic);
+
+		_FetchEncrypted("message/assign", sealBox, function(fetchOk, byteArray) {
+			if (!fetchOk) {callback(false); return;}
+
+			if (isFile)
+				_fileNote.push(new _NewNote(null, Date.now() / 1000, title, body));
+			else
+				_textNote.push(new _NewNote(null, Date.now() / 1000, title, body));
+
+			callback(true);
+		});
+	}
 
 	this.Message_Delete = function(ids, callback) {
 		const delCount = ids.length;

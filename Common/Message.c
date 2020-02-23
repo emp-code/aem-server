@@ -10,27 +10,6 @@
 #include "Message.h"
 
 /*
-IntMsg
-	HeadBox
-		[1B uint8_t] InfoByte
-			128:
-			 64:
-			 32: Sender membership level (+2 if set)
-			 16: Sender membership level (+1 if set)
-			  8:
-			  4:
-			  2: Message type (off)
-			  1: Message type (off)
-		[4B uint32_t] Timestamp
-		[15B char*] AddressFrom (addr32)
-		[15B char*] AddressTo (addr32)
-
-	BodyBox
-		[2B uint16_t] Amount of padding
-		[-- char*] Title
-		[1B char] Linebreak (\n)
-		[-- char*] Message body
-
 ExtMsg
 	HeadBox
 		[1B] InfoByte
@@ -40,8 +19,8 @@ ExtMsg
 			 16: Invalid commands received
 			  8: Protocol violation (commands out of order, etc)
 			  4: Shield address
-			  2: Message type (off)
-			  1: Message type (on)
+			  2:
+			  1: ExtMsg (on)
 		[4B uint32_t] Timestamp
 		[4B uint32_t] IP
 		[2B uint16_t] TLS ciphersuite
@@ -60,23 +39,34 @@ ExtMsg
 		[-- char*] Message data
 		[2B uint16_t] Amount of padding
 
-TextNote/FileNote
+IntMsg
 	HeadBox
 		[1B uint8_t] InfoByte
 			128:
 			 64:
-			 32:
-			 16:
+			 32: Sender membership level (+2 if set)
+			 16: Sender membership level (+1 if set)
 			  8:
 			  4:
-			  2: Message type (on)
-			  1: Message type (text: off, file: on)
+			  2:
+			  1: ExtMsg (off)
 		[4B uint32_t] Timestamp
-		[30B] (unused)
+		[15B char*] AddressFrom (addr32)
+		[15B char*] AddressTo (addr32)
 
 	BodyBox
 		[2B uint16_t] Amount of padding
-		[-- char*] Message data
+		[-- char*] Title
+		[1B char] Linebreak (\n)
+		[-- char*] Message body
+
+Note (ComboBox)
+	[4B uint32_t] Timestamp
+	[2B uint16_t] Amount of padding
+		32768: Type (On=File, Off=Text)
+		16384-2048: Title/Filename length (1-32)
+	[-- char*] Title/Filename
+	[-- char*] Message data
 */
 
 __attribute__((warn_unused_result))

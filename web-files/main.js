@@ -839,7 +839,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 
 	if (!txtTitle.reportValidity() || !txtBody.reportValidity()) return;
 
-	ae.SaveNote(txtTitle.value, txtBody.value, function(success) {
+	ae.Message_Assign(false, txtTitle.value, sodium.from_string(txtBody.value), function(success) {
 		if (success) {
 			const table = document.getElementById("tbody_textnotes");
 			const row = table.insertRow(0);

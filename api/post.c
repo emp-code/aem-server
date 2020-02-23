@@ -186,7 +186,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	offset += lenAcc;
 
 	// Messages
-	if ((sock = storageSocket(pubkey, 1)) < 1) {
+	if ((sock = storageSocket(pubkey, UINT8_MAX)) < 1) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
 		sodium_memzero(response, lenResponse);
 		return;
@@ -392,6 +392,29 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static void message_assign(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted % 1024 != 0) {sodium_free(*decrypted); return;}
+
+	const int sock = storageSocket(pubkey, (lenDecrypted / 1024));
+	if (sock < 0) {
+		sodium_free(*decrypted);
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
+		return;
+	}
+
+	const ssize_t sentBytes = send(sock, *decrypted, lenDecrypted, 0);
+
+	sodium_free(*decrypted);
+	close(sock);
+
+	if (sentBytes != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Storage");
+		return;
+	}
+
+	send204(ssl);
+}
+
 static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted % 16 != 0) {sodium_free(*decrypted); return;}
 
@@ -505,7 +528,7 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
-//	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
 //	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 

@@ -355,6 +355,15 @@ void takeConnections(void) {
 						storage_delete(clr + 1, ids + i * 16);
 					}
 				} else syslog(LOG_MAIL | LOG_NOTICE, "Invalid data received");
+			} else if (clr[0] <= 8) { // Store
+				const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
+				unsigned char * const msg = malloc(bytes);
+				if (msg == NULL) break;
+
+				if (recv(sock, msg, bytes, 0) == bytes) {
+					storage_write(clr + 1, msg, clr[0]);
+					saveStindex();
+				} else syslog(LOG_MAIL | LOG_NOTICE, "Failed to receive data from API");
 			} else { // Browse
 				const int rfd = open("Storage.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 
