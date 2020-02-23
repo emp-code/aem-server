@@ -258,14 +258,13 @@ function addIntMessage(i) {
 	};
 }
 
-function addFileNote(num, allowDelete) {
+function addFileNote(num) {
 	const table = document.getElementById("tbody_filenotes");
 
 	const row = table.insertRow(-1);
 	const cellTime = row.insertCell(-1);
 	const cellSize = row.insertCell(-1);
 	const cellName = row.insertCell(-1);
-	const cellType = row.insertCell(-1);
 	const cellBtnD = row.insertCell(-1);
 	const cellBtnX = row.insertCell(-1);
 
@@ -276,12 +275,8 @@ function addFileNote(num, allowDelete) {
 
 	cellSize.textContent = kib;
 	cellName.textContent = ae.GetFileName(num);
-	cellType.textContent = ae.GetFileType(num);
 	cellBtnD.innerHTML = "<button type=\"button\">D</button>";
-	if (allowDelete)
-		cellBtnX.innerHTML = "<button type=\"button\">X</button>";
-	else
-		cellBtnX.innerHTML = "<button type=\"button\" disabled=\"disabled\" title=\"Reload page to delete\">X</button>";
+	cellBtnX.innerHTML = "<button type=\"button\">X</button>";
 
 	cellBtnD.children[0].onclick = function() {
 		const parentRow = this.parentElement.parentElement;
@@ -300,7 +295,7 @@ function addFileNote(num, allowDelete) {
 
 	cellBtnX.children[0].onclick = function() {
 		const parentRow = this.parentElement.parentElement;
-		ae.DeleteMessages([ae.GetFileId(parentRow.rowIndex - 1)], function(success) {
+		ae.Message_Delete([ae.GetFileIdHex(parentRow.rowIndex - 1)], function(success) {
 			if (success) {
 				table.deleteRow(parentRow.rowIndex - 1);
 			} else {
@@ -663,7 +658,7 @@ function reloadInterface() {
 
 	// Files
 	for (let i = 0; i < ae.GetFileCount(); i++) {
-		addFileNote(i, true);
+		addFileNote(i);
 	}
 
 	if (ae.IsUserAdmin()) {
@@ -1014,9 +1009,9 @@ document.getElementById("btn_uploadfile").onclick = function() {
 	reader.onload = function(e) {
 		const u8data = new Uint8Array(reader.result);
 
-		ae.SaveFile(u8data, f.name, f.type, f.size, function(success) {
+		ae.Message_Assign(true, f.name, u8data, function(success) {
 			if (success) {
-				addFileNote(ae.GetFileCount() - 1, false);
+				addFileNote(ae.GetFileCount() - 1);
 				fileSelector.value = "";
 			} else {
 				console.log("Failed to upload file");

@@ -454,10 +454,9 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.GetFileCount = function() {return _fileNote.length;};
 	this.GetFileIdHex = function(num) {return sodium.to_hex(_fileNote[num].id);};
 	this.GetFileTime = function(num) {return _fileNote[num].timestamp;};
-	this.GetFileName = function(num) {return _fileNote[num].fileName;};
-	this.GetFileType = function(num) {return _fileNote[num].fileType;};
-	this.GetFileSize = function(num) {return _fileNote[num].fileSize;};
-	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].fileData.buffer], {type : _fileNote[num].fileType});};
+	this.GetFileName = function(num) {return _fileNote[num].title;};
+	this.GetFileSize = function(num) {return _fileNote[num].body.length;};
+	this.GetFileBlob = function(num) {return new Blob([_fileNote[num].body.buffer]);};
 
 	this.GetGatekeeperCountry = function() {return _gkCountry;};
 	this.GetGatekeeperDomain  = function() {return _gkDomain;};
