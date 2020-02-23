@@ -529,6 +529,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			const privData = sodium.crypto_box_seal_open(browseData.slice(offset, offset + _AEM_BYTES_PRIVATE), _userKeyPublic, _userKeySecret);
 			offset += _AEM_BYTES_PRIVATE;
 
+			// Private - Address data
 			for (let i = 0; i < privData[0]; i++) {
 				const start = 1 + (i * 28);
 				const hash = privData.slice(start, start + 13);
@@ -549,6 +550,31 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 						break;
 					}
 				}
+			}
+
+			// Private - Contacts
+			let privOffset = 1 + (privData[0] * 28);
+			const contactCount = privData[privOffset];
+			privOffset++;
+
+			for (let i = 0; i < contactCount; i++) {
+				let con = privData.slice(privOffset);
+				let end = con.indexOf(10); // 10=LF
+				if (end === -1) break;
+				_contactMail[i] = sodium.to_string(con.slice(0, end));
+				privOffset += end + 1;
+
+				con = privData.slice(privOffset);
+				end = con.indexOf(10);
+				if (end === -1) break;
+				_contactName[i] = sodium.to_string(con.slice(0, end));
+				privOffset += end + 1;
+
+				con = privData.slice(privOffset);
+				end = con.indexOf(10);
+				if (end === -1) break;
+				_contactNote[i] = sodium.to_string(con.slice(0, end));
+				privOffset += end + 1;
 			}
 
 			// Admin Data
@@ -902,9 +928,31 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	this.Private_Update = function(callback) {
 		const privData = new Uint8Array(_AEM_BYTES_PRIVATE - sodium.crypto_box_SEALBYTES);
 		privData[0] = _userAddress.length;
+
+		let offset = 1;
+
 		for (let i = 0; i < _userAddress.length; i++) {
-			privData.set(_userAddress[i].hash, (i * 28) + 1);
-			privData.set(_userAddress[i].addr32, (i * 28) + 14);
+			privData.set(_userAddress[i].hash, offset);
+			privData.set(_userAddress[i].addr32, offset + 13);
+			offset += 28;
+		}
+
+		privData[offset] = _contactMail.length;
+		offset++;
+
+		for (let i = 0; i < _contactMail.length; i++) {
+			const cMail = sodium.from_string(_contactMail[i] + '\n');
+			const cName = sodium.from_string(_contactName[i] + '\n');
+			const cNote = sodium.from_string(_contactNote[i] + '\n');
+
+			privData.set(cMail, offset);
+			offset += cMail.length;
+
+			privData.set(cName, offset);
+			offset += cName.length;
+
+			privData.set(cNote, offset);
+			offset += cNote.length;
 		}
 
 		_FetchEncrypted("private/update", sodium.crypto_box_seal(privData, _userKeyPublic), function(fetchOk) {callback(fetchOk);});
