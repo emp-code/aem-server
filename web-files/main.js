@@ -1005,9 +1005,9 @@ document.getElementById("btn_uploadfile").onclick = function() {
 			} else {
 				console.log("Failed to upload file");
 			}
-		});
 
-		document.getElementById("btn_uploadfile").disabled = "";
+			document.getElementById("btn_uploadfile").disabled = "";
+		});
 	};
 
 	reader.readAsArrayBuffer(f);
