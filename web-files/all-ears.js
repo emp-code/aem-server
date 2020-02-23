@@ -124,17 +124,16 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	};
 
 	const _FetchEncrypted = function(url, cleartext, callback) {
-		if (cleartext.length > _AEM_BYTES_POST - 2) {callback(false); return;}
+		if (cleartext.length > _AEM_BYTES_POST) {callback(false); return;}
 
 		// Cleartext is padded to _AEM_BYTES_POST bytes
-		const clearU8 = new Uint8Array(_AEM_BYTES_POST);
-		window.crypto.getRandomValues(clearU8);
+		const clearU8 = new Uint8Array(_AEM_BYTES_POST + 2);
 		clearU8.set(cleartext);
 
 		// Last two bytes store the length
 		const u16len = new Uint16Array([cleartext.length]);
 		const u8len = new Uint8Array(u16len.buffer);
-		clearU8.set(u8len, _AEM_BYTES_POST - 2);
+		clearU8.set(u8len, _AEM_BYTES_POST);
 
 		const nonce = new Uint8Array(sodium.crypto_box_NONCEBYTES);
 		window.crypto.getRandomValues(nonce);

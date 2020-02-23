@@ -496,15 +496,15 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 
 //	if (pubkeyExists(pubkey)) return NULL; // XXX Important to re-enable
 
-	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE);
+	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
 	if (decrypted == NULL) return NULL;
 
-	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, AEM_HTTPS_POST_SIZE + crypto_box_MACBYTES, nonce, pubkey, ssk);
+	const int ret = crypto_box_open_easy((unsigned char*)decrypted, post + skipBytes, AEM_HTTPS_POST_SIZE + 2 + crypto_box_MACBYTES, nonce, pubkey, ssk);
 	if (ret != 0) {sodium_free(decrypted); return NULL;}
 	sodium_mprotect_readonly(decrypted);
 
 	uint16_t u16len;
-	memcpy(&u16len, decrypted + AEM_HTTPS_POST_SIZE - 2, 2);
+	memcpy(&u16len, decrypted + AEM_HTTPS_POST_SIZE, 2);
 	*lenDecrypted = u16len;
 
 	return decrypted;
@@ -512,7 +512,6 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 
 void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
 	if (ssl == NULL || url == NULL || post == NULL) return;
-
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 

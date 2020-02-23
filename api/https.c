@@ -96,7 +96,7 @@ static int handleRequest(size_t lenReq) {
 	if (memcmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
 	if (memcmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(req, lenReq, "\r\nContent-Length: 8264\r\n", 24) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (memmem(req, lenReq, "\r\nContent-Length: 8266\r\n", 24) == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
 	const char * const creq = (char*)req;
