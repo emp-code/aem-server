@@ -831,7 +831,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			if (isFile)
 				_fileNote.push(new _NewNote(msgId, Date.now() / 1000, title, body));
 			else
-				_textNote.push(new _NewNote(msgId, Date.now() / 1000, title, body));
+				_textNote.push(new _NewNote(msgId, Date.now() / 1000, title, sodium.to_string(body)));
 
 			callback(true);
 		});
