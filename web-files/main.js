@@ -777,7 +777,7 @@ document.getElementById("btn_contact_add").onclick = function() {
 };
 
 document.getElementById("btn_savenotes").onclick = function() {
-	ae.SaveNoteData(function(success) {
+	ae.Private_Update(function(success) {
 		if (success) {
 			document.getElementById("btn_savenotes").hidden = true;
 		} else {
