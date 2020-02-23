@@ -794,7 +794,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 			[-- uint8] Message data
 		*/
 
-		if (typeof(isFile) !== "boolean" || typeof(title) !== "string" || body.constructor !== Uint8Array) {callback(false); return;}
+		if (typeof(isFile) !== "boolean" || typeof(title) !== "string" || body.constructor !== Uint8Array || title.length < 1 || body.length < 1) {callback(false); return;}
 
 		const u8title = sodium.from_string(title);
 
