@@ -258,7 +258,7 @@ function addIntMessage(i) {
 	};
 }
 
-function addFileNote(num) {
+function addFile(num) {
 	const table = document.getElementById("tbody_filenotes");
 
 	const row = table.insertRow(-1);
@@ -302,6 +302,40 @@ function addFileNote(num) {
 				console.log("Failed to delete note");
 			}
 		});
+	};
+}
+
+function addNote(num) {
+	const table = document.getElementById("tbody_textnotes");
+
+	const row = table.insertRow(-1);
+	const cellTime = row.insertCell(-1);
+	const cellTitle = row.insertCell(-1);
+	const cellBtnDe = row.insertCell(-1);
+
+	cellTime.textContent = new Date(ae.GetNoteTime(num) * 1000).toISOString().slice(0, 16).replace("T", " ");
+	cellTitle.textContent = ae.GetNoteTitle(num);
+	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
+
+	cellBtnDe.children[0].onclick = function() {
+		const parentRow = this.parentElement.parentElement;
+
+		ae.Message_Delete([ae.GetNoteIdHex(parentRow.rowIndex - 1)], function(success) {
+			if (success) {
+				table.deleteRow(parentRow.rowIndex - 1);
+			} else {
+				console.log("Failed to delete note");
+			}
+		});
+	};
+
+	cellTitle.onclick = function() {
+		navMenu(-1);
+		document.getElementById("div_readmsg").hidden = false;
+		document.getElementById("readmsg_head").hidden = true;
+
+		document.getElementById("readmsg_title").textContent = ae.GetNoteTitle(num);
+		document.getElementById("readmsg_body").textContent = ae.GetNoteBody(num);
 	};
 }
 
@@ -621,45 +655,8 @@ function reloadInterface() {
 
 	addMessages();
 
-	// Notes
-	for (let i = 0; i < ae.GetNoteCount(); i++) {
-		const table = document.getElementById("tbody_textnotes");
-
-		const row = table.insertRow(-1);
-		const cellTime = row.insertCell(-1);
-		const cellTitle = row.insertCell(-1);
-		const cellBtnDe = row.insertCell(-1);
-
-		cellTime.textContent = new Date(ae.GetNoteTime(i) * 1000).toISOString().slice(0, 16).replace("T", " ");
-		cellTitle.textContent = ae.GetNoteTitle(i);
-		cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
-
-		cellBtnDe.children[0].onclick = function() {
-			const parentRow = this.parentElement.parentElement;
-
-			ae.Message_Delete([ae.GetNoteIdHex(parentRow.rowIndex - 1)], function(success) {
-				if (success) {
-					table.deleteRow(parentRow.rowIndex - 1);
-				} else {
-					console.log("Failed to delete note");
-				}
-			});
-		};
-
-		cellTitle.onclick = function() {
-			navMenu(-1);
-			document.getElementById("div_readmsg").hidden = false;
-			document.getElementById("readmsg_head").hidden = true;
-
-			document.getElementById("readmsg_title").textContent = ae.GetNoteTitle(i);
-			document.getElementById("readmsg_body").textContent = ae.GetNoteBody(i);
-		};
-	}
-
-	// Files
-	for (let i = 0; i < ae.GetFileCount(); i++) {
-		addFileNote(i);
-	}
+	for (let i = 0; i < ae.GetNoteCount(); i++) {addNote(i);}
+	for (let i = 0; i < ae.GetFileCount(); i++) {addFile(i);}
 
 	if (ae.IsUserAdmin()) {
 		const tblLimits = document.getElementById("tbl_limits");
@@ -837,27 +834,7 @@ document.getElementById("btn_newnote_save").onclick = function() {
 
 	ae.Message_Assign(false, txtTitle.value, sodium.from_string(txtBody.value), function(success) {
 		if (success) {
-			const table = document.getElementById("tbody_textnotes");
-			const row = table.insertRow(0);
-			const cellTime = row.insertCell(-1);
-			const cellTitle = row.insertCell(-1);
-			const cellBtnDe = row.insertCell(-1);
-
-			cellTime.textContent = "new";
-			cellTitle.textContent = txtTitle.value;
-			cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
-
-			cellBtnDe.children[0].onclick = function() {
-				const parentRow = this.parentElement.parentElement;
-
-				ae.Message_Delete([ae.GetNoteIdHex(parentRow.rowIndex - 1)], function(success) {
-					if (success) {
-						table.deleteRow(parentRow.rowIndex - 1);
-					} else {
-						console.log("Failed to delete note");
-					}
-				});
-			};
+			addNote(ae.GetNoteCount() - 1);
 
 			document.getElementById("txt_newnote_title").value = "";
 			document.getElementById("txt_newnote_body").value = "";
