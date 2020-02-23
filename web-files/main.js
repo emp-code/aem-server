@@ -655,8 +655,8 @@ function reloadInterface() {
 
 	addMessages();
 
-	for (let i = 0; i < ae.GetNoteCount(); i++) {addNote(i);}
-	for (let i = 0; i < ae.GetFileCount(); i++) {addFile(i);}
+	for (let i = ae.GetNoteCount() - 1; i >= 0; i--) {addNote(i);}
+	for (let i = ae.GetFileCount() - 1; i >= 0; i--) {addFile(i);}
 
 	if (ae.IsUserAdmin()) {
 		const tblLimits = document.getElementById("tbl_limits");
