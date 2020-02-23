@@ -637,7 +637,7 @@ function reloadInterface() {
 		cellBtnDe.children[0].onclick = function() {
 			const parentRow = this.parentElement.parentElement;
 
-			ae.Message_Delete([ae.GetNoteIdHex(i)], function(success) {
+			ae.Message_Delete([ae.GetNoteIdHex(parentRow.rowIndex - 1)], function(success) {
 				if (success) {
 					table.deleteRow(parentRow.rowIndex - 1);
 				} else {
