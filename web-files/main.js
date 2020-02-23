@@ -990,9 +990,16 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 };
 
 document.getElementById("btn_uploadfile").onclick = function() {
-	this.disabled = "disabled";
 	const fileSelector = document.getElementById("upfile");
 	const f = fileSelector.files[0];
+
+	if (f.name.length + f.size > 8138) {
+		console.log("Too large");
+		fileSelector.value = null;
+		return;
+	}
+
+	this.disabled = "disabled";
 
 	const reader = new FileReader();
 	reader.onload = function(e) {
@@ -1001,7 +1008,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 		ae.Message_Assign(true, f.name, u8data, function(success) {
 			if (success) {
 				addFile(ae.GetFileCount() - 1);
-				fileSelector.value = "";
+				fileSelector.value = null;
 			} else {
 				console.log("Failed to upload file");
 			}
