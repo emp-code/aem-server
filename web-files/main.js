@@ -795,6 +795,8 @@ document.getElementById("btn_sentdel").onclick = function() {
 };
 
 document.getElementById("btn_send").onclick = function() {
+	document.getElementById("btn_send").disabled = true;
+
 	const scopy = document.getElementById("send_copy");
 	const sfrom = document.getElementById("send_from");
 	const stitle = document.getElementById("send_title");
@@ -815,9 +817,12 @@ document.getElementById("btn_send").onclick = function() {
 				} else {
 					console.log("Failed sending message");
 				}
+
+				document.getElementById("btn_send").disabled = false;
 			});
 		} else {
 			console.log("Failed looking up address");
+			document.getElementById("btn_send").disabled = false;
 		}
 	});
 };
