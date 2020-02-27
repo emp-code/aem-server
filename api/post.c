@@ -509,14 +509,13 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	// Store
 	const int sock = storageSocket(toPubkey, kib);
+	sodium_free(*decrypted);
+
 	if (sock < 0) {
-		sodium_free(*decrypted);
 		free(boxSet);
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
 		return;
 	}
-
-	sodium_free(*decrypted);
 
 	const ssize_t sentBytes = send(sock, boxSet, kib * 1024, 0);
 	free(boxSet);
