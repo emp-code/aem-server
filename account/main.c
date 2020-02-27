@@ -168,11 +168,17 @@ static int loadUser(void) {
 	return 0;
 }
 
-static int hashToUserNum(const unsigned char * const hash) {
+static int hashToUserNum(const unsigned char * const hash, const bool isShield, unsigned char * const flagp) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
 		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
 			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) {
-				return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_ACCEXT) > 0) ? userNum : -1;
+				if (flagp != NULL) *flagp = user[userNum].addrFlag[addrNum];
+
+				if (isShield) {
+					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) > 0) ? userNum : -1;
+				} else {
+					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == 0) ? userNum : -1;
+				}
 			}
 		}
 	}
@@ -338,7 +344,9 @@ static void api_address_create(const int sock, const int num) {
 	unsigned char hash[13];
 
 	const ssize_t len = recv(sock, hash, 13, 0);
-	if (len == 6 && memcmp(hash, "SHIELD", 6) == 0) {
+	const bool isShield = (len == 6 && memcmp(hash, "SHIELD", 6) == 0);
+
+	if (isShield) {
 		randombytes_buf(addr32, 15);
 		if (addressToHash(hash, addr32, true) != 0) return;
 	} else if (len == 13) {
@@ -348,7 +356,7 @@ static void api_address_create(const int sock, const int num) {
 		return;
 	}
 
-	if (hashToUserNum(hash) >= 0) return; // Address in use
+	if (hashToUserNum(hash, isShield, NULL) >= 0) return; // Address in use
 
 	memcpy(user[num].addrHash[addrCount], hash, 13);
 	addrCount++;
@@ -356,14 +364,14 @@ static void api_address_create(const int sock, const int num) {
 
 	saveUser();
 
-	if (len == 6) { // Shield
+	if (isShield) {
 		if (
 		   send(sock, hash, 13, 0) != 13
 		|| send(sock, addr32, 15, 0) != 15
 		) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
 
 		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
-	} else { // Normal
+	} else {
 		unsigned char ok = 1;
 		send(sock, &ok, 1, 0);
 
@@ -402,11 +410,12 @@ static void api_address_delete(const int sock, const int num) {
 static void api_address_lookup(const int sock) {
 	unsigned char addr[16];
 	if (recv(sock, addr, 16, 0) != 16) return;
+	const bool isShield = addr[0] == 'S';
 
 	unsigned char hash[13];
-	if (addressToHash(hash, addr + 1, addr[0] == 'S') != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
 
-	const int userNum = hashToUserNum(hash);
+	const int userNum = hashToUserNum(hash, isShield, NULL);
 	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
@@ -470,8 +479,9 @@ static void mta_getPubKey(const int sock, const unsigned char * const addr32, co
 	unsigned char hash[13];
 	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
 
-	const int userNum = hashToUserNum(hash);
-	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
+	unsigned char flags;
+	const int userNum = hashToUserNum(hash, isShield, &flags);
+	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
