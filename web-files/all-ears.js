@@ -436,7 +436,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 	this.GetIntMsgCount = function() {return _intMsg.length;};
 	this.GetIntMsgIdHex  = function(num) {return sodium.to_hex(_intMsg[num].id);};
-	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderMemberLevel;};
+	this.GetIntMsgLevel  = function(num) {return _intMsg[num].senderLevel;};
 	this.GetIntMsgTime   = function(num) {return _intMsg[num].ts;};
 	this.GetIntMsgFrom   = function(num) {return _intMsg[num].from;};
 	this.GetIntMsgIsSent = function(num) {return _intMsg[num].isSent;};
