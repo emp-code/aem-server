@@ -348,6 +348,8 @@ static void api_address_create(const int sock, const int num) {
 		return;
 	}
 
+	if (hashToUserNum(hash) >= 0) return; // Address in use
+
 	memcpy(user[num].addrHash[addrCount], hash, 13);
 	addrCount++;
 	user[num].info = (user[num].info & 3) + (addrCount << 2);
