@@ -3,8 +3,10 @@
 sodium.ready.then(function() {
 
 const aeDomain = document.domain;
+const aeApiPubkey = "";
+const aeSaltNormal = "";
 
-const ae = new AllEars(aeDomain, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "0123456789abcdef0123456789abcdef", function(ok) { // API public key, Normal Address Salt (hex)
+const ae = new AllEars(aeDomain, aeApiPubkey, aeSaltNormal, function(ok) {
 	if (ok) {
 		document.getElementById("btn_enter").disabled = false;
 	} else {
