@@ -452,6 +452,11 @@ static void api_setting_limits(const int sock, const int num) {
 //	saveSettings(); // TODO
 }
 
+static void api_internal_level(const int sock, const int num) {
+	const unsigned char level = user[num].info & 3;
+	send(sock, &level, 1, 0);
+}
+
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	unsigned char hash[13];
 	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
@@ -508,6 +513,9 @@ static int takeConnections(void) {
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
+
+				// Internal functions
+				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 
 				//default: // Invalid
 			}
