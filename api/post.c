@@ -473,6 +473,15 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 	return memcmp(ver_pk, pk, crypto_box_PUBLICKEYBYTES) == 0;
 }
 
+static unsigned char getUserLevel(const unsigned char * const pubkey) {
+	const int sock = accountSocket(pubkey, AEM_API_INTERNAL_LEVEL);
+	if (sock < 0) return false;
+
+	unsigned char ret;
+	recv(sock, &ret, 1, 0);
+	return ret;
+}
+
 static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	unsigned char * const fromAddr32 = (unsigned char*)*decrypted;
 	unsigned char * const toAddr32   = (unsigned char*)*decrypted + 15;
@@ -488,7 +497,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	const size_t kib = (lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) / 1024;
 
 	const uint32_t ts = (uint32_t)time(NULL);
-	unsigned char infoByte = 0; // senderLevel & 3; // TODO: Use pubkey to get sender level
+	unsigned char infoByte = getUserLevel(pubkey) & 3;
 
 	unsigned char headbox_clear[AEM_HEADBOX_SIZE];
 	headbox_clear[0] = infoByte;
