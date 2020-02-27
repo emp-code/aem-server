@@ -362,12 +362,12 @@ static void api_address_create(const int sock, const int num) {
 		|| send(sock, addr32, 15, 0) != 15
 		) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
 
-		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
+		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else { // Normal
 		unsigned char ok = 1;
 		send(sock, &ok, 1, 0);
 
-		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
+		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT;
 	}
 }
 
