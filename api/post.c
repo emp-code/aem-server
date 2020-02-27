@@ -516,6 +516,8 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 		return;
 	}
 
+	sodium_free(*decrypted);
+
 	const ssize_t sentBytes = send(sock, boxSet, kib * 1024, 0);
 	free(boxSet);
 	close(sock);
