@@ -57,6 +57,8 @@ static unsigned char accountKey[crypto_secretbox_KEYBYTES];
 static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
 static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 
+static unsigned char hash_system[13];
+
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
@@ -342,6 +344,8 @@ static void api_address_create(const int sock, const int num) {
 
 		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else if (len == 13) {
+		if (memcmp(hash, hash_system, 13) == 0) return; // Forbid 'system' address
+
 		user[num].addrFlag[addrCount] = AEM_ADDR_FLAGS_DEFAULT;
 	} else {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
@@ -575,6 +579,9 @@ int main(int argc, char *argv[]) {
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
+
+	const unsigned char addr32_system[15] = AEM_ADDR32_SYSTEM;
+	if (addressToHash(hash_system, addr32_system, false) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed hash"); return EXIT_FAILURE;}
 
 	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 

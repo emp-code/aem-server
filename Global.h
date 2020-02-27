@@ -59,3 +59,5 @@
 
 #define AEM_HEADBOX_SIZE 35 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
 #define AEM_FLAG_MSGTYPE_EXTMSG 128
+
+#define AEM_ADDR32_SYSTEM {54, 125, 157, 58, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // 'system' in Addr32
