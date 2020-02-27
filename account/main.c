@@ -359,6 +359,9 @@ static void api_address_create(const int sock, const int num) {
 		   send(sock, hash, 13, 0) != 13
 		|| send(sock, addr32, 15, 0) != 15
 		) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
+	} else { // Normal
+		unsigned char ok = 1;
+		send(sock, &ok, 1, 0);
 	}
 }
 

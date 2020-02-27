@@ -327,8 +327,11 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 
 	if (lenDecrypted == 13) { // Normal
-		send204(ssl);
+		unsigned char ret;
+		recv(sock, &ret, 1, 0);
 		close(sock);
+
+		if (ret == 1) send204(ssl);
 		return;
 	}
 
