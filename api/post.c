@@ -508,7 +508,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
 
 	// Store
-	const int sock = storageSocket((unsigned char*)*decrypted + 30, kib);
+	const int sock = storageSocket(toPubkey, kib);
 	if (sock < 0) {
 		sodium_free(*decrypted);
 		free(boxSet);
