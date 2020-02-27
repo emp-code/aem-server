@@ -613,13 +613,30 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				const msgId = new Uint8Array(16);
 				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
 
-				try {
-					const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
-					const msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);
+				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
+				let msgHead;
+				let msgNorm = true;
 
+				try {msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);}
+				catch(e) {msgNorm = false;}
+
+				if (msgNorm) {
 					// BodyBox
 					const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
-					const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
+
+					let msgBodyFull;
+					try {msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);}
+					catch(e) {
+						if ((msgHead[0] & 128) > 0) { // ExtMsg
+							_extMsg.push(new _NewExtMsg(msgId, Date.now() / 1000, null, 0, 0, null, 0, null, "system", "system", "(error)", null, "Decrypting BodyBox failed"));
+						} else {
+							_intMsg.push(new _NewIntMsg(msgId, false, 0, Date.now() / 1000, "system", "system", "(error)", "Decrypting BodyBox failed"));
+						}
+
+						console.log("Failed decrypting BodyBox");
+						break;
+					}
+
 					const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
 					const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
 					const msgBody = msgBodyFull.slice(2, lenBody - padAmount);
@@ -668,9 +685,14 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 						_intMsg.push(new _NewIntMsg(msgId, false, im_senderLevel, im_ts, im_from, im_to, im_title, im_body));
 					}
-				} catch(e) {
+				} else {
 					// Assume ComboBox
-					const comboBox = sodium.crypto_box_seal_open(msgData, _userKeyPublic, _userKeySecret);
+					let comboBox;
+					try {comboBox = sodium.crypto_box_seal_open(msgData, _userKeyPublic, _userKeySecret);}
+					catch(e) {
+						console.log("Failed decrypting ComboBox");
+						break;
+					}
 
 					/* ComboBox
 						[4B uint32] Timestamp
