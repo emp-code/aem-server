@@ -1,4 +1,5 @@
 #include <ctype.h> // for islower
+#include <stdbool.h>
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -456,11 +457,35 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
+	unsigned char addrData[16];
+	addrData[0] = shield? 'S' : 'N';
+	memcpy(addrData + 1, ver_addr32, 15);
+
+	const int sock = accountSocket(ver_pk, AEM_API_ADDRESS_LOOKUP);
+	if (sock < 0) return false;
+
+	unsigned char pk[32];
+	if (send(sock, addrData, 16, 0) != 16) {close(sock); return false;}
+	if (recv(sock, pk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) {close(sock); return false;}
+	close(sock);
+
+	return memcmp(ver_pk, pk, crypto_box_PUBLICKEYBYTES) == 0;
+}
+
 static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	unsigned char * const fromAddr32 = (unsigned char*)*decrypted;
+	unsigned char * const toAddr32   = (unsigned char*)*decrypted + 15;
+	unsigned char * const toPubkey   = (unsigned char*)*decrypted + 30;
+	unsigned char * const bodyBox    = (unsigned char*)*decrypted + 30 + crypto_box_PUBLICKEYBYTES;
 	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
+
+	if (!addr32OwnedByPubkey(pubkey, fromAddr32, false)) {sodium_free(*decrypted); return;}
+	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) {sodium_free(*decrypted); return;}
+
 	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) {sodium_free(*decrypted); return;}
+
 	const size_t kib = (lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) / 1024;
-	// TODO: Verify address belongs to pkey owner
 
 	const uint32_t ts = (uint32_t)time(NULL);
 	unsigned char infoByte = 0; // senderLevel & 3; // TODO: Use pubkey to get sender level
@@ -468,11 +493,11 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char headbox_clear[AEM_HEADBOX_SIZE];
 	headbox_clear[0] = infoByte;
 	memcpy(headbox_clear +  1, &ts, 4);
-	memcpy(headbox_clear +  5, *decrypted, 15); // from
-	memcpy(headbox_clear + 20, *decrypted + 15, 15); // to
+	memcpy(headbox_clear +  5, fromAddr32, 15);
+	memcpy(headbox_clear + 20, toAddr32,   15);
 
 	unsigned char headBox[AEM_HEADBOX_SIZE + crypto_box_SEALBYTES];
-	crypto_box_seal(headBox, headbox_clear, AEM_HEADBOX_SIZE, (unsigned char*)*decrypted + 30);
+	crypto_box_seal(headBox, headbox_clear, AEM_HEADBOX_SIZE, toPubkey);
 	sodium_memzero(headbox_clear, AEM_HEADBOX_SIZE);
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenBodyBox;
@@ -480,12 +505,13 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (boxSet == NULL) {sodium_free(*decrypted); return;}
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
-	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, *decrypted + 30 + crypto_box_PUBLICKEYBYTES, lenBodyBox);
+	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
 
 	// Store
 	const int sock = storageSocket((unsigned char*)*decrypted + 30, kib);
 	if (sock < 0) {
 		sodium_free(*decrypted);
+		free(boxSet);
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
 		return;
 	}
