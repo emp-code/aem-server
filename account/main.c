@@ -166,6 +166,18 @@ static int loadUser(void) {
 	return 0;
 }
 
+static int hashToUserNum(const unsigned char * const hash) {
+	for (int userNum = 0; userNum < userCount; userNum++) {
+		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
+			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) {
+				return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_ACCEXT) > 0) ? userNum : -1;
+			}
+		}
+	}
+
+	return -1;
+}
+
 __attribute__((warn_unused_result))
 static int addressToHash(unsigned char * const target, const unsigned char * const source, const bool shield) {
 	if (target == NULL || source == NULL) return -1;
@@ -378,6 +390,19 @@ static void api_address_delete(const int sock, const int num) {
 	saveUser();
 }
 
+static void api_address_lookup(const int sock, const int num) {
+	unsigned char addr[16];
+	if (recv(sock, addr, 16, 0) != 16) return;
+
+	unsigned char hash[13];
+	if (addressToHash(hash, addr + 1, addr[0] == 'S') != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+
+	const int userNum = hashToUserNum(hash);
+	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
+
+	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+}
+
 static void api_address_update(const int sock, const int num) {
 	unsigned char buf[8192];
 	const ssize_t len = recv(sock, buf, 8192, 0);
@@ -425,18 +450,6 @@ static void api_setting_limits(const int sock, const int num) {
 	memcpy(limits, buf, 12);
 
 //	saveSettings(); // TODO
-}
-
-static int hashToUserNum(const unsigned char * const hash) {
-	for (int userNum = 0; userNum < userCount; userNum++) {
-		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
-			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) {
-				return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_ACCEXT) > 0) ? userNum : -1;
-			}
-		}
-	}
-
-	return -1;
 }
 
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
@@ -490,6 +503,7 @@ static int takeConnections(void) {
 
 				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 				case AEM_API_ADDRESS_DELETE: api_address_delete(sockClient, num); break;
+				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient, num); break;
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;

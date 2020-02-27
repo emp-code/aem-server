@@ -67,7 +67,7 @@ function addMessages() {
 
 		if (tsInt === 0 && tsExt === 0) break;
 
-		if (tsInt != 0 && tsInt < tsExt) {
+		if (tsInt != 0 && (tsExt == 0 || tsExt > tsInt)) {
 			if (i < (page * 20)) {
 				numInt++;
 				continue;
@@ -75,7 +75,7 @@ function addMessages() {
 
 			addIntMessage(numInt);
 			numInt++;
-		} else {
+		} else if (tsExt != 0) {
 			if (i < (page * 20)) {
 				numExt++;
 				continue;
@@ -803,13 +803,21 @@ document.getElementById("btn_send").onclick = function() {
 
 	if (!stitle.reportValidity() || !sto.reportValidity() || !sbody.reportValidity()) return;
 
-	ae.Send(scopy.checked, sfrom.value, sto.value, stitle.value, sbody.value, function(success) {
-		if (success) {
-			stitle.value = "";
-			sto.value = "";
-			sbody.value = "";
+	ae.Address_Lookup(sto.value, function(to_pubkey) {
+		if (to_pubkey) {
+			console.log("Lookup ok, trying to send");
+
+			ae.Message_Create(stitle.value, sbody.value, sfrom.value, sto.value, to_pubkey, function(success) {
+				if (success) {
+					stitle.value = "";
+					sto.value = "";
+					sbody.value = "";
+				} else {
+					console.log("Failed sending message");
+				}
+			});
 		} else {
-			console.log("Failed to send message");
+			console.log("Failed looking up address");
 		}
 	});
 };

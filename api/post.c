@@ -16,6 +16,7 @@
 
 #include "../Global.h"
 
+#include "Include/Addr32.h"
 #include "Include/https_common.h"
 
 #include "post.h"
@@ -373,6 +374,46 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	if (lenDecrypted > 99) {sodium_free(*decrypted); return;}
+
+	if (memchr(*decrypted, '@', lenDecrypted) != NULL) {
+		// TODO: Email lookup
+		sodium_free(*decrypted);
+		return;
+	}
+
+	unsigned char addr[16];
+	addr[0] = (lenDecrypted == 24) ? 'S' : 'N';
+	addr32_store(addr + 1, *decrypted, lenDecrypted);
+	sodium_free(*decrypted);
+
+	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_LOOKUP);
+	if (sock < 0) return;
+
+	unsigned char addr_pk[32];
+	if (send(sock, addr, 16, 0) != 16) {close(sock); return;}
+	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); return;}
+	close(sock);
+
+	unsigned char data[257];
+	memcpy(data,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Expect-CT: enforce; max-age=99999999\r\n"
+		"Cache-Control: no-store\r\n"
+		"Connection: close\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 225);
+
+	memcpy(data + 225, addr_pk, 32);
+
+	sendData(ssl, data, 257);
+}
+
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted % 14 != 0) {sodium_free(*decrypted); return;}
 
@@ -408,6 +449,52 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	close(sock);
 
 	if (sentBytes != (ssize_t)lenDecrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Storage");
+		return;
+	}
+
+	send204(ssl);
+}
+
+static void message_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
+	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) {sodium_free(*decrypted); return;}
+	const size_t kib = (lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) / 1024;
+	// TODO: Verify address belongs to pkey owner
+
+	const uint32_t ts = (uint32_t)time(NULL);
+	unsigned char infoByte = 0; // senderLevel & 3; // TODO: Use pubkey to get sender level
+
+	unsigned char headbox_clear[AEM_HEADBOX_SIZE];
+	headbox_clear[0] = infoByte;
+	memcpy(headbox_clear +  1, &ts, 4);
+	memcpy(headbox_clear +  5, *decrypted, 15); // from
+	memcpy(headbox_clear + 20, *decrypted + 15, 15); // to
+
+	unsigned char headBox[AEM_HEADBOX_SIZE + crypto_box_SEALBYTES];
+	crypto_box_seal(headBox, headbox_clear, AEM_HEADBOX_SIZE, (unsigned char*)*decrypted + 30);
+	sodium_memzero(headbox_clear, AEM_HEADBOX_SIZE);
+
+	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenBodyBox;
+	unsigned char * const boxSet = malloc(bsLen);
+	if (boxSet == NULL) {sodium_free(*decrypted); return;}
+
+	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
+	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, *decrypted + 30 + crypto_box_PUBLICKEYBYTES, lenBodyBox);
+
+	// Store
+	const int sock = storageSocket((unsigned char*)*decrypted + 30, kib);
+	if (sock < 0) {
+		sodium_free(*decrypted);
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
+		return;
+	}
+
+	const ssize_t sentBytes = send(sock, boxSet, kib * 1024, 0);
+	free(boxSet);
+	close(sock);
+
+	if (sentBytes != (ssize_t)(kib * 1024)) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Storage");
 		return;
 	}
@@ -525,10 +612,11 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 
 	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "address/lookup", 14) == 0) return address_lookup(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
-//	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);

@@ -78,10 +78,10 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		this.body = body;
 	}
 
-	function _NewIntMsg(id, isSent, sml, ts, from, to, title, body) {
+	function _NewIntMsg(id, isSent, senderLevel, ts, from, to, title, body) {
 		this.id = id;
 		this.isSent = isSent;
-		this.senderMemberLevel = sml;
+		this.senderLevel = senderLevel;
 		this.ts = ts;
 		this.from = from;
 		this.to = to;
@@ -621,10 +621,10 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 					const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
 					const msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);
 					const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
-					const padAmount = new Uint16Array(msgBodyFull.slice(lenBody - 2, lenBody).buffer)[0];
-					const msgBody = msgBodyFull.slice(0, lenBody - padAmount - 2);
+					const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
+					const msgBody = msgBodyFull.slice(2, lenBody - padAmount);
 
-					if ((msgHead[0] & 1) === 1) { // ExtMsg
+					if ((msgHead[0] & 128) > 0) { // ExtMsg
 						const em_infobyte = msgHead[0];
 						const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
 						const em_ip = msgHead.slice(5, 9);
@@ -656,7 +656,17 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
 					} else {
-						console.log("TODO: IntMsg");
+						const im_senderLevel = msgHead[0] & 3;
+						const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
+						const im_from = _addr32_decode(msgHead.slice(5, 20));
+						const im_to = _addr32_decode(msgHead.slice(20));
+
+						const msgBodyUtf8 = sodium.to_string(msgBody);
+						const firstLf = msgBodyUtf8.indexOf('\n');
+						const im_title = msgBodyUtf8.slice(0, firstLf);
+						const im_body = msgBodyUtf8.slice(firstLf);
+
+						_intMsg.push(new _NewIntMsg(msgId, false, im_senderLevel, im_ts, im_from, im_to, im_title, im_body));
 					}
 				} catch(e) {
 					// Assume ComboBox
@@ -791,6 +801,12 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		});
 	};
 
+	this.Address_Lookup = function(addr, callback) {
+		_FetchEncrypted("address/lookup", sodium.from_string(addr), function(fetchOk, addr_pk) {
+			callback(fetchOk? addr_pk : null);
+		});
+	};
+
 	this.Address_Update = function(callback) {
 		const data = new Uint8Array(_userAddress.length * 14);
 
@@ -860,6 +876,49 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 			callback(true);
 		});
+	}
+
+	this.Message_Create = function(title, body, addr_from, addr_to, to_pubkey, callback) {
+		if (typeof(title) !== "string" || typeof(body) !== "string" || typeof(addr_from) !== "string" || typeof(addr_to) !== "string" || to_pubkey.constructor !== Uint8Array || to_pubkey.length !== sodium.crypto_box_PUBLICKEYBYTES) {callback(false); return;}
+		/*
+			BodyBox
+				[2B uint16_t] Amount of padding
+				[-- char*] Title
+				[1B char] Linebreak (\n)
+				[-- char*] Message body
+		*/
+
+		const msg = sodium.from_string(title + '\n' + body);
+		// TODO: Check length
+
+		const lenData = 2 + msg.length + sodium.crypto_box_SEALBYTES;
+		const lenBoxSet = lenData + _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES;
+		const lenPad = (lenBoxSet % 1024 === 0) ? 0 : 1024 - (lenBoxSet % 1024);
+
+		const u8data = new Uint8Array(lenData + lenPad - sodium.crypto_box_SEALBYTES);
+
+		const u16pad = new Uint16Array([lenPad]);
+		const u8pad = new Uint8Array(u16pad.buffer);
+
+		u8data.set(u8pad);
+		u8data.set(msg, 2);
+
+		const bodyBox = sodium.crypto_box_seal(u8data, to_pubkey);
+
+		const u8final = new Uint8Array(bodyBox.length + 30 + sodium.crypto_box_PUBLICKEYBYTES);
+
+		const addr32_from = _addr32_encode(addr_from);
+		if (addr32_from === null) {callback(false); return;}
+
+		const addr32_to = _addr32_encode(addr_to);
+		if (addr32_to === null) {callback(false); return;}
+
+		u8final.set(addr32_from);
+		u8final.set(addr32_to, 15);
+		u8final.set(to_pubkey, 30);
+		u8final.set(bodyBox, 30 + sodium.crypto_box_PUBLICKEYBYTES);
+
+		_FetchEncrypted("message/create", u8final, function(fetchOk) {callback(fetchOk);});
 	}
 
 	this.Message_Delete = function(hexIds, callback) {
