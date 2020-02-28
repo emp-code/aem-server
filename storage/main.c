@@ -395,8 +395,9 @@ void takeConnections(void) {
 					for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
 						AES_ECB_decrypt(&aes, buf + i * 16);
 
-					if (send(sock, buf, len, 0) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
-					recv(sock, buf, 1, 0);
+					unsigned char kibByte = kib;
+					if (send(sock, &kibByte, 1, MSG_MORE) != 1) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
+					if (send(sock, buf, len, MSG_MORE) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
 				}
 
 				close(rfd);

@@ -22,7 +22,7 @@
 
 #include "post.h"
 
-#define AEM_LEN_BROWSEDATA 1048576 // 1 MiB. Size of /api/account/browse response. TODO: Make this configurable
+#define AEM_LEN_BROWSEDATA 1048576 // 1 MiB. Size of /api/account/browse response.
 
 #define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
@@ -152,64 +152,45 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	char headers[300];
-	sprintf(headers,
+	unsigned char response[AEM_LEN_BROWSEDATA];
+	bzero(response, AEM_LEN_BROWSEDATA);
+
+	memcpy(response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Connection: close\r\n"
 		"Cache-Control: no-store\r\n"
-		"Content-Length: %d\r\n"
+		"Content-Length: 1048346\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, AEM_LEN_BROWSEDATA);
-
-	const size_t lenHead = strlen(headers);
-	const size_t lenResponse = lenHead + AEM_LEN_BROWSEDATA;
-	unsigned char response[lenResponse];
-	bzero(response, lenResponse);
-
-	memcpy(response, headers, lenHead);
-	size_t offset = lenHead;
+	, 230);
 
 	int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
 	if (sock < 0) return;
 
-	const ssize_t lenAcc = recv(sock, response + offset, AEM_LEN_BROWSEDATA, 0);
+	const ssize_t lenAcc = recv(sock, response + 230, AEM_LEN_BROWSEDATA - 230, 0);
 	close(sock);
 
 	if (lenAcc < 15) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
-		sodium_memzero(response, lenResponse);
+		sodium_memzero(response, AEM_LEN_BROWSEDATA);
 		return;
 	}
-
-	offset += lenAcc;
 
 	// Messages
 	if ((sock = storageSocket(pubkey, UINT8_MAX)) < 1) {
 		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
-		sodium_memzero(response, lenResponse);
+		sodium_memzero(response, AEM_LEN_BROWSEDATA);
 		return;
 	}
 
-	while(1) {
-		unsigned char buf[131072];
-		const ssize_t r = recv(sock, buf, 131072, 0);
-		if (r < 1 || r % 1024 != 0) break;
-
-		response[offset] = (r / 1024);
-		offset++;
-		memcpy(response + offset, buf, r);
-		offset += r;
-
-		send(sock, buf, 1, 0);
-	}
-
+	recv(sock, response + 230 + lenAcc, AEM_LEN_BROWSEDATA - 230 - lenAcc, MSG_WAITALL);
 	close(sock);
-	sendData(ssl, response, lenResponse);
-	sodium_memzero(response, lenResponse);
+
+	sendData(ssl, response, AEM_LEN_BROWSEDATA);
+	sodium_memzero(response, AEM_LEN_BROWSEDATA);
 }
 
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
