@@ -124,7 +124,7 @@ function addExtMessage(i) {
 	divTo.textContent = ae.GetExtMsgTo(i);
 	divTo.className = (ae.GetExtMsgTo(i).length === 24) ? "mono" : "";
 
-	divDel.innerHTML = "<input class=\"delExt\" type=\"checkbox\" data-id=\"" + ae.GetExtMsgIdHex(i) + "\">";
+	divDel.innerHTML = "<input class=\"delMsg\" type=\"checkbox\" data-id=\"" + ae.GetExtMsgIdHex(i) + "\">";
 
 	elmt.appendChild(divTime);
 	elmt.appendChild(divSubj);
@@ -212,7 +212,7 @@ function addIntMessage(i) {
 	divTo.className = (ae.GetIntMsgTo(i).length === 24) ? "mono" : "";
 	divFrom1.className = (ae.GetIntMsgFrom(i).length === 24) ? "mono" : "";
 
-	divDel.innerHTML = "<input type=\"checkbox\" data-id=\"" + ae.GetIntMsgIdHex(i) + "\">";
+	divDel.innerHTML = "<input class=\"delMsg\" type=\"checkbox\" data-id=\"" + ae.GetIntMsgIdHex(i) + "\">";
 
 	elmt.appendChild(divTime);
 	elmt.appendChild(divSubj);
@@ -505,7 +505,7 @@ function clearMessages() {
 }
 
 function delMsgs(tblName, btnName) {
-	const cbs = document.getElementsByClassName("delExt");
+	const cbs = document.getElementsByClassName("delMsg");
 	const ids = [];
 
 	for (let i = 0; i < cbs.length; i++) {
