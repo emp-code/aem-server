@@ -69,7 +69,7 @@ function addMessages() {
 
 		if (tsInt === 0 && tsExt === 0) break;
 
-		if (tsInt != 0 && (tsExt == 0 || tsExt > tsInt)) {
+		if (tsInt != 0 && (tsExt == 0 || tsInt > tsExt)) {
 			if (i < (page * 20)) {
 				numInt++;
 				continue;
