@@ -61,12 +61,8 @@ function addMessages() {
 	//TODO handle sent messages separately
 
 	for (let i = 0; i < (page * 20) + 20; i++) {
-		let tsInt = 0;
-		let tsExt = 0;
-
-		if (numInt < maxInt) tsInt = ae.GetIntMsgTime(numInt);
-		if (numExt < maxExt) tsExt = ae.GetExtMsgTime(numExt);
-
+		const tsInt = (numInt < maxInt) ? ae.GetIntMsgTime(numInt) : 0;
+		const tsExt = (numExt < maxExt) ? ae.GetExtMsgTime(numExt) : 0;
 		if (tsInt === 0 && tsExt === 0) break;
 
 		if (tsInt != 0 && (tsExt == 0 || tsInt > tsExt)) {
