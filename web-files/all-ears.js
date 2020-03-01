@@ -232,6 +232,21 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		return count;
 	};
 
+	const _arraysEqual = function(a, b) {
+		return a.every((el, ix) => el === b[ix]);
+	};
+
+	const _MsgExists = function(id) {
+		let found = false;
+
+		_extMsg.forEach(function(msg)   {if (_arraysEqual(msg.id, id)) found = true;}); if (found) return true;
+		_intMsg.forEach(function(msg)   {if (_arraysEqual(msg.id, id)) found = true;}); if (found) return true;
+		_textNote.forEach(function(msg) {if (_arraysEqual(msg.id, id)) found = true;}); if (found) return true;
+		_fileNote.forEach(function(msg) {if (_arraysEqual(msg.id, id)) found = true;}); if (found) return true;
+
+		return false;
+	};
+
 	const _GetCiphersuite = function(cs) {
 		if (typeof(cs) !== "number") return "(Error reading ciphersuite value)";
 
@@ -797,6 +812,11 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				// Message ID: Every 64th byte of first kilo of encrypted data
 				const msgId = new Uint8Array(16);
 				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
+
+				if (_MsgExists(msgId)) {
+					offset += (kib * 1024);
+					continue;
+				}
 
 				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
 				let msgHead;
