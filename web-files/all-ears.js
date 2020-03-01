@@ -926,6 +926,11 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				offset += (kib * 1024);
 			}
 
+			_extMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1)
+			_intMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1)
+			_fileNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1)
+			_textNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1)
+
 			callback(true);
 		});
 	}
