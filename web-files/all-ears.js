@@ -601,126 +601,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				}
 			}
 
-			// Messages
-			while (offset < browseData.length) {
-				const kib = browseData[offset];
-				if (kib == 0) break;
-				offset++;
-
-				const msgData = browseData.slice(offset, offset + (kib * 1024));
-
-				// Message ID: Every 64th byte of first kilo of encrypted data
-				const msgId = new Uint8Array(16);
-				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
-
-				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
-				let msgHead;
-				let msgNorm = true;
-
-				try {msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);}
-				catch(e) {msgNorm = false;}
-
-				if (msgNorm) {
-					// BodyBox
-					const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
-
-					let msgBodyFull;
-					try {msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);}
-					catch(e) {
-						if ((msgHead[0] & 128) > 0) { // ExtMsg
-							_extMsg.push(new _NewExtMsg(msgId, Date.now() / 1000, null, 0, 0, null, 0, null, "system", "system", "(error)", null, "Decrypting BodyBox failed"));
-						} else {
-							_intMsg.push(new _NewIntMsg(msgId, false, 0, Date.now() / 1000, "system", "system", "(error)", "Decrypting BodyBox failed"));
-						}
-
-						console.log("Failed decrypting BodyBox");
-						break;
-					}
-
-					const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
-					const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
-					const msgBody = msgBodyFull.slice(2, lenBody - padAmount);
-
-					if ((msgHead[0] & 128) > 0) { // ExtMsg
-						const em_infobyte = msgHead[0];
-						const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-						const em_ip = msgHead.slice(5, 9);
-						const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
-						const em_tlsver = msgHead[11];
-						// msgHead[12] = SpamByte
-						const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
-						// 16-19 unused
-						const em_to = _addr32_decode(msgHead.slice(20), (em_infobyte & 4) == 4);
-
-						// Bodybox
-						const msgBodyBrI8 = new Int8Array(msgBody);
-						const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
-						const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
-
-						const firstLf = msgBodyUtf8.indexOf('\n');
-						const em_greet = msgBodyUtf8.slice(0, firstLf);
-						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
-						const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
-						const body = msgBodyUtf8.slice(secondLf);
-
-						const titleStart = body.indexOf("\nSubject: ");
-						const titleEnd = (titleStart < 0) ? -1 : body.slice(titleStart + 10).indexOf("\n");
-						const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
-
-						const headersEnd = body.indexOf("\n\n");
-						const em_headers = body.slice(1, headersEnd);
-						const em_body = body.slice(headersEnd + 2);
-
-						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
-					} else {
-						const im_senderLevel = msgHead[0] & 3;
-						const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
-						const im_from = _addr32_decode(msgHead.slice(5, 20));
-						const im_to = _addr32_decode(msgHead.slice(20));
-
-						const msgBodyUtf8 = sodium.to_string(msgBody);
-						const firstLf = msgBodyUtf8.indexOf('\n');
-						const im_title = msgBodyUtf8.slice(0, firstLf);
-						const im_body = msgBodyUtf8.slice(firstLf);
-
-						_intMsg.push(new _NewIntMsg(msgId, false, im_senderLevel, im_ts, im_from, im_to, im_title, im_body));
-					}
-				} else {
-					// Assume ComboBox
-					let comboBox;
-					try {comboBox = sodium.crypto_box_seal_open(msgData, _userKeyPublic, _userKeySecret);}
-					catch(e) {
-						console.log("Failed decrypting ComboBox");
-						break;
-					}
-
-					/* ComboBox
-						[4B uint32] Timestamp
-						[2B uint16] Info
-							32768-2048: Title/Filename length (5 bits, 1-32)
-							1024: Type (On=File, Off=Text)
-							512-1: Amount of padding (10 bits, 0-1023)
-						[1-32B uint8] Title/Filename
-						[-- uint8] Message data
-					*/
-
-					const note_ts = new Uint32Array(comboBox.slice(0, 4).buffer)[0];
-					const note_info = new Uint16Array(comboBox.slice(4, 6).buffer)[0];
-
-					const note_isFile = (note_info & 1024) > 0;
-					const note_title_len = ((note_info & 63488) >> 11) + 1; // 0=1, etc
-					const note_title = sodium.to_string(comboBox.slice(6, 6 + note_title_len));
-					const note_body = comboBox.slice(6 + note_title_len);
-
-					if (note_isFile)
-						_fileNote.push(new _NewNote(msgId, note_ts, note_title, note_body));
-					else
-						_textNote.push(new _NewNote(msgId, note_ts, note_title, sodium.to_string(note_body)));
-				}
-
-				offset += (kib * 1024);
-			}
-
 			callback(true);
 		});
 	};
@@ -895,6 +775,136 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				_fileNote.push(new _NewNote(msgId, Date.now() / 1000, title, body));
 			else
 				_textNote.push(new _NewNote(msgId, Date.now() / 1000, title, sodium.to_string(body)));
+
+			callback(true);
+		});
+	}
+
+	this.Message_Browse = function(page, callback) {
+		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
+
+		_FetchEncrypted("message/browse", new Uint8Array([page]), function(fetchOk, browseData) {
+			if (!fetchOk) {callback(false); return;}
+
+			let offset = 128;
+
+			for (let msgNum = 0; msgNum < 128; msgNum++) {
+				const kib = browseData[msgNum];
+				if (kib == 0) break;
+
+				const msgData = browseData.slice(offset, offset + (kib * 1024));
+
+				// Message ID: Every 64th byte of first kilo of encrypted data
+				const msgId = new Uint8Array(16);
+				for (let i = 0; i < 16; i++) msgId[i] = msgData[i * 64];
+
+				const msgHeadBox = msgData.slice(0, _AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES);
+				let msgHead;
+				let msgNorm = true;
+
+				try {msgHead = sodium.crypto_box_seal_open(msgHeadBox, _userKeyPublic, _userKeySecret);}
+				catch(e) {msgNorm = false;}
+
+				if (msgNorm) {
+					// BodyBox
+					const msgBodyBox = msgData.slice(_AEM_BYTES_HEADBOX + sodium.crypto_box_SEALBYTES, 1024 * kib);
+
+					let msgBodyFull;
+					try {msgBodyFull = sodium.crypto_box_seal_open(msgBodyBox, _userKeyPublic, _userKeySecret);}
+					catch(e) {
+						if ((msgHead[0] & 128) > 0) { // ExtMsg
+							_extMsg.push(new _NewExtMsg(msgId, Date.now() / 1000, null, 0, 0, null, 0, null, "system", "system", "(error)", null, "Decrypting BodyBox failed"));
+						} else {
+							_intMsg.push(new _NewIntMsg(msgId, false, 0, Date.now() / 1000, "system", "system", "(error)", "Decrypting BodyBox failed"));
+						}
+
+						console.log("Failed decrypting BodyBox");
+						break;
+					}
+
+					const lenBody = (1024 * kib) - _AEM_BYTES_HEADBOX - sodium.crypto_box_SEALBYTES - sodium.crypto_box_SEALBYTES;
+					const padAmount = new Uint16Array(msgBodyFull.slice(0, 2).buffer)[0];
+					const msgBody = msgBodyFull.slice(2, lenBody - padAmount);
+
+					if ((msgHead[0] & 128) > 0) { // ExtMsg
+						const em_infobyte = msgHead[0];
+						const em_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
+						const em_ip = msgHead.slice(5, 9);
+						const em_cs = new Uint16Array(msgHead.slice(9, 11).buffer)[0];
+						const em_tlsver = msgHead[11];
+						// msgHead[12] = SpamByte
+						const em_countrycode = new TextDecoder("utf-8").decode(msgHead.slice(13, 15));
+						// 16-19 unused
+						const em_to = _addr32_decode(msgHead.slice(20), (em_infobyte & 4) == 4);
+
+						// Bodybox
+						const msgBodyBrI8 = new Int8Array(msgBody);
+						const msgBodyText = new Uint8Array(window.BrotliDecode(msgBodyBrI8));
+						const msgBodyUtf8 = new TextDecoder("utf-8").decode(msgBodyText);
+
+						const firstLf = msgBodyUtf8.indexOf('\n');
+						const em_greet = msgBodyUtf8.slice(0, firstLf);
+						const secondLf = msgBodyUtf8.slice(firstLf + 1).indexOf('\n') + firstLf + 1;
+						const em_from = msgBodyUtf8.slice(firstLf + 1, secondLf);
+						const body = msgBodyUtf8.slice(secondLf);
+
+						const titleStart = body.indexOf("\nSubject: ");
+						const titleEnd = (titleStart < 0) ? -1 : body.slice(titleStart + 10).indexOf("\n");
+						const em_title = (titleStart < 0) ? "(Missing title)" : body.substr(titleStart + 10, titleEnd);
+
+						const headersEnd = body.indexOf("\n\n");
+						const em_headers = body.slice(1, headersEnd);
+						const em_body = body.slice(headersEnd + 2);
+
+						_extMsg.push(new _NewExtMsg(msgId, em_ts, em_ip, em_cs, em_tlsver, em_greet, em_infobyte, em_countrycode, em_from, em_to, em_title, em_headers, em_body));
+					} else {
+						const im_senderLevel = msgHead[0] & 3;
+						const im_ts = new Uint32Array(msgHead.slice(1, 5).buffer)[0];
+						const im_from = _addr32_decode(msgHead.slice(5, 20));
+						const im_to = _addr32_decode(msgHead.slice(20));
+
+						const msgBodyUtf8 = sodium.to_string(msgBody);
+						const firstLf = msgBodyUtf8.indexOf('\n');
+						const im_title = msgBodyUtf8.slice(0, firstLf);
+						const im_body = msgBodyUtf8.slice(firstLf);
+
+						_intMsg.push(new _NewIntMsg(msgId, false, im_senderLevel, im_ts, im_from, im_to, im_title, im_body));
+					}
+				} else {
+					// Assume ComboBox
+					let comboBox;
+					try {comboBox = sodium.crypto_box_seal_open(msgData, _userKeyPublic, _userKeySecret);}
+					catch(e) {
+						console.log("Failed decrypting ComboBox");
+						break;
+					}
+
+					/* ComboBox
+						[4B uint32] Timestamp
+						[2B uint16] Info
+							32768-2048: Title/Filename length (5 bits, 1-32)
+							1024: Type (On=File, Off=Text)
+							512-1: Amount of padding (10 bits, 0-1023)
+						[1-32B uint8] Title/Filename
+						[-- uint8] Message data
+					*/
+
+					const note_ts = new Uint32Array(comboBox.slice(0, 4).buffer)[0];
+					const note_info = new Uint16Array(comboBox.slice(4, 6).buffer)[0];
+
+					const note_isFile = (note_info & 1024) > 0;
+					const note_title_len = ((note_info & 63488) >> 11) + 1; // 0=1, etc
+					const note_title = sodium.to_string(comboBox.slice(6, 6 + note_title_len));
+					const note_body = comboBox.slice(6 + note_title_len);
+
+					if (note_isFile)
+						_fileNote.push(new _NewNote(msgId, note_ts, note_title, note_body));
+					else
+						_textNote.push(new _NewNote(msgId, note_ts, note_title, sodium.to_string(note_body)));
+				}
+
+				offset += (kib * 1024);
+			}
 
 			callback(true);
 		});
