@@ -381,24 +381,41 @@ void takeConnections(void) {
 					continue;
 				}
 
+				unsigned char msgData[131200]; // 128 bytes + 128 KiB
+				bzero(msgData, 131200);
+
+				int msgNum = 0;
+				int msgKib = 0;
+
 				for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
 					const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
+					if (msgKib + kib > 128) break;
+
 					const ssize_t len = kib * AEM_BLOCKSIZE;
 					const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
 
-					unsigned char buf[len];
-					if (pread(rfd, buf, len, pos) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); close(rfd); break;}
+					const size_t msgPos = 128 + (msgKib * 1024);
+
+					if (pread(rfd, msgData + msgPos, len, pos) != len) {
+						syslog(LOG_MAIL | LOG_ERR, "Failed read");
+						close(rfd);
+						break;
+					}
 
 					struct AES_ctx aes;
 					AES_init_ctx(&aes, storageKey);
 
 					for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
-						AES_ECB_decrypt(&aes, buf + i * 16);
+						AES_ECB_decrypt(&aes, msgData + msgPos + (i * 16));
 
-					unsigned char kibByte = kib;
-					if (send(sock, &kibByte, 1, MSG_MORE) != 1) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
-					if (send(sock, buf, len, MSG_MORE) != len) {syslog(LOG_MAIL | LOG_NOTICE, "Failed send"); close(rfd); break;}
+					msgData[msgNum] = kib;
+
+					msgKib += kib;
+					msgNum++;
+					if (msgNum > 127) break;
 				}
+
+				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_MAIL | LOG_WARNING, "Failed send"); close(rfd); break;}
 
 				close(rfd);
 			}

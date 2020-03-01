@@ -22,8 +22,6 @@
 
 #include "post.h"
 
-#define AEM_LEN_BROWSEDATA 1048576 // 1 MiB. Size of /api/account/browse response.
-
 #define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
@@ -152,45 +150,27 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	unsigned char response[AEM_LEN_BROWSEDATA];
-	bzero(response, AEM_LEN_BROWSEDATA);
+	unsigned char response[252 + 131200];
 
 	memcpy(response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Connection: close\r\n"
-		"Cache-Control: no-store\r\n"
-		"Content-Length: 1048346\r\n"
+		"Content-Length: 131200\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Connection: close\r\n"
 		"\r\n"
-	, 230);
+	, 252);
 
-	int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
+	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
 	if (sock < 0) return;
-
-	const ssize_t lenAcc = recv(sock, response + 230, AEM_LEN_BROWSEDATA - 230, 0);
+	recv(sock, response + 252, 131200, MSG_WAITALL);
 	close(sock);
 
-	if (lenAcc < 15) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed communicating with Account");
-		sodium_memzero(response, AEM_LEN_BROWSEDATA);
-		return;
-	}
-
-	// Messages
-	if ((sock = storageSocket(pubkey, UINT8_MAX)) < 1) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
-		sodium_memzero(response, AEM_LEN_BROWSEDATA);
-		return;
-	}
-
-	recv(sock, response + 230 + lenAcc, AEM_LEN_BROWSEDATA - 230 - lenAcc, MSG_WAITALL);
-	close(sock);
-
-	sendData(ssl, response, AEM_LEN_BROWSEDATA);
-	sodium_memzero(response, AEM_LEN_BROWSEDATA);
+	sendData(ssl, response, 252 + 131200);
+	sodium_memzero(response + 252, 131200);
 }
 
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -441,6 +421,33 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	send204(ssl);
 }
 
+static void message_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	sodium_free(*decrypted);
+	if (lenDecrypted != 1) return;
+
+	unsigned char response[252 + 131200]; // 131200 = 128 bytes + 128 KiB
+
+	memcpy(response,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 131200\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Connection: close\r\n"
+		"\r\n"
+	, 252);
+
+	const int sock = storageSocket(pubkey, UINT8_MAX);
+	if (sock < 0) return;
+	recv(sock, response + 252, 131200, MSG_WAITALL);
+	close(sock);
+
+	sendData(ssl, response, 252 + 131200);
+	sodium_memzero(response + 252, 131200);
+}
+
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
 	unsigned char addrData[16];
 	addrData[0] = shield? 'S' : 'N';
@@ -636,6 +643,7 @@ void https_post(mbedtls_ssl_context * const ssl, const char * const url, const u
 	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
 	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
+	if (memcmp(url, "message/browse", 14) == 0) return message_browse(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
 	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 

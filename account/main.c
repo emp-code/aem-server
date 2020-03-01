@@ -217,9 +217,9 @@ static int numAddresses(const int num, const bool shield) {
 
 static void api_account_browse(const int sock, const int num) {
 	const int addrCount = user[num].info >> 2;
-	const int maxUsers = ((user[num].info & 3) != 3) ? 0 : ((userCount > 1024) ? 1024 : userCount);
 
-	unsigned char response[14 + (addrCount * 14) + AEM_LEN_PRIVATE + (maxUsers * 35)];
+	unsigned char response[131200];
+	bzero(response, 131200);
 
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
@@ -228,32 +228,32 @@ static void api_account_browse(const int sock, const int num) {
 
 	response[12] = user[num].info & 3;
 	response[13] = addrCount;
-	int lenResponse = 14;
+	int len = 14;
 
 	for (int i = 0; i < addrCount; i++) {
-		memcpy(response + lenResponse, user[num].addrHash[i], 13);
-		response[lenResponse + 13] = user[num].addrFlag[i];
-		lenResponse += 14;
+		memcpy(response + len, user[num].addrHash[i], 13);
+		response[len + 13] = user[num].addrFlag[i];
+		len += 14;
 	}
 
-	memcpy(response + lenResponse, user[num].private, AEM_LEN_PRIVATE);
-	lenResponse += AEM_LEN_PRIVATE;
+	memcpy(response + len, user[num].private, AEM_LEN_PRIVATE);
+	len += AEM_LEN_PRIVATE;
 
 	if ((user[num].info & 3) == 3) {
-		const uint32_t numUsers = userCount;
-		memcpy(response + lenResponse, &numUsers, 4);
-		lenResponse += 4;
+		const uint32_t u32 = userCount;
+		memcpy(response + len, &u32, 4);
+		len += 4;
 
-		for (int i = 0; i < maxUsers; i++) {
-			response[lenResponse + 0] = user[i].info & 3;
-			response[lenResponse + 1] = numAddresses(i, false);
-			response[lenResponse + 2] = numAddresses(i, true);
-			memcpy(response + lenResponse + 3, user[i].pubkey, 32);
-			lenResponse += 35;
+		for (int i = 0; i < userCount; i++) {
+			response[len + 0] = user[i].info & 3;
+			response[len + 1] = numAddresses(i, false);
+			response[len + 2] = numAddresses(i, true);
+			memcpy(response + len + 3, user[i].pubkey, 32);
+			len += 35;
 		}
 	}
 
-	send(sock, response, lenResponse, 0);
+	send(sock, response, 131200, 0);
 }
 
 static void api_account_create(const int sock, const int num) {
