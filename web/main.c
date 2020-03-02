@@ -43,7 +43,7 @@ static bool terminate = false;
 static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
 		terminate = true;
-		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
+		syslog(LOG_MAIL | LOG_INFO, "Terminating after next connection");
 		return;
 	}
 
@@ -53,7 +53,7 @@ static void sigTerm(const int sig) {
 	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
 	sodium_free(tls_key);
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
 
@@ -133,7 +133,7 @@ __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
 	unsigned char buf[AEM_PIPE_BUFSIZE];
 	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
-	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_MAIL | LOG_NOTICE, "pipeRead(): %s", strerror(errno)); return -1;}
+	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_MAIL | LOG_ERR, "pipeRead(): %m"); return -1;}
 
 	*len = readBytes;
 	*target = sodium_malloc(*len);
@@ -153,13 +153,13 @@ static int pipeLoadTls(const int fd) {
 
 	mbedtls_x509_crt_init(&tlsCrt);
 	int ret = mbedtls_x509_crt_parse(&tlsCrt, tls_crt, len_tls_crt);
-	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_x509_crt_parse returned %d\n", ret); return -1;}
+	if (ret != 0) {syslog(LOG_MAIL | LOG_ERR, "mbedtls_x509_crt_parse returned %m"); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
 	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
-	if (ret != 0) {syslog(LOG_MAIL | LOG_NOTICE, "mbedtls_pk_parse_key returned %d\n", ret); return -1;}
+	if (ret != 0) {syslog(LOG_MAIL | LOG_ERR, "mbedtls_pk_parse_key returned %m"); return -1;}
 
-	if (getDomainFromCert() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed to get domain from certificate"); return -1;}
+	if (getDomainFromCert() != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed to get domain from certificate"); return -1;}
 
 	return 0;
 }
@@ -194,21 +194,21 @@ static void setSocketTimeout(const int sock) {
 static void quit(void) {
 	sodium_free(tls_crt);
 	sodium_free(tls_key);
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating");
 	exit(EXIT_SUCCESS);
 }
 
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
-	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
+	if (sock < 0) {syslog(LOG_MAIL | LOG_ERR, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
+	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed initSocket"); close(sock); exit(EXIT_FAILURE);}
+	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+	syslog(LOG_MAIL | LOG_INFO, "Ready");
 
 	while (!terminate) {
 		const int newSock = accept(sock, NULL, NULL);
-		if (newSock < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed accepting connection"); break;}
+		if (newSock < 0) {syslog(LOG_MAIL | LOG_WARNING, "Failed accepting connection"); break;}
 		setSocketTimeout(newSock);
 		respond_https(newSock);
 		close(newSock);
@@ -235,14 +235,14 @@ static int setSignals(void) {
 int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "C");
 
-	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
-	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setCaps(true) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
-	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
+	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setCaps(true) != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
-	if (pipeLoadTls(argv[0][0])   < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
-	if (pipeLoadFiles(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading files"); return EXIT_FAILURE;}
+	if (pipeLoadTls(argv[0][0])   < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
+	if (pipeLoadFiles(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading files"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
 	atexit(quit);

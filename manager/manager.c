@@ -334,7 +334,7 @@ static int setCaps(const int type) {
 
 		// Disable and lock further ambient caps
 		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed to set SecureBits");
+			syslog(LOG_MAIL | LOG_ERR, "Failed to set SecureBits");
 			return -1;
 		}
 
@@ -357,7 +357,7 @@ static int setCaps(const int type) {
 		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
 
 		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed to set SecureBits");
+			syslog(LOG_MAIL | LOG_ERR, "Failed to set SecureBits");
 			return -1;
 		}
 
@@ -434,15 +434,15 @@ static void process_spawn(const int type) {
 		pid = getpid();
 
 		if (close(fd[1]) != 0 || ((type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) && (close(sockClient) != 0 || close(sockMain) != 0))) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed closing fds");
+			syslog(LOG_MAIL | LOG_ERR, "Failed closing fds");
 			exit(EXIT_FAILURE);
 		}
 
-		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed prctl()"); exit(EXIT_FAILURE);}
-		if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed createMount()"); exit(EXIT_FAILURE);}
-		if (setSubLimits(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
-		if (dropRoot(pid) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed dropRoot()"); exit(EXIT_FAILURE);}
-		if (setCaps(type) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed setCaps()"); exit(EXIT_FAILURE);}
+		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
+		if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
+		if (setSubLimits(type) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
+		if (dropRoot(pid) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
+		if (setCaps(type) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
 		char arg1[] = {fd[0], '\0'};
 		char * const newargv[] = {arg1, NULL};
@@ -456,7 +456,7 @@ static void process_spawn(const int type) {
 		}
 
 		// Only runs if exec failed
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed to start process");
+		syslog(LOG_MAIL | LOG_ERR, "Failed to start process");
 		exit(EXIT_FAILURE);
 	}
 
@@ -473,7 +473,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
-			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+			) syslog(LOG_MAIL | LOG_ERR, "Failed to write to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
@@ -483,7 +483,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
-			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+			) syslog(LOG_MAIL | LOG_ERR, "Failed to write to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_API:
@@ -495,7 +495,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+			) syslog(LOG_MAIL | LOG_ERR, "Failed to write to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
@@ -505,7 +505,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+			) syslog(LOG_MAIL | LOG_ERR, "Failed to write to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_WEB:
@@ -517,7 +517,7 @@ static void process_spawn(const int type) {
 			|| pipeWriteDirect(fd[1], web_htm, len_web_htm) < 0
 			|| pipeWriteDirect(fd[1], web_jsa, len_web_jsa) < 0
 			|| pipeWriteDirect(fd[1], web_jsm, len_web_jsm) < 0
-			) syslog(LOG_MAIL | LOG_NOTICE, "Failed to write to pipe: %s", strerror(errno));
+			) syslog(LOG_MAIL | LOG_ERR, "Failed to write to pipe: %m");
 		break;
 	}
 
@@ -532,7 +532,7 @@ static void process_spawn(const int type) {
 }
 
 static void process_kill(const int type, const pid_t pid, const int sig) {
-	syslog(LOG_MAIL | LOG_NOTICE, "Termination of process %d requested", pid);
+	syslog(LOG_MAIL | LOG_INFO, "Termination of process %d requested", pid);
 	if (type < 0 || type > 2 || pid < 1) return;
 
 	bool found = false;
@@ -543,8 +543,8 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 		}
 	}
 
-	if (!found) {syslog(LOG_MAIL | LOG_NOTICE, "Process %d was not found", pid); return;}
-	if (!process_verify(pid)) {syslog(LOG_MAIL | LOG_NOTICE, "Process %d not valid", pid); return;}
+	if (!found) {syslog(LOG_MAIL | LOG_INFO, "Process %d was not found", pid); return;}
+	if (!process_verify(pid)) {syslog(LOG_MAIL | LOG_INFO, "Process %d not valid", pid); return;}
 
 	kill(pid, sig);
 }

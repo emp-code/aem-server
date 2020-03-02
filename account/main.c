@@ -64,7 +64,7 @@ static bool terminate = false;
 static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
 		terminate = true;
-		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
+		syslog(LOG_MAIL | LOG_INFO, "Terminating after next connection");
 		return;
 	}
 
@@ -75,7 +75,7 @@ static void sigTerm(const int sig) {
 
 	free(user);
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
 
@@ -103,7 +103,7 @@ static int saveUser(void) {
 	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		free(encrypted);
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed to open Account.aem");
+		syslog(LOG_MAIL | LOG_ERR, "Failed to open Account.aem");
 		return -1;
 	}
 
@@ -352,7 +352,7 @@ static void api_address_create(const int sock, const int num) {
 	} else if (len == 13) {
 		if (memcmp(hash, hash_system, 13) == 0) return; // Forbid 'system' address
 	} else {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
+		syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from API");
 		return;
 	}
 
@@ -368,7 +368,7 @@ static void api_address_create(const int sock, const int num) {
 		if (
 		   send(sock, hash, 13, 0) != 13
 		|| send(sock, addr32, 15, 0) != 15
-		) syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to API");
+		) syslog(LOG_MAIL | LOG_ERR, "Failed sending data to API");
 
 		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else {
@@ -413,10 +413,10 @@ static void api_address_lookup(const int sock) {
 	const bool isShield = addr[0] == 'S';
 
 	unsigned char hash[13];
-	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed hashing address"); return;}
 
 	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (userNum < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
+	if (userNum < 0) {syslog(LOG_MAIL | LOG_DEBUG, "Hash not found"); return;}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
@@ -443,7 +443,7 @@ static void api_address_update(const int sock, const int num) {
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from API");
+		syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from API");
 		return;
 	}
 
@@ -477,11 +477,11 @@ static void api_internal_level(const int sock, const int num) {
 
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	unsigned char hash[13];
-	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Failed hashing address"); return;}
+	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed hashing address"); return;}
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Hash not found"); return;}
+	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {syslog(LOG_MAIL | LOG_DEBUG, "Hash not found"); return;}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
@@ -493,7 +493,7 @@ static int takeConnections(void) {
 
 	const int sockMain = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (bind(sockMain, (struct sockaddr*)&local, strlen(local.sun_path) + sizeof(local.sun_family)) != 0) {
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed binding to socket: %s", strerror(errno));
+		syslog(LOG_MAIL | LOG_ERR, "Failed binding to socket: %m");
 		return -1;
 	}
 
@@ -508,7 +508,7 @@ static int takeConnections(void) {
 
 		ssize_t reqLen = recv(sockClient, enc, encLen, 0);
 		if (reqLen < 1) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Invalid connection");
+			syslog(LOG_MAIL | LOG_WARNING, "Invalid connection");
 			close(sockClient);
 			continue;
 		}
@@ -554,7 +554,7 @@ static int takeConnections(void) {
 		}
 
 		close(sockClient);
-		syslog(LOG_MAIL | LOG_NOTICE, "Invalid request");
+		syslog(LOG_MAIL | LOG_WARNING, "Invalid request");
 	}
 
 	return 0;
@@ -584,24 +584,24 @@ static int setSignals(void) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
-	if (getuid()     == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setSignals() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init() < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
+	if (getuid()     == 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setSignals() != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
-	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
+	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
 	const unsigned char addr32_system[15] = AEM_ADDR32_SYSTEM;
-	if (addressToHash(hash_system, addr32_system, false) != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed hash"); return EXIT_FAILURE;}
+	if (addressToHash(hash_system, addr32_system, false) != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed hash"); return EXIT_FAILURE;}
 
-	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
+	if (loadUser() != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+	syslog(LOG_MAIL | LOG_INFO, "Ready");
 
 	takeConnections();
 	free(user);
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

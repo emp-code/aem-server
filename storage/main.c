@@ -46,14 +46,14 @@ static bool terminate = false;
 static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
 		terminate = true;
-		syslog(LOG_MAIL | LOG_NOTICE, "Terminating after next connection");
+		syslog(LOG_MAIL | LOG_INFO, "Terminating after next connection");
 		return;
 	}
 
 	sodium_memzero(stindexKey, 32);
 	sodium_memzero(storageKey, 32);
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating immediately");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
 
@@ -185,7 +185,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 		unsigned char buf[AEM_BLOCKSIZE];
 		const ssize_t readBytes = pread(fdMsg, buf, AEM_BLOCKSIZE, (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE);
 		if (readBytes != AEM_BLOCKSIZE) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Failed reading Storage.aem");
+			syslog(LOG_MAIL | LOG_ERR, "Failed reading Storage.aem");
 			return -1;
 		}
 
@@ -290,7 +290,11 @@ static int loadEmpty(void) {
 
 	for (int i = 0; i < (total / AEM_BLOCKSIZE); i++) {
 		unsigned char buf[AEM_BLOCKSIZE];
-		if (pread(fdMsg, buf, AEM_BLOCKSIZE, i * AEM_BLOCKSIZE) != AEM_BLOCKSIZE) {syslog(LOG_MAIL | LOG_NOTICE, "Failed read"); free(empty); return -1;}
+		if (pread(fdMsg, buf, AEM_BLOCKSIZE, i * AEM_BLOCKSIZE) != AEM_BLOCKSIZE) {
+			syslog(LOG_MAIL | LOG_ERR, "Failed read");
+			free(empty);
+			return -1;
+		}
 
 		bool isEmpty = true;
 		for (int j = 0; j < AEM_BLOCKSIZE; j++) {
@@ -354,7 +358,7 @@ void takeConnections(void) {
 					for (int i = 0; i < lenIds / 16; i++) {
 						storage_delete(clr + 1, ids + i * 16);
 					}
-				} else syslog(LOG_MAIL | LOG_NOTICE, "Invalid data received");
+				} else syslog(LOG_MAIL | LOG_ERR, "Invalid data received");
 			} else if (clr[0] <= 8) { // Store
 				const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
 				unsigned char * const msg = malloc(bytes);
@@ -363,7 +367,7 @@ void takeConnections(void) {
 				if (recv(sock, msg, bytes, 0) == bytes) {
 					storage_write(clr + 1, msg, clr[0]);
 					saveStindex();
-				} else syslog(LOG_MAIL | LOG_NOTICE, "Failed to receive data from API");
+				} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from API");
 			} else { // Browse
 				const int rfd = open("Storage.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 
@@ -415,7 +419,7 @@ void takeConnections(void) {
 					if (msgNum > 127) break;
 				}
 
-				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_MAIL | LOG_WARNING, "Failed send"); close(rfd); break;}
+				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_MAIL | LOG_ERR, "Failed send"); close(rfd); break;}
 
 				close(rfd);
 			}
@@ -427,7 +431,7 @@ void takeConnections(void) {
 			if (recv(sock, msg, bytes, 0) == bytes) {
 				storage_write(clr + 1, msg, clr[0]);
 				saveStindex();
-			} else syslog(LOG_MAIL | LOG_NOTICE, "Failed to receive data from MTA");
+			} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from MTA");
 		}
 
 		close(sock);
@@ -460,21 +464,21 @@ static int setSignals(void) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
-	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (argc > 1 || argv == NULL) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
+	if (getuid()      == 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setSignals()  != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init()  < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
-	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading data"); return EXIT_FAILURE;}
+	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	if (loadStindex() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
-	if ((fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}
-	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed loading Storage.aem"); return EXIT_FAILURE;}
+	if (loadStindex() != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
+	if ((fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}
+	if (loadEmpty() != 0) {syslog(LOG_MAIL | LOG_ERR, "Terminating: Failed loading Storage.aem"); return EXIT_FAILURE;}
 
-	syslog(LOG_MAIL | LOG_NOTICE, "Ready");
+	syslog(LOG_MAIL | LOG_INFO, "Ready");
 	takeConnections();
-	syslog(LOG_MAIL | LOG_NOTICE, "Terminating");
+	syslog(LOG_MAIL | LOG_INFO, "Terminating");
 	freeStindex();
 	free(empty);
 	return EXIT_SUCCESS;
