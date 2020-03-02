@@ -38,39 +38,61 @@ void setApiKey(const unsigned char * const newKey) {
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
-void https_pubkey(mbedtls_ssl_context * const ssl) {
-	unsigned char data[225 + crypto_box_PUBLICKEYBYTES];
+static bool keepAlive;
+void setKeepAlive(const bool ka) {keepAlive = ka;}
 
-	memcpy(data,
+void https_pubkey(mbedtls_ssl_context * const ssl) {
+	unsigned char data[256];
+
+	memcpy(data, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Connection: close\r\n"
-		"Cache-Control: no-store\r\n"
 		"Content-Length: 32\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"Pad: abcdefghijklmnopqrstuvwxyz0\r\n"
 		"\r\n"
-	, 225);
+	:
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Connection: close\r\n"
+		"Pad: abcdefgh\r\n"
+		"\r\n"
+	, 224);
 
-	crypto_scalarmult_base(data + 225, ssk);
+	crypto_scalarmult_base(data + 224, ssk);
 
-	sendData(ssl, data, 225 + crypto_box_PUBLICKEYBYTES);
+	sendData(ssl, data, 256);
 }
 
 static void send204(mbedtls_ssl_context * const ssl) {
-	sendData(ssl,
+	sendData(ssl, keepAlive?
 		"HTTP/1.1 204 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Connection: close\r\n"
-		"Cache-Control: no-store\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Ignore: padded-to-253-bytes\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Pad: abcdefghijklmnopqrstu\r\n"
 		"\r\n"
-	, 253);
+	:
+		"HTTP/1.1 204 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Connection: close\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Pad: ab\r\n"
+		"\r\n"
+	, 256);
 }
 
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
@@ -100,6 +122,7 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to Account");
 		close(sock);
 		return -1;
 	}
@@ -134,6 +157,7 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		syslog(LOG_MAIL | LOG_NOTICE, "Failed sending data to Storage");
 		close(sock);
 		return -1;
 	}
@@ -152,7 +176,17 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	unsigned char response[252 + 131200];
 
-	memcpy(response,
+	memcpy(response, keepAlive?
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 131200\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Pad: abcdefghijkl\r\n"
+		"\r\n"
+	:
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
@@ -297,27 +331,37 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	// Shield
-	unsigned char data[253];
-	memcpy(data,
+	unsigned char data[256];
+	memcpy(data, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Cache-Control: no-store\r\n"
-		"Connection: close\r\n"
 		"Content-Length: 28\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store\r\n"
+		"Pad: abcdef\r\n"
 		"\r\n"
-	, 225);
+	:
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 28\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Connection: close\r\n"
+		"Pad: abcdefghijkl\r\n"
+		"\r\n"
+	, 228);
 
 	if (
-	   recv(sock, data + 225, 13, 0) != 13
-	|| recv(sock, data + 238, 15, 0) != 15
+	   recv(sock, data + 228, 13, 0) != 13
+	|| recv(sock, data + 241, 15, 0) != 15
 	) {syslog(LOG_MAIL | LOG_NOTICE, "Failed receiving data from Account"); close(sock); return;}
 
 	close(sock);
 
-	sendData(ssl, data, 253);
+	sendData(ssl, data, 256);
 }
 
 static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -361,22 +405,32 @@ static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const
 	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); return;}
 	close(sock);
 
-	unsigned char data[257];
-	memcpy(data,
+	unsigned char data[256];
+	memcpy(data, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Cache-Control: no-store\r\n"
-		"Connection: close\r\n"
 		"Content-Length: 32\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store\r\n"
+		"Pad: ab\r\n"
 		"\r\n"
-	, 225);
+	:
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 32\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Connection: close\r\n"
+		"Pad: abcdefgh\r\n"
+		"\r\n"
+	, 224);
 
-	memcpy(data + 225, addr_pk, 32);
+	memcpy(data + 224, addr_pk, 32);
 
-	sendData(ssl, data, 257);
+	sendData(ssl, data, 256);
 }
 
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -404,7 +458,6 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	const int sock = storageSocket(pubkey, (lenDecrypted / 1024));
 	if (sock < 0) {
 		sodium_free(*decrypted);
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
 		return;
 	}
 
@@ -427,7 +480,17 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	unsigned char response[252 + 131200]; // 131200 = 128 bytes + 128 KiB
 
-	memcpy(response,
+	memcpy(response, keepAlive?
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 131200\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Pad: abcdefghijkl\r\n"
+		"\r\n"
+	:
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
@@ -513,7 +576,6 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	if (sock < 0) {
 		free(boxSet);
-		syslog(LOG_MAIL | LOG_NOTICE, "Failed connecting to Storage");
 		return;
 	}
 
