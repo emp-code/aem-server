@@ -368,6 +368,8 @@ void takeConnections(void) {
 					storage_write(clr + 1, msg, clr[0]);
 					saveStindex();
 				} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from API");
+
+				free(msg);
 			} else { // Browse
 				const int rfd = open("Storage.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
 
@@ -432,6 +434,8 @@ void takeConnections(void) {
 				storage_write(clr + 1, msg, clr[0]);
 				saveStindex();
 			} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from MTA");
+
+			free(msg);
 		}
 
 		close(sock);
