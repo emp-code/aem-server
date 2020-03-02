@@ -219,7 +219,7 @@ void respond_https(int sock) {
 	int ret;
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			syslog(LOG_MAIL | LOG_INFO, "mbedtls_ssl_handshake failed: %m");
+			syslog(LOG_MAIL | LOG_INFO, "mbedtls_ssl_handshake failed: %d", ret);
 			mbedtls_ssl_close_notify(&ssl);
 			mbedtls_ssl_session_reset(&ssl);
 			return;

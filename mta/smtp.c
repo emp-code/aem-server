@@ -429,7 +429,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %m");
+				syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %d", ret);
 				tlsClose(tls);
 				return;
 			}
