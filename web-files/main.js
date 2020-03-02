@@ -727,6 +727,7 @@ document.getElementById("btn_enter").onclick = function() {
 				if (successBrowse) {
 					txtSkey.value = "";
 					reloadInterface();
+					document.getElementById("btn_refresh").click();
 				} else {
 					console.log("Failed to enter");
 					btn.disabled = false;
