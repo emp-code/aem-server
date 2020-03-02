@@ -743,7 +743,8 @@ document.getElementById("btn_refresh").onclick = function() {
 
 	ae.Message_Browse(0, function(successBrowse) {
 		if (successBrowse) {
-			reloadInterface();
+			clearMessages();
+			addMessages();
 			btn.disabled = false;
 		} else {
 			console.log("Failed to refresh");
