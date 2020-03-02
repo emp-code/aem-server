@@ -383,14 +383,14 @@ function setAccountLevel(upk_hex, level) {
 		tbl.rows[rowid].cells[4].textContent = level;
 
 		if (level === 0) {
-			tbl.rows[rowid].cells[5].children[0].disabled = "";
-			tbl.rows[rowid].cells[6].children[0].disabled = "disabled";
+			tbl.rows[rowid].cells[5].children[0].disabled = false;
+			tbl.rows[rowid].cells[6].children[0].disabled = true;
 		} else if (level === ae.GetLevelMax()) {
-			tbl.rows[rowid].cells[5].children[0].disabled = "disabled";
-			tbl.rows[rowid].cells[6].children[0].disabled = "";
+			tbl.rows[rowid].cells[5].children[0].disabled = true;
+			tbl.rows[rowid].cells[6].children[0].disabled = false;
 		} else {
-			tbl.rows[rowid].cells[5].children[0].disabled = "";
-			tbl.rows[rowid].cells[6].children[0].disabled = "";
+			tbl.rows[rowid].cells[5].children[0].disabled = false;
+			tbl.rows[rowid].cells[6].children[0].disabled = false;
 		}
 
 		const pkHex = ae.Admin_GetUserPkHex(rowid);
@@ -577,8 +577,8 @@ function addRowAdmin(num) {
 	cellBtnDe.innerHTML = "<button type=\"button\">X</button>";
 
 	cellPk.className = "mono";
-	if (ae.Admin_GetUserLevel(num) === ae.GetLevelMax()) cellBtnPl.children[0].disabled = "disabled";
-	if (ae.Admin_GetUserLevel(num) === 0) cellBtnMn.children[0].disabled = "disabled";
+	if (ae.Admin_GetUserLevel(num) === ae.GetLevelMax()) cellBtnPl.children[0].disabled = true;
+	if (ae.Admin_GetUserLevel(num) === 0) cellBtnMn.children[0].disabled = true;
 
 	const pkHex = ae.Admin_GetUserPkHex(num);
 	const currentLevel = ae.Admin_GetUserLevel(num);
@@ -718,7 +718,9 @@ document.getElementById("btn_enter").onclick = function() {
 	const txtSkey = document.getElementById("txt_skey");
 	if (!txtSkey.reportValidity()) return;
 
-	this.disabled = true;
+	const btn = this;
+	btn.disabled = true;
+
 	ae.SetKeys(txtSkey.value, function(successSetKeys) {
 		if (successSetKeys) {
 			ae.Account_Browse(0, function(successBrowse) {
@@ -727,12 +729,12 @@ document.getElementById("btn_enter").onclick = function() {
 					reloadInterface();
 				} else {
 					console.log("Failed to enter");
-					document.getElementById("btn_enter").disabled = false;
+					btn.disabled = false;
 				}
 			});
 		} else {
 			console.log("Invalid format for key");
-			document.getElementById("btn_enter").disabled = false;
+			btn.disabled = false;
 		}
 	});
 };
@@ -790,7 +792,8 @@ document.getElementById("btn_sentdel").onclick = function() {
 };
 
 document.getElementById("btn_send").onclick = function() {
-	document.getElementById("btn_send").disabled = true;
+	const btn = this;
+	btn.disabled = true;
 
 	const scopy = document.getElementById("send_copy");
 	const sfrom = document.getElementById("send_from");
@@ -813,11 +816,11 @@ document.getElementById("btn_send").onclick = function() {
 					console.log("Failed sending message");
 				}
 
-				document.getElementById("btn_send").disabled = false;
+				btn.disabled = false;
 			});
 		} else {
 			console.log("Failed looking up address");
-			document.getElementById("btn_send").disabled = false;
+			btn.disabled = false;
 		}
 	});
 };
@@ -860,13 +863,12 @@ document.getElementById("btn_newaddress").onclick = function() {
 	const txtNewAddr = document.getElementById("txt_newaddress");
 	if (!txtNewAddr.reportValidity()) return;
 
-	document.getElementById("btn_newaddress").disabled = true;
-	document.getElementById("btn_newshieldaddress").disabled = true;
+	const btnN = document.getElementById("btn_newaddress");
+	const btnS = document.getElementById("btn_newshieldaddress");
+	btnN.disabled = true;
+	btnS.disabled = true;
 
 	ae.Address_Create(txtNewAddr.value, function(success1) {
-		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
-		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
-
 		if (success1) {
 			ae.Private_Update(function(success2) {
 				document.getElementById("addr_use_normal").textContent = ae.GetAddressCountNormal();
@@ -874,9 +876,15 @@ document.getElementById("btn_newaddress").onclick = function() {
 				txtNewAddr.value = "";
 
 				if (!success2) console.log("Failed to update the Private field");
+
+				if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) btnN.disabled = false;
+				if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) btnS.disabled = false;
 			});
 		} else {
 			console.log("Failed to add address");
+
+			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) btnN.disabled = false;
+			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) btnS.disabled = false;
 		}
 	});
 };
@@ -884,22 +892,27 @@ document.getElementById("btn_newaddress").onclick = function() {
 document.getElementById("btn_newshieldaddress").onclick = function() {
 	if (ae.GetAddressCountShield() >= ae.GetAddressLimitShield(ae.GetUserLevel())) return;
 
-	document.getElementById("btn_newaddress").disabled = true;
-	document.getElementById("btn_newshieldaddress").disabled = true;
+	const btnN = document.getElementById("btn_newaddress");
+	const btnS = document.getElementById("btn_newshieldaddress");
+	btnN.disabled = true;
+	btnS.disabled = true;
 
 	ae.Address_Create("SHIELD", function(success1) {
-		if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) document.getElementById("btn_newaddress").disabled = false;
-		if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) document.getElementById("btn_newshieldaddress").disabled = false;
-
 		if (success1) {
 			ae.Private_Update(function(success2) {
 				document.getElementById("addr_use_shield").textContent = ae.GetAddressCountShield();
 				addAddress(ae.GetAddressCount() - 1);
 
 				if (!success2) console.log("Failed to update the Private field");
+
+				if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) btnN.disabled = false;
+				if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) btnS.disabled = false;
 			});
 		} else {
 			console.log("Failed to add Shield address");
+
+			if (ae.GetAddressCountNormal() < ae.GetAddressLimitNormal(ae.GetUserLevel())) btnN.disabled = false;
+			if (ae.GetAddressCountShield() < ae.GetAddressLimitShield(ae.GetUserLevel())) btnS.disabled = false;
 		}
 	});
 };
@@ -983,7 +996,7 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 	if (!txtPkey.reportValidity()) return;
 
 	const btn = document.getElementById("btn_admin_addaccount");
-	btn.disabled = "disabled";
+	btn.disabled = true;
 
 	ae.Account_Create(txtPkey.value, function(success) {
 		if (success) {
@@ -994,7 +1007,7 @@ document.getElementById("btn_admin_addaccount").onclick = function() {
 		}
 	});
 
-	btn.disabled = "";
+	btn.disabled = false;
 };
 
 document.getElementById("btn_uploadfile").onclick = function() {
@@ -1007,7 +1020,8 @@ document.getElementById("btn_uploadfile").onclick = function() {
 		return;
 	}
 
-	this.disabled = "disabled";
+	const btn = this;
+	btn.disabled = true;
 
 	const reader = new FileReader();
 	reader.onload = function(e) {
@@ -1021,7 +1035,7 @@ document.getElementById("btn_uploadfile").onclick = function() {
 				console.log("Failed to upload file");
 			}
 
-			document.getElementById("btn_uploadfile").disabled = "";
+			btn.disabled = false;
 		});
 	};
 
