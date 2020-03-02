@@ -231,7 +231,7 @@ void respond_https(int sock) {
 
 		do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_POST_BOXED_SIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
-		if (ret == 0) break;
+		if (ret < 1) break;
 		req[ret] = '\0';
 
 		const int reqType = handleRequest(ret, &keepAlive);
