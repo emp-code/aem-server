@@ -72,7 +72,9 @@ int setDomain(const char * const newDomain, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int handleRequest(size_t lenReq) {
+static int handleRequest(size_t lenReq, bool * const keepAlive) {
+	if (strcasestr((char*)req, "\r\nConnection: close") != NULL) *keepAlive = false;
+
 	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
@@ -224,17 +226,27 @@ void respond_https(int sock) {
 		}
 	}
 
-	do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_POST_BOXED_SIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	while(1) {
+		bool keepAlive = true;
 
-	if (ret > 0) {
+		do {ret = mbedtls_ssl_read(&ssl, req, AEM_HTTPS_POST_BOXED_SIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+
+		if (ret == 0) break;
 		req[ret] = '\0';
-		switch (handleRequest(ret)) {
-			case AEM_HTTPS_REQUEST_PUBKEY: https_pubkey(&ssl); break;
-			case AEM_HTTPS_REQUEST_POST: handlePost(&ssl, ret); break;
-		}
+
+		const int reqType = handleRequest(ret, &keepAlive);
+
+		setKeepAlive(keepAlive);
+
+		if (reqType == AEM_HTTPS_REQUEST_PUBKEY) https_pubkey(&ssl);
+		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, ret);
+		else break;
+
+		explicit_bzero(req, AEM_HTTPS_POST_BOXED_SIZE);
+
+		if (!keepAlive) break;
 	}
 
-	explicit_bzero(req, AEM_HTTPS_POST_BOXED_SIZE);
 	mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
 }
