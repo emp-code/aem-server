@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
 
 				"Content-Security-Policy: "
 					"connect-src"     " https://%s:302/api/ data:;"
-					"script-src"      " https://%s/files/main.js https://%s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js;"
+					"script-src"      " https://%s/files/main.js https://%s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
 					"style-src"       " https://%s/files/main.css;"
 
 					"base-uri"        " 'none';"
