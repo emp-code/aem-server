@@ -171,14 +171,14 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		const byte = (bitNum - bit) / 8;
 
 		return ((1 & (src[byte] >> (7 - bit))) === 1);
-	}
+	};
 
 	const _SetBit = function(src, bitNum) {
 		const bit = bitNum % 8;
 		const byte = (bitNum - bit) / 8;
 
 		src[byte] |= 1 << (7 - bit);
-	}
+	};
 
 	const _addr32_decode = function(byteArray, is_shd) {
 		if (!byteArray || byteArray.length != 15) return "???";
@@ -213,7 +213,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		if (c == 'v') return 28; // 'w'
 
 		return -1;
-	}
+	};
 
 	// Only for Normal, not Shield addresses
 	const _addr32_encode = function(source) {
@@ -423,7 +423,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		_admin_userNaddr.splice(0);
 		_admin_userSaddr.splice(0);
 		_admin_userLevel.splice(0);
-	}
+	};
 
 	this.GetLevelMax = function() {return _AEM_USER_MAXLEVEL;};
 
@@ -809,7 +809,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 			callback(true);
 		});
-	}
+	};
 
 	this.Message_Browse = function(page, callback) {
 		if (typeof(page) !== "number" || page < 0 || page > 255) {callback(false); return;}
@@ -942,14 +942,14 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 				offset += (kib * 1024);
 			}
 
-			_extMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1)
-			_intMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1)
-			_fileNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1)
-			_textNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1)
+			_extMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1);
+			_intMsg.sort((a, b)   => (a.ts < b.ts) ? 1 : -1);
+			_fileNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1);
+			_textNote.sort((a, b) => (a.ts < b.ts) ? 1 : -1);
 
 			callback(true);
 		});
-	}
+	};
 
 	this.Message_Create = function(title, body, addr_from, addr_to, to_pubkey, callback) {
 		if (typeof(title) !== "string" || typeof(body) !== "string" || typeof(addr_from) !== "string" || typeof(addr_to) !== "string" || to_pubkey.constructor !== Uint8Array || to_pubkey.length !== sodium.crypto_box_PUBLICKEYBYTES) {callback(false); return;}
@@ -992,7 +992,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		u8final.set(bodyBox, 30 + sodium.crypto_box_PUBLICKEYBYTES);
 
 		_FetchEncrypted("message/create", u8final, function(fetchOk) {callback(fetchOk);});
-	}
+	};
 
 	this.Message_Delete = function(hexIds, callback) {
 		const delCount = hexIds.length;

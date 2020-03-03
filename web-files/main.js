@@ -476,7 +476,7 @@ function addAddress(num) {
 			navigator.clipboard.writeText(shieldMix(cellAddr.textContent) + "@" + aeDomain);
 		else
 			navigator.clipboard.writeText(cellAddr.textContent + "@" + aeDomain);
-	}
+	};
 
 	cellChk1.innerHTML = ae.GetAddressAccExt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
 	cellChk2.innerHTML = ae.GetAddressAccInt(num) ? "<input type=\"checkbox\" checked=\"checked\">" : "<input type=\"checkbox\">";
@@ -702,7 +702,7 @@ document.getElementById("btn_inbox_prev").onclick = function() {
 		addMessages();
 		this.disabled = (page === 0);
 	}
-}
+};
 
 document.getElementById("btn_inbox_next").onclick = function() {
 // TODO: Check if page too high
@@ -712,7 +712,7 @@ document.getElementById("btn_inbox_next").onclick = function() {
 		addMessages();
 		document.getElementById("btn_inbox_prev").disabled = false;
 //	}
-}
+};
 
 document.getElementById("btn_enter").onclick = function() {
 	const txtSkey = document.getElementById("txt_skey");
@@ -757,7 +757,7 @@ document.getElementById("btn_refresh").onclick = function() {
 			btn.disabled = false;
 		}
 	});
-}
+};
 
 document.getElementById("btn_contact_add").onclick = function() {
 	const txtMail = document.getElementById("txt_newcontact_mail");
