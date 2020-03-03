@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -597,6 +598,7 @@ static int setSignals(void) {
 }
 
 int main(int argc, char *argv[]) {
+	setlocale(LC_ALL, "C");
 	openlog("AEM-Acc", LOG_PID, LOG_MAIL);
 
 	if (argc > 1 || argv == NULL) {syslog(LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
