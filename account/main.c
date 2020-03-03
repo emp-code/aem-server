@@ -475,6 +475,11 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
+static void api_internal_exist(const int sock) {
+	const unsigned char one = 1;
+	send(sock, &one, 1, 0);
+}
+
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	unsigned char hash[13];
 	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_MAIL | LOG_ERR, "Failed hashing address"); return;}
@@ -512,9 +517,10 @@ static int takeConnections(void) {
 			close(sockClient);
 			continue;
 		}
-		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES);
 
+		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES);
 		unsigned char req[reqLen];
+
 		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
 			const int num = userNumFromPubkey(req + 1);
 			if (num < 0) {close(sockClient); continue;}
@@ -534,6 +540,7 @@ static int takeConnections(void) {
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 
 				// Internal functions
+				case AEM_API_INTERNAL_EXIST: api_internal_exist(sockClient); break;
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 
 				//default: // Invalid

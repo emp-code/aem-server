@@ -642,6 +642,15 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
+static bool pubkeyExists(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	const int sock = accountSocket(pubkey, AEM_API_INTERNAL_EXIST);
+	if (sock < 0) return false;
+
+	unsigned char response;
+	recv(sock, &response, 1, 0);
+	return (response == 1);
+}
+
 __attribute__((warn_unused_result))
 static char *openWebBox(const unsigned char * const post, unsigned char * const pubkey, size_t * const lenDecrypted) {
 	const size_t skipBytes = crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES;
@@ -651,7 +660,7 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 
 	memcpy(pubkey, post + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
-//	if (pubkeyExists(pubkey)) return NULL; // XXX Important to re-enable
+	if (!pubkeyExists(pubkey)) return NULL;
 
 	char * const decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
 	if (decrypted == NULL) return NULL;
