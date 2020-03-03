@@ -362,7 +362,7 @@ void takeConnections(void) {
 			} else if (clr[0] <= 8) { // Store
 				const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
 				unsigned char * const msg = malloc(bytes);
-				if (msg == NULL) break;
+				if (msg == NULL) {syslog(LOG_MAIL | LOG_ERR, "Failed allocation"); break;}
 
 				if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 					storage_write(clr + 1, msg, clr[0]);
@@ -428,7 +428,7 @@ void takeConnections(void) {
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
 			unsigned char * const msg = malloc(bytes);
-			if (msg == NULL) break;
+			if (msg == NULL) {syslog(LOG_MAIL | LOG_ERR, "Failed allocation"); break;}
 
 			if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 				storage_write(clr + 1, msg, clr[0]);
