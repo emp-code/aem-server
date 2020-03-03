@@ -377,7 +377,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		recv(sock, &ret, 1, 0);
 		close(sock);
 
-		if (ret == 1) sendEncrypted(ssl, pubkey, NULL, 0); else sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
+		sendEncrypted(ssl, pubkey, NULL, (ret == 1) ? 0 : AEM_API_ERROR);
 		return;
 	}
 
