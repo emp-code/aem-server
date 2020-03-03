@@ -122,18 +122,16 @@ static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char p
 }
 
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
+	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
+
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
 	strcpy(sa.sun_path, "Account.sck");
 
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed creating socket to Account");
-		return -1;
-	}
-
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
 		syslog(LOG_ERR, "Failed connecting to Account");
+		close(sock);
 		return -1;
 	}
 
@@ -157,18 +155,16 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 }
 
 static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
+	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
+
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
 	strcpy(sa.sun_path, "Storage.sck");
 
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed creating socket to Storage");
-		return -1;
-	}
-
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
 		syslog(LOG_ERR, "Failed connecting to Storage");
+		close(sock);
 		return -1;
 	}
 
@@ -248,15 +244,18 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_CREATE);
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -284,15 +283,18 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_DELETE);
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -320,15 +322,18 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_UPDATE);
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -543,6 +548,7 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 
 	unsigned char ret;
 	recv(sock, &ret, 1, 0);
+	close(sock);
 	return ret;
 }
 
@@ -652,15 +658,18 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_SETTING_LIMITS);
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -685,6 +694,7 @@ static bool pubkeyExists(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) 
 
 	unsigned char response;
 	recv(sock, &response, 1, 0);
+	close(sock);
 	return (response == 1);
 }
 
