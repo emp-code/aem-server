@@ -48,7 +48,7 @@ void https_respond(mbedtls_ssl_context * const ssl, const char * const url, cons
 }
 
 void https_mtasts(mbedtls_ssl_context * const ssl) {
-	char data[368 + lenDomain];
+	char data[377 + lenDomain];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
@@ -56,7 +56,7 @@ void https_mtasts(mbedtls_ssl_context * const ssl) {
 		"Content-Length: %zd\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Tk: N\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-Robots-Tag: noindex\r\n"
@@ -67,7 +67,7 @@ void https_mtasts(mbedtls_ssl_context * const ssl) {
 		"max_age: 31557600"
 	, 51 + lenDomain, (int)lenDomain, domain);
 
-	sendData(ssl, data, 367 + lenDomain);
+	sendData(ssl, data, 376 + lenDomain);
 }
 
 void https_robots(mbedtls_ssl_context * const ssl) {
@@ -78,7 +78,7 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"Content-Length: 55\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Tk: N\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-Robots-Tag: noindex\r\n"
@@ -86,7 +86,7 @@ void https_robots(mbedtls_ssl_context * const ssl) {
 		"User-agent: *\n"
 		"Disallow: /.well-known/\n"
 		"Disallow: /files/"
-	, 371);
+	, 380);
 }
 
 // Tracking Status Resource for DNT
@@ -98,10 +98,10 @@ void https_tsr(mbedtls_ssl_context * const ssl) {
 		"Content-Length: 17\r\n"
 		"Content-Type: application/tracking-status+json\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Tk: N\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"\r\n"
 		"{\"tracking\": \"N\"}"
-	, 317);
+	, 326);
 }
