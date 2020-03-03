@@ -88,6 +88,7 @@ static int saveUser(void) {
 
 	const size_t lenPadded = 4 + lenClear + lenPadding;
 	unsigned char * const padded = sodium_malloc(lenPadded);
+	if (padded == NULL) return -1;
 
 	memcpy(padded, &lenPadding, 4);
 	memcpy(padded + 4, (unsigned char*)user, lenClear);
@@ -95,6 +96,7 @@ static int saveUser(void) {
 
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenPadded;
 	unsigned char * const encrypted = malloc(lenEncrypted);
+	if (encrypted == NULL) {sodium_free(padded); return -1;}
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
@@ -146,6 +148,8 @@ static int loadUser(void) {
 	close(fd);
 
 	unsigned char* decrypted = sodium_malloc(lenDecrypted);
+	if (decrypted == NULL) return -1;
+
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
 		sodium_free(decrypted);
 		return -1;
@@ -161,6 +165,8 @@ static int loadUser(void) {
 	}
 
 	user = malloc(lenUserData);
+	if (user == NULL) {sodium_free(decrypted); return -1;}
+
 	memcpy(user, decrypted + 4, lenUserData);
 	sodium_free(decrypted);
 
