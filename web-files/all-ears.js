@@ -155,9 +155,9 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 				if (decData.length !== 33) {
 					callback(true, decData);
-				} else if (decData[1] === 0)
+				} else if (decData[0] === 0) {
 					callback(true, null);
-				else {
+				} else {
 					callback(true, decData.slice(1, 1 + decData[0]));
 				}
 			} catch(e) {
