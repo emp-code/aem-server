@@ -284,6 +284,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 
 			const size_t lenFull = lenHeaders + lenNew;
 			char *full = malloc(lenFull);
+			if (*full == NULL) {free(new); return;}
 
 			memcpy(full, *msg, lenHeaders);
 			memcpy(full + lenHeaders, new, lenNew);
