@@ -27,6 +27,8 @@
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
 
+#define AEM_API_ERROR SIZE_MAX
+
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
@@ -102,9 +104,13 @@ static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char p
 	randombytes_buf(final + 277, crypto_box_NONCEBYTES);
 
 	unsigned char clr[33];
-	bzero(clr, 33);
-	clr[0] = len;
-	if (len > 0) memcpy(clr + 1, data, len);
+	if (len == AEM_API_ERROR) {
+		memset(clr, 0xFF, 33);
+	} else {
+		bzero(clr, 33);
+		clr[0] = len;
+		if (len > 0) memcpy(clr + 1, data, len);
+	}
 
 	const int ret = crypto_box_easy(final + 277 + crypto_box_NONCEBYTES, clr, 33, final + 277, pubkey, ssk);
 
@@ -188,7 +194,7 @@ static void userViolation(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 
 static void account_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	sodium_free(*decrypted);
-	if (lenDecrypted != 1) return;
+	if (lenDecrypted != 1) {sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response[281 + 131240];
 
@@ -217,7 +223,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	, 281);
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
-	if (sock < 0) return;
+	if (sock < 0) {sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char clr[131200];
 	recv(sock, clr, 131200, MSG_WAITALL);
@@ -230,21 +236,24 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_CREATE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_CREATE);
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -252,6 +261,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -262,21 +272,24 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_DELETE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_DELETE);
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -284,6 +297,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -294,21 +308,24 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void account_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_UPDATE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_ACCOUNT_UPDATE);
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -316,6 +333,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -328,16 +346,18 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted != 13 && (lenDecrypted != 6 || memcmp(*decrypted, "SHIELD", 6) != 0)) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_CREATE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed sending data to Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -348,7 +368,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		recv(sock, &ret, 1, 0);
 		close(sock);
 
-		if (ret == 1) sendEncrypted(ssl, pubkey, NULL, 0);
+		if (ret == 1) sendEncrypted(ssl, pubkey, NULL, 0); else sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -357,7 +377,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (
 	   recv(sock, data, 13, 0) != 13
 	|| recv(sock, data + 13, 15, 0) != 15
-	) {syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from Account"); close(sock); return;}
+	) {syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from Account"); close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	close(sock);
 
@@ -365,15 +385,16 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != 13) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != 13) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_DELETE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -384,11 +405,12 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted > 99) {sodium_free(*decrypted); return;}
+	if (lenDecrypted > 99) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (memchr(*decrypted, '@', lenDecrypted) != NULL) {
 		// TODO: Email lookup
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -398,26 +420,27 @@ static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_LOOKUP);
-	if (sock < 0) return;
+	if (sock < 0) {sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char addr_pk[32];
-	if (send(sock, addr, 16, 0) != 16) {close(sock); return;}
-	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); return;}
+	if (send(sock, addr, 16, 0) != 16) {close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
+	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 	close(sock);
 
 	sendEncrypted(ssl, pubkey, addr_pk, 32);
 }
 
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted % 14 != 0) {sodium_free(*decrypted); return;}
+	if (lenDecrypted % 14 != 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_ADDRESS_UPDATE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -428,11 +451,12 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void message_assign(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted % 1024 != 0) {sodium_free(*decrypted); return;}
+	if (lenDecrypted % 1024 != 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = storageSocket(pubkey, (lenDecrypted / 1024));
 	if (sock < 0) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -443,6 +467,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 
 	if (sentBytes != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -451,7 +476,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 
 static void message_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	sodium_free(*decrypted);
-	if (lenDecrypted != 1) return;
+	if (lenDecrypted != 1) {sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response[281 + 131240];
 
@@ -480,7 +505,7 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 	, 281);
 
 	const int sock = storageSocket(pubkey, UINT8_MAX);
-	if (sock < 0) return;
+	if (sock < 0) {sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char clr[131200];
 	recv(sock, clr, 131200, MSG_WAITALL);
@@ -524,10 +549,10 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	unsigned char * const bodyBox    = (unsigned char*)*decrypted + 30 + crypto_box_PUBLICKEYBYTES;
 	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
 
-	if (!addr32OwnedByPubkey(pubkey, fromAddr32, false)) {sodium_free(*decrypted); return;}
-	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) {sodium_free(*decrypted); return;}
+	if (!addr32OwnedByPubkey(pubkey, fromAddr32, false)) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
+	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
-	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) {sodium_free(*decrypted); return;}
+	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const size_t kib = (lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) / 1024;
 
@@ -546,7 +571,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenBodyBox;
 	unsigned char * const boxSet = malloc(bsLen);
-	if (boxSet == NULL) {sodium_free(*decrypted); return;}
+	if (boxSet == NULL) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
@@ -557,6 +582,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	if (sock < 0) {
 		free(boxSet);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -566,6 +592,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 
 	if (sentBytes != (ssize_t)(kib * 1024)) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -573,15 +600,16 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted % 16 != 0) {sodium_free(*decrypted); return;}
+	if (lenDecrypted % 16 != 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = storageSocket(pubkey, 0);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -592,15 +620,16 @@ static void message_delete(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void private_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != AEM_LEN_PRIVATE) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != AEM_LEN_PRIVATE) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_PRIVATE_UPDATE);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -611,21 +640,24 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 }
 
 static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	if (lenDecrypted != 12) {sodium_free(*decrypted); return;}
+	if (lenDecrypted != 12) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	const int sock = accountSocket(pubkey, AEM_API_SETTING_LIMITS);
-	if (sock < 0) {sodium_free(*decrypted); return;}
+	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	unsigned char response;
 	if (recv(sock, &response, 1, 0) != 1) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(pubkey, AEM_VIOLATION_SETTING_LIMITS);
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
 		sodium_free(*decrypted);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -633,6 +665,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
+		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
 
@@ -702,6 +735,8 @@ int https_post(mbedtls_ssl_context * const ssl, const char * const url, const un
 
 	else if (memcmp(url, "private/update", 14) == 0) private_update(ssl, &decrypted, lenDecrypted, pubkey);
 	else if (memcmp(url, "setting/limits", 14) == 0) setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
+
+	else sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 
 	return 0;
 }
