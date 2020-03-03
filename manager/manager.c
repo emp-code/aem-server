@@ -276,7 +276,7 @@ void killAll(int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int loadFile(const char * const path, unsigned char *target, size_t * const len, const off_t expectedLen) {
+static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen) {
 	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) return -1;
 
