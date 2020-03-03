@@ -108,7 +108,7 @@ static int dropBounds(void) {
 	) ? 0 : -1;
 }
 
-static int setCaps() {
+static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
 	const cap_value_t capInherit[] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
@@ -166,7 +166,7 @@ static int setSignals(void) {
 	) ? 0 : -1;
 }
 
-static int setLimits() {
+static int setLimits(void) {
 	struct rlimit rlim;
 	rlim.rlim_cur = 0;
 	rlim.rlim_max = 0;
