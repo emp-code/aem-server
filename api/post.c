@@ -676,30 +676,32 @@ static char *openWebBox(const unsigned char * const post, unsigned char * const 
 	return decrypted;
 }
 
-void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
-	if (ssl == NULL || url == NULL || post == NULL) return;
+__attribute__((warn_unused_result))
+int https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
+	if (ssl == NULL || url == NULL || post == NULL) return -1;
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 
 	char * const decrypted = openWebBox(post, pubkey, &lenDecrypted);
-	if (decrypted == NULL || lenDecrypted < 1) return;
+	if (decrypted == NULL || lenDecrypted < 1) return -1;
 
-	if (memcmp(url, "account/browse", 14) == 0) return account_browse(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "account/create", 14) == 0) return account_create(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "account/delete", 14) == 0) return account_delete(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "account/update", 14) == 0) return account_update(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "account/browse", 14) == 0) account_browse(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "account/create", 14) == 0) account_create(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "account/delete", 14) == 0) account_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "account/update", 14) == 0) account_update(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "address/create", 14) == 0) return address_create(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "address/delete", 14) == 0) return address_delete(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "address/lookup", 14) == 0) return address_lookup(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "address/update", 14) == 0) return address_update(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "address/create", 14) == 0) address_create(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "address/delete", 14) == 0) address_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "address/lookup", 14) == 0) address_lookup(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "address/update", 14) == 0) address_update(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "message/assign", 14) == 0) return message_assign(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "message/browse", 14) == 0) return message_browse(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "message/create", 14) == 0) return message_create(ssl, &decrypted, lenDecrypted, pubkey);
-	if (memcmp(url, "message/delete", 14) == 0) return message_delete(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "message/assign", 14) == 0) message_assign(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "message/browse", 14) == 0) message_browse(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "message/create", 14) == 0) message_create(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "message/delete", 14) == 0) message_delete(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "private/update", 14) == 0) return private_update(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "private/update", 14) == 0) private_update(ssl, &decrypted, lenDecrypted, pubkey);
+	else if (memcmp(url, "setting/limits", 14) == 0) setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
 
-	if (memcmp(url, "setting/limits", 14) == 0) return setting_limits(ssl, &decrypted, lenDecrypted, pubkey);
+	return 0;
 }

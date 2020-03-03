@@ -11,7 +11,7 @@ void setAccessKey_account(const unsigned char * const newKey);
 void setAccessKey_storage(const unsigned char * const newKey);
 void setKeepAlive(const bool ka);
 
-void https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post);
+int https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post);
 void https_pubkey(mbedtls_ssl_context * const ssl);
 
 #endif

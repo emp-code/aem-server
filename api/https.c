@@ -149,12 +149,13 @@ static int handleRequest(size_t lenReq, bool * const keepAlive) {
 	return AEM_HTTPS_REQUEST_POST;
 }
 
-void handlePost(mbedtls_ssl_context * const ssl, const size_t lenReq) {
+__attribute__((warn_unused_result))
+int handlePost(mbedtls_ssl_context * const ssl, const size_t lenReq) {
 	char url[AEM_LEN_URL_POST];
 	memcpy(url, req + AEM_SKIP_URL_POST, AEM_LEN_URL_POST);
 
 	const unsigned char *post = memmem(req, lenReq, "\r\n\r\n", 4);
-	if (post == NULL) return;
+	if (post == NULL) return -1;
 	post += 4;
 
 	size_t lenPost = lenReq - (post - req);
@@ -168,11 +169,11 @@ void handlePost(mbedtls_ssl_context * const ssl, const size_t lenReq) {
 	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
 		int ret;
 		do {ret = mbedtls_ssl_read(ssl, req + lenPost, AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		if (ret < 1) return;
+		if (ret < 1) return -1;
 		lenPost += ret;
 	}
 
-	https_post(ssl, url, req);
+	return https_post(ssl, url, req);
 }
 
 void tlsFree(void) {
@@ -239,7 +240,9 @@ void respond_https(int sock) {
 		setKeepAlive(keepAlive);
 
 		if (reqType == AEM_HTTPS_REQUEST_PUBKEY) https_pubkey(&ssl);
-		else if (reqType == AEM_HTTPS_REQUEST_POST) handlePost(&ssl, ret);
+		else if (reqType == AEM_HTTPS_REQUEST_POST) {
+			if (handlePost(&ssl, ret) != 0) break;
+		}
 		else break;
 
 		explicit_bzero(req, AEM_HTTPS_POST_BOXED_SIZE);
