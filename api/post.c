@@ -190,7 +190,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	unsigned char response[252 + 131240];
+	unsigned char response[281 + 131240];
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
@@ -200,7 +200,8 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"Pad: abcdefghijkl\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
 	:
 		"HTTP/1.1 200 aem\r\n"
@@ -211,8 +212,9 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
+		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
-	, 252);
+	, 281);
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
 	if (sock < 0) return;
@@ -221,10 +223,10 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	randombytes_buf(response + 252, crypto_box_NONCEBYTES);
+	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
 
-	if (crypto_box_easy(response + 252 + crypto_box_NONCEBYTES, clr, 131200, response + 252, pubkey, ssk) == 0)
-		sendData(ssl, response, 252 + 131240);
+	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, pubkey, ssk) == 0)
+		sendData(ssl, response, 281 + 131240);
 }
 
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -451,7 +453,7 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	unsigned char response[252 + 131240]; // 131200 = 128 bytes + 128 KiB
+	unsigned char response[281 + 131240];
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
@@ -461,7 +463,8 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"Pad: abcdefghijkl\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
 	:
 		"HTTP/1.1 200 aem\r\n"
@@ -472,8 +475,9 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
+		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
-	, 252);
+	, 281);
 
 	const int sock = storageSocket(pubkey, UINT8_MAX);
 	if (sock < 0) return;
@@ -482,10 +486,10 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 	recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	randombytes_buf(response + 252, crypto_box_NONCEBYTES);
+	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
 
-	if (crypto_box_easy(response + 252 + crypto_box_NONCEBYTES, clr, 131200, response + 252, pubkey, ssk) == 0)
-		sendData(ssl, response, 252 + 131240);
+	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, pubkey, ssk) == 0)
+		sendData(ssl, response, 281 + 131240);
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
