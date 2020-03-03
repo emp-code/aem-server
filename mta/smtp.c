@@ -218,7 +218,7 @@ static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char
 		return true;
 	}
 
-	if (sock > 0) return (send(sock, data, lenData, 0) == (int)lenData);
+	if (sock > 0) return (send(sock, data, lenData, 0) == (ssize_t)lenData);
 
 	return false;
 }
@@ -495,7 +495,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			char newTo[AEM_MAXLEN_ADDRESS];
-			int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
+			const int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
 
 			if (lenNewTo < 1) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
