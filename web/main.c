@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for accept4
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <locale.h> // for setlocale
@@ -200,7 +202,7 @@ static void quit(void) {
 }
 
 static void receiveConnections(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
 	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); exit(EXIT_FAILURE);}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
@@ -208,7 +210,7 @@ static void receiveConnections(void) {
 	syslog(LOG_INFO, "Ready");
 
 	while (!terminate) {
-		const int newSock = accept(sock, NULL, NULL);
+		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
 		if (newSock < 0) {syslog(LOG_WARNING, "Failed accepting connection"); break;}
 		setSocketTimeout(newSock);
 		respond_https(newSock);

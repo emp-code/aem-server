@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for struct ucred
+#define _GNU_SOURCE // for struct ucred, accept4
 
 #include <fcntl.h>
 #include <locale.h> // for setlocale
@@ -356,12 +356,12 @@ static bool peerOk(const int sock) {
 void takeConnections(void) {
 	umask(0077);
 
-	const int sockListen = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, AEM_SOCK_QUEUE);
 
 	while (!terminate) {
-		const int sock = accept(sockListen, NULL, NULL);
+		const int sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
 		if (sock < 0) continue;
 
 		if (!peerOk(sock)) {

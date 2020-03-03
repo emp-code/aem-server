@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for accept4
+
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <fcntl.h>
@@ -99,7 +101,7 @@ static void setSocketTimeout(const int sock) {
 }
 
 static int takeConnections(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) return EXIT_FAILURE;
 	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return EXIT_FAILURE;
 
@@ -111,7 +113,7 @@ static int takeConnections(void) {
 	unsigned int clen = sizeof(clientAddr);
 
 	while (!terminate) {
-		const int newSock = accept(sock, (struct sockaddr*)&clientAddr, &clen);
+		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
 		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); break;}
 		setSocketTimeout(newSock);
 		respond_smtp(newSock, &clientAddr);

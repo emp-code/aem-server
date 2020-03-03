@@ -122,7 +122,7 @@ static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char p
 }
 
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
 
 	struct sockaddr_un sa;
@@ -155,7 +155,7 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 }
 
 static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
 
 	struct sockaddr_un sa;

@@ -11,7 +11,7 @@
 	The encryption is mostly for authentication. There is no forward secrecy.
 */
 
-#define _GNU_SOURCE // for pipe2()
+#define _GNU_SOURCE // for pipe2(), accept4
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -625,13 +625,13 @@ int receiveConnections(void) {
 	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
 	process_spawn(AEM_PROCESSTYPE_STORAGE);
 
-	sockMain = socket(AF_INET, SOCK_STREAM, 0);
+	sockMain = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	if (initSocket(&sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	while (!terminate) {
-		sockClient = accept(sockMain, NULL, NULL);
+		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) break;
 		setSocketTimeout(sockClient);
 		respond_manager(sockClient);

@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for struct ucred
+#define _GNU_SOURCE // for struct ucred, accept4
 
 #include <errno.h>
 #include <fcntl.h>
@@ -513,7 +513,7 @@ static int takeConnections(void) {
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, "Account.sck");
 
-	const int sockMain = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sockMain = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bind(sockMain, (struct sockaddr*)&local, strlen(local.sun_path) + sizeof(local.sun_family)) != 0) {
 		syslog(LOG_ERR, "Failed binding to socket: %m");
 		return -1;
@@ -522,7 +522,7 @@ static int takeConnections(void) {
 	listen(sockMain, 50);
 
 	while (!terminate) {
-		const int sockClient = accept(sockMain, NULL, NULL);
+		const int sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) continue;
 
 		if (!peerOk(sockClient)) {

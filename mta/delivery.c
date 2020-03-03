@@ -66,7 +66,7 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 	sa.sun_family = AF_UNIX;
 	strcpy(sa.sun_path, "Account.sck");
 
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {
 		syslog(LOG_ERR, "Failed creating socket to allears-account");
 		return -1;
@@ -100,7 +100,7 @@ static int storageSocket(const unsigned char *msg, const size_t lenMsg) {
 	sa.sun_family = AF_UNIX;
 	strcpy(sa.sun_path, "Storage.sck");
 
-	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {
 		syslog(LOG_ERR, "Failed creating socket to allears-storage");
 		return -1;
