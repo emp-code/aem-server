@@ -70,29 +70,45 @@ void https_pubkey(mbedtls_ssl_context * const ssl) {
 	sendData(ssl, data, 256);
 }
 
-static void send204(mbedtls_ssl_context * const ssl) {
-	sendData(ssl, keepAlive?
-		"HTTP/1.1 204 aem\r\n"
+static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const data, const size_t len) {
+	if (len > 32) return;
+
+	unsigned char final[350];
+
+	memcpy(final, keepAlive?
+		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 0\r\n"
+		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"Pad: abcdefghijklmnopqrstu\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
 	:
-		"HTTP/1.1 204 aem\r\n"
+		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 0\r\n"
+		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Connection: close\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"Pad: ab\r\n"
+		"Connection: close\r\n"
+		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
-	, 256);
+	, 277);
+
+	randombytes_buf(final + 277, crypto_box_NONCEBYTES);
+
+	unsigned char clr[33];
+	bzero(clr, 33);
+	clr[0] = len;
+	if (len > 0) memcpy(clr + 1, data, len);
+
+	const int ret = crypto_box_easy(final + 277 + crypto_box_NONCEBYTES, clr, 33, final + 277, pubkey, ssk);
+
+	if (ret == 0) sendData(ssl, final, 350);
 }
 
 static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char command) {
@@ -174,14 +190,14 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	unsigned char response[252 + 131200];
+	unsigned char response[252 + 131240];
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131200\r\n"
+		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Pad: abcdefghijkl\r\n"
@@ -191,7 +207,7 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131200\r\n"
+		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
@@ -200,11 +216,15 @@ static void account_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	const int sock = accountSocket(pubkey, AEM_API_ACCOUNT_BROWSE);
 	if (sock < 0) return;
-	recv(sock, response + 252, 131200, MSG_WAITALL);
+
+	unsigned char clr[131200];
+	recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	sendData(ssl, response, 252 + 131200);
-	sodium_memzero(response + 252, 131200);
+	randombytes_buf(response + 252, crypto_box_NONCEBYTES);
+
+	if (crypto_box_easy(response + 252 + crypto_box_NONCEBYTES, clr, 131200, response + 252, pubkey, ssk) == 0)
+		sendData(ssl, response, 252 + 131240);
 }
 
 static void account_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -236,7 +256,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void account_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -268,7 +288,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void account_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -300,7 +320,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void address_create(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -326,42 +346,20 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 		recv(sock, &ret, 1, 0);
 		close(sock);
 
-		if (ret == 1) send204(ssl);
+		if (ret == 1) sendEncrypted(ssl, pubkey, NULL, 0);
 		return;
 	}
 
 	// Shield
-	unsigned char data[256];
-	memcpy(data, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 28\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store\r\n"
-		"Pad: abcdef\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 28\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Connection: close\r\n"
-		"Pad: abcdefghijkl\r\n"
-		"\r\n"
-	, 228);
-
+	unsigned char data[28];
 	if (
-	   recv(sock, data + 228, 13, 0) != 13
-	|| recv(sock, data + 241, 15, 0) != 15
+	   recv(sock, data, 13, 0) != 13
+	|| recv(sock, data + 13, 15, 0) != 15
 	) {syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from Account"); close(sock); return;}
 
 	close(sock);
 
-	sendData(ssl, data, 256);
+	sendEncrypted(ssl, pubkey, data, 28);
 }
 
 static void address_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -380,7 +378,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -405,32 +403,7 @@ static void address_lookup(mbedtls_ssl_context * const ssl, char * const * const
 	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); return;}
 	close(sock);
 
-	unsigned char data[256];
-	memcpy(data, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store\r\n"
-		"Pad: ab\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Connection: close\r\n"
-		"Pad: abcdefgh\r\n"
-		"\r\n"
-	, 224);
-
-	memcpy(data + 224, addr_pk, 32);
-
-	sendData(ssl, data, 256);
+	sendEncrypted(ssl, pubkey, addr_pk, 32);
 }
 
 static void address_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -449,7 +422,7 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void message_assign(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -471,21 +444,21 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 		return;
 	}
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void message_browse(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	sodium_free(*decrypted);
 	if (lenDecrypted != 1) return;
 
-	unsigned char response[252 + 131200]; // 131200 = 128 bytes + 128 KiB
+	unsigned char response[252 + 131240]; // 131200 = 128 bytes + 128 KiB
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131200\r\n"
+		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Pad: abcdefghijkl\r\n"
@@ -495,7 +468,7 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131200\r\n"
+		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
@@ -504,11 +477,15 @@ static void message_browse(mbedtls_ssl_context * const ssl, char * const * const
 
 	const int sock = storageSocket(pubkey, UINT8_MAX);
 	if (sock < 0) return;
-	recv(sock, response + 252, 131200, MSG_WAITALL);
+
+	unsigned char clr[131200];
+	recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	sendData(ssl, response, 252 + 131200);
-	sodium_memzero(response + 252, 131200);
+	randombytes_buf(response + 252, crypto_box_NONCEBYTES);
+
+	if (crypto_box_easy(response + 252 + crypto_box_NONCEBYTES, clr, 131200, response + 252, pubkey, ssk) == 0)
+		sendData(ssl, response, 252 + 131240);
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
@@ -588,7 +565,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 		return;
 	}
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void message_delete(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -607,7 +584,7 @@ static void message_delete(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void private_update(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -626,7 +603,7 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
@@ -658,7 +635,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	sodium_free(*decrypted);
 	close(sock);
 
-	send204(ssl);
+	sendEncrypted(ssl, pubkey, NULL, 0);
 }
 
 __attribute__((warn_unused_result))

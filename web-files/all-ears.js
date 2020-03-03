@@ -147,7 +147,23 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		postMsg.set(_userKeyPublic, sodium.crypto_box_NONCEBYTES);
 		postMsg.set(postBox, sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES);
 
-		_FetchBinary("https://" + domain + ":302/api/" + url, postMsg, callback);
+		_FetchBinary("https://" + domain + ":302/api/" + url, postMsg, function(success, encData) {
+			if (!success) {callback(false, null); return;}
+
+			try {
+				const decData = sodium.crypto_box_open_easy(encData.slice(sodium.crypto_box_NONCEBYTES), encData.slice(0, sodium.crypto_box_NONCEBYTES), _AEM_PUBKEY_SERVER, _userKeySecret);
+
+				if (decData.length !== 33) {
+					callback(true, decData);
+				} else if (decData[1] === 0)
+					callback(true, null);
+				else {
+					callback(true, decData.slice(1, 1 + decData[0]));
+				}
+			} catch(e) {
+				callback(false, null);
+			}
+		});
 	};
 
 	const _GetBit = function(src, bitNum) {
