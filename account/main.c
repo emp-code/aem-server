@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for struct ucred
+
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h> // for setlocale
@@ -8,7 +10,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -59,6 +60,9 @@ static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
 static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 
 static unsigned char hash_system[13];
+
+static gid_t aeGid;
+static uid_t aeUid;
 
 static bool terminate = false;
 
@@ -498,6 +502,13 @@ static void mta_getPubKey(const int sock, const unsigned char * const addr32, co
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
 
+static bool peerOk(const int sock) {
+	struct ucred peer;
+	unsigned int lenUc = sizeof(struct ucred);
+	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
+	return (peer.gid == aeGid && peer.uid == aeUid);
+}
+
 static int takeConnections(void) {
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
@@ -514,6 +525,10 @@ static int takeConnections(void) {
 	while (!terminate) {
 		const int sockClient = accept(sockMain, NULL, NULL);
 		if (sockClient < 0) continue;
+		if (!peerOk(sockClient)) {
+			syslog(LOG_WARNING, "Connection rejected from invalid user");
+			continue;
+		}
 
 		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1 + crypto_box_PUBLICKEYBYTES;
 		unsigned char enc[encLen];
@@ -578,10 +593,15 @@ __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
 	return (
 	   read(fd, accountKey, AEM_LEN_KEY_ACC) == AEM_LEN_KEY_ACC
+
 	&& read(fd, salt_normal, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
 	&& read(fd, salt_shield, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
+
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
+
+	&& read(fd, &aeGid, sizeof(gid_t)) == sizeof(gid_t)
+	&& read(fd, &aeUid, sizeof(uid_t)) == sizeof(uid_t)
 	) ? 0 : -1;
 }
 

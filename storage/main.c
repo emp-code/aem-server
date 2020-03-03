@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for struct ucred
+
 #include <fcntl.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
@@ -41,6 +43,9 @@ static uint32_t *empty;
 static int emptyCount;
 
 static int fdMsg;
+
+static gid_t aeGid;
+static uid_t aeUid;
 
 static bool terminate = false;
 
@@ -344,6 +349,13 @@ static int bindSocket(const int sock) {
 	return bind(sock, (struct sockaddr*)&addr, lenAddr);
 }
 
+static bool peerOk(const int sock) {
+	struct ucred peer;
+	unsigned int lenUc = sizeof(struct ucred);
+	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
+	return (peer.gid == aeGid && peer.uid == aeUid);
+}
+
 void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (bindSocket(sockListen) != 0) return;
@@ -352,6 +364,10 @@ void takeConnections(void) {
 	while (!terminate) {
 		const int sock = accept(sockListen, NULL, NULL);
 		if (sock < 0) continue;
+		if (!peerOk(sock)) {
+			syslog(LOG_WARNING, "Connection rejected from invalid user");
+			continue;
+		}
 
 		const size_t lenClr = 1 + crypto_box_PUBLICKEYBYTES;
 		const size_t lenEnc = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClr;
@@ -461,8 +477,12 @@ static int pipeLoad(const int fd) {
 	return (
 	   read(fd, stindexKey, AEM_LEN_KEY_STI) == AEM_LEN_KEY_STI
 	&& read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
+
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
+
+	&& read(fd, &aeGid, sizeof(gid_t)) == sizeof(gid_t)
+	&& read(fd, &aeUid, sizeof(uid_t)) == sizeof(uid_t)
 	) ? 0 : -1;
 }
 
