@@ -33,7 +33,7 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
 
 	if (status != MMDB_SUCCESS) {
-		syslog(LOG_MAIL | LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
+		syslog(LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
 		return 0;
 	}
 
@@ -41,7 +41,7 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &mmdb_error);
 
 	if (mmdb_error != MMDB_SUCCESS) {
-		syslog(LOG_MAIL | LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(mmdb_error));
+		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(mmdb_error));
 		return 0;
 	}
 
@@ -53,9 +53,9 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 		if (status == MMDB_SUCCESS) {
 			memcpy(&ret, entry_data.utf8_string, 2);
 		} else {
-			syslog(LOG_MAIL | LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
+			syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
 		}
-	} else syslog(LOG_MAIL | LOG_ERR, "getCountryCode: No entry for the IP address was found");
+	} else syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
 
 	MMDB_close(&mmdb);
 	return ret;
@@ -68,12 +68,12 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed creating socket to allears-account");
+		syslog(LOG_ERR, "Failed creating socket to allears-account");
 		return -1;
 	}
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed connecting to allears-account");
+		syslog(LOG_ERR, "Failed connecting to allears-account");
 		return -1;
 	}
 
@@ -102,12 +102,12 @@ static int storageSocket(const unsigned char *msg, const size_t lenMsg) {
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed creating socket to allears-storage");
+		syslog(LOG_ERR, "Failed creating socket to allears-storage");
 		return -1;
 	}
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed connecting to allears-storage");
+		syslog(LOG_ERR, "Failed connecting to allears-storage");
 		return -1;
 	}
 
@@ -165,7 +165,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {
-			syslog(LOG_MAIL | LOG_ERR, "makeMsg_Ext failed (%zd)", bsLen);
+			syslog(LOG_ERR, "makeMsg_Ext failed (%zd)", bsLen);
 			toStart = nextTo + 1;
 			continue;
 		}
@@ -178,7 +178,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		const int stoSock = storageSocket(cmd, 1 + crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			if (send(stoSock, boxSet, bsLen, 0) != (ssize_t)bsLen)
-				syslog(LOG_MAIL | LOG_ERR, "Failed sending to Storage");
+				syslog(LOG_ERR, "Failed sending to Storage");
 		}
 
 		free(boxSet);

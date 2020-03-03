@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
+#include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -178,6 +179,7 @@ static int setLimits() {
 
 int main(void) {
 	setlocale(LC_ALL, "C");
+	openlog("AEM-Man", LOG_PID, LOG_MAIL);
 
 	if (getuid() != 0) {puts("Terminating: Must be started as root"); return 1;}
 

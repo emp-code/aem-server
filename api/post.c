@@ -128,12 +128,12 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed creating socket to Account");
+		syslog(LOG_ERR, "Failed creating socket to Account");
 		return -1;
 	}
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed connecting to Account");
+		syslog(LOG_ERR, "Failed connecting to Account");
 		return -1;
 	}
 
@@ -148,7 +148,7 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed sending data to Account");
+		syslog(LOG_ERR, "Failed sending data to Account");
 		close(sock);
 		return -1;
 	}
@@ -163,12 +163,12 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed creating socket to Storage");
+		syslog(LOG_ERR, "Failed creating socket to Storage");
 		return -1;
 	}
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed connecting to Storage");
+		syslog(LOG_ERR, "Failed connecting to Storage");
 		return -1;
 	}
 
@@ -183,7 +183,7 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed sending data to Storage");
+		syslog(LOG_ERR, "Failed sending data to Storage");
 		close(sock);
 		return -1;
 	}
@@ -192,7 +192,7 @@ static int storageSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 }
 
 static void userViolation(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const int violation) {
-	syslog(LOG_MAIL | LOG_WARNING, "Violation");
+	syslog(LOG_WARNING, "Violation");
 	// ...
 }
 
@@ -262,7 +262,7 @@ static void account_create(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -298,7 +298,7 @@ static void account_delete(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -334,7 +334,7 @@ static void account_update(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -358,7 +358,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed sending data to Account");
+		syslog(LOG_ERR, "Failed sending data to Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -381,7 +381,7 @@ static void address_create(mbedtls_ssl_context * const ssl, char * const * const
 	if (
 	   recv(sock, data, 13, 0) != 13
 	|| recv(sock, data + 13, 15, 0) != 15
-	) {syslog(LOG_MAIL | LOG_ERR, "Failed receiving data from Account"); close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
+	) {syslog(LOG_ERR, "Failed receiving data from Account"); close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	close(sock);
 
@@ -395,7 +395,7 @@ static void address_delete(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -441,7 +441,7 @@ static void address_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -470,7 +470,7 @@ static void message_assign(mbedtls_ssl_context * const ssl, char * const * const
 	close(sock);
 
 	if (sentBytes != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
+		syslog(LOG_ERR, "Failed communicating with Storage");
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -595,7 +595,7 @@ static void message_create(mbedtls_ssl_context * const ssl, char * const * const
 	close(sock);
 
 	if (sentBytes != (ssize_t)(kib * 1024)) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
+		syslog(LOG_ERR, "Failed communicating with Storage");
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
 		return;
 	}
@@ -610,7 +610,7 @@ static void message_delete(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Storage");
+		syslog(LOG_ERR, "Failed communicating with Storage");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -630,7 +630,7 @@ static void private_update(mbedtls_ssl_context * const ssl, char * const * const
 	if (sock < 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -666,7 +666,7 @@ static void setting_limits(mbedtls_ssl_context * const ssl, char * const * const
 	}
 
 	if (send(sock, *decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_MAIL | LOG_ERR, "Failed communicating with Account");
+		syslog(LOG_ERR, "Failed communicating with Account");
 		sodium_free(*decrypted);
 		close(sock);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);

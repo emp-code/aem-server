@@ -334,7 +334,7 @@ static void tlsClose(mbedtls_ssl_context * const tls) {
 
 static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const clientAddr, const int code) {
 	tlsClose(tls);
-	syslog(LOG_MAIL | (code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %s)", code, inet_ntoa(clientAddr->sin_addr));
+	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %s)", code, inet_ntoa(clientAddr->sin_addr));
 }
 
 void tlsFree(void) {
@@ -369,7 +369,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {
-		syslog(LOG_MAIL | LOG_ERR, "mbedtls_ssl_config_defaults failed: %m");
+		syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %m");
 		return -1;
 	}
 
@@ -380,19 +380,19 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {
-		syslog(LOG_MAIL | LOG_ERR, "mbedtls_ctr_drbg_seed failed: %m");
+		syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %m");
 		return -1;
 	}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
 	if (ret != 0) {
-		syslog(LOG_MAIL | LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %m");
+		syslog(LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %m");
 		return -1;
 	}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {
-		syslog(LOG_MAIL | LOG_ERR, "mbedtls_ssl_setup failed: %m");
+		syslog(LOG_ERR, "mbedtls_ssl_setup failed: %m");
 		return -1;
 	}
 
@@ -429,7 +429,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_MAIL | LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %d", ret);
+				syslog(LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %d", ret);
 				tlsClose(tls);
 				return;
 			}
@@ -437,22 +437,22 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
-			syslog(LOG_MAIL | LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			tlsClose(tls);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
-			syslog(LOG_MAIL | LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
 			tlsClose(tls);
 			return;
 		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
-			syslog(LOG_MAIL | LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
+			syslog(LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
 			tlsClose(tls);
 			return;
 		}
 
 		if (!smtp_shlo(tls)) {
-			syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Failed to send greeting following StartTLS");
+			syslog(LOG_NOTICE, "Terminating: Failed to send greeting following StartTLS");
 			tlsClose(tls);
 			return;
 		}
@@ -469,8 +469,8 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes < 1) syslog(LOG_MAIL | LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else syslog(LOG_MAIL | LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
 			break;
 		}
 
@@ -566,7 +566,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 3);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
-				syslog(LOG_MAIL | LOG_ERR, "Failed allocation");
+				syslog(LOG_ERR, "Failed allocation");
 				return smtp_fail(tls, clientAddr, 999);
 			}
 
