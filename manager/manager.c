@@ -464,13 +464,7 @@ static void process_spawn(const int type) {
 	close(fd[0]);
 
 	switch(type) {
-		case AEM_PROCESSTYPE_ACCOUNT: {
-			const struct passwd * const p = getpwnam("allears");
-			unsigned char p_gid[sizeof(gid_t)];
-			unsigned char p_uid[sizeof(uid_t)];
-			memcpy(p_gid, &(p->pw_gid), sizeof(gid_t));
-			memcpy(p_uid, &(p->pw_uid), sizeof(gid_t));
-
+		case AEM_PROCESSTYPE_ACCOUNT:
 			if (
 			   pipeWriteDirect(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
 
@@ -479,30 +473,18 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
-
-			|| pipeWriteDirect(fd[1], p_gid, sizeof(gid_t)) < 0
-			|| pipeWriteDirect(fd[1], p_uid, sizeof(uid_t)) < 0
 			) syslog(LOG_ERR, "Failed to write to pipe: %m");
-		break;}
+		break;
 
-		case AEM_PROCESSTYPE_STORAGE: {
-			const struct passwd * const p = getpwnam("allears");
-			unsigned char p_gid[sizeof(gid_t)];
-			unsigned char p_uid[sizeof(uid_t)];
-			memcpy(p_gid, &(p->pw_gid), sizeof(gid_t));
-			memcpy(p_uid, &(p->pw_uid), sizeof(gid_t));
-
+		case AEM_PROCESSTYPE_STORAGE:
 			if (
 			   pipeWriteDirect(fd[1], key_sti, AEM_LEN_KEY_STI) < 0
 			|| pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
-
-			|| pipeWriteDirect(fd[1], p_gid, sizeof(gid_t)) < 0
-			|| pipeWriteDirect(fd[1], p_uid, sizeof(uid_t)) < 0
 			) syslog(LOG_ERR, "Failed to write to pipe: %m");
-		break;}
+		break;
 
 		case AEM_PROCESSTYPE_API:
 			if (

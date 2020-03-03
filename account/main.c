@@ -61,9 +61,6 @@ static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 
 static unsigned char hash_system[13];
 
-static gid_t aeGid;
-static uid_t aeUid;
-
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
@@ -506,7 +503,7 @@ static bool peerOk(const int sock) {
 	struct ucred peer;
 	unsigned int lenUc = sizeof(struct ucred);
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == aeGid && peer.uid == aeUid);
+	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
 static int takeConnections(void) {
@@ -603,9 +600,6 @@ static int pipeLoad(const int fd) {
 
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-
-	&& read(fd, &aeGid, sizeof(gid_t)) == sizeof(gid_t)
-	&& read(fd, &aeUid, sizeof(uid_t)) == sizeof(uid_t)
 	) ? 0 : -1;
 }
 
