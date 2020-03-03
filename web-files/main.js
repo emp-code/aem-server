@@ -165,7 +165,7 @@ function addExtMessage(i) {
 			let checked = false;
 
 			for (let j = 0; j < checkboxes.length; j++) {
-				if (checkboxes.checked) {
+				if (checkboxes[j].checked) {
 					checked = true;
 					break;
 				}
@@ -240,7 +240,7 @@ function addIntMessage(i) {
 			let checked = false;
 
 			for (let j = 0; j < checkboxes.length; j++) {
-				if (checkboxes.checked) {
+				if (checkboxes[j].checked) {
 					checked = true;
 					break;
 				}
