@@ -204,6 +204,5 @@ int main(void) {
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
-	const int ret = receiveConnections();
-	return ret;
+	return receiveConnections();
 }
