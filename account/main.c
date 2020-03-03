@@ -510,6 +510,8 @@ static bool peerOk(const int sock) {
 }
 
 static int takeConnections(void) {
+	umask(0077);
+
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, "Account.sck");

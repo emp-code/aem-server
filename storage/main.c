@@ -357,6 +357,8 @@ static bool peerOk(const int sock) {
 }
 
 void takeConnections(void) {
+	umask(0077);
+
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, AEM_SOCK_QUEUE);
