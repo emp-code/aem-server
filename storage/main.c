@@ -351,6 +351,7 @@ void takeConnections(void) {
 
 	while (!terminate) {
 		const int sock = accept(sockListen, NULL, NULL);
+		if (sock < 0) continue;
 
 		const size_t lenClr = 1 + crypto_box_PUBLICKEYBYTES;
 		const size_t lenEnc = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClr;
