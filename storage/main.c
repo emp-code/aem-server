@@ -82,6 +82,8 @@ static int saveStindex(void) {
 
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char * const encrypted = malloc(lenEncrypted);
+	if (encrypted == NULL) {syslog(LOG_MAIL | LOG_ERR, "Failed allocation"); return -1;}
+
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, stindexKey);
 
@@ -233,13 +235,16 @@ int loadStindex() {
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
 	if (sz == 0) {
+		close(fd);
+
 		stindexCount = 0;
 		stindex = malloc(1);
-		close(fd);
-		return 0;
+		return (stindex == NULL) ? -1 : 0;
 	}
 
 	unsigned char *encd = malloc(sz);
+	if (encd == NULL) {close(fd); return -1;}
+
 	if (pread(fd, encd, sz, 0) != sz) {close(fd); return -1;}
 	close(fd);
 
@@ -251,6 +256,8 @@ int loadStindex() {
 	size_t skip = 2;
 
 	stindex = malloc(sizeof(struct aem_stindex) * stindexCount);
+	if (stindex == NULL) return -1;
+
 	for (int i = 0; i < stindexCount; i++) {
 		memcpy(stindex[i].pubkey, data + skip, crypto_box_PUBLICKEYBYTES);
 		skip += crypto_box_PUBLICKEYBYTES;
@@ -259,6 +266,8 @@ int loadStindex() {
 		skip += 2;
 
 		stindex[i].msg = malloc(stindex[i].msgCount * 4);
+		if (stindex[i].msg == NULL) return -1;
+
 		for (int j = 0; j < stindex[i].msgCount; j++) {
 			memcpy((unsigned char*)stindex[i].msg + (j * 4), data + skip, 4);
 			skip += 4;
@@ -283,6 +292,7 @@ static int loadEmpty(void) {
 	if (total % AEM_BLOCKSIZE != 0) return -1;
 
 	empty = malloc(1);
+	if (empty == NULL) return -1;
 	emptyCount = 0;
 
 	int blocks = 0;
