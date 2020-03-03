@@ -158,7 +158,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		stindex[num].msgCount = 0;
 		stindex[num].msg = malloc(4);
 	} else {
-		uint32_t *newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 4);
+		uint32_t * const newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 4);
 		if (newMsg == NULL) {
 			// TODO
 			return -1;
@@ -207,7 +207,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 		}
 
 		if (found) {
-			uint32_t *empty2 = realloc(empty, 4 * (emptyCount + 1));
+			uint32_t * const empty2 = realloc(empty, 4 * (emptyCount + 1));
 			if (empty2 != NULL) {
 				empty = empty2;
 				empty[emptyCount] = stindex[num].msg[i];
@@ -243,7 +243,7 @@ int loadStindex() {
 		return (stindex == NULL) ? -1 : 0;
 	}
 
-	unsigned char *encd = malloc(sz);
+	unsigned char * const encd = malloc(sz);
 	if (encd == NULL) {close(fd); return -1;}
 
 	if (pread(fd, encd, sz, 0) != sz) {close(fd); return -1;}
@@ -319,7 +319,7 @@ static int loadEmpty(void) {
 
 			blocks++;
 		} else if (blocks > 0) {
-			uint32_t *empty2 = realloc(empty, (emptyCount + 1) * 4);
+			uint32_t * const empty2 = realloc(empty, (emptyCount + 1) * 4);
 			if (empty2 == NULL) {free(empty); return -1;}
 			empty = empty2;
 
@@ -345,7 +345,7 @@ static int bindSocket(const int sock) {
 }
 
 void takeConnections(void) {
-	int sockListen = socket(AF_UNIX, SOCK_STREAM, 0);
+	const int sockListen = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, AEM_SOCK_QUEUE);
 
