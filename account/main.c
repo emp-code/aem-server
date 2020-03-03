@@ -148,7 +148,7 @@ static int loadUser(void) {
 	}
 	close(fd);
 
-	unsigned char* decrypted = sodium_malloc(lenDecrypted);
+	unsigned char * const decrypted = sodium_malloc(lenDecrypted);
 	if (decrypted == NULL) return -1;
 
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
@@ -379,7 +379,7 @@ static void api_address_create(const int sock, const int num) {
 
 		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else {
-		unsigned char ok = 1;
+		const unsigned char ok = 1;
 		send(sock, &ok, 1, 0);
 
 		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT;
