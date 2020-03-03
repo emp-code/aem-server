@@ -113,6 +113,7 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 
 	*len = readBytes;
 	*target = sodium_malloc(*len);
+	if (*target == NULL) return -1;
 	memcpy(*target, buf, *len);
 	sodium_mprotect_readonly(*target);
 
