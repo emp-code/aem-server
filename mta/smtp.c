@@ -564,6 +564,11 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 3);
+			if (body == NULL) {
+				smtp_respond(sock, tls, '4', '2', '1');
+				syslog(LOG_MAIL | LOG_ERR, "Failed allocation");
+				return smtp_fail(tls, clientAddr, 999);
+			}
 
 			// Copy greeting and from address to body
 			memcpy(body, greeting, lenGreeting);
