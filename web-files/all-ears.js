@@ -17,7 +17,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	const _AEM_ADDR_FLAG_USE_GK = 4;
 	const _AEM_ADDR_FLAG_ACCINT = 2;
 	const _AEM_ADDR_FLAG_ACCEXT = 1;
-	const _AEM_ADDR_FLAGS_DEFAULT = _AEM_ADDR_FLAG_ACCEXT;
 
 	const _AEM_BYTES_HEADBOX = 35;
 	const _AEM_BYTES_POST = 8192;
@@ -27,7 +26,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	const _AEM_ARGON2_OPSLIMIT = 3;
 
 	const _AEM_ADDR32_CHARS = "0123456789abcdefghjkmnpqrstuwxyz";
-	const _AEM_ADMINDATA_USERS = 1024;
 	const _AEM_PUBKEY_SERVER = sodium.from_hex(serverPkHex);
 	const _AEM_SALT_NORMAL = sodium.from_hex(saltNormalHex);
 	const _AEM_USER_MAXLEVEL = 3;
