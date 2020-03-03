@@ -364,8 +364,10 @@ void takeConnections(void) {
 	while (!terminate) {
 		const int sock = accept(sockListen, NULL, NULL);
 		if (sock < 0) continue;
+
 		if (!peerOk(sock)) {
 			syslog(LOG_WARNING, "Connection rejected from invalid user");
+			close(sock);
 			continue;
 		}
 
