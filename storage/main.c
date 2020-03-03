@@ -364,7 +364,7 @@ void takeConnections(void) {
 				unsigned char * const msg = malloc(bytes);
 				if (msg == NULL) break;
 
-				if (recv(sock, msg, bytes, 0) == bytes) {
+				if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 					storage_write(clr + 1, msg, clr[0]);
 					saveStindex();
 				} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from API");
@@ -430,7 +430,7 @@ void takeConnections(void) {
 			unsigned char * const msg = malloc(bytes);
 			if (msg == NULL) break;
 
-			if (recv(sock, msg, bytes, 0) == bytes) {
+			if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 				storage_write(clr + 1, msg, clr[0]);
 				saveStindex();
 			} else syslog(LOG_MAIL | LOG_ERR, "Failed to receive data from MTA");
