@@ -106,6 +106,7 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 	const _FetchBinary = function(url, postData, callback) {
 		const nolang = new Headers();
 		nolang.append("Accept-Language", "");
+		nolang.append("Accept", "");
 
 		fetch(url, {
 			method: "POST",
