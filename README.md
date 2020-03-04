@@ -78,11 +78,11 @@ Invalid requests are dropped without response. Clients are required to support B
 
 AllEars-API provides an open web API to clients, such as websites or dedicated client programs.
 
-All requests use authenticated encryption (libsodium's Box), which is used to verify the user.
+API requests and responses are both encrypted with libsodium's Box, which provides [both authentication and confidentiality](https://en.wikipedia.org/wiki/Authenticated_encryption).
+
+Invalid requests, such as those made without a registered public key, are dropped without response.
 
 AllEars-Account and AllEars-Storage are contacted through Unix sockets.
-
-Invalid requests are dropped without response.
 
 ## AllEars-MTA ##
 
