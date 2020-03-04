@@ -177,26 +177,44 @@ static int setLimits(void) {
 	return 0;
 }
 
+static bool ptraceDisabled(void) {
+	const int fd = open("/proc/sys/kernel/yama/ptrace_scope", O_RDWR | O_NOCTTY | O_CLOEXEC);
+	if (fd < 1) return false;
+
+	char val;
+	if (read(fd, &val, 1) != 1) {close(fd); return false;}
+
+	if (val != '3') {
+		val = '3';
+		if (pwrite(fd, &val, 1, 0) != 1) return false;
+		if (pread(fd, &val, 1, 0) != 1) return false;
+	}
+
+	close(fd);
+	return (val == '3');
+}
+
 int main(void) {
 	setlocale(LC_ALL, "C");
 	openlog("AEM-Man", LOG_PID, LOG_MAIL);
 
 	if (getuid() != 0) {puts("Terminating: Must be started as root"); return 1;}
+	if (!ptraceDisabled()) {puts("Terminating: Failed to disable ptrace"); return 2;}
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return 2;
-	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return 3; // Disable core dumps
-	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 4; // Kill early if memory corruption detected
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return 10;
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return 11; // Disable core dumps and ptrace
+	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 12; // Kill early if memory corruption detected
 
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 5;
-	if (sodium_init() < 0) return 6;
-	if (setSignals() != 0) return 7;
-	if (setLimits()  != 0) return 8;
-	if (setCaps()    != 0) return 9;
-	if (dropBounds() != 0) return 10;
+	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 20;
+	if (sodium_init() < 0) return 21;
+	if (setSignals() != 0) return 22;
+	if (setLimits()  != 0) return 23;
+	if (setCaps()    != 0) return 24;
+	if (dropBounds() != 0) return 25;
 
-	if (mkdir(AEM_CHROOT, 0) != 0) {printf("Terminating: %s exists\n", AEM_CHROOT); return 11;}
-	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 12;}
-	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 13;}
+	if (mkdir(AEM_CHROOT, 0) != 0) {printf("Terminating: %s exists\n", AEM_CHROOT); return 30;}
+	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 31;}
+	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 32;}
 
 	puts("Ready");
 
