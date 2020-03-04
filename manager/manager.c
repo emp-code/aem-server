@@ -381,7 +381,7 @@ static int setSubLimits(const int type) {
 	}
 
 	switch(type) {
-		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
+		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
 
 		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
