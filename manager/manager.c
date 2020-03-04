@@ -380,8 +380,15 @@ static int setSubLimits(const int type) {
 		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
 	}
 
-	rlim.rlim_cur = 10;
-	rlim.rlim_max = 10;
+	switch(type) {
+		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
+		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
+
+		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
+		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 10; rlim.rlim_max = 10; break;
+		case AEM_PROCESSTYPE_WEB: rlim.rlim_cur = 3; rlim.rlim_max = 3; break;
+	}
+
 	if (setrlimit(RLIMIT_OFILE, &rlim) != 0) return -1;
 
 	return 0;
