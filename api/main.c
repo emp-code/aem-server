@@ -176,7 +176,7 @@ static void quit(void) {
 
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); exit(EXIT_FAILURE);}
 	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
 
