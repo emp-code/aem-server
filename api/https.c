@@ -61,8 +61,6 @@ MBEDTLS_MD_NONE};
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
 
-static unsigned char req[AEM_HTTPS_POST_BOXED_SIZE + 1];
-
 int setDomain(const char * const newDomain, const size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
 
@@ -72,7 +70,7 @@ int setDomain(const char * const newDomain, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int getRequestType(size_t lenReq, bool * const keepAlive) {
+static int getRequestType(const unsigned char * const req, size_t lenReq, bool * const keepAlive) {
 	if (strcasestr((char*)req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
@@ -149,33 +147,6 @@ static int getRequestType(size_t lenReq, bool * const keepAlive) {
 	return AEM_HTTPS_REQUEST_POST;
 }
 
-__attribute__((warn_unused_result))
-int handlePost(mbedtls_ssl_context * const ssl, const size_t lenReq) {
-	char url[AEM_LEN_URL_POST];
-	memcpy(url, req + AEM_SKIP_URL_POST, AEM_LEN_URL_POST);
-
-	const unsigned char *post = memmem(req, lenReq, "\r\n\r\n", 4);
-	if (post == NULL) return -1;
-	post += 4;
-
-	size_t lenPost = lenReq - (post - req);
-
-	if (lenPost > 0) {
-		const size_t lenDel = (lenReq - lenPost);
-		memcpy(req, req + lenDel, lenDel);
-		memcpy(req + lenDel, req + lenDel * 2, lenPost - lenDel);
-	}
-
-	while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
-		int ret;
-		do {ret = mbedtls_ssl_read(ssl, req + lenPost, AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		if (ret < 1) return -1;
-		lenPost += ret;
-	}
-
-	return https_post(ssl, url, req);
-}
-
 void tlsFree(void) {
 	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&conf);
@@ -184,8 +155,6 @@ void tlsFree(void) {
 }
 
 int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey) {
-	explicit_bzero(req, AEM_HTTPS_POST_BOXED_SIZE);
-
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_entropy_init(&entropy);
@@ -228,29 +197,48 @@ void respond_https(int sock) {
 	}
 
 	while(1) {
-		bool keepAlive = true;
-
-		do {ret = mbedtls_ssl_read(&ssl, req, AEM_MAXLEN_REQ + crypto_box_PUBLICKEYBYTES);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		static unsigned char buf[AEM_HTTPS_POST_BOXED_SIZE];
+		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + crypto_box_PUBLICKEYBYTES);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		if (ret < 1) break;
 
-		const unsigned char * const postBegin = memmem(req, ret, "\r\n\r\n", 4);
+		const unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
 		if (postBegin == NULL) break;
 
-		const int reqType = getRequestType(ret, &keepAlive);
+		bool keepAlive = true;
+		const int reqType = getRequestType(buf, ret, &keepAlive);
 		if (reqType == AEM_HTTPS_REQUEST_INVALID) break;
 		if (reqType == AEM_HTTPS_REQUEST_PUBKEY) {
 			https_pubkey(&ssl);
 			if (keepAlive) continue; else break;
 		}
 
-		const size_t postLen = ret - ((postBegin + 4) - req);
-		if (postLen < crypto_box_PUBLICKEYBYTES) break;
+		size_t lenPost = ret - ((postBegin + 4) - buf);
+		if (lenPost < crypto_box_PUBLICKEYBYTES) {
+			int re2;
+			do {re2 = mbedtls_ssl_read(&ssl, buf + ret, crypto_box_PUBLICKEYBYTES - lenPost);} while (re2 == MBEDTLS_ERR_SSL_WANT_READ);
+			if (re2 < 1) break;
+
+			lenPost += re2;
+			if (lenPost < crypto_box_PUBLICKEYBYTES) break;
+		}
 
 		if (!pubkeyExists(postBegin + 4)) break;
-		setKeepAlive(keepAlive);
-		if (handlePost(&ssl, ret) != 0) break;
 
-		explicit_bzero(req, AEM_HTTPS_POST_BOXED_SIZE);
+		char url[AEM_LEN_URL_POST];
+		memcpy(url, buf + AEM_SKIP_URL_POST, AEM_LEN_URL_POST);
+
+		memmove(buf, postBegin + 4, lenPost);
+
+		while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
+			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+			if (ret < 1) break;
+			lenPost += ret;
+		}
+		if (ret < 1) break;
+
+		if (https_post(&ssl, url, buf, keepAlive) != 0) break;
+
+		explicit_bzero(buf, AEM_HTTPS_POST_BOXED_SIZE);
 		if (!keepAlive) break;
 	}
 

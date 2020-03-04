@@ -41,7 +41,6 @@ void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
 static bool keepAlive;
-void setKeepAlive(const bool ka) {keepAlive = ka;}
 
 void https_pubkey(mbedtls_ssl_context * const ssl) {
 	unsigned char data[350];
@@ -717,8 +716,10 @@ static unsigned char *openWebBox(const unsigned char * const post, unsigned char
 }
 
 __attribute__((warn_unused_result))
-int https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
+int https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post, const bool ka) {
 	if (ssl == NULL || url == NULL || post == NULL) return -1;
+	keepAlive = ka;
+
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	size_t lenDecrypted;
 
