@@ -400,8 +400,6 @@ void takeConnections(void) {
 
 				free(msg);
 			} else { // Browse
-				const int rfd = open("Storage.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
-
 				int stindexNum = -1;
 				for (int i = 0; i < stindexCount; i++) {
 					if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
@@ -411,7 +409,6 @@ void takeConnections(void) {
 				}
 
 				if (stindexNum < 0) {
-					close(rfd);
 					close(sock);
 					continue;
 				}
@@ -431,9 +428,8 @@ void takeConnections(void) {
 
 					const size_t msgPos = 128 + (msgKib * 1024);
 
-					if (pread(rfd, msgData + msgPos, len, pos) != len) {
+					if (pread(fdMsg, msgData + msgPos, len, pos) != len) {
 						syslog(LOG_ERR, "Failed read");
-						close(rfd);
 						break;
 					}
 
@@ -450,9 +446,7 @@ void takeConnections(void) {
 					if (msgNum > 127) break;
 				}
 
-				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_ERR, "Failed send"); close(rfd); break;}
-
-				close(rfd);
+				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_ERR, "Failed send"); break;}
 			}
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
