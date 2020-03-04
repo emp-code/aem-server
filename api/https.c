@@ -19,7 +19,7 @@
 #include "post.h"
 
 #define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
-#define AEM_MAXLEN_REQ 800
+#define AEM_MAXLEN_REQ 480
 #define AEM_HTTPS_TIMEOUT 30
 
 #define AEM_SKIP_URL_POST 10 // 'POST /api/'
