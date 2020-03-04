@@ -110,7 +110,6 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 
 		fetch(url, {
 			method: "POST",
-			cache: "no-store",
 			credentials: "omit",
 			headers: nolang,
 			redirect: "error",
