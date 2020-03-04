@@ -139,11 +139,11 @@ function AllEars(domain, serverPkHex, saltNormalHex, readyCallback) {
 		// postBox: the encrypted data to be sent
 		const postBox = sodium.crypto_box_easy(clearU8, nonce, _AEM_PUBKEY_SERVER, _userKeySecret);
 
-		// postMsg: Nonce + User Public Key + postBox
-		const postMsg = new Uint8Array(sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES + postBox.length);
-		postMsg.set(nonce);
-		postMsg.set(_userKeyPublic, sodium.crypto_box_NONCEBYTES);
-		postMsg.set(postBox, sodium.crypto_box_NONCEBYTES + sodium.crypto_box_PUBLICKEYBYTES);
+		// postMsg: User Public Key + Nonce + postBox
+		const postMsg = new Uint8Array(sodium.crypto_box_PUBLICKEYBYTES + sodium.crypto_box_NONCEBYTES + postBox.length);
+		postMsg.set(_userKeyPublic);
+		postMsg.set(nonce, sodium.crypto_box_PUBLICKEYBYTES);
+		postMsg.set(postBox, sodium.crypto_box_PUBLICKEYBYTES + sodium.crypto_box_NONCEBYTES);
 
 		_FetchBinary("https://" + domain + ":302/api/" + url, postMsg, function(success, encData) {
 			if (!success) {callback(false, null); return;}
