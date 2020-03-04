@@ -186,8 +186,8 @@ static bool ptraceDisabled(void) {
 
 	if (val != '3') {
 		val = '3';
-		if (pwrite(fd, &val, 1, 0) != 1) return false;
-		if (pread(fd, &val, 1, 0) != 1) return false;
+		if (pwrite(fd, &val, 1, 0) != 1) {close(fd); return false;}
+		if (pread(fd, &val, 1, 0) != 1) {close(fd); return false;}
 	}
 
 	close(fd);
