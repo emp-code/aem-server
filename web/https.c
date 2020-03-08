@@ -142,23 +142,6 @@ void respond_tsr(void) {
 	, 326);
 }
 
-__attribute__((warn_unused_result))
-static bool supportsBrotli(const char * const req) {
-	const char * const ae = strcasestr(req, "\r\nAccept-Encoding: ");
-	if (ae == NULL) return false;
-
-	const char * const aeEnd = strpbrk(ae + 19, "\r\n");
-	const char * const br = strcasestr(ae + 19, "br");
-	if (br == NULL || br > aeEnd) return false;
-
-	if (br[2] != ',' && br[2] != ' ' && br[2] != '\r') return false;
-
-	const char br1 = ae[br - ae - 1]; // br - 1
-	if (br1 != ',' && br1 != ' ') return false;
-
-	return true;
-}
-
 static void handleRequest(const size_t lenReq) {
 	if (lenReq < AEM_MINLEN_GET) return;
 	if (memcmp(req, "GET /", 5) != 0) return;
@@ -191,11 +174,7 @@ static void handleRequest(const size_t lenReq) {
 
 	if (memcmp(req + 5, "robots.txt HTTP/1.1\r\n", 21) == 0) return respond_robots();
 	if (memcmp(req + 5, ".well-known/dnt/ HTTP/1.1\r\n", 27) == 0) return respond_tsr();
-
-	if (memcmp(req + 5, " HTTP/1.1\r\n", 11) == 0) {
-		if (!supportsBrotli(req)) return;
-		sendData(&ssl, html, lenHtml);
-	}
+	if (memcmp(req + 5, " HTTP/1.1\r\n", 11) == 0) sendData(&ssl, html, lenHtml);
 }
 
 void tlsFree(void) {
