@@ -165,7 +165,6 @@ static void handleRequest(const size_t lenReq) {
 		|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
 		|| (strcasestr(req, "\r\nSec-Fetch-Mode: cors")       != NULL)
 		|| (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: cross-site") != NULL)
 		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site")  != NULL)
 	) return;
 
