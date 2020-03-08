@@ -46,6 +46,7 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	freeHtml();
+	freeTls();
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
@@ -170,13 +171,6 @@ static void setSocketTimeout(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
 }
 
-static void quit(void) {
-	sodium_free(tls_crt);
-	sodium_free(tls_key);
-	syslog(LOG_INFO, "Terminating");
-	exit(EXIT_SUCCESS);
-}
-
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); exit(EXIT_FAILURE);}
@@ -193,7 +187,7 @@ static void receiveConnections(void) {
 		close(newSock);
 	}
 
-	tlsFree();
+	freeTls();
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
 	close(sock);
@@ -221,9 +215,12 @@ int main(int argc, char *argv[]) {
 	if (setSignals()        != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
 	if (sodium_init()        < 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed receiving data from Manager"); return EXIT_FAILURE;}
-
 	close(argv[0][0]);
-	atexit(quit);
+
 	receiveConnections();
+
+	freeHtml();
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
 	return EXIT_SUCCESS;
 }

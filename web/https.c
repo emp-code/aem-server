@@ -177,7 +177,7 @@ static void handleRequest(const size_t lenReq) {
 	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) == 0) sendData(&ssl, html, lenHtml);
 }
 
-void tlsFree(void) {
+void freeTls(void) {
 	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_entropy_free(&entropy);
