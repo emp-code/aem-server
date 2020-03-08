@@ -163,10 +163,14 @@ static void handleRequest(const size_t lenReq) {
 		|| (strcasestr(req, "\r\nOrigin:")           != NULL)
 		|| (strcasestr(req, "\r\nRange:")            != NULL)
 		|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Mode: cors")       != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Mode: websocket")  != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site")  != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site") != NULL)
 	) return;
+
+	const char * const fetchMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
+	if (fetchMode != NULL && strncasecmp(fetchMode + 18, "navigate\r\n", 10) != 0) return;
+
+	const char * const fetchDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
+	if (fetchDest != NULL && strncasecmp(fetchDest + 18, "document\r\n", 10) != 0) return;
 
 	if (memcmp(req + 5, "robots.txt HTTP/1.1\r\n", 21) == 0) return respond_robots();
 	if (memcmp(req + 5, ".well-known/dnt/ HTTP/1.1\r\n", 27) == 0) return respond_tsr();
