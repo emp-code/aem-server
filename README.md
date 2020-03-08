@@ -22,7 +22,6 @@ All-Ears consists of the following parts:
 5. [API](#allears-api)
 6. [MTA](#allears-mta)
 7. [Utilities](#utilities)
-8. [Web front-end](#webfront-end)
 
 General information:
 * [Users](#users)
@@ -66,19 +65,23 @@ With the current design, AllEars-Storage is capable of storing up to 32 GiB of d
 
 ## AllEars-Web ##
 
-AllEars-Web delivers the web interface assets: index.html, all-ears.js, main.js, and main.css. Its use is optional: the open web API provided by AllEars-API is usable by any website or client.
+AllEars-Web is a simple, high-security web server. Its use is optional: the open web API provided by AllEars-API is usable by any website or client.
 
-The files, stored in encrypted containers in `/etc/allears`, are received from Manager at startup. The files include all headers, and their contents are simply placed in read-only memory protected by libsodium and served to visitors.
+The server is designed for single-page sites, supporting one HTML file in addition to its own static, built-in responses (such as MTA-STS).
+
+All other files are designed to be hosted externally. This makes the client-side code easier to verify, and [SRI](https://en.wikipedia.org/wiki/Subresource_Integrity) protects the integrity of the files.
 
 AllEars-Web is the only process type to run completely isolated with no capability to interact with others.
 
-Invalid requests are dropped without response. Clients are required to support Brotli compression.
+Invalid requests are dropped without response. Only high-security HTTPS is supported, and clients are required to support Brotli compression.
 
 ## AllEars-API ##
 
 AllEars-API provides an open web API to clients, such as websites or dedicated client programs.
 
 API requests and responses are both encrypted with libsodium's Box, which provides [both authentication and confidentiality](https://en.wikipedia.org/wiki/Authenticated_encryption).
+
+All requests use the POST method with the same amount of data, and all API URLs are the same length.
 
 Invalid requests, such as those made without a registered public key, are dropped without response.
 
@@ -96,12 +99,8 @@ The `utils` folder contains miscellaneous utilities:
 * `Accgen`: Generates Account.aem
 * `Keygen`: Generates key files
 * `CertCrypt`: Encrypts the TLS certificate and private key
-* `FileCrypt`: Encrypts the web interface files (index.html, all-ears.js, main.js, main.css), compresses them and adds the HTTP headers
+* `FileCrypt`: Encrypts index.html, compresses and adds the HTTP headers
 * `ManagerClient`: A client for AllEars-Manager
-
-## Web front-end ##
-
-The `web-files` directory contains the official web front-end, including the client library `all-ears.js`.
 
 - - - -
 
@@ -171,10 +170,7 @@ TLS:
 * TLS.key: The TLS private key
 
 Web:
-* all-ears.js: The client library for All-Ears
 * index.html: The HTML file for the web interface
-* main.css: The CSS file for the web interface
-* main.js: Javascript for the web interface
 
 ## Signals ##
 
