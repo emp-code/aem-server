@@ -38,8 +38,9 @@ static size_t len_tls_key;
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
+	terminate = true;
+
 	if (sig == SIGUSR1) {
-		terminate = true;
 		syslog(LOG_INFO, "Terminating after next connection");
 		return;
 	}
