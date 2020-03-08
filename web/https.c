@@ -172,9 +172,9 @@ static void handleRequest(const size_t lenReq) {
 	const char * const fetchDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (fetchDest != NULL && strncasecmp(fetchDest + 18, "document\r\n", 10) != 0) return;
 
-	if (memcmp(req + 5, "robots.txt HTTP/1.1\r\n", 21) == 0) return respond_robots();
-	if (memcmp(req + 5, ".well-known/dnt/ HTTP/1.1\r\n", 27) == 0) return respond_tsr();
-	if (memcmp(req + 5, " HTTP/1.1\r\n", 11) == 0) sendData(&ssl, html, lenHtml);
+	if (strncmp(req + 5, "robots.txt HTTP/1.1\r\n", 21) == 0) return respond_robots();
+	if (strncmp(req + 5, ".well-known/dnt/ HTTP/1.1\r\n", 27) == 0) return respond_tsr();
+	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) == 0) sendData(&ssl, html, lenHtml);
 }
 
 void tlsFree(void) {
