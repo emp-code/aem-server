@@ -1,6 +1,5 @@
 #define _GNU_SOURCE // for strcasestr
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,8 +20,6 @@
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
 #define AEM_MAXLEN_REQ 800
 #define AEM_HTTPS_TIMEOUT 30
-
-#define AEM_SKIP_URL_GET 5 // 'GET /'
 
 static mbedtls_ssl_context ssl;
 static mbedtls_ssl_config conf;
@@ -201,10 +198,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
-	if (ret != 0) {
-		syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %m");
-		return -1;
-	}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %d", ret); return -1;}
 
 	mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
 	mbedtls_ssl_conf_ciphersuites(&conf, https_ciphersuites);
@@ -216,22 +210,13 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
-	if (ret != 0) {
-		syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %m");
-		return -1;
-	}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %d", ret); return -1;}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, tlsCert, tlsKey);
-	if (ret != 0) {
-		syslog(LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %m");
-		return -1;
-	}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %d", ret); return -1;}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
-	if (ret != 0) {
-		syslog(LOG_ERR, "mbedtls_ssl_setup failed: %m");
-		return -1;
-	}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %d", ret); return -1;}
 
 	return 0;
 }
