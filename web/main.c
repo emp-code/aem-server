@@ -94,8 +94,8 @@ static int initSocket(const int sock, const int port) {
 
 __attribute__((warn_unused_result))
 static int getDomainFromCert(void) {
-	char certInfo[1000];
-	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", &tlsCrt);
+	char certInfo[1024];
+	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
 
 	char *c = strstr(certInfo, "\nAEM_subject name");
 	if (c == NULL) return -1;
@@ -149,11 +149,11 @@ static int pipeLoad(const int fd) {
 
 	mbedtls_x509_crt_init(&tlsCrt);
 	int ret = mbedtls_x509_crt_parse(&tlsCrt, tls_crt, len_tls_crt);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse returned %m"); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %d", ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
 	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key returned %m"); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %d", ret); return -1;}
 
 	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed to get domain from certificate"); return -1;}
 
