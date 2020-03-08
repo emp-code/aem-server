@@ -52,11 +52,11 @@ MBEDTLS_MD_NONE};
 
 static char req[AEM_MAXLEN_REQ + 1];
 
-unsigned char *html;
-size_t lenHtml = 0;
+static unsigned char *html;
+static size_t lenHtml = 0;
 
-char domain[AEM_MAXLEN_DOMAIN];
-size_t lenDomain;
+static char domain[AEM_MAXLEN_DOMAIN];
+static size_t lenDomain;
 
 int setDomain(const char * const src, const size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
@@ -81,7 +81,7 @@ void freeHtml(void) {
 	lenHtml = 0;
 }
 
-void respond_mtasts(void) {
+static void respond_mtasts(void) {
 	char data[377 + lenDomain];
 	sprintf(data,
 		"HTTP/1.1 200 aem\r\n"
@@ -104,7 +104,7 @@ void respond_mtasts(void) {
 	sendData(&ssl, data, 376 + lenDomain);
 }
 
-void respond_robots(void) {
+static void respond_robots(void) {
 	sendData(&ssl,
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
@@ -123,7 +123,7 @@ void respond_robots(void) {
 }
 
 // Tracking Status Resource for DNT
-void respond_tsr(void) {
+static void respond_tsr(void) {
 	sendData(&ssl,
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
