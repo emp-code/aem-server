@@ -60,9 +60,6 @@ int main(int argc, char *argv[]) {
 
 	int fileType;
 	if (strcmp(argv[1], "index.html") == 0) fileType = AEM_FILETYPE_HTM;
-	else if (strcmp(argv[1], "main.css") == 0) fileType = AEM_FILETYPE_CSS;
-	else if (strcmp(argv[1], "all-ears.js") == 0) fileType = AEM_FILETYPE_JSA;
-	else if (strcmp(argv[1], "main.js") == 0) fileType = AEM_FILETYPE_JSM;
 	else {puts("Terminating: Unsupported file"); return EXIT_FAILURE;}
 
 	if (fileType == AEM_FILETYPE_HTM && argc < 3) {puts("Terminating: Need domain as second argument"); return EXIT_FAILURE;}
@@ -94,121 +91,81 @@ int main(int argc, char *argv[]) {
 	}
 
 	char headers[2000];
-	switch (fileType) {
-		case AEM_FILETYPE_CSS:
-			sprintf(headers,
-				"HTTP/1.1 200 aem\r\n"
-				"Tk: N\r\n"
-				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-				"Expect-CT: enforce, max-age=99999999\r\n"
-				"Connection: close\r\n"
-				"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
-				"Content-Encoding: br\r\n"
-				"Content-Type: text/css; charset=utf-8\r\n"
-				"Content-Length: %zd\r\n"
-				"X-Content-Type-Options: nosniff\r\n"
-				"X-Robots-Tag: noindex\r\n"
-				"Cross-Origin-Resource-Policy: same-origin\r\n"
-				"\r\n"
-			, bytes);
-		break;
+	sprintf(headers,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Connection: close\r\n"
+		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
+		"Content-Encoding: br\r\n"
+		"Content-Type: text/html; charset=utf-8\r\n"
+		"Content-Length: %zd\r\n"
 
-		case AEM_FILETYPE_JSA:
-		case AEM_FILETYPE_JSM:
-			sprintf(headers,
-				"HTTP/1.1 200 aem\r\n"
-				"Tk: N\r\n"
-				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-				"Expect-CT: enforce, max-age=99999999\r\n"
-				"Connection: close\r\n"
-				"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
-				"Content-Encoding: br\r\n"
-				"Content-Type: application/javascript; charset=utf-8\r\n"
-				"Content-Length: %zd\r\n"
-				"X-Content-Type-Options: nosniff\r\n"
-				"X-Robots-Tag: noindex\r\n"
-				"Cross-Origin-Resource-Policy: same-origin\r\n"
-				"\r\n"
-			, bytes);
-		break;
+		"Content-Security-Policy: "
+			"connect-src"     " https://%s:302/api/ data:;"
+			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
+			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
 
-		default: // HTML
-			sprintf(headers,
-				"HTTP/1.1 200 aem\r\n"
-				"Tk: N\r\n"
-				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-				"Expect-CT: enforce, max-age=99999999\r\n"
-				"Connection: close\r\n"
-				"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
-				"Content-Encoding: br\r\n"
-				"Content-Type: text/html; charset=utf-8\r\n"
-				"Content-Length: %zd\r\n"
+			"base-uri"        " 'none';"
+			"child-src"       " 'none';"
+			"default-src"     " 'none';"
+			"font-src"        " 'none';"
+			"form-action"     " 'none';"
+			"frame-ancestors" " 'none';"
+			"frame-src"       " 'none';"
+			"img-src"         " 'none';"
+			"manifest-src"    " 'none';"
+			"media-src"       " 'none';"
+			"object-src"      " 'none';"
+			"prefetch-src"    " 'none';"
+			"worker-src"      " 'none';"
 
-				"Content-Security-Policy: "
-					"connect-src"     " https://%s:302/api/ data:;"
-					"script-src"      " https://%s/files/main.js https://%s/files/all-ears.js https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
-					"style-src"       " https://%s/files/main.css;"
+			"block-all-mixed-content;"
+			"sandbox allow-scripts allow-same-origin;"
+		"\r\n"
 
-					"base-uri"        " 'none';"
-					"child-src"       " 'none';"
-					"default-src"     " 'none';"
-					"font-src"        " 'none';"
-					"form-action"     " 'none';"
-					"frame-ancestors" " 'none';"
-					"frame-src"       " 'none';"
-					"img-src"         " 'none';"
-					"manifest-src"    " 'none';"
-					"media-src"       " 'none';"
-					"object-src"      " 'none';"
-					"prefetch-src"    " 'none';"
-					"worker-src"      " 'none';"
+		"Feature-Policy: "
+			"accelerometer"                   " 'none';"
+			"ambient-light-sensor"            " 'none';"
+			"autoplay"                        " 'none';"
+			"battery"                         " 'none';"
+			"camera"                          " 'none';"
+			"display-capture"                 " 'none';"
+			"document-domain"                 " 'none';"
+			"document-write"                  " 'none';"
+			"encrypted-media"                 " 'none';"
+			"execution-while-not-rendered"    " 'none';"
+			"execution-while-out-of-viewport" " 'none';"
+			"fullscreen"                      " 'none';"
+			"geolocation"                     " 'none';"
+			"gyroscope"                       " 'none';"
+			"layout-animations"               " 'none';"
+			"legacy-image-formats"            " 'none';"
+			"magnetometer"                    " 'none';"
+			"microphone"                      " 'none';"
+			"midi"                            " 'none';"
+			"navigation-override"             " 'none';"
+			"oversized-images"                " 'none';"
+			"payment"                         " 'none';"
+			"picture-in-picture"              " 'none';"
+			"publickey-credentials"           " 'none';"
+			"speaker"                         " 'none';"
+			"sync-xhr"                        " 'none';"
+			"usb"                             " 'none';"
+			"vr"                              " 'none';"
+			"wake-lock"                       " 'none';"
+			"xr-spatial-tracking"             " 'none';"
+		"\r\n"
 
-					"block-all-mixed-content;"
-					"sandbox allow-scripts allow-same-origin;"
-				"\r\n"
-
-				"Feature-Policy: "
-					"accelerometer"                   " 'none';"
-					"ambient-light-sensor"            " 'none';"
-					"autoplay"                        " 'none';"
-					"battery"                         " 'none';"
-					"camera"                          " 'none';"
-					"display-capture"                 " 'none';"
-					"document-domain"                 " 'none';"
-					"document-write"                  " 'none';"
-					"encrypted-media"                 " 'none';"
-					"execution-while-not-rendered"    " 'none';"
-					"execution-while-out-of-viewport" " 'none';"
-					"fullscreen"                      " 'none';"
-					"geolocation"                     " 'none';"
-					"gyroscope"                       " 'none';"
-					"layout-animations"               " 'none';"
-					"legacy-image-formats"            " 'none';"
-					"magnetometer"                    " 'none';"
-					"microphone"                      " 'none';"
-					"midi"                            " 'none';"
-					"navigation-override"             " 'none';"
-					"oversized-images"                " 'none';"
-					"payment"                         " 'none';"
-					"picture-in-picture"              " 'none';"
-					"publickey-credentials"           " 'none';"
-					"speaker"                         " 'none';"
-					"sync-xhr"                        " 'none';"
-					"usb"                             " 'none';"
-					"vr"                              " 'none';"
-					"wake-lock"                       " 'none';"
-					"xr-spatial-tracking"             " 'none';"
-				"\r\n"
-
-				"Cross-Origin-Opener-Policy: same-origin\r\n"
-				"Referrer-Policy: no-referrer\r\n"
-				"X-Content-Type-Options: nosniff\r\n"
-				"X-DNS-Prefetch-Control: off\r\n"
-				"X-Frame-Options: deny\r\n"
-				"X-XSS-Protection: 1; mode=block\r\n"
-				"\r\n"
-			, bytes, argv[2], argv[2], argv[2], argv[2]);
-	}
+		"Cross-Origin-Opener-Policy: same-origin\r\n"
+		"Referrer-Policy: no-referrer\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
+		"X-DNS-Prefetch-Control: off\r\n"
+		"X-Frame-Options: deny\r\n"
+		"X-XSS-Protection: 1; mode=block\r\n"
+		"\r\n"
+	, bytes, argv[2]);
 
 	const size_t lenHeaders = strlen(headers);
 	unsigned char final[lenHeaders + bytes];

@@ -19,9 +19,7 @@
 
 #include "../Global.h"
 
-#include "global.h"
 #include "https.h"
-#include "get.h"
 
 #define AEM_PORT_HTTPS 443
 #define AEM_SOCKET_TIMEOUT 15
@@ -37,9 +35,6 @@ static unsigned char *tls_key;
 static size_t len_tls_crt;
 static size_t len_tls_key;
 
-char domain[AEM_MAXLEN_HOST];
-size_t lenDomain;
-
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
@@ -50,7 +45,7 @@ static void sigTerm(const int sig) {
 	}
 
 	// SIGUSR2: Fast kill
-	freeFiles();
+	freeHtml();
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
@@ -111,11 +106,7 @@ static int getDomainFromCert(void) {
 	if (c == NULL) return -1;
 	c += 5;
 
-	lenDomain = strlen(c);
-	if (lenDomain > AEM_MAXLEN_HOST) return -1;
-
-	memcpy(domain, c, lenDomain);
-	return 0;
+	return setDomain(c, strlen(c));
 }
 
 // For handling large reads on O_DIRECT pipes
@@ -148,7 +139,7 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 }
 
 __attribute__((warn_unused_result))
-static int pipeLoadTls(const int fd) {
+static int pipeLoad(const int fd) {
 	if (
 	   pipeRead(fd, &tls_crt, &len_tls_crt) != 0
 	|| pipeRead(fd, &tls_key, &len_tls_key) != 0
@@ -164,25 +155,10 @@ static int pipeLoadTls(const int fd) {
 
 	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed to get domain from certificate"); return -1;}
 
-	return 0;
-}
-
-__attribute__((warn_unused_result))
-static int pipeLoadFiles(const int fd) {
-	unsigned char *buf;
-	size_t len;
-
-	if (pipeRead(fd, &buf, &len) != 0) return -1;
-	setResponse(AEM_FILETYPE_CSS, buf, len);
-
-	if (pipeRead(fd, &buf, &len) != 0) return -1;
-	setResponse(AEM_FILETYPE_HTM, buf, len);
-
-	if (pipeRead(fd, &buf, &len) != 0) return -1;
-	setResponse(AEM_FILETYPE_JSA, buf, len);
-
-	if (pipeRead(fd, &buf, &len) != 0) return -1;
-	setResponse(AEM_FILETYPE_JSM, buf, len);
+	unsigned char buf[AEM_PIPE_BUFSIZE];
+	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
+	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	setHtml(buf, readBytes);
 
 	return 0;
 }
@@ -240,17 +216,14 @@ int main(int argc, char *argv[]) {
 	openlog("AEM-Web", LOG_PID, LOG_MAIL);
 
 	if (argc > 1 || argv == NULL) {syslog(LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
-	if (getuid()      == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setCaps(true) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
-	if (setSignals()  != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init()  < 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (getuid()            == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
+	if (setCaps(true)       != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (setSignals()        != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init()        < 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed receiving data from Manager"); return EXIT_FAILURE;}
 
-	if (pipeLoadTls(argv[0][0])   < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
-	if (pipeLoadFiles(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading files"); return EXIT_FAILURE;}
 	close(argv[0][0]);
-
 	atexit(quit);
-
 	receiveConnections();
 	return EXIT_SUCCESS;
 }

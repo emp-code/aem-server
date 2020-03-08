@@ -58,10 +58,7 @@
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
 #define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
 
-#define AEM_PATH_WEB_CSS AEM_PATH_CONF"/main.css"
-#define AEM_PATH_WEB_HTM AEM_PATH_CONF"/index.html"
-#define AEM_PATH_WEB_JSA AEM_PATH_CONF"/all-ears.js"
-#define AEM_PATH_WEB_JSM AEM_PATH_CONF"/main.js"
+#define AEM_PATH_HTML AEM_PATH_CONF"/index.html"
 
 #define AEM_LEN_FILE_MAX 8192
 
@@ -86,14 +83,8 @@ static unsigned char tls_key[AEM_LEN_FILE_MAX];
 static size_t len_tls_crt;
 static size_t len_tls_key;
 
-static unsigned char web_css[AEM_LEN_FILE_MAX];
-static unsigned char web_htm[AEM_LEN_FILE_MAX];
-static unsigned char web_jsa[AEM_LEN_FILE_MAX];
-static unsigned char web_jsm[AEM_LEN_FILE_MAX];
-static size_t len_web_css;
-static size_t len_web_htm;
-static size_t len_web_jsa;
-static size_t len_web_jsm;
+static unsigned char html[AEM_LEN_FILE_MAX];
+static size_t len_html;
 
 static pid_t pids[3][AEM_MAXPROCESSES];
 static pid_t pid_account = 0;
@@ -150,18 +141,11 @@ void wipeKeys(void) {
 	sodium_memzero(tls_crt, len_tls_crt);
 	sodium_memzero(tls_key, len_tls_key);
 
-	sodium_memzero(web_css, len_web_css);
-	sodium_memzero(web_htm, len_web_htm);
-	sodium_memzero(web_jsa, len_web_jsa);
-	sodium_memzero(web_jsm, len_web_jsm);
+	sodium_memzero(html, len_html);
 
 	len_tls_crt = 0;
 	len_tls_key = 0;
-
-	len_web_htm = 0;
-	len_web_jsa = 0;
-	len_web_jsm = 0;
-	len_web_css = 0;
+	len_html = 0;
 
 	sodium_memzero(encrypted, AEM_LEN_ENCRYPTED);
 	sodium_memzero(decrypted, AEM_LEN_MSG);
@@ -312,10 +296,7 @@ int loadFiles(void) {
 	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0) == 0
 	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0) == 0
 
-	&& loadFile(AEM_PATH_WEB_CSS, web_css, &len_web_css, 0) == 0
-	&& loadFile(AEM_PATH_WEB_HTM, web_htm, &len_web_htm, 0) == 0
-	&& loadFile(AEM_PATH_WEB_JSA, web_jsa, &len_web_jsa, 0) == 0
-	&& loadFile(AEM_PATH_WEB_JSM, web_jsm, &len_web_jsm, 0) == 0
+	&& loadFile(AEM_PATH_HTML, html, &len_html, 0) == 0
 	) ? 0 : -1;
 }
 
@@ -380,7 +361,7 @@ static int setSubLimits(const int type) {
 		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
 	}
 
-	switch(type) {
+	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; rlim.rlim_max = 5; break;
 
@@ -519,11 +500,7 @@ static void process_spawn(const int type) {
 			if (
 			   pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-
-			|| pipeWriteDirect(fd[1], web_css, len_web_css) < 0
-			|| pipeWriteDirect(fd[1], web_htm, len_web_htm) < 0
-			|| pipeWriteDirect(fd[1], web_jsa, len_web_jsa) < 0
-			|| pipeWriteDirect(fd[1], web_jsm, len_web_jsm) < 0
+			|| pipeWriteDirect(fd[1], html, len_html) < 0
 			) syslog(LOG_ERR, "Failed to write to pipe: %m");
 		break;
 	}

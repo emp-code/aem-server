@@ -36,7 +36,6 @@
 
 #define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
-#define AEM_MAXLEN_HOST 32
 
 #define AEM_PORT_API 302
 #define AEM_PORT_HTTPS 443
@@ -45,11 +44,6 @@
 
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
-
-#define AEM_FILETYPE_CSS 1
-#define AEM_FILETYPE_HTM 2
-#define AEM_FILETYPE_JSA 3
-#define AEM_FILETYPE_JSM 4
 
 #define AEM_INFOBYTE_ESMTP 128   // Extended protocol version
 #define AEM_INFOBYTE_CMD_QUIT 64 // QUIT issued
