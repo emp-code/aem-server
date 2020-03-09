@@ -211,6 +211,7 @@ static int setSignals(void) {
 int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "C");
 	openlog("AEM-API", LOG_PID, LOG_MAIL);
+	setlogmask(LOG_UPTO(LOG_INFO));
 
 	if (argc > 1 || argv == NULL) {syslog(LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
 	if (getuid()      == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
