@@ -78,17 +78,17 @@ static int getRequestType(const char * const req, size_t lenReq, bool * const ke
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
 
 	// First line
-	if (memcmp(req, "POST /api/", 10) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(req, "POST /api/", 10) != 0) return AEM_HTTPS_REQUEST_INVALID;
 	for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 	if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
 	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-	if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (memcmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
-	if (memcmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
 	if (strstr(req, "\r\nContent-Length: 8266\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
