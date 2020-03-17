@@ -88,7 +88,7 @@ static int initSocket(const int sock, const int port) {
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	if (setCaps(false) != 0) return -1;
 
-	listen(sock, 10); // socket, backlog (# of connections to keep in queue)
+	listen(sock, 25); // socket, backlog (# of connections to keep in queue)
 	return 0;
 }
 
