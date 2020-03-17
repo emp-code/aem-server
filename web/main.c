@@ -46,7 +46,7 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	freeHtml();
-	freeTls();
+	tlsFree();
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
@@ -186,7 +186,7 @@ static void takeConnections(void) {
 		close(newSock);
 	}
 
-	freeTls();
+	tlsFree();
 	close(sock);
 }
 

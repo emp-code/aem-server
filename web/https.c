@@ -121,7 +121,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	return 0;
 }
 
-void freeTls(void) {
+void tlsFree(void) {
 	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_entropy_free(&entropy);
