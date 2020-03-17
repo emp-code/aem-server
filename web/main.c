@@ -182,7 +182,7 @@ static void receiveConnections(void) {
 
 	while (!terminate) {
 		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_WARNING, "Failed accepting connection"); break;}
+		if (newSock < 0) {syslog(LOG_WARNING, "Failed accepting connection"); continue;}
 		setSocketTimeout(newSock);
 		respond_https(newSock);
 		close(newSock);
