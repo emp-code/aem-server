@@ -20,10 +20,8 @@
 
 #include "https.h"
 
-#define AEM_PORT_HTTPS 443
 #define AEM_SOCKET_TIMEOUT 15
 #define AEM_MINLEN_PIPEREAD 128
-
 #define AEM_PIPE_BUFSIZE 8192
 
 static mbedtls_x509_crt tlsCrt;
