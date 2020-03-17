@@ -552,10 +552,10 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 }
 
 static void message_create(mbedtls_ssl_context * const ssl, unsigned char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	unsigned char * const fromAddr32 = (unsigned char*)*decrypted;
-	unsigned char * const toAddr32   = (unsigned char*)*decrypted + 15;
-	unsigned char * const toPubkey   = (unsigned char*)*decrypted + 30;
-	unsigned char * const bodyBox    = (unsigned char*)*decrypted + 30 + crypto_box_PUBLICKEYBYTES;
+	unsigned char * const fromAddr32 = *decrypted;
+	unsigned char * const toAddr32   = *decrypted + 15;
+	unsigned char * const toPubkey   = *decrypted + 30;
+	unsigned char * const bodyBox    = *decrypted + 30 + crypto_box_PUBLICKEYBYTES;
 	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
 
 	if (!addr32OwnedByPubkey(pubkey, fromAddr32, false)) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
