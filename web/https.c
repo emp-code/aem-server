@@ -174,6 +174,8 @@ static void handleRequest(const size_t lenReq) {
 
 	const char * const fetchDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (fetchDest != NULL && strncasecmp(fetchDest + 18, "document\r\n", 10) != 0) return;
+
+	sendData(&ssl, html, lenHtml);
 }
 
 void freeTls(void) {
