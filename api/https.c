@@ -70,8 +70,8 @@ int setDomain(const char * const newDomain, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int getRequestType(const unsigned char * const req, size_t lenReq, bool * const keepAlive) {
-	if (strcasestr((char*)req, "\r\nConnection: close") != NULL) *keepAlive = false;
+static int getRequestType(const char * const req, size_t lenReq, bool * const keepAlive) {
+	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
@@ -84,41 +84,34 @@ static int getRequestType(const unsigned char * const req, size_t lenReq, bool *
 	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
 	if (memcmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	const unsigned char * const reqEnd = memmem(req, AEM_MAXLEN_REQ, "\r\n\r\n", 4);
-	if (reqEnd == NULL) return AEM_HTTPS_REQUEST_INVALID;
-
-	lenReq = reqEnd - req + 2; // Include \r\n at end
-	if (memchr(req, '\0', lenReq) != NULL) return AEM_HTTPS_REQUEST_INVALID;
-
 	// Host header
-	const unsigned char * const host = memmem(req, lenReq, "\r\nHost: ", 8);
+	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
 	if (memcmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
 	if (memcmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
 
-	if (memmem(req, lenReq, "\r\nContent-Length: 8266\r\n", 24) == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strstr(req, "\r\nContent-Length: 8266\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
 
 	// Forbidden request headers
-	const char * const creq = (char*)req;
 	if (
-		   (strcasestr(creq, "\r\nAuthorization:")       != NULL)
-		|| (strcasestr(creq, "\r\nCookie:")              != NULL)
-		|| (strcasestr(creq, "\r\nExpect:")              != NULL)
-		|| (strcasestr(creq, "\r\nHTTP2-Settings:")      != NULL)
-		|| (strcasestr(creq, "\r\nIf-Match:")            != NULL)
-		|| (strcasestr(creq, "\r\nIf-Modified-Since:")   != NULL)
-		|| (strcasestr(creq, "\r\nIf-None-Match:")       != NULL)
-		|| (strcasestr(creq, "\r\nIf-Range:")            != NULL)
-		|| (strcasestr(creq, "\r\nIf-Unmodified-Since:") != NULL)
-		|| (strcasestr(creq, "\r\nRange:")               != NULL)
-		|| (strcasestr(creq, "\r\nSec-Fetch-Site: none") != NULL)
-		|| (strcasestr(creq, "\r\nSec-Fetch-Site: same-origin") != NULL)
+		   (strcasestr(req, "\r\nAuthorization:")       != NULL)
+		|| (strcasestr(req, "\r\nCookie:")              != NULL)
+		|| (strcasestr(req, "\r\nExpect:")              != NULL)
+		|| (strcasestr(req, "\r\nHTTP2-Settings:")      != NULL)
+		|| (strcasestr(req, "\r\nIf-Match:")            != NULL)
+		|| (strcasestr(req, "\r\nIf-Modified-Since:")   != NULL)
+		|| (strcasestr(req, "\r\nIf-None-Match:")       != NULL)
+		|| (strcasestr(req, "\r\nIf-Range:")            != NULL)
+		|| (strcasestr(req, "\r\nIf-Unmodified-Since:") != NULL)
+		|| (strcasestr(req, "\r\nRange:")               != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: none") != NULL)
+		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-origin") != NULL)
 		// These are only for preflighted requests, which All-Ears doesn't use
-		|| (strcasestr(creq, "\r\nAccess-Control-Request-Method:")  != NULL)
-		|| (strcasestr(creq, "\r\nAccess-Control-Request-Headers:") != NULL)
+		|| (strcasestr(req, "\r\nAccess-Control-Request-Method:")  != NULL)
+		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
 	) return AEM_HTTPS_REQUEST_INVALID;
 
-	const char *secDest = strcasestr(creq, "\r\nSec-Fetch-Dest: ");
+	const char *secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (secDest != NULL) {
 		secDest += 18;
 		if (
@@ -201,11 +194,12 @@ void respond_https(int sock) {
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + crypto_box_PUBLICKEYBYTES);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		if (ret < 1) break;
 
-		const unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
+		unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
 		if (postBegin == NULL) break;
+		postBegin[3] = '\0';
 
 		bool keepAlive = true;
-		const int reqType = getRequestType(buf, ret, &keepAlive);
+		const int reqType = getRequestType((char*)buf, ret, &keepAlive);
 		if (reqType == AEM_HTTPS_REQUEST_INVALID) break;
 		if (reqType == AEM_HTTPS_REQUEST_PUBKEY) {
 			https_pubkey(&ssl);
