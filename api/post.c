@@ -1,6 +1,5 @@
 #include <ctype.h> // for islower
 #include <stdbool.h>
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
