@@ -94,21 +94,21 @@ static int getRequestType(const char * const req, size_t lenReq, bool * const ke
 
 	// Forbidden request headers
 	if (
-		   (strcasestr(req, "\r\nAuthorization:")       != NULL)
-		|| (strcasestr(req, "\r\nCookie:")              != NULL)
-		|| (strcasestr(req, "\r\nExpect:")              != NULL)
-		|| (strcasestr(req, "\r\nHTTP2-Settings:")      != NULL)
-		|| (strcasestr(req, "\r\nIf-Match:")            != NULL)
-		|| (strcasestr(req, "\r\nIf-Modified-Since:")   != NULL)
-		|| (strcasestr(req, "\r\nIf-None-Match:")       != NULL)
-		|| (strcasestr(req, "\r\nIf-Range:")            != NULL)
-		|| (strcasestr(req, "\r\nIf-Unmodified-Since:") != NULL)
-		|| (strcasestr(req, "\r\nRange:")               != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: none") != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-origin") != NULL)
+		   NULL != strcasestr(req, "\r\nAuthorization:")
+		|| NULL != strcasestr(req, "\r\nCookie:")
+		|| NULL != strcasestr(req, "\r\nExpect:")
+		|| NULL != strcasestr(req, "\r\nHTTP2-Settings:")
+		|| NULL != strcasestr(req, "\r\nIf-Match:")
+		|| NULL != strcasestr(req, "\r\nIf-Modified-Since:")
+		|| NULL != strcasestr(req, "\r\nIf-None-Match:")
+		|| NULL != strcasestr(req, "\r\nIf-Range:")
+		|| NULL != strcasestr(req, "\r\nIf-Unmodified-Since:")
+		|| NULL != strcasestr(req, "\r\nRange:")
+		|| NULL != strcasestr(req, "\r\nSec-Fetch-Site: none")
+		|| NULL != strcasestr(req, "\r\nSec-Fetch-Site: same-origin")
 		// These are only for preflighted requests, which All-Ears doesn't use
-		|| (strcasestr(req, "\r\nAccess-Control-Request-Method:")  != NULL)
-		|| (strcasestr(req, "\r\nAccess-Control-Request-Headers:") != NULL)
+		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Method:")
+		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Headers:")
 	) return AEM_HTTPS_REQUEST_INVALID;
 
 	const char *secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
