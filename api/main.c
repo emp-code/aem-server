@@ -168,9 +168,9 @@ static void setSocketTimeout(const int sock) {
 
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); exit(EXIT_FAILURE);}
-	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed creating socket"); close(sock); exit(EXIT_FAILURE);}
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
+	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
 
 	syslog(LOG_INFO, "Ready");
 
@@ -183,8 +183,6 @@ static void receiveConnections(void) {
 	}
 
 	tlsFree();
-	mbedtls_x509_crt_free(&tlsCrt);
-	mbedtls_pk_free(&tlsKey);
 	close(sock);
 }
 
@@ -217,6 +215,8 @@ int main(int argc, char *argv[]) {
 
 	receiveConnections();
 
+	mbedtls_x509_crt_free(&tlsCrt);
+	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
 	sodium_free(tls_key);
 	return EXIT_SUCCESS;
