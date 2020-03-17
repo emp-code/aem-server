@@ -197,7 +197,7 @@ void respond_https(int sock) {
 	}
 
 	while(1) {
-		static unsigned char buf[AEM_HTTPS_POST_BOXED_SIZE];
+		unsigned char buf[AEM_HTTPS_POST_BOXED_SIZE];
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + crypto_box_PUBLICKEYBYTES);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		if (ret < 1) break;
 
