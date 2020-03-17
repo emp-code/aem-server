@@ -159,15 +159,14 @@ static void handleRequest(const size_t lenReq) {
 
 	// Forbidden request headers
 	if (
-		   (strcasestr(req, "\r\nAccess-Control-")   != NULL)
-		|| (strcasestr(req, "\r\nAuthorization:")    != NULL)
-		|| (strcasestr(req, "\r\nContent-Length:")   != NULL)
-		|| (strcasestr(req, "\r\nCookie:")           != NULL)
-		|| (strcasestr(req, "\r\nExpect:")           != NULL)
-		|| (strcasestr(req, "\r\nOrigin:")           != NULL)
-		|| (strcasestr(req, "\r\nRange:")            != NULL)
-		|| (strcasestr(req, "\r\nX-Requested-With:") != NULL)
-		|| (strcasestr(req, "\r\nSec-Fetch-Site: same-site") != NULL)
+		   NULL != strcasestr(req, "\r\nAccess-Control-")
+		|| NULL != strcasestr(req, "\r\nAuthorization:")
+		|| NULL != strcasestr(req, "\r\nContent-Length:")
+		|| NULL != strcasestr(req, "\r\nCookie:")
+		|| NULL != strcasestr(req, "\r\nExpect:")
+		|| NULL != strcasestr(req, "\r\nOrigin:")
+		|| NULL != strcasestr(req, "\r\nRange:")
+		|| NULL != strcasestr(req, "\r\nX-Requested-With:")
 	) return;
 
 	const char * const fetchMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
