@@ -187,7 +187,6 @@ static void respond_tsr(void) {
 }
 
 static void handleRequest(const size_t lenReq) {
-	if (lenReq < AEM_MINLEN_GET) return;
 	if (memcmp(req, "GET /", 5) != 0) return;
 
 	const char * const reqEnd = strstr(req, "\r\n\r\n");
@@ -239,7 +238,7 @@ void respond_https(int sock) {
 
 	do {ret = mbedtls_ssl_read(&ssl, (unsigned char*)req, AEM_MAXLEN_REQ);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
-	if (ret > 0) {
+	if (ret >= AEM_MINLEN_GET) {
 		req[ret] = '\0';
 		handleRequest(ret);
 	}
