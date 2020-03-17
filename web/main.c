@@ -75,12 +75,12 @@ static int setCaps(const bool allowBind) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int sock, const int port) {
+static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(port);
+	servAddr.sin_port = htons(AEM_PORT_HTTPS);
 
 	const int optval = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
@@ -175,7 +175,7 @@ static void setSocketTimeout(const int sock) {
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); exit(EXIT_FAILURE);}
-	if (initSocket(sock, AEM_PORT_HTTPS) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); exit(EXIT_FAILURE);}
+	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); exit(EXIT_FAILURE);}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); exit(EXIT_FAILURE);}
 
 	syslog(LOG_INFO, "Ready");
