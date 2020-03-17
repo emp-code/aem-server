@@ -20,9 +20,9 @@
 
 #include "https.h"
 
-#define AEM_SOCKET_TIMEOUT 15
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192
+#define AEM_SOCKET_TIMEOUT 15
 
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;
@@ -188,6 +188,7 @@ static void takeConnections(void) {
 	close(sock);
 }
 
+__attribute__((warn_unused_result))
 static int setSignals(void) {
 	return (
 	   signal(SIGPIPE, SIG_IGN) != SIG_ERR

@@ -26,8 +26,8 @@
 
 #include "../Global.h"
 
-#define AEM_PIPE_BUFSIZE 8192
 #define AEM_MINLEN_PIPEREAD 128
+#define AEM_PIPE_BUFSIZE 8192
 #define AEM_SOCKET_TIMEOUT 30
 
 static mbedtls_x509_crt tlsCrt;
@@ -41,13 +41,15 @@ static size_t len_tls_key;
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
+	terminate = true;
+
 	if (sig == SIGUSR1) {
-		syslog(LOG_INFO, "Terminating after handling next connection");
-		terminate = true;
+		syslog(LOG_INFO, "Terminating after next connection");
 		return;
 	}
 
 	// SIGUSR2: Fast kill
+	tlsFree();
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
 	sodium_free(tls_crt);
@@ -74,53 +76,21 @@ static int setCaps(const bool allowBind) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int * const sock, const int port) {
+static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(port);
+	servAddr.sin_port = htons(AEM_PORT_SMTP);
 
 	const int optval = 1;
-	setsockopt(*sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
+	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 
-	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
+	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	if (setCaps(false) != 0) return -1;
-	if (ret < 0) return ret;
 
-	listen(*sock, 10); // socket, backlog (# of connections to keep in queue)
+	listen(sock, 10); // socket, backlog (# of connections to keep in queue)
 	return 0;
-}
-
-static void setSocketTimeout(const int sock) {
-	struct timeval tv;
-	tv.tv_sec = AEM_SOCKET_TIMEOUT;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
-}
-
-static int takeConnections(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) return EXIT_FAILURE;
-	if (initSocket(&sock, AEM_PORT_SMTP) != 0) return EXIT_FAILURE;
-
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) return EXIT_FAILURE;
-
-	syslog(LOG_INFO, "Ready");
-
-	struct sockaddr_in clientAddr;
-	unsigned int clen = sizeof(clientAddr);
-
-	while (!terminate) {
-		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
-		setSocketTimeout(newSock);
-		respond_smtp(newSock, &clientAddr);
-		close(newSock);
-	}
-
-	close(sock);
-	return EXIT_SUCCESS;
 }
 
 __attribute__((warn_unused_result))
@@ -192,6 +162,36 @@ static int pipeLoadKeys(const int fd) {
 	return 0;
 }
 
+static void setSocketTimeout(const int sock) {
+	struct timeval tv;
+	tv.tv_sec = AEM_SOCKET_TIMEOUT;
+	tv.tv_usec = 0;
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
+}
+
+static void takeConnections(void) {
+	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
+	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
+
+	syslog(LOG_INFO, "Ready");
+
+	struct sockaddr_in clientAddr;
+	unsigned int clen = sizeof(clientAddr);
+
+	while (!terminate) {
+		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		setSocketTimeout(newSock);
+		respond_smtp(newSock, &clientAddr);
+		close(newSock);
+	}
+
+	tlsFree();
+	close(sock);
+}
+
 __attribute__((warn_unused_result))
 static int setSignals(void) {
 	return (
@@ -221,6 +221,10 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	takeConnections();
-	syslog(LOG_INFO, "Terminating");
+
+	mbedtls_x509_crt_free(&tlsCrt);
+	mbedtls_pk_free(&tlsKey);
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
 	return EXIT_SUCCESS;
 }
