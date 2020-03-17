@@ -73,7 +73,7 @@ __attribute__((warn_unused_result))
 static int getRequestType(const char * const req, size_t lenReq, bool * const keepAlive) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
-	if (memcmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
+	if (strncmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
 
