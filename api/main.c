@@ -89,8 +89,8 @@ static int initSocket(const int sock) {
 
 __attribute__((warn_unused_result))
 static int getDomainFromCert(void) {
-	char certInfo[1000];
-	mbedtls_x509_crt_info(certInfo, 1000, "AEM_", &tlsCrt);
+	char certInfo[1024];
+	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
 
 	char *c = strstr(certInfo, "\nAEM_subject name");
 	if (c == NULL) return -1;
