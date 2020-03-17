@@ -1,7 +1,6 @@
 #define _GNU_SOURCE // for accept4
 
 #include <arpa/inet.h>
-#include <errno.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
