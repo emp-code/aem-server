@@ -95,7 +95,7 @@ static int getDomainFromCert(void) {
 	char certInfo[1024];
 	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
 
-	char *c = strstr(certInfo, "\nAEM_subject name");
+	const char *c = strstr(certInfo, "\nAEM_subject name");
 	if (c == NULL) return -1;
 	c += 17;
 
@@ -110,7 +110,7 @@ static int getDomainFromCert(void) {
 }
 
 // For handling large reads on O_DIRECT pipes
-static ssize_t pipeReadDirect(const int fd, unsigned char *buf, const size_t maxLen) {
+static ssize_t pipeReadDirect(const int fd, unsigned char * const buf, const size_t maxLen) {
 	ssize_t readBytes = 0;
 
 	while(1) {
