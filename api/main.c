@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
-#include <sys/prctl.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
