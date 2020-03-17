@@ -1,22 +1,17 @@
 #define _GNU_SOURCE // for accept4
 
 #include <arpa/inet.h>
-#include <dirent.h>
-#include <fcntl.h>
 #include <locale.h> // for setlocale
-#include <pwd.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
+#include <sys/prctl.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <syslog.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include <sodium.h>
 #include <mbedtls/ssl.h>

@@ -1,7 +1,6 @@
 #define _GNU_SOURCE // for accept4
 
 #include <arpa/inet.h>
-#include <errno.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
@@ -17,10 +16,10 @@
 #include <sodium.h>
 #include <mbedtls/ssl.h>
 
-#include "../Global.h"
-
 #include "https.h"
 #include "post.h"
+
+#include "../Global.h"
 
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192

@@ -16,9 +16,9 @@
 #include <sodium.h>
 #include <mbedtls/ssl.h>
 
-#include "../Global.h"
-
 #include "https.h"
+
+#include "../Global.h"
 
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192
