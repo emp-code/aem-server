@@ -166,7 +166,7 @@ static void setSocketTimeout(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
 }
 
-static void receiveConnections(void) {
+static void takeConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	receiveConnections();
+	takeConnections();
 
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
