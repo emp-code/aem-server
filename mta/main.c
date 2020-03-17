@@ -113,7 +113,7 @@ static int takeConnections(void) {
 
 	while (!terminate) {
 		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); break;}
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
 		setSocketTimeout(newSock);
 		respond_smtp(newSock, &clientAddr);
 		close(newSock);
