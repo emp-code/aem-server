@@ -205,7 +205,8 @@ static void handleRequest(const size_t lenReq) {
 
 	// Forbidden request headers
 	if (
-		   NULL != strcasestr(req, "\r\nAuthorization:")
+		   NULL != strcasestr(req, "\r\nAccess-Control-")
+		|| NULL != strcasestr(req, "\r\nAuthorization:")
 		|| NULL != strcasestr(req, "\r\nContent-Length:")
 		|| NULL != strcasestr(req, "\r\nCookie:")
 		|| NULL != strcasestr(req, "\r\nExpect:")
