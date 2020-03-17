@@ -167,13 +167,6 @@ static void setSocketTimeout(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
 }
 
-static void quit(void) {
-	sodium_free(tls_crt);
-	sodium_free(tls_key);
-	syslog(LOG_INFO, "Terminating");
-	exit(EXIT_SUCCESS);
-}
-
 static void receiveConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); exit(EXIT_FAILURE);}
@@ -223,8 +216,9 @@ int main(int argc, char *argv[]) {
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	atexit(quit);
-
 	receiveConnections();
+
+	sodium_free(tls_crt);
+	sodium_free(tls_key);
 	return EXIT_SUCCESS;
 }
