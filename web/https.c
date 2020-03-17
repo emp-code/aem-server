@@ -109,7 +109,7 @@ static void respond_robots(void) {
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
 		"Connection: close\r\n"
-		"Content-Length: 55\r\n"
+		"Content-Length: 37\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
 		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
