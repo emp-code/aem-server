@@ -31,34 +31,34 @@ static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 
 	MMDB_s mmdb;
 	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
-
 	if (status != MMDB_SUCCESS) {
 		syslog(LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
 		return 0;
 	}
 
-	int mmdb_error;
-	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &mmdb_error);
+	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &status);
+	MMDB_close(&mmdb);
 
-	if (mmdb_error != MMDB_SUCCESS) {
-		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(mmdb_error));
+	if (status != MMDB_SUCCESS) {
+		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(status));
 		return 0;
 	}
 
-	uint16_t ret = 0;
-	if (mmdb_result.found_entry) {
-		MMDB_entry_data_s entry_data;
-		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
+	if (!mmdb_result.found_entry) {
+		syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
+		return 0;
+	}
 
-		if (status == MMDB_SUCCESS) {
-			memcpy(&ret, entry_data.utf8_string, 2);
-		} else {
-			syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
-		}
-	} else syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
+	MMDB_entry_data_s entry_data;
+	status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
+	if (status != MMDB_SUCCESS) {
+		syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
+		return 0;
+	}
 
-	MMDB_close(&mmdb);
-	return ret;
+	uint16_t cc;
+	memcpy(&cc, entry_data.utf8_string, 2);
+	return cc;
 }
 
 static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
