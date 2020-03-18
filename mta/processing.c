@@ -15,7 +15,7 @@
 // Remove control characters except newline (\n)
 static void removeControlChars(unsigned char * const text, size_t * const len) {
 	for (size_t i = 0; i < *len; i++) {
-		if (text[i] < 32 && text[i] != '\n') {
+		if (text[i] < 32 && text[i] != '\t' && text[i] != '\n') {
 			(*len)--;
 			memmove(text + i, text + i + 1, *len - i);
 			i--;
