@@ -577,6 +577,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
+				sodium_memzero(body, lenBody);
 				free(body);
 				return smtp_fail(tls, clientAddr, 150);
 			}
