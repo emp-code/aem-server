@@ -166,6 +166,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {
 			syslog(LOG_ERR, "makeMsg_Ext failed (%zd)", bsLen);
+			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
 			continue;
 		}
