@@ -136,7 +136,7 @@ static int accountSocket(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	const size_t lenClear = crypto_box_PUBLICKEYBYTES + 1;
 	unsigned char clear[lenClear];
 	clear[0] = command;
-	memcpy(clear+ 1, pubkey, crypto_box_PUBLICKEYBYTES);
+	memcpy(clear + 1, pubkey, crypto_box_PUBLICKEYBYTES);
 
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char encrypted[lenEncrypted];
@@ -387,7 +387,6 @@ static void address_create(mbedtls_ssl_context * const ssl, unsigned char * cons
 	) {syslog(LOG_ERR, "Failed receiving data from Account"); close(sock); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
 	close(sock);
-
 	sendEncrypted(ssl, pubkey, data, 28);
 }
 
@@ -460,7 +459,7 @@ static void address_update(mbedtls_ssl_context * const ssl, unsigned char * cons
 static void message_assign(mbedtls_ssl_context * const ssl, unsigned char * const * const decrypted, const size_t lenDecrypted, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	if (lenDecrypted % 1024 != 0) {sodium_free(*decrypted); sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR); return;}
 
-	const int sock = storageSocket(pubkey, (lenDecrypted / 1024));
+	const int sock = storageSocket(pubkey, lenDecrypted / 1024);
 	if (sock < 0) {
 		sodium_free(*decrypted);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
@@ -542,7 +541,7 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 
 static unsigned char getUserLevel(const unsigned char * const pubkey) {
 	const int sock = accountSocket(pubkey, AEM_API_INTERNAL_LEVEL);
-	if (sock < 0) return false;
+	if (sock < 0) return 0;
 
 	unsigned char ret;
 	recv(sock, &ret, 1, 0);
@@ -583,11 +582,10 @@ static void message_create(mbedtls_ssl_context * const ssl, unsigned char * cons
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
+	sodium_free(*decrypted);
 
 	// Store
 	const int sock = storageSocket(toPubkey, kib);
-	sodium_free(*decrypted);
-
 	if (sock < 0) {
 		free(boxSet);
 		sendEncrypted(ssl, pubkey, NULL, AEM_API_ERROR);
