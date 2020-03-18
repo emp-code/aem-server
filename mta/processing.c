@@ -12,7 +12,6 @@
 
 #include "processing.h"
 
-// Remove control characters except newline (\n)
 static void removeControlChars(unsigned char * const text, size_t * const len) {
 	for (size_t i = 0; i < *len; i++) {
 		if (text[i] == 127 || (text[i] < 32 && text[i] != '\t' && text[i] != '\n')) { // 127=DEL
@@ -146,7 +145,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 	*outLen = 0;
 
 	int boundCount = 0;
-	char *b = strstr(msg, "Content-Type: multipart/");
+	const char *b = strstr(msg, "Content-Type: multipart/");
 	if (b == NULL) return NULL;
 
 	while (1) {
@@ -155,7 +154,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		if (b == NULL) break;
 	}
 
-	char* bound[boundCount];
+	char *bound[boundCount];
 	b = strstr(msg, "Content-Type: multipart/");
 
 	for (int i = 0; i < boundCount; i++) {
@@ -174,7 +173,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 	const char *searchBegin = msg;
 	for (int i = 0; i < boundCount;) {
-		char *begin = strstr(searchBegin, bound[i]);
+		const char *begin = strstr(searchBegin, bound[i]);
 		if (begin == NULL) {i++; continue;}
 		begin += strlen(bound[i]);
 
@@ -194,7 +193,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			else cte = "X";
 		} else cte = "X";
 
-		const char *ct = strcasestr(begin, "\nContent-Type: ");
+		const char * const ct = strcasestr(begin, "\nContent-Type: ");
 		if (ct == NULL || ct > hend) break;
 
 		const char *boundEnd = strstr(hend + lenHend, bound[i]);
@@ -206,13 +205,13 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			size_t lenNew = boundEnd - hend;
 
 			char *charset = NULL;
-			char *cs = strstr(ct + 15, "charset=");
+			const char *cs = strstr(ct + 15, "charset=");
 			if (cs == NULL) cs = strstr(ct + 15, "harset =");
 			if (cs != NULL && cs < hend) {
 				cs += 8;
 				if (*cs == ' ') cs++;
 				if (*cs == '"') cs++;
-				size_t lenCs = strcspn(cs, "\n \"'");
+				const size_t lenCs = strcspn(cs, "\n \"'");
 				charset = strndup(cs, lenCs);
 			}
 
@@ -232,7 +231,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			// TODO: Support detecting charset if missing?
 			if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0 && strncmp(charset, "ascii", 5) != 0 && strncmp(charset, "us-ascii", 8) != 0) {
 				int lenUtf8;
-				char *utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
+				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
 				if (utf8 != NULL) {
 					free(new);
 					new = utf8;
@@ -248,7 +247,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 			if (isHtml) htmlToText(new, &lenNew);
 
-			char *out2 = realloc(out, *outLen + lenNew);
+			char * const out2 = realloc(out, *outLen + lenNew);
 			if (out2 == NULL) break;
 
 			out = out2;
@@ -271,19 +270,19 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	if (headersEnd == NULL) return;
 	headersEnd += 2;
 
-	char *ct = strcasestr(*msg, "\nContent-Type: ");
+	const char *ct = strcasestr(*msg, "\nContent-Type: ");
 	if (ct == NULL) return;
 	ct += 15;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
 		size_t lenNew;
-		char *new = decodeMp(*msg, &lenNew);
+		char * const new = decodeMp(*msg, &lenNew);
 
 		if (new != NULL) {
-			size_t lenHeaders = headersEnd - *msg;
+			const size_t lenHeaders = headersEnd - *msg;
 
 			const size_t lenFull = lenHeaders + lenNew;
-			char *full = malloc(lenFull);
+			char * const full = malloc(lenFull);
 			if (full == NULL) {free(new); return;}
 
 			memcpy(full, *msg, lenHeaders);
@@ -296,7 +295,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 		}
 	} else {
 		char *charset = NULL;
-		char *cs = strstr(ct, "charset=");
+		const char *cs = strstr(ct, "charset=");
 		if (cs == NULL) cs = strstr(ct, "harset =");
 		if (cs != NULL && cs < headersEnd) {
 			cs += 8;
@@ -332,14 +331,14 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 		if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0 && strncmp(charset, "ascii", 5) != 0 && strncmp(charset, "us-ascii", 8) != 0) {
 			int lenUtf8;
 			const int lenOld = (*msg + *lenMsg) - headersEnd;
-			char *utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
+			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
 			if (utf8 != NULL) {
 				if (lenOld > lenUtf8) {
 					memcpy(headersEnd, utf8, lenUtf8);
 					*lenMsg -= (lenOld - lenUtf8);
 				} else {
 					const size_t lenHeaders = headersEnd - *msg;
-					char *new = malloc(lenHeaders + lenUtf8);
+					char * const new = malloc(lenHeaders + lenUtf8);
 					if (new != NULL) {
 						memcpy(new, *msg, lenHeaders);
 						free(*msg);
