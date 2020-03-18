@@ -26,7 +26,7 @@ void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
 __attribute__((warn_unused_result))
-static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
+static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	if (sockAddr == NULL) return 0;
 
 	MMDB_s mmdb;
@@ -45,7 +45,7 @@ static int16_t getCountryCode(const struct sockaddr * const sockAddr) {
 		return 0;
 	}
 
-	int16_t ret = 0;
+	uint16_t ret = 0;
 	if (mmdb_result.found_entry) {
 		MMDB_entry_data_s entry_data;
 		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
@@ -158,10 +158,10 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 
 		const uint8_t attach = 0; // TODO
 		const uint8_t spamByte = 0; // TODO
-		const int16_t geoId = getCountryCode((struct sockaddr*)sockAddr);
+		const uint16_t countryCode = getCountryCode((struct sockaddr*)sockAddr);
 
 		size_t bodyLen = lenMsgBody;
-		unsigned char * const boxSet = makeMsg_Ext(pubkey, addr32, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVer, geoId, attach, infoByte, spamByte);
+		unsigned char * const boxSet = makeMsg_Ext(pubkey, addr32, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVer, countryCode, attach, infoByte, spamByte);
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {

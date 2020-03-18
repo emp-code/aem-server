@@ -110,7 +110,7 @@ const int cs, const uint8_t tlsVersion, const int16_t countryCode, const unsigne
 
 __attribute__((warn_unused_result))
 unsigned char *makeMsg_Ext(const unsigned char * const pk, const unsigned char * const binTo, const unsigned char * const bodyText, size_t * const bodyLen,
-const uint32_t ip, const int cs, const uint8_t tlsVersion, const int16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
+const uint32_t ip, const int cs, const uint8_t tlsVersion, const uint16_t countryCode, const uint8_t attach, const uint8_t infoByte, const uint8_t spamByte) {
 	unsigned char * const headBox = extMsg_makeHeadBox(pk, binTo, ip, cs, tlsVersion, countryCode, attach, infoByte, spamByte);
 	if (headBox == NULL) return NULL;
 
