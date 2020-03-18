@@ -151,7 +151,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 		const int ret = getPublicKey(addr32, pubkey, lenTo == 24);
 		if (ret != 0) {
-			if (nextTo == NULL) return;
+			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
 		}
@@ -166,7 +166,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {
 			syslog(LOG_ERR, "makeMsg_Ext failed (%zd)", bsLen);
-			if (nextTo == NULL) return;
+			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
 		}
@@ -185,7 +185,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		free(boxSet);
 		close(stoSock);
 
-		if (nextTo == NULL) return;
+		if (nextTo == NULL) break;
 		toStart = nextTo + 1;
 	}
 }
