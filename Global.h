@@ -34,7 +34,7 @@
 #define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 14))
 
-#define AEM_MAXLEN_ADDRESS 24 // 15 bytes Addr32 = 24 characters
+#define AEM_MAXLEN_ADDR32 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
 
 #define AEM_PORT_API 302

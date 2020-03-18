@@ -269,7 +269,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 	int addrChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
 		if (isalnum(buf[skipBytes + i])) {
-			if (addrChars + 1 > AEM_MAXLEN_ADDRESS) return 0;
+			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return 0;
 			addr[addrChars] = tolower(buf[skipBytes + i]);
 			addrChars++;
 		} else if (buf[skipBytes + i] == '@') {
@@ -494,7 +494,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
-			char newTo[AEM_MAXLEN_ADDRESS];
+			char newTo[AEM_MAXLEN_ADDR32];
 			const int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
 
 			if (lenNewTo < 1) {
