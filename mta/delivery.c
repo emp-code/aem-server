@@ -72,7 +72,7 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 		return -1;
 	}
 
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
+	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) != 0) {
 		syslog(LOG_ERR, "Failed connecting to allears-account");
 		return -1;
 	}
@@ -95,7 +95,7 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 	return sock;
 }
 
-static int storageSocket(const unsigned char *msg, const size_t lenMsg) {
+static int storageSocket(const unsigned char * const msg, const size_t lenMsg) {
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
 	strcpy(sa.sun_path, "Storage.sck");
@@ -142,14 +142,14 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 	while(1) {
 		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
-		if (lenTo < 1 || lenTo > 24) break;
+		if (lenTo < 1 || lenTo > 24) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
 		if (lenTo == 24) infoByte |= AEM_INFOBYTE_ISSHIELD; else infoByte &= ~AEM_INFOBYTE_ISSHIELD;
 
 		unsigned char addr32[15];
 		addr32_store(addr32, toStart, lenTo);
 
 		unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-		int ret = getPublicKey(addr32, pubkey, lenTo == 24);
+		const int ret = getPublicKey(addr32, pubkey, lenTo == 24);
 		if (ret != 0) {
 			if (nextTo == NULL) return;
 			toStart = nextTo + 1;
