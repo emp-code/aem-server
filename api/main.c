@@ -92,18 +92,17 @@ static int getDomainFromCert(void) {
 	char certInfo[1024];
 	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
 
-	char *c = strstr(certInfo, "\nAEM_subject name");
+	const char *c = strstr(certInfo, "\nAEM_subject name");
 	if (c == NULL) return -1;
 	c += 17;
 
-	char * const end = strchr(c, '\n');
-	*end = '\0';
+	const char * const end = strchr(c, '\n');
 
 	c = strstr(c, ": CN=");
 	if (c == NULL) return -1;
 	c += 5;
 
-	return setDomain(c, strlen(c));
+	return setDomain(c, end - c);
 }
 
 __attribute__((warn_unused_result))

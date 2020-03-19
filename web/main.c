@@ -96,14 +96,13 @@ static int getDomainFromCert(void) {
 	if (c == NULL) return -1;
 	c += 17;
 
-	char * const end = strchr(c, '\n');
-	*end = '\0';
+	const char * const end = strchr(c, '\n');
 
 	c = strstr(c, ": CN=");
 	if (c == NULL) return -1;
 	c += 5;
 
-	return setDomain(c, strlen(c));
+	return setDomain(c, end - c);
 }
 
 // For handling large reads on O_DIRECT pipes
