@@ -52,58 +52,7 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int setCaps(const bool allowBind) {
-	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
-
-	cap_t caps = cap_get_proc();
-	if (cap_clear(caps) != 0) {cap_free(caps); return -1;}
-
-	if (allowBind) {
-		const cap_value_t capBind = CAP_NET_BIND_SERVICE;
-		if (cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) != 0) {cap_free(caps); return -1;}
-		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) != 0) {cap_free(caps); return -1;}
-	}
-
-	if (cap_set_proc(caps) != 0) {cap_free(caps); return -1;}
-
-	return cap_free(caps);
-}
-
-__attribute__((warn_unused_result))
-static int initSocket(const int sock) {
-	struct sockaddr_in servAddr;
-	bzero((char*)&servAddr, sizeof(servAddr));
-	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(AEM_PORT_SMTP);
-
-	const int optval = 1;
-	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
-
-	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
-	if (setCaps(false) != 0) return -1;
-
-	listen(sock, 50); // socket, backlog (# of connections to keep in queue)
-	return 0;
-}
-
-__attribute__((warn_unused_result))
-static int getDomainFromCert(void) {
-	char certInfo[1024];
-	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
-
-	const char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return -1;
-	c += 17;
-
-	const char * const end = strchr(c, '\n');
-
-	c = strstr(c, ": CN=");
-	if (c == NULL || c > end) return -1;
-	c += 5;
-
-	return setDomain(c, end - c);
-}
+#include "../Common/main_common.c"
 
 __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
@@ -155,17 +104,10 @@ static int pipeLoadKeys(const int fd) {
 	return 0;
 }
 
-static void setSocketTimeout(const int sock) {
-	struct timeval tv;
-	tv.tv_sec = AEM_SOCKET_TIMEOUT;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
-}
-
 static void takeConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
+	if (initSocket(sock, AEM_PORT_SMTP, 50) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
 
 	syslog(LOG_INFO, "Ready");
@@ -183,19 +125,6 @@ static void takeConnections(void) {
 
 	tlsFree();
 	close(sock);
-}
-
-__attribute__((warn_unused_result))
-static int setSignals(void) {
-	return (
-	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
-
-	&& signal(SIGINT,  sigTerm) != SIG_ERR
-	&& signal(SIGQUIT, sigTerm) != SIG_ERR
-	&& signal(SIGTERM, sigTerm) != SIG_ERR
-	&& signal(SIGUSR1, sigTerm) != SIG_ERR
-	&& signal(SIGUSR2, sigTerm) != SIG_ERR
-	) ? 0 : -1;
 }
 
 int main(int argc, char *argv[]) {
