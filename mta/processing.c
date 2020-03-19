@@ -315,7 +315,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 		// TODO: Support detecting charset if missing?
 		if (charset != NULL && !isUtf8(charset, lenCs)) {
 			int lenUtf8;
-			const int lenOld = (*msg + *lenMsg) - headersEnd;
+			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
 			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset, lenCs);
 			if (utf8 != NULL) {
 				if (lenOld > lenUtf8) {
