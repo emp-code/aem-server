@@ -1,12 +1,23 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <unicode/ucnv.h>
 
 #include "ToUtf8.h"
 
-char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut, const char * const charset) {
+bool isUtf8(const char * const charset, const size_t lenCs) {
+	return (charset != NULL && (
+	   (lenCs >= 4 && strncasecmp(charset, "utf8", 4) == 0)
+	|| (lenCs >= 5 && strncasecmp(charset, "utf", 3) == 0 && charset[4] == '8')
+	|| (lenCs >= 5 && strncasecmp(charset, "ascii", 5) == 0)
+	|| (lenCs >= 8 && strncasecmp(charset, "us-ascii", 8) == 0)
+	));
+}
+
+char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut, const char * const charset, const size_t lenCs) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
-	if (strncasecmp(charset, "utf8", 4) == 0 || (strlen(charset) > 4 && strncasecmp(charset, "utf", 3) == 0 && charset[5] == '8')) return strndup(input, lenInput);
+	if (isUtf8(charset, lenCs)) return strndup(input, lenInput);
 
 	const size_t maxLen = lenInput * 2;
 

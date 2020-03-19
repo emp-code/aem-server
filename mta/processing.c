@@ -51,10 +51,9 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (charsetEnd == NULL) break;
 		if (charsetEnd[2] != '?') break;
 
-		const size_t csLen = charsetEnd - (ew + 2);
-		char cs[csLen + 1];
-		memcpy(cs, (ew + 2), csLen);
-		cs[csLen] = '\0';
+		const size_t lenCs = charsetEnd - (ew + 2);
+		char cs[lenCs];
+		memcpy(cs, (ew + 2), lenCs);
 
 		const char type = charsetEnd[1];
 		char *ewText = charsetEnd + 3;
@@ -88,7 +87,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else break;
 
 		int lenUtf8 = 0;
-		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
+		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs, lenCs);
 		if (utf8 == NULL) break;
 
 		const int lenDiff = lenEw - lenUtf8;
@@ -189,13 +188,14 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			size_t lenNew = boundEnd - hend;
 
 			char *charset = NULL;
+			size_t lenCs = 0;
 			const char *cs = strstr(ct + 15, "charset=");
 			if (cs == NULL) cs = strstr(ct + 15, "harset =");
 			if (cs != NULL && cs < hend) {
 				cs += 8;
 				if (*cs == ' ') cs++;
 				if (*cs == '"') cs++;
-				const size_t lenCs = strcspn(cs, "\n \"'");
+				lenCs = strcspn(cs, "\n \"'");
 				charset = strndup(cs, lenCs);
 			}
 
@@ -213,9 +213,9 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			}
 
 			// TODO: Support detecting charset if missing?
-			if (charset != NULL && strncasecmp(charset, "utf8", 4) != 0 && strncasecmp(charset, "utf-8", 5) != 0 && strncasecmp(charset, "ascii", 5) != 0 && strncasecmp(charset, "us-ascii", 8) != 0) {
+			if (charset != NULL && !isUtf8(charset, lenCs)) {
 				int lenUtf8;
-				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
+				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset, lenCs);
 				if (utf8 != NULL) {
 					free(new);
 					new = utf8;
@@ -279,6 +279,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 		}
 	} else {
 		char *charset = NULL;
+		size_t lenCs = 0;
 		const char *cs = strstr(ct, "charset=");
 		if (cs == NULL) cs = strstr(ct, "harset =");
 		if (cs != NULL && cs < headersEnd) {
@@ -312,10 +313,10 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 		}
 
 		// TODO: Support detecting charset if missing?
-		if (charset != NULL && strncmp(charset, "utf8", 4) != 0 && strncmp(charset, "utf-8", 5) != 0 && strncmp(charset, "ascii", 5) != 0 && strncmp(charset, "us-ascii", 8) != 0) {
+		if (charset != NULL && !isUtf8(charset, lenCs)) {
 			int lenUtf8;
 			const int lenOld = (*msg + *lenMsg) - headersEnd;
-			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
+			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset, lenCs);
 			if (utf8 != NULL) {
 				if (lenOld > lenUtf8) {
 					memcpy(headersEnd, utf8, lenUtf8);
