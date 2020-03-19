@@ -12,7 +12,7 @@
 
 #include "processing.h"
 
-static void removeControlChars(unsigned char * const text, size_t * const len) {
+void removeControlChars(unsigned char * const text, size_t * const len) {
 	for (size_t i = 0; i < *len; i++) {
 		if (text[i] == 127 || (text[i] < 32 && text[i] != '\t' && text[i] != '\n')) { // 127=DEL
 			(*len)--;
@@ -22,7 +22,7 @@ static void removeControlChars(unsigned char * const text, size_t * const len) {
 	}
 }
 
-static void tabsToSpaces(char * const text, const size_t len) {
+void tabsToSpaces(char * const text, const size_t len) {
 	char *c = memchr(text, '\t', len);
 	size_t skip = 0;
 
@@ -32,23 +32,6 @@ static void tabsToSpaces(char * const text, const size_t len) {
 		skip = c - text;
 		c = memchr(text + skip, '\t', len - skip);
 	}
-}
-
-void prepareHeaders(char *msg, size_t *lenMsg) {
-	char *headersEnd = memmem(msg,  *lenMsg, "\r\n\r\n", 4);
-	if (headersEnd == NULL) return;
-	headersEnd += 4;
-
-	size_t lenHeaders = headersEnd - msg;
-	const size_t lenHeadersOld = lenHeaders;
-
-	tabsToSpaces(msg, lenHeaders);
-	removeControlChars((unsigned char*)msg, &lenHeaders);
-
-	memmove(msg + lenHeaders, msg + lenHeadersOld, *lenMsg - lenHeadersOld);
-
-	*lenMsg -= (lenHeadersOld - lenHeaders);
-	msg[*lenMsg] = '\0';
 }
 
 void decodeEncodedWord(char * const data, size_t * const lenData) {
