@@ -80,7 +80,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (type == 'Q' || type == 'q') {
 			decodeQuotedPrintable(ewText, &lenEwText);
 		} else if (type == 'B' || type == 'b') {
-			unsigned char * const dec = b64Decode((const unsigned char*)ewText, lenEwText, &lenEwText);
+			unsigned char * const dec = b64Decode((unsigned char*)ewText, lenEwText, &lenEwText);
 			if (dec == NULL) break;
 
 			memcpy(ewText, dec, lenEwText);
@@ -89,19 +89,19 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 
 		int lenUtf8 = 0;
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
-		if (utf8 != NULL) {
-			const int lenDiff = lenEw - lenUtf8;
-			if (lenDiff > 0) {
-				memcpy(ew, utf8, lenUtf8);
-				memmove(ew + lenUtf8, ewEnd + 2, *lenData - (ewEnd + 2 - data));
-				*lenData -= (lenDiff + 2);
-			} else {
-				// TODO: UTF-8 version is longer
-				break;
-			}
+		if (utf8 == NULL) break;
 
-			free(utf8);
+		const int lenDiff = lenEw - lenUtf8;
+		if (lenDiff > 0) {
+			memcpy(ew, utf8, lenUtf8);
+			memmove(ew + lenUtf8, ewEnd + 2, *lenData - (ewEnd + 2 - data));
+			*lenData -= (lenDiff + 2);
+		} else {
+			// TODO: UTF-8 version is longer
+			break;
 		}
+
+		free(utf8);
 	}
 }
 
