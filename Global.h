@@ -37,10 +37,10 @@
 #define AEM_MAXLEN_ADDR32 24 // 15 bytes Addr32 = 24 characters
 #define AEM_MAXLEN_DOMAIN 32
 
+#define AEM_PORT_MTA 25
+#define AEM_PORT_WEB 443
 #define AEM_PORT_API 302
-#define AEM_PORT_HTTPS 443
 #define AEM_PORT_MANAGER 940
-#define AEM_PORT_SMTP 25
 
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0

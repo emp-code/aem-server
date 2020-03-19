@@ -107,7 +107,7 @@ static int pipeLoadKeys(const int fd) {
 static void takeConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (initSocket(sock, AEM_PORT_SMTP, 50) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
+	if (initSocket(sock, AEM_PORT_MTA, 50) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
 	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
 
 	syslog(LOG_INFO, "Ready");
