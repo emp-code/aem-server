@@ -34,7 +34,7 @@ void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 		char * const enc = memchr(data, '=', *lenData - 1);
 		if (enc == NULL) break;
 
-		const int x = (data + *lenData) - (enc + 3);
+		const ssize_t x = (data + *lenData) - (enc + 3);
 		if (x < 0) break;
 
 		*enc = hexToChar(enc + 1);
