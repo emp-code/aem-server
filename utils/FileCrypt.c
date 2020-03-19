@@ -78,6 +78,7 @@ int main(int argc, char *argv[]) {
 
 	if (readBytes < 1) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
+		free(buf);
 		puts("Terminating: Failed to read file");
 		return EXIT_FAILURE;
 	}
