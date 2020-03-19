@@ -23,14 +23,8 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 }
 
 void tabsToSpaces(char * const text, const size_t len) {
-	char *c = memchr(text, '\t', len);
-	size_t skip = 0;
-
-	while (c != NULL) {
-		*c = ' ';
-
-		skip = c - text;
-		c = memchr(text + skip, '\t', len - skip);
+	for (size_t i = 0; i < len; i++) {
+		if (text[i] == '\t') text[i] = ' ';
 	}
 }
 
