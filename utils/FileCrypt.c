@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
 		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
 		"Content-Encoding: br\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
-		"Content-Length: %zd\r\n"
+		"Content-Length: %zu\r\n"
 
 		"Content-Security-Policy: "
 			"connect-src"     " https://%s:302/api/ data:;"

@@ -165,7 +165,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
 
 		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {
-			syslog(LOG_ERR, "makeMsg_Ext failed (%zd)", bsLen);
+			syslog(LOG_ERR, "makeMsg_Ext failed (%zu)", bsLen);
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
