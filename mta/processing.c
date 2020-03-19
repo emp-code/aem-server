@@ -280,7 +280,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 			cs += 8;
 			if (*cs == ' ') cs++;
 			if (*cs == '"') cs++;
-			size_t lenCs = strcspn(cs, "\n \"'");
+			lenCs = strcspn(cs, "\n \"'");
 			charset = strndup(cs, lenCs);
 		}
 
