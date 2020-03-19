@@ -99,7 +99,7 @@ static int getDomainFromCert(void) {
 	const char * const end = strchr(c, '\n');
 
 	c = strstr(c, ": CN=");
-	if (c == NULL) return -1;
+	if (c == NULL || c > end) return -1;
 	c += 5;
 
 	return setDomain(c, end - c);
