@@ -103,9 +103,7 @@ static int pipeLoad(const int fd) {
 	unsigned char buf[AEM_PIPE_BUFSIZE];
 	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
 	if (readBytes < AEM_MINLEN_PIPEREAD) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
-	setHtml(buf, readBytes);
-
-	return 0;
+	return setHtml(buf, readBytes);
 }
 
 static void takeConnections(void) {
