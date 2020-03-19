@@ -94,7 +94,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		const int lenDiff = lenEw - lenUtf8;
 		if (lenDiff > 0) {
 			memcpy(ew, utf8, lenUtf8);
-			memmove(ew + lenUtf8, ewEnd + 2, *lenData - (ewEnd + 2 - data));
+			memmove(ew + lenUtf8, ewEnd + 2, (data + *lenData) - (ewEnd + 2));
 			*lenData -= (lenDiff + 2);
 		} else {
 			// TODO: UTF-8 version is longer
