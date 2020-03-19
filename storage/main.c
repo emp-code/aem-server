@@ -285,7 +285,7 @@ void freeStindex(void) {
 		free(stindex[i].msg);
 	}
 
-	sodium_memzero(stindex, stindexCount * sizeof(stindex));
+	sodium_memzero(stindex, stindexCount * sizeof(struct aem_stindex));
 	free(stindex);
 }
 
