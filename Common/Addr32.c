@@ -10,7 +10,6 @@
 
 #include <stdbool.h>
 #include <strings.h>
-#include <stdio.h>
 
 #include "Addr32.h"
 
