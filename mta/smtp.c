@@ -388,7 +388,7 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 }
 
 void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
-	if (sock < 0 || domain == NULL || lenDomain < 1 || clientAddr == NULL) return;
+	if (sock < 0 || lenDomain < 1 || clientAddr == NULL) return;
 
 	if (!smtp_greet(sock)) return smtp_fail(NULL, clientAddr, 0);
 
