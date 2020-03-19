@@ -202,14 +202,14 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 			if (*cte == 'Q') {
 				new = strndup(hend, lenNew);
-				if (new == NULL) {free(charset); break;}
+				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 				decodeQuotedPrintable(new, &lenNew);
 			} else if (*cte == 'B') {
 				new = (char*)b64Decode((unsigned char*)hend, lenNew, &lenNew);
-				if (new == NULL) {free(charset); break;}
+				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 			} else {
 				new = strndup(hend, lenNew);
-				if (new == NULL) {free(charset); break;}
+				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 			}
 
 			// TODO: Support detecting charset if missing?
