@@ -10,11 +10,11 @@ char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut
 
 	const size_t maxLen = lenInput * 2;
 
-	char *buf = malloc(maxLen + 1);
+	char * const buf = malloc(maxLen + 1);
 	if (buf == NULL) return NULL;
 
 	UErrorCode status = U_ZERO_ERROR;
-	int newLen = ucnv_convert("utf-8", charset, buf, maxLen, input, lenInput, &status);
+	const int newLen = ucnv_convert("utf-8", charset, buf, maxLen, input, lenInput, &status);
 
 	if (U_FAILURE(status) || newLen < 1) {
 		free(buf);
