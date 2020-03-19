@@ -5,7 +5,6 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -61,7 +60,7 @@ static void sigTerm(const int sig) {
 }
 
 static int saveStindex(void) {
-	if (stindexCount <= 0) return -1;
+	if (stindexCount < 1) return -1;
 
 	size_t lenClear = 2;
 	for (int i = 0; i < stindexCount; i++) {
