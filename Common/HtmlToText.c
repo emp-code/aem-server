@@ -68,7 +68,7 @@ static void convertChar(char * const text, const size_t lenText, const char from
 	}
 }
 
-void removeHtmlComments(char * const text, size_t * const len) {
+static void removeHtmlComments(char * const text, size_t * const len) {
 	while(1) {
 		char * const c = memmem(text, *len, "<!--", 4);
 		if (c == NULL) break;
