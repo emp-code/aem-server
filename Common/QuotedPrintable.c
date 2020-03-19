@@ -8,7 +8,7 @@ static unsigned char hexToChar(const char * const src) {
 	char hex[3];
 	memcpy(hex, src, 2);
 	hex[2] = '\0';
-	return strtol(hex, NULL, 16);
+	return strtoul(hex, NULL, 16);
 }
 
 void decodeQuotedPrintable(char * const data, size_t * const lenData) {
