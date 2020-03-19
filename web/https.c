@@ -81,8 +81,8 @@ void freeHtml(void) {
 	lenHtml = 0;
 }
 
-static int sni(void * const empty, mbedtls_ssl_context * const ssl, const unsigned char * const hostname, const size_t len) {
-	if (empty != NULL || ssl == NULL) return -1;
+static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsigned char * const hostname, const size_t len) {
+	if (empty != NULL || ssl2 != &ssl) return -1;
 	if (len == 0) return 0;
 
 	return (hostname != NULL && (
