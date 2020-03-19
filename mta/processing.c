@@ -142,6 +142,10 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 		const size_t len = strcspn(b, "\" \r\n");
 		bound[i] = strndup(b - 2, len);
+		if (bound[i] == NULL) {
+			for (int j = 0; j < i - 1; j++) free(bound[j]);
+			return NULL;
+		}
 		memcpy(bound[i], "--", 2);
 
 		b = strstr(b + 24, "Content-Type: multipart/");
@@ -191,6 +195,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				if (*cs == '"') cs++;
 				lenCs = strcspn(cs, "\n \"'");
 				charset = strndup(cs, lenCs);
+				if (charset == NULL) break;
 			}
 
 			char *new = NULL;
@@ -204,6 +209,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				if (new == NULL) {free(charset); break;}
 			} else {
 				new = strndup(hend, lenNew);
+				if (new == NULL) {free(charset); break;}
 			}
 
 			// TODO: Support detecting charset if missing?
