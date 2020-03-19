@@ -34,6 +34,7 @@ void tabsToSpaces(char * const text, const size_t len) {
 	}
 }
 
+// Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
@@ -58,7 +59,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		const char type = charsetEnd[1];
 		char *ewText = charsetEnd + 3;
 
-		const char * const ewEnd = memmem(charsetEnd + 3, *lenData - (ewText - data), "?=", 2);
+		const char * const ewEnd = memmem(ewText, *lenData - (ewText - data), "?=", 2);
 		if (ewEnd == NULL) break;
 
 		size_t lenEw = ewEnd - ew;
