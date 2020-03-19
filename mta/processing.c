@@ -47,8 +47,8 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 
 		// Remove charset part
 		char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
-		if (charsetEnd == NULL) return;
-		if (charsetEnd[2] != '?') return;
+		if (charsetEnd == NULL) break;
+		if (charsetEnd[2] != '?') break;
 
 		const size_t csLen = charsetEnd - (ew + 2);
 		char cs[csLen + 1];
@@ -80,11 +80,11 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 			decodeQuotedPrintable(ewText, &lenEwText);
 		} else if (type == 'B' || type == 'b') {
 			unsigned char * const dec = b64Decode((const unsigned char*)ewText, lenEwText, &lenEwText);
-			if (dec == NULL) return;
+			if (dec == NULL) break;
 
 			memcpy(ewText, dec, lenEwText);
 			free(dec);
-		} else return;
+		} else break;
 
 		int lenUtf8 = 0;
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
@@ -96,7 +96,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 				*lenData -= (lenDiff + 2);
 			} else {
 				// TODO: UTF-8 version is longer
-				return;
+				break;
 			}
 
 			free(utf8);
