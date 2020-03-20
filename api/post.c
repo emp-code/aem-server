@@ -75,7 +75,7 @@ void https_pubkey(mbedtls_ssl_context * const ssl) {
 }
 
 static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const data, const size_t len) {
-	if (len > 32) return;
+	if (len > 32 && len != AEM_API_ERROR) return;
 
 	unsigned char final[350];
 
