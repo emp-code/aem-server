@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <pwd.h>
 
+#include "mount.h"
+
 #include "global.h"
 
 #define AEM_MODE_RO S_IRUSR | S_IRGRP

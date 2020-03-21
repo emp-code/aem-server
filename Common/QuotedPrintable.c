@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "QuotedPrintable.h"
+
 __attribute__((warn_unused_result))
 static unsigned char hexToChar(const char * const src) {
 	char hex[3];
