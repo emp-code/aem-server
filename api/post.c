@@ -111,7 +111,7 @@ static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char p
 	} else {
 		bzero(clr, 33);
 		clr[0] = len;
-		if (len > 0) memcpy(clr + 1, data, len);
+		if (data != NULL && len > 0) memcpy(clr + 1, data, len);
 	}
 
 	const int ret = crypto_box_easy(final + 277 + crypto_box_NONCEBYTES, clr, 33, final + 277, pubkey, ssk);
