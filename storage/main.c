@@ -435,8 +435,8 @@ void takeConnections(void) {
 					struct AES_ctx aes;
 					AES_init_ctx(&aes, storageKey);
 
-					for (int i = 0; i < (kib * AEM_BLOCKSIZE) / 16; i++)
-						AES_ECB_decrypt(&aes, msgData + msgPos + (i * 16));
+					for (int j = 0; j < (kib * AEM_BLOCKSIZE) / 16; j++)
+						AES_ECB_decrypt(&aes, msgData + msgPos + (j * 16));
 
 					msgData[msgNum] = kib;
 
