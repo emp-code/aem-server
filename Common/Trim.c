@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "Trim.h"
+
 static void convertText(char * const text, size_t * const len, const char * const bad, const size_t lenBad, const char good) {
 	while(1) {
 		char * const c = memmem(text, *len, bad, lenBad);
