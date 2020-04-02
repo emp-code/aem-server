@@ -82,7 +82,7 @@ static int saveStindex(void) {
 		skip += (4 * stindex[i].msgCount);
 	}
 
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char * const encrypted = malloc(lenEncrypted);
 	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
@@ -95,7 +95,7 @@ static int saveStindex(void) {
 	close(fd);
 	free(encrypted);
 
-	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
+	return (ret == lenEncrypted) ? 0 : -1;
 }
 
 static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, int size) {
