@@ -21,6 +21,7 @@
 #include "../Global.h"
 
 #define AEM_BLOCKSIZE 1024
+#define AEM_STINDEX_PAD 1048576 // 1 MiB
 #define AEM_SOCK_QUEUE 50
 
 static unsigned char accessKey_api[AEM_LEN_ACCESSKEY];
@@ -67,7 +68,12 @@ static int saveStindex(void) {
 		lenClear += (crypto_box_PUBLICKEYBYTES + 2 + (4 * stindex[i].msgCount));
 	}
 
-	unsigned char clear[lenClear];
+	const size_t lenPad = (lenClear % AEM_STINDEX_PAD == 0) ? 0 : AEM_STINDEX_PAD - (lenClear % AEM_STINDEX_PAD);
+
+	unsigned char * const clear = malloc(lenClear + lenPad);
+	if (clear == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+	bzero(clear + lenClear, lenPad);
+
 	memcpy(clear, &stindexCount, 2);
 	size_t skip = 2;
 
@@ -82,12 +88,15 @@ static int saveStindex(void) {
 		skip += (4 * stindex[i].msgCount);
 	}
 
-	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear + lenPad;
 	unsigned char * const encrypted = malloc(lenEncrypted);
-	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); return -1;}
 
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, stindexKey);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear + lenPad, encrypted, stindexKey);
+
+	sodium_memzero(clear, lenClear);
+	free(clear);
 
 	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {free(encrypted); return -1;}
@@ -239,7 +248,6 @@ int loadStindex() {
 	const off_t sz = lseek(fd, 0, SEEK_END);
 	if (sz == 0) {
 		close(fd);
-
 		stindexCount = 0;
 		stindex = malloc(1);
 		return (stindex == NULL) ? -1 : 0;
@@ -269,7 +277,7 @@ int loadStindex() {
 		skip += 2;
 
 		stindex[i].msg = malloc(stindex[i].msgCount * 4);
-		if (stindex[i].msg == NULL) return -1;
+		if (stindex[i].msg == NULL) return -1; // TODO: Free stindex
 
 		for (int j = 0; j < stindex[i].msgCount; j++) {
 			memcpy((unsigned char*)stindex[i].msg + (j * 4), data + skip, 4);
