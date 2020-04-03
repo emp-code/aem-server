@@ -134,6 +134,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
 		AES_ECB_encrypt(&aes, data + i * 16);
 
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
 	if (pwrite(fdMsg, data, size * AEM_BLOCKSIZE, pos) != size * AEM_BLOCKSIZE) return -1;
 
 	// Stindex
