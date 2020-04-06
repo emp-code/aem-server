@@ -4,12 +4,13 @@
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
-#include <sodium.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h> // for write
+
+#include <sodium.h>
 
 #include "../Global.h"
 

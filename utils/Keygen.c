@@ -1,11 +1,11 @@
-// All-Ears Keygen: Generates keys for All-Ears Mail using libsodium
+// Keygen: Generate key files for All-Ears Mail
 // Compile: gcc -lsodium Keygen.c -o Keygen
 
 #include <stdio.h>
-#include <sodium.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for write
-#include <string.h> // for memset
+
+#include <sodium.h>
 
 #include "../Global.h"
 
@@ -22,9 +22,8 @@ unsigned char master[crypto_secretbox_KEYBYTES];
 
 static int writeRandomEncrypted(const char * const path, const size_t len) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
-
 	if (fd < 0) {
-		printf("Failed to create %s\n", path);
+		printf("Failed creating %s\n", path);
 		return -1;
 	}
 
@@ -40,12 +39,12 @@ static int writeRandomEncrypted(const char * const path, const size_t len) {
 	crypto_secretbox_easy(encrypted, buf, len, nonce, master);
 	sodium_memzero(buf, len);
 
-	int ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
+	ssize_t ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
 	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
-		printf("Failed to write %s\n", path);
+		printf("Failed writing %s\n", path);
 		return -1;
 	}
 
@@ -54,10 +53,10 @@ static int writeRandomEncrypted(const char * const path, const size_t len) {
 }
 
 int main(void) {
-	puts("Key Generator for All-Ears Mail");
+	puts("Keygen: Generate key files for All-Ears Mail");
 
 	if (sodium_init() < 0) {
-		puts("Terminating: Failed to initialize libsodium");
+		puts("Terminating: Failed initializing libsodium");
 		return EXIT_FAILURE;
 	}
 

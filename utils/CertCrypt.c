@@ -3,12 +3,13 @@
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
-#include <sodium.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h> // for memset
+#include <string.h>
 #include <termios.h>
 #include <unistd.h> // for write
+
+#include <sodium.h>
 
 #define AEM_MAXSIZE_FILE 8192
 
@@ -105,7 +106,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
+	ssize_t ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
