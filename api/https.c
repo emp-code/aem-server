@@ -25,9 +25,6 @@
 #define AEM_SKIP_URL_POST 10 // 'POST /api/'
 #define AEM_LEN_URL_POST 14 // 'account/browse'
 
-#define AEM_HTTPS_REQUEST_INVALID -1
-#define AEM_HTTPS_REQUEST_POST 1
-
 static mbedtls_ssl_context ssl;
 static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
@@ -69,25 +66,25 @@ int setDomain(const char * const newDomain, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int getRequestType(const char * const req, size_t lenReq, bool * const keepAlive) {
+static bool isRequestValid(const char * const req, size_t lenReq, bool * const keepAlive) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
-	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
+	if (lenReq < AEM_MINLEN_POST) return false;
 
 	// First line
-	if (strncmp(req, "POST /api/", 10) != 0) return AEM_HTTPS_REQUEST_INVALID;
-	for (int i = 10; i < 17; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-	if (req[17] != '/') return AEM_HTTPS_REQUEST_INVALID;
-	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return AEM_HTTPS_REQUEST_INVALID;}
-	if (strncmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (strncmp(req, "POST /api/", 10) != 0) return false;
+	for (int i = 10; i < 17; i++) {if (!islower(req[i])) return false;}
+	if (req[17] != '/') return false;
+	for (int i = 18; i < 24; i++) {if (!islower(req[i])) return false;}
+	if (strncmp(req + 24, " HTTP/1.1\r\n", 11) != 0) return false;
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
-	if (host == NULL) return AEM_HTTPS_REQUEST_INVALID;
-	if (strncmp(host + 8, domain, lenDomain) != 0) return AEM_HTTPS_REQUEST_INVALID;
-	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return AEM_HTTPS_REQUEST_INVALID;
+	if (host == NULL) return false;
+	if (strncmp(host + 8, domain, lenDomain) != 0) return false;
+	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return false;
 
-	if (strstr(req, "\r\nContent-Length: 8266\r\n") == NULL) return AEM_HTTPS_REQUEST_INVALID;
+	if (strstr(req, "\r\nContent-Length: 8266\r\n") == NULL) return false;
 
 	// Forbidden request headers
 	if (
@@ -106,7 +103,7 @@ static int getRequestType(const char * const req, size_t lenReq, bool * const ke
 		// These are only for preflighted requests, which All-Ears doesn't use
 		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Method:")
 		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Headers:")
-	) return AEM_HTTPS_REQUEST_INVALID;
+	) return false;
 
 	const char *secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (secDest != NULL) {
@@ -131,10 +128,10 @@ static int getRequestType(const char * const req, size_t lenReq, bool * const ke
 		|| 0 == strncasecmp(secDest, "video", 5)
 		|| 0 == strncasecmp(secDest, "worker", 6)
 		|| 0 == strncasecmp(secDest, "xslt", 4)
-		) return AEM_HTTPS_REQUEST_INVALID;
+		) return false;
 	}
 
-	return AEM_HTTPS_REQUEST_POST;
+	return true;
 }
 
 void tlsFree(void) {
@@ -196,8 +193,7 @@ void respond_https(int sock) {
 		postBegin[3] = '\0';
 
 		bool keepAlive = true;
-		const int reqType = getRequestType((char*)buf, ret, &keepAlive);
-		if (reqType == AEM_HTTPS_REQUEST_INVALID) break;
+		if (!isRequestValid((char*)buf, ret, &keepAlive)) break;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost < crypto_box_PUBLICKEYBYTES) {
