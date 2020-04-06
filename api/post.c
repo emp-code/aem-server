@@ -41,39 +41,6 @@ void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_
 
 static bool keepAlive;
 
-void https_pubkey(mbedtls_ssl_context * const ssl) {
-	unsigned char data[350];
-
-	memcpy(data, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: public, max-age=999, no-transform, immutable\r\n" // ~15min
-		"Connection: Keep-Alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-		"Pad: ab\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 32\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: public, max-age=999, no-transform, immutable\r\n" // ~15min
-		"Connection: close\r\n"
-		"Padding-Ignore: abcdefghijklmnopqrst\r\n"
-		"\r\n"
-	, 318);
-
-	crypto_scalarmult_base(data + 318, ssk);
-
-	sendData(ssl, data, 350);
-}
-
 static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const data, const size_t len) {
 	if (len > 32 && len != AEM_API_ERROR) return;
 

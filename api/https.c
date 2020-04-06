@@ -27,7 +27,6 @@
 
 #define AEM_HTTPS_REQUEST_INVALID -1
 #define AEM_HTTPS_REQUEST_POST 1
-#define AEM_HTTPS_REQUEST_PUBKEY 50
 
 static mbedtls_ssl_context ssl;
 static mbedtls_ssl_config conf;
@@ -72,8 +71,6 @@ int setDomain(const char * const newDomain, const size_t len) {
 __attribute__((warn_unused_result))
 static int getRequestType(const char * const req, size_t lenReq, bool * const keepAlive) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
-
-	if (strncmp(req, "GET /api/pubkey HTTP/1.1\r\n", 26) == 0) return AEM_HTTPS_REQUEST_PUBKEY;
 
 	if (lenReq < AEM_MINLEN_POST) return AEM_HTTPS_REQUEST_INVALID;
 
@@ -201,10 +198,6 @@ void respond_https(int sock) {
 		bool keepAlive = true;
 		const int reqType = getRequestType((char*)buf, ret, &keepAlive);
 		if (reqType == AEM_HTTPS_REQUEST_INVALID) break;
-		if (reqType == AEM_HTTPS_REQUEST_PUBKEY) {
-			https_pubkey(&ssl);
-			if (keepAlive) continue; else break;
-		}
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost < crypto_box_PUBLICKEYBYTES) {
