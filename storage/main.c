@@ -480,7 +480,6 @@ static int pipeLoad(const int fd) {
 	return (
 	   read(fd, stindexKey, AEM_LEN_KEY_STI) == AEM_LEN_KEY_STI
 	&& read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
-
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	) ? 0 : -1;
@@ -505,8 +504,8 @@ int main(int argc, char *argv[]) {
 
 	if (argc != 1 || argv == NULL) {syslog(LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}
 	if (getuid() == 0 || getgid() == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
-	if (setSignals()  != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (sodium_init()  < 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (setSignals() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
