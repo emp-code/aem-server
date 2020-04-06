@@ -1,6 +1,6 @@
-// FileCrypt.c: Encrypt files for All-Ears Mail
-// Place resulting files in /etc/allears (remove the .enc extension)
-// Compile: gcc -lsodium -lbrotlienc FileCrypt.c -o FileCrypt
+// HtmlCrypt.c: Encrypt index.html for All-Ears Mail
+// Copy the resulting file to /etc/allears/index.html
+// Compile: gcc -lsodium -lbrotlienc HtmlCrypt.c -o HtmlCrypt
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
@@ -52,22 +52,16 @@ static int getKey(void) {
 }
 
 int main(int argc, char *argv[]) {
-	puts("FileCrypt: Encrypt files for All-Ears Mail");
+	puts("HtmlCrypt: Encrypt index.html for All-Ears Mail");
 
-	if (argc < 2) {puts("Terminating: Use filename as parameter"); return EXIT_FAILURE;}
+	if (argc < 2) {puts("Terminating: Use domain as argument"); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {puts("Terminating: Failed to initialize libsodium"); return EXIT_FAILURE;}
 	if (getKey() != 0) {puts("Terminating: Key input failed"); return EXIT_FAILURE;}
 
-	int fileType;
-	if (strcmp(argv[1], "index.html") == 0) fileType = AEM_FILETYPE_HTM;
-	else {puts("Terminating: Unsupported file"); return EXIT_FAILURE;}
-
-	if (fileType == AEM_FILETYPE_HTM && argc < 3) {puts("Terminating: Need domain as second argument"); return EXIT_FAILURE;}
-
-	int fd = open(argv[1], O_RDONLY);
+	int fd = open("index.html", O_RDONLY);
 	if (fd < 0) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		puts("Terminating: Failed to open file");
+		puts("Terminating: Failed to open index.html");
 		return EXIT_FAILURE;
 	}
 
@@ -79,7 +73,7 @@ int main(int argc, char *argv[]) {
 	if (readBytes < 1) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
 		free(buf);
-		puts("Terminating: Failed to read file");
+		puts("Terminating: Failed to read index.html");
 		return EXIT_FAILURE;
 	}
 
@@ -183,11 +177,9 @@ int main(int argc, char *argv[]) {
 	crypto_secretbox_easy(encrypted, final, bytes, nonce, master);
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 
-	char path[strlen(argv[1]) + 5];
-	sprintf(path, "%s.enc", argv[1]);
-	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
+	fd = open("index.html.enc", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
-		printf("Terminating: Failed to create %s\n", path);
+		puts("Terminating: Failed to create index.html.enc");
 		return EXIT_FAILURE;
 	}
 
@@ -196,10 +188,10 @@ int main(int argc, char *argv[]) {
 	close(fd);
 
 	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
-		printf("Failed to write %s\n", path);
+		puts("Failed to write index.html.enc");
 		return EXIT_FAILURE;
 	}
 
-	printf("Created %s\n", path);
+	puts("Created index.html.enc");
 	return EXIT_SUCCESS;
 }
