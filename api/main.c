@@ -85,7 +85,7 @@ static int pipeLoadTls(const int fd) {
 	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %m"); return -1;}
 
-	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed to get domain from certificate"); return -1;}
+	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
 
 	return 0;
 }

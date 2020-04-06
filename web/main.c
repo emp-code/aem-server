@@ -98,7 +98,7 @@ static int pipeLoad(const int fd) {
 	ret = mbedtls_pk_parse_key(&tlsKey, tls_key, len_tls_key, NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %d", ret); return -1;}
 
-	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed to get domain from certificate"); return -1;}
+	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
 
 	unsigned char buf[AEM_PIPE_BUFSIZE];
 	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);

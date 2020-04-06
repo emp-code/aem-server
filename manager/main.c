@@ -199,7 +199,7 @@ int main(void) {
 	openlog("AEM-Man", LOG_PID, LOG_MAIL);
 
 	if (getuid() != 0) {puts("Terminating: Must be started as root"); return 1;}
-	if (!ptraceDisabled()) {puts("Terminating: Failed to disable ptrace"); return 2;}
+	if (!ptraceDisabled()) {puts("Terminating: Failed disabling ptrace"); return 2;}
 
 	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return 10;
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return 11; // Disable core dumps and ptrace

@@ -404,7 +404,7 @@ void takeConnections(void) {
 				if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 					storage_write(clr + 1, msg, clr[0]);
 					saveStindex();
-				} else syslog(LOG_ERR, "Failed to receive data from API");
+				} else syslog(LOG_ERR, "Failed receiving data from API");
 
 				free(msg);
 			} else { // Browse
@@ -464,7 +464,7 @@ void takeConnections(void) {
 			if (recv(sock, msg, bytes, MSG_WAITALL) == bytes) {
 				storage_write(clr + 1, msg, clr[0]);
 				saveStindex();
-			} else syslog(LOG_ERR, "Failed to receive data from MTA");
+			} else syslog(LOG_ERR, "Failed receiving data from MTA");
 
 			free(msg);
 		}

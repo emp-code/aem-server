@@ -106,7 +106,7 @@ static int saveUser(void) {
 	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {
 		free(encrypted);
-		syslog(LOG_ERR, "Failed to open Account.aem");
+		syslog(LOG_ERR, "Failed opening Account.aem");
 		return -1;
 	}
 

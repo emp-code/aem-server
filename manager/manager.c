@@ -315,7 +315,7 @@ static int setCaps(const int type) {
 
 		// Disable and lock further ambient caps
 		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_ERR, "Failed to set SecureBits");
+			syslog(LOG_ERR, "Failed setting SecureBits");
 			return -1;
 		}
 
@@ -338,7 +338,7 @@ static int setCaps(const int type) {
 		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
 
 		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_ERR, "Failed to set SecureBits");
+			syslog(LOG_ERR, "Failed setting SecureBits");
 			return -1;
 		}
 
@@ -444,7 +444,7 @@ static void process_spawn(const int type) {
 		}
 
 		// Only runs if exec failed
-		syslog(LOG_ERR, "Failed to start process");
+		syslog(LOG_ERR, "Failed starting process");
 		exit(EXIT_FAILURE);
 	}
 
@@ -461,7 +461,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
-			) syslog(LOG_ERR, "Failed to write to pipe: %m");
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
@@ -471,7 +471,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
-			) syslog(LOG_ERR, "Failed to write to pipe: %m");
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_API:
@@ -483,7 +483,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_ERR, "Failed to write to pipe: %m");
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
@@ -493,7 +493,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_ERR, "Failed to write to pipe: %m");
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
 		case AEM_PROCESSTYPE_WEB:
@@ -501,7 +501,7 @@ static void process_spawn(const int type) {
 			   pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
 			|| pipeWriteDirect(fd[1], html, len_html) < 0
-			) syslog(LOG_ERR, "Failed to write to pipe: %m");
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 	}
 

@@ -83,8 +83,8 @@ static int loadKey(void) {
 int main(void) {
 	setlocale(LC_ALL, "C");
 
-	if (sodium_init() != 0) {puts("Terminating: Failed to init libsodium"); return EXIT_FAILURE;}
-	if (loadKey() != 0) {puts("Terminating: Failed to load key"); return EXIT_FAILURE;}
+	if (sodium_init() != 0) {puts("Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (loadKey() != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char sk[crypto_box_SECRETKEYBYTES];
@@ -122,14 +122,14 @@ int main(void) {
 	const int fd = open("Account.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
 		free(encrypted);
-		puts("Failed to create Account.aem");
+		puts("Failed creating Account.aem");
 		return EXIT_FAILURE;
 	}
 
 	if (write(fd, encrypted, lenEncrypted) != lenEncrypted) {
-		free(encrypted);
-		perror("Failed to write Account.aem");
 		close(fd);
+		free(encrypted);
+		perror("Failed writing Account.aem");
 		return EXIT_FAILURE;
 	}
 

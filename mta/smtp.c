@@ -440,7 +440,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (!smtp_shlo(tls)) {
-			syslog(LOG_NOTICE, "Terminating: Failed to send greeting following StartTLS");
+			syslog(LOG_NOTICE, "Terminating: Failed sending greeting following StartTLS");
 			tlsClose(tls);
 			return;
 		}
