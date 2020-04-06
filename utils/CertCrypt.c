@@ -57,30 +57,32 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (sodium_init() < 0) {
-		puts("Terminating: Failed to initialize libsodium");
+		puts("Terminating: Failed initializing libsodium");
 		return EXIT_FAILURE;
 	}
 
 	if (getKey() != 0) {
-		puts("Terminating: Key input failed");
+		puts("Terminating: Failed reading key");
 		return EXIT_FAILURE;
 	}
 
 	int fd = open(argv[1], O_RDONLY);
 	if (fd < 0) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		puts("Terminating: Failed to open file");
+		puts("Terminating: Failed opening file");
 		return EXIT_FAILURE;
 	}
 
 	unsigned char buf[AEM_MAXSIZE_FILE + 1];
 	off_t bytes = read(fd, buf, AEM_MAXSIZE_FILE);
 	close(fd);
+
 	if (bytes < 1) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		puts("Terminating: Failed to read file");
+		puts("Terminating: Failed reading file");
 		return EXIT_FAILURE;
 	}
+
 	bytes++;
 	buf[bytes] = '\0';
 
@@ -91,29 +93,27 @@ int main(int argc, char *argv[]) {
 	randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
 
 	crypto_secretbox_easy(encrypted, buf, bytes, nonce, master);
+	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	sodium_memzero(buf, bytes);
 
 	char path[strlen(argv[1]) + 5];
 	sprintf(path, "%s.enc", argv[1]);
+
 	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
-		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		printf("Terminating: Failed to create %s\n", path);
+		printf("Terminating: Failed creating %s\n", path);
 		return EXIT_FAILURE;
 	}
 
-	ssize_t ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
+	ret = write(fd, nonce, crypto_secretbox_NONCEBYTES);
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
 	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
-		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		printf("Failed to write %s\n", path);
+		printf("Terminating: Failed writing %s\n", path);
 		return EXIT_FAILURE;
 	}
 
 	printf("Created %s\n", path);
-
-	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return EXIT_SUCCESS;
 }
