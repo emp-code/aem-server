@@ -55,25 +55,25 @@ int main(int argc, char *argv[]) {
 	puts("HtmlCrypt: Encrypt index.html for All-Ears Mail");
 
 	if (argc < 2) {puts("Terminating: Use domain as argument"); return EXIT_FAILURE;}
-	if (sodium_init() < 0) {puts("Terminating: Failed to initialize libsodium"); return EXIT_FAILURE;}
-	if (getKey() != 0) {puts("Terminating: Key input failed"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {puts("Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (getKey() != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	int fd = open("index.html", O_RDONLY);
 	if (fd < 0) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
-		puts("Terminating: Failed to open index.html");
+		puts("Terminating: Failed opening index.html");
 		return EXIT_FAILURE;
 	}
 
 	const off_t clearBytes = lseek(fd, 0, SEEK_END);
 	unsigned char *buf = malloc(clearBytes);
-	off_t readBytes = pread(fd, buf, clearBytes, 0);
+	const off_t readBytes = pread(fd, buf, clearBytes, 0);
 	close(fd);
 
 	if (readBytes < 1) {
 		sodium_memzero(master, crypto_secretbox_KEYBYTES);
 		free(buf);
-		puts("Terminating: Failed to read index.html");
+		puts("Terminating: Failed reading index.html");
 		return EXIT_FAILURE;
 	}
 
@@ -81,11 +81,11 @@ int main(int argc, char *argv[]) {
 	int ret = brotliCompress(&buf, &bytes);
 	if (ret != 0) {
 		free(buf);
-		puts("Terminating: Failed to compress");
+		puts("Terminating: Failed compression");
 		return EXIT_FAILURE;
 	}
 
-	char headers[2000];
+	char headers[2048];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
 
 	fd = open("index.html.enc", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
-		puts("Terminating: Failed to create index.html.enc");
+		puts("Terminating: Failed creating index.html.enc");
 		return EXIT_FAILURE;
 	}
 
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
 	close(fd);
 
 	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
-		puts("Failed to write index.html.enc");
+		puts("Terminating: Failed writing index.html.enc");
 		return EXIT_FAILURE;
 	}
 
