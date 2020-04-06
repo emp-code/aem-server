@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdio.h>
 #include <ctype.h> // for islower
 #include <syslog.h>
 
