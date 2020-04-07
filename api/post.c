@@ -103,19 +103,25 @@ static void shortResponse(const unsigned char * const data, const int len) {
 	if (ret == 0) lenResponse = 350;
 }
 
-static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+static int makeUnixSocket(const char * const path) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
+	if (sock < 0) return -1;
 
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, "Account.sck");
+	strcpy(sa.sun_path, path);
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_ERR, "Failed connecting to Account");
 		close(sock);
 		return -1;
 	}
+
+	return sock;
+}
+
+static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+	const int sock = makeUnixSocket("Account.sck");
+	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
 
 	const size_t lenClear = crypto_box_PUBLICKEYBYTES + 1;
 	unsigned char clear[lenClear];
@@ -137,18 +143,8 @@ static int accountSocket(const unsigned char command, const unsigned char pubkey
 }
 
 static int storageSocket(const unsigned char command) {
-	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
-
-	struct sockaddr_un sa;
-	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, "Storage.sck");
-
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_ERR, "Failed connecting to Storage");
-		close(sock);
-		return -1;
-	}
+	const int sock = makeUnixSocket("Storage.sck");
+	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
 	unsigned char clear[lenClear];
@@ -477,7 +473,7 @@ static void message_create(void) {
 	unsigned char * const bodyBox    = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
 	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
 
-	if (!addr32OwnedByPubkey(upk, fromAddr32, false)) return;
+	if (!addr32OwnedByPubkey(upk,    fromAddr32, false)) return;
 	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) return;
 
 	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) return;
