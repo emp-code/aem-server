@@ -143,7 +143,10 @@ int main(int argc, char *argv[]) {
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	takeConnections();
+	if (aem_api_init() == 0) {
+		takeConnections();
+		aem_api_free();
+	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
 	mbedtls_x509_crt_free(&tlsCrt);
 	mbedtls_pk_free(&tlsKey);
