@@ -42,13 +42,12 @@ void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_
 static bool keepAlive;
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 static unsigned char *decrypted;
-static size_t lenDecrypted;
+#define lenDecrypted *((const uint16_t * const)(decrypted + AEM_HTTPS_POST_SIZE))
 
 static void clearDecrypted() {
 	sodium_mprotect_readwrite(decrypted);
-	sodium_memzero(decrypted, lenDecrypted);
+	sodium_memzero(decrypted, AEM_HTTPS_POST_SIZE + 2);
 	sodium_mprotect_noaccess(decrypted);
-	lenDecrypted = 0;
 }
 
 static void sendEncrypted(mbedtls_ssl_context * const ssl, const unsigned char * const data, const size_t len) {
@@ -635,8 +634,6 @@ int https_post(mbedtls_ssl_context * const ssl, const char * const url, const un
 		sodium_mprotect_noaccess(decrypted);
 		return -1;
 	}
-
-	memcpy(&lenDecrypted, decrypted + AEM_HTTPS_POST_SIZE, 2);
 	if (lenDecrypted < 1) return -1;
 
 	sodium_mprotect_readonly(decrypted);
