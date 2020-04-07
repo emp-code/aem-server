@@ -13,6 +13,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/https_suites.h"
 #include "Include/https_common.h"
 
 #include "https.h"
@@ -26,29 +27,9 @@ static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 
-static const int https_ciphersuites[] = {
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-	MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-	MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-	MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-0};
-
-static const mbedtls_ecp_group_id https_curves[] = {
-	MBEDTLS_ECP_DP_CURVE448,
-	MBEDTLS_ECP_DP_CURVE25519,
-	MBEDTLS_ECP_DP_SECP521R1,
-	MBEDTLS_ECP_DP_SECP384R1,
-MBEDTLS_ECP_DP_NONE};
-
-static const int https_hashes[] = {
-	MBEDTLS_SSL_HASH_SHA512,
-MBEDTLS_MD_NONE};
+static const int https_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
+static const mbedtls_ecp_group_id https_curves[] = {AEM_TLS_CURVES_HIGH};
+static const int https_hashes[] = {AEM_TLS_HASHES_HIGH};
 
 static char req[AEM_MAXLEN_REQ + 1];
 
