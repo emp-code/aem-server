@@ -1,9 +1,7 @@
 #include <ctype.h> // for isxdigit
-#include <errno.h>
 #include <fcntl.h>
 #include <linux/securebits.h>
 #include <locale.h> // for setlocale
-#include <pwd.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -11,12 +9,9 @@
 #include <string.h>
 #include <sys/capability.h>
 #include <sys/mman.h> // for memlockall
-#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-#include <sys/sysmacros.h>
-#include <sys/types.h>
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
