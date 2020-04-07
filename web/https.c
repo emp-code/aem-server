@@ -180,7 +180,7 @@ void respond_https(int sock) {
 		handleRequest(ret);
 	}
 
-	explicit_bzero(req, AEM_MAXLEN_REQ);
+	sodium_memzero(req, AEM_MAXLEN_REQ);
 	mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
 }
