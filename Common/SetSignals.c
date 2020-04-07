@@ -5,7 +5,7 @@ static int setSignals(void) {
 #else
 	sa.sa_handler = sigTerm;
 #endif
-	memset(&(sa.sa_mask), 0xFF, sizeof(sigset_t));
+	sigfillset(&(sa.sa_mask));
 	sa.sa_flags = 0;
 
 	return (
