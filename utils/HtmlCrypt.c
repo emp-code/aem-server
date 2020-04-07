@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, bytes, argv[2]);
+	, bytes, argv[1]);
 
 	const size_t lenHeaders = strlen(headers);
 	unsigned char final[lenHeaders + bytes];
