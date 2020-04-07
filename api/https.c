@@ -131,7 +131,7 @@ void respond_https(int sock) {
 			if (lenPost < crypto_box_PUBLICKEYBYTES) break;
 		}
 
-		if (!pubkeyExists(postBegin + 4)) break;
+		if (aem_api_prepare(postBegin + 4, keepAlive) != 0) break;
 
 		char url[AEM_LEN_URL_POST];
 		memcpy(url, buf + AEM_SKIP_URL_POST, AEM_LEN_URL_POST);
@@ -145,7 +145,7 @@ void respond_https(int sock) {
 		}
 		if (ret < 1) break;
 
-		if (https_post(&ssl, url, buf, keepAlive) != 0) break;
+		if (aem_api_process(&ssl, url, buf + crypto_box_PUBLICKEYBYTES) != 0) break;
 
 		explicit_bzero(buf, AEM_HTTPS_POST_BOXED_SIZE);
 		if (!keepAlive) break;

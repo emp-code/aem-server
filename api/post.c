@@ -584,25 +584,26 @@ static void setting_limits(void) {
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
-bool pubkeyExists(const unsigned char * const pubkey) {
+int aem_api_prepare(const unsigned char * const pubkey, const bool ka) {
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, pubkey);
-	if (sock < 0) return false;
+	if (sock < 0) return -1;
 
 	unsigned char response;
 	recv(sock, &response, 1, 0);
 	close(sock);
-	return (response == 1);
+	if (response != 1) return -1;
+
+	memcpy(upk, pubkey, crypto_box_PUBLICKEYBYTES);
+	keepAlive = ka;
+	return 0;
 }
 
 __attribute__((warn_unused_result))
-int https_post(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post, const bool ka) {
+int aem_api_process(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post) {
 	if (ssl == NULL || url == NULL || post == NULL) return -1;
 
-	keepAlive = ka;
-	memcpy(upk, post, crypto_box_PUBLICKEYBYTES);
-
 	sodium_mprotect_readwrite(decrypted);
-	if (crypto_box_open_easy(decrypted, post + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES, AEM_HTTPS_POST_SIZE + 2 + crypto_box_MACBYTES, post + crypto_box_PUBLICKEYBYTES, upk, ssk) != 0) {
+	if (crypto_box_open_easy(decrypted, post + crypto_box_NONCEBYTES, AEM_HTTPS_POST_SIZE + 2 + crypto_box_MACBYTES, post, upk, ssk) != 0) {
 		sodium_mprotect_noaccess(decrypted);
 		return -1;
 	}
