@@ -399,7 +399,7 @@ void respond_smtp(int sock, const struct sockaddr_in * const clientAddr) {
 	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
 
 	uint8_t infoByte = 0;
-	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_ESMTP;
+	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_IS_ESMTP;
 	const size_t lenGreeting = bytes - 7;
 	char greeting[lenGreeting];
 	memcpy(greeting, buf + 5, lenGreeting);

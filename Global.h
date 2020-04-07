@@ -28,13 +28,13 @@
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_STO 32
+#define AEM_LEN_KEY_STO 32 // AES-256
 
 #define AEM_ADDRESSES_PER_USER 50
 #define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 14))
 
-#define AEM_MAXLEN_ADDR32 24 // 15 bytes Addr32 = 24 characters
+#define AEM_MAXLEN_ADDR32 24 // 15 bytes Addr32 -> 24 characters
 #define AEM_MAXLEN_DOMAIN 32
 
 #define AEM_PORT_MTA 25
@@ -45,12 +45,12 @@
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 
-#define AEM_INFOBYTE_ESMTP 128   // Extended protocol version
-#define AEM_INFOBYTE_CMD_QUIT 64 // QUIT issued
-#define AEM_INFOBYTE_CMD_RARE 32 // Rare command (NOOP/RSET etc)
-#define AEM_INFOBYTE_CMD_FAIL 16 // Invalid command
-#define AEM_INFOBYTE_PROTOERR 8  // Protocol violation (commands out of order etc)
-#define AEM_INFOBYTE_ISSHIELD 4  // Is receiving address a Shield address?
+#define AEM_INFOBYTE_IS_ESMTP 128 // Extended protocol version
+#define AEM_INFOBYTE_CMD_QUIT  64 // QUIT issued
+#define AEM_INFOBYTE_CMD_RARE  32 // Rare command (NOOP/RSET etc)
+#define AEM_INFOBYTE_CMD_FAIL  16 // Invalid command
+#define AEM_INFOBYTE_PROTOERR   8 // Protocol violation (commands out of order etc)
+#define AEM_INFOBYTE_ISSHIELD   4 // Is receiving address a Shield address?
 
 #define AEM_HEADBOX_SIZE 35 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
 #define AEM_FLAG_MSGTYPE_EXTMSG 128
