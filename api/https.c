@@ -65,7 +65,7 @@ int setDomain(const char * const newDomain, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static bool isRequestValid(const char * const req, size_t lenReq, bool * const keepAlive) {
+static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	if (lenReq < AEM_MINLEN_POST) return false;
@@ -104,10 +104,10 @@ static bool isRequestValid(const char * const req, size_t lenReq, bool * const k
 		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Headers:")
 	) return false;
 
-	const char *secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
+	const char * const secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (secDest != NULL && strncasecmp(secDest + 18, "empty\r\n", 7) != 0) return false;
 
-	const char *secMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
+	const char * const secMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
 	if (secMode != NULL && strncasecmp(secMode + 18, "cors\r\n", 6) != 0) return false;
 
 	return true;
