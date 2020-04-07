@@ -29,6 +29,13 @@
 #define AEM_API_ERROR -1
 #define AEM_API_NOCONTENT 0
 
+static bool keepAlive;
+static unsigned char upk[crypto_box_PUBLICKEYBYTES];
+static unsigned char response[132096];
+static int lenResponse = AEM_API_ERROR;
+static unsigned char *decrypted;
+#define lenDecrypted *((const uint16_t * const)(decrypted + AEM_HTTPS_POST_SIZE))
+
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
@@ -40,12 +47,14 @@ void setApiKey(const unsigned char * const newKey) {
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
-static bool keepAlive;
-static unsigned char upk[crypto_box_PUBLICKEYBYTES];
-static unsigned char response[132096];
-static int lenResponse = AEM_API_ERROR;
-static unsigned char *decrypted;
-#define lenDecrypted *((const uint16_t * const)(decrypted + AEM_HTTPS_POST_SIZE))
+int aem_api_init(void) {
+	decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
+	return (decrypted != NULL) ? 0 : -1;
+}
+
+void aem_api_free(void) {
+	sodium_free(decrypted);
+}
 
 static void clearDecrypted() {
 	sodium_mprotect_readwrite(decrypted);
@@ -621,19 +630,9 @@ int https_post(mbedtls_ssl_context * const ssl, const char * const url, const un
 
 	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERROR);
 	if (lenResponse > 0) sendData(ssl, response, lenResponse);
-	syslog(LOG_INFO, "lr=%d", lenResponse);
 
 	bzero(response, lenResponse);
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 	return 0;
-}
-
-int aem_api_init(void) {
-	decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
-	return (decrypted != NULL) ? 0 : -1;
-}
-
-void aem_api_free(void) {
-	sodium_free(decrypted);
 }
