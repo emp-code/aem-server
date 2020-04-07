@@ -149,6 +149,7 @@ int main(int argc, char *argv[]) {
 			"speaker"                         " 'none';"
 			"sync-xhr"                        " 'none';"
 			"usb"                             " 'none';"
+			"vibrate"                         " 'none';"
 			"vr"                              " 'none';"
 			"wake-lock"                       " 'none';"
 			"xr-spatial-tracking"             " 'none';"
