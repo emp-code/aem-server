@@ -28,10 +28,11 @@
 
 #define AEM_API_ERROR -1
 #define AEM_API_NOCONTENT 0
+#define AEM_MAXLEN_RESPONSE 132096
 
 static bool keepAlive;
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
-static unsigned char response[132096];
+static unsigned char response[AEM_MAXLEN_RESPONSE];
 static int lenResponse = AEM_API_ERROR;
 static unsigned char *decrypted;
 #define lenDecrypted *((const uint16_t * const)(decrypted + AEM_HTTPS_POST_SIZE))
@@ -631,7 +632,7 @@ int https_post(mbedtls_ssl_context * const ssl, const char * const url, const un
 	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERROR);
 	if (lenResponse > 0) sendData(ssl, response, lenResponse);
 
-	bzero(response, lenResponse);
+	bzero(response, AEM_MAXLEN_RESPONSE);
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 	return 0;
