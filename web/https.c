@@ -87,41 +87,6 @@ static void respond_mtasts(void) {
 	sendData(&ssl, data, 376 + lenDomain);
 }
 
-static void respond_robots(void) {
-	sendData(&ssl,
-		"HTTP/1.1 200 aem\r\n"
-		"Cache-Control: public, max-age=9999999, immutable\r\n"
-		"Connection: close\r\n"
-		"Content-Length: 37\r\n"
-		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Tk: N\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
-		"X-Robots-Tag: noindex\r\n"
-		"\r\n"
-		"User-agent: *\n"
-		"Disallow: /.well-known/"
-	, 362);
-}
-
-// Tracking Status Resource for DNT
-static void respond_tsr(void) {
-	sendData(&ssl,
-		"HTTP/1.1 200 aem\r\n"
-		"Cache-Control: public, max-age=9999999, immutable\r\n"
-		"Connection: close\r\n"
-		"Content-Length: 17\r\n"
-		"Content-Type: application/tracking-status+json\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Tk: N\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
-		"\r\n"
-		"{\"tracking\": \"N\"}"
-	, 326);
-}
-
 static void handleRequest(const size_t lenReq) {
 	if (memcmp(req, "GET /", 5) != 0) return;
 
@@ -134,9 +99,6 @@ static void handleRequest(const size_t lenReq) {
 	if (host == NULL) return;
 	if (strncmp(host + 8, "mta-sts.", 8) == 0) return respond_mtasts();
 	if (strncmp(host + 8, domain, lenDomain) != 0) return;
-
-	if (strncmp(req + 5, "robots.txt HTTP/1.1\r\n", 21) == 0) return respond_robots();
-	if (strncmp(req + 5, ".well-known/dnt/ HTTP/1.1\r\n", 27) == 0) return respond_tsr();
 	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) != 0) return;
 
 	// Forbidden request headers
