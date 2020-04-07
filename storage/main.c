@@ -60,6 +60,8 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
+#include "../Common/SetSignals.c"
+
 static int saveStindex(void) {
 	if (stindexCount < 1) return -1;
 
@@ -482,19 +484,6 @@ static int pipeLoad(const int fd) {
 	&& read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-	) ? 0 : -1;
-}
-
-__attribute__((warn_unused_result))
-static int setSignals(void) {
-	return (
-	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
-
-	&& signal(SIGINT,  sigTerm) != SIG_ERR
-	&& signal(SIGQUIT, sigTerm) != SIG_ERR
-	&& signal(SIGTERM, sigTerm) != SIG_ERR
-	&& signal(SIGUSR1, sigTerm) != SIG_ERR
-	&& signal(SIGUSR2, sigTerm) != SIG_ERR
 	) ? 0 : -1;
 }
 

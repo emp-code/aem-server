@@ -28,6 +28,9 @@
 
 #include "manager.h"
 
+#define AEM_MANAGER
+#include "../Common/SetSignals.c"
+
 static void toggleEcho(const bool on) {
 	struct termios t;
 	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
@@ -149,20 +152,6 @@ static int setCaps(void) {
 	&& cap_free(caps) == 0
 
 	&& prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) == 0
-	) ? 0 : -1;
-}
-
-static int setSignals(void) {
-	return (
-	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
-	&& signal(SIGCHLD, SIG_IGN) != SIG_ERR
-	&& signal(SIGHUP,  SIG_IGN) != SIG_ERR
-
-	&& signal(SIGINT,  killAll) != SIG_ERR
-	&& signal(SIGQUIT, killAll) != SIG_ERR
-	&& signal(SIGTERM, killAll) != SIG_ERR
-	&& signal(SIGUSR1, killAll) != SIG_ERR
-	&& signal(SIGUSR2, killAll) != SIG_ERR
 	) ? 0 : -1;
 }
 

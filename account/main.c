@@ -80,6 +80,8 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
+#include "../Common/SetSignals.c"
+
 static int saveUser(void) {
 	if (userCount <= 0) return -1;
 
@@ -599,18 +601,6 @@ static int pipeLoad(const int fd) {
 
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-	) ? 0 : -1;
-}
-
-static int setSignals(void) {
-	return (
-	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
-
-	&& signal(SIGINT,  sigTerm) != SIG_ERR
-	&& signal(SIGQUIT, sigTerm) != SIG_ERR
-	&& signal(SIGTERM, sigTerm) != SIG_ERR
-	&& signal(SIGUSR1, sigTerm) != SIG_ERR
-	&& signal(SIGUSR2, sigTerm) != SIG_ERR
 	) ? 0 : -1;
 }
 

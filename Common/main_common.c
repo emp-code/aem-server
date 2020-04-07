@@ -17,19 +17,6 @@ static int setCaps(const bool allowBind) {
 	return cap_free(caps);
 }
 
-__attribute__((warn_unused_result))
-static int setSignals() {
-	return (
-	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
-
-	&& signal(SIGINT,  sigTerm) != SIG_ERR
-	&& signal(SIGQUIT, sigTerm) != SIG_ERR
-	&& signal(SIGTERM, sigTerm) != SIG_ERR
-	&& signal(SIGUSR1, sigTerm) != SIG_ERR
-	&& signal(SIGUSR2, sigTerm) != SIG_ERR
-	) ? 0 : -1;
-}
-
 static void setSocketTimeout(const int sock) {
 	struct timeval tv;
 	tv.tv_sec = AEM_SOCKET_TIMEOUT;

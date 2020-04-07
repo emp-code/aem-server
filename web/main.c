@@ -52,6 +52,7 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
+#include "../Common/SetSignals.c"
 #include "../Common/main_common.c"
 
 // For handling large reads on O_DIRECT pipes
