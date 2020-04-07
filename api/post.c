@@ -585,6 +585,8 @@ static void setting_limits(void) {
 }
 
 int aem_api_prepare(const unsigned char * const pubkey, const bool ka) {
+	if (pubkey == NULL) return -1;
+
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, pubkey);
 	if (sock < 0) return -1;
 
