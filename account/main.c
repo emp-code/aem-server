@@ -512,7 +512,7 @@ static int takeConnections(void) {
 
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
-	strcpy(local.sun_path, "Account.sck");
+	strcpy(local.sun_path, AEM_SOCKPATH_ACCOUNT);
 
 	const int sockMain = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bind(sockMain, (struct sockaddr*)&local, strlen(local.sun_path) + sizeof(local.sun_family)) != 0) {

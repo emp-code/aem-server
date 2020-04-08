@@ -349,7 +349,7 @@ static int loadEmpty(void) {
 static int bindSocket(const int sock) {
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
-	strcpy(addr.sun_path, "Storage.sck");
+	strcpy(addr.sun_path, AEM_SOCKPATH_STORAGE);
 	unlink(addr.sun_path);
 	const int lenAddr = strlen(addr.sun_path) + sizeof(addr.sun_family);
 
