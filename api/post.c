@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for peercred
+
 #include <ctype.h> // for islower
 #include <stdbool.h>
 #include <stdint.h>
@@ -63,46 +65,6 @@ static void clearDecrypted() {
 	sodium_mprotect_noaccess(decrypted);
 }
 
-static void shortResponse(const unsigned char * const data, const int len) {
-	memcpy(response, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 73\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: Keep-Alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 73\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: close\r\n"
-		"Padding-Ignore: abcdefghijk\r\n"
-		"\r\n"
-	, 277);
-
-	randombytes_buf(response + 277, crypto_box_NONCEBYTES);
-
-	unsigned char clr[33];
-	if (len == AEM_API_ERROR) {
-		memset(clr, 0xFF, 33);
-	} else {
-		bzero(clr, 33);
-		clr[0] = len;
-		if (data != NULL && len > 0) memcpy(clr + 1, data, len);
-	}
-
-	const int ret = crypto_box_easy(response + 277 + crypto_box_NONCEBYTES, clr, 33, response + 277, upk, ssk);
-	if (ret == 0) lenResponse = 350;
-}
-
 static int makeUnixSocket(const char * const path) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) return -1;
@@ -123,7 +85,7 @@ static int accountSocket(const unsigned char command, const unsigned char pubkey
 	const int sock = makeUnixSocket("Account.sck");
 	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
 
-	const size_t lenClear = crypto_box_PUBLICKEYBYTES + 1;
+	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
 	unsigned char clear[lenClear];
 	clear[0] = command;
 	memcpy(clear + 1, pubkey, crypto_box_PUBLICKEYBYTES);
@@ -168,6 +130,46 @@ static int storageSocket(const unsigned char command) {
 static void userViolation(const int violation) {
 	syslog(LOG_WARNING, "Violation");
 	// ...
+}
+
+static void shortResponse(const unsigned char * const data, const int len) {
+	memcpy(response, keepAlive?
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 73\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
+		"\r\n"
+	:
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: 73\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"Connection: close\r\n"
+		"Padding-Ignore: abcdefghijk\r\n"
+		"\r\n"
+	, 277);
+
+	randombytes_buf(response + 277, crypto_box_NONCEBYTES);
+
+	unsigned char clr[33];
+	if (len == AEM_API_ERROR) {
+		memset(clr, 0xFF, 33);
+	} else {
+		bzero(clr, 33);
+		clr[0] = len;
+		if (data != NULL && len > 0) memcpy(clr + 1, data, len);
+	}
+
+	const int ret = crypto_box_easy(response + 277 + crypto_box_NONCEBYTES, clr, 33, response + 277, upk, ssk);
+	if (ret == 0) lenResponse = 350;
 }
 
 static void account_browse(void) {
