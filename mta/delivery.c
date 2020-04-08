@@ -1,3 +1,5 @@
+#define _GNU_SOURCE // for peercred
+
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -59,21 +61,11 @@ static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 	return ret;
 }
 
+#include "../Common/UnixSocketClient.c"
+
 static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
-	struct sockaddr_un sa;
-	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, "Account.sck");
-
-	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed creating socket to allears-account");
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) != 0) {
-		syslog(LOG_ERR, "Failed connecting to allears-account");
-		return -1;
-	}
+	const int sock = getUnixSocket("Account.sck");
+	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
 
 	const size_t lenClear = 1 + lenMsg;
 	unsigned char clear[lenClear];
@@ -94,20 +86,8 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 }
 
 static int storageSocket(const unsigned char * const msg, const size_t lenMsg) {
-	struct sockaddr_un sa;
-	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, "Storage.sck");
-
-	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed creating socket to allears-storage");
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_ERR, "Failed connecting to allears-storage");
-		return -1;
-	}
+	const int sock = getUnixSocket("Storage.sck");
+	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
 
 	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenMsg;
 	unsigned char encrypted[lenEncrypted];
