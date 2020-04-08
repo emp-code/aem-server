@@ -65,39 +65,10 @@ static void clearDecrypted() {
 	sodium_mprotect_noaccess(decrypted);
 }
 
-static bool peerOk(const int sock) {
-	// TODO: Verify peer PID (get Account/Storage PID from Manager at startup)
-	struct ucred peer;
-	socklen_t lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
-}
-
-static int makeUnixSocket(const char * const path) {
-	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) return -1;
-
-	struct sockaddr_un sa;
-	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, path);
-
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_WARNING, "Failed connecting to Unix socket");
-		close(sock);
-		return -1;
-	}
-
-	if (!peerOk(sock)) {
-		syslog(LOG_WARNING, "Invalid Unix socket peer");
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
+#include "../Common/UnixSocketClient.c"
 
 static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	const int sock = makeUnixSocket("Account.sck");
+	const int sock = getUnixSocket("Account.sck");
 	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
@@ -120,7 +91,7 @@ static int accountSocket(const unsigned char command, const unsigned char pubkey
 }
 
 static int storageSocket(const unsigned char command) {
-	const int sock = makeUnixSocket("Storage.sck");
+	const int sock = getUnixSocket("Storage.sck");
 	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
