@@ -150,11 +150,15 @@ static void account_browse(void) {
 	if (sock < 0) return;
 
 	unsigned char clr[131200];
-	recv(sock, clr, 131200, MSG_WAITALL);
+	const ssize_t rbytes = recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
+	if (rbytes != 131200) {
+		syslog(LOG_WARNING, "Failed receiving data from Storage");
+		return;
+	}
 
+	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
 	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, upk, ssk) == 0)
 		lenResponse = 281 + 131240;
 }
@@ -380,11 +384,15 @@ static void message_browse(void) {
 	if (sock < 0) return;
 
 	unsigned char clr[131200];
-	recv(sock, clr, 131200, MSG_WAITALL);
+	const ssize_t rbytes = recv(sock, clr, 131200, MSG_WAITALL);
 	close(sock);
 
-	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
+	if (rbytes != 131200) {
+		syslog(LOG_WARNING, "Failed receiving data from Storage");
+		return;
+	}
 
+	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
 	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, upk, ssk) == 0)
 		lenResponse = 281 + 131240;
 }
