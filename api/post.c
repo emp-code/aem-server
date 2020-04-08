@@ -72,52 +72,6 @@ static void clearDecrypted() {
 
 #include "../Common/UnixSocketClient.c"
 
-static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	const int sock = getUnixSocket("Account.sck", pid_account);
-	if (sock < 1) return -1;
-
-	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
-	unsigned char clear[lenClear];
-	clear[0] = command;
-	memcpy(clear + 1, pubkey, crypto_box_PUBLICKEYBYTES);
-
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
-
-	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		syslog(LOG_ERR, "Failed sending data to Account");
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-
-static int storageSocket(const unsigned char command) {
-	const int sock = getUnixSocket("Storage.sck", pid_storage);
-	if (sock < 1) return -1;
-
-	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
-	unsigned char clear[lenClear];
-	clear[0] = command;
-	memcpy(clear + 1, upk, crypto_box_PUBLICKEYBYTES);
-
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
-
-	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		syslog(LOG_ERR, "Failed sending data to Storage");
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-
 static void userViolation(const int violation) {
 	syslog(LOG_WARNING, "Violation");
 	// ...
@@ -190,7 +144,7 @@ static void account_browse(void) {
 		"\r\n"
 	, 281);
 
-	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk);
+	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char clr[131200];
@@ -206,7 +160,7 @@ static void account_browse(void) {
 static void account_create(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
 
-	const int sock = accountSocket(AEM_API_ACCOUNT_CREATE, upk);
+	const int sock = accountSocket(AEM_API_ACCOUNT_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char response;
@@ -235,7 +189,7 @@ static void account_create(void) {
 static void account_delete(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
 
-	const int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk);
+	const int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char response;
@@ -264,7 +218,7 @@ static void account_delete(void) {
 static void account_update(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) return;
 
-	const int sock = accountSocket(AEM_API_ACCOUNT_UPDATE, upk);
+	const int sock = accountSocket(AEM_API_ACCOUNT_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char response;
@@ -293,7 +247,7 @@ static void account_update(void) {
 static void address_create(void) {
 	if (lenDecrypted != 13 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return;
 
-	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk);
+	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -324,7 +278,7 @@ static void address_create(void) {
 static void address_delete(void) {
 	if (lenDecrypted != 13) return;
 
-	const int sock = accountSocket(AEM_API_ADDRESS_DELETE, upk);
+	const int sock = accountSocket(AEM_API_ADDRESS_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -349,7 +303,7 @@ static void address_lookup(void) {
 	addr[0] = (lenDecrypted == 24) ? 'S' : 'N';
 	addr32_store(addr + 1, (const char * const)decrypted, lenDecrypted);
 
-	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, upk);
+	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char addr_pk[32];
@@ -363,7 +317,7 @@ static void address_lookup(void) {
 static void address_update(void) {
 	if (lenDecrypted % 14 != 0) return;
 
-	const int sock = accountSocket(AEM_API_ADDRESS_UPDATE, upk);
+	const int sock = accountSocket(AEM_API_ADDRESS_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -379,7 +333,7 @@ static void address_update(void) {
 static void message_assign(void) {
 	if (lenDecrypted % 1024 != 0) return;
 
-	const int sock = storageSocket(lenDecrypted / 1024);
+	const int sock = storageSocket(lenDecrypted / 1024, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	const ssize_t sentBytes = send(sock, decrypted, lenDecrypted, 0);
@@ -420,7 +374,7 @@ static void message_browse(void) {
 		"\r\n"
 	, 281);
 
-	const int sock = storageSocket(UINT8_MAX);
+	const int sock = storageSocket(UINT8_MAX, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char clr[131200];
@@ -438,7 +392,7 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 	addrData[0] = shield? 'S' : 'N';
 	memcpy(addrData + 1, ver_addr32, 15);
 
-	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk);
+	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return false;
 
 	unsigned char pk[32];
@@ -450,7 +404,7 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 }
 
 static unsigned char getUserLevel(const unsigned char * const pubkey) {
-	const int sock = accountSocket(AEM_API_INTERNAL_LEVEL, pubkey);
+	const int sock = accountSocket(AEM_API_INTERNAL_LEVEL, pubkey, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return 0;
 
 	unsigned char ret;
@@ -494,7 +448,7 @@ static void message_create(void) {
 	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
 
 	// Store
-	const int sock = storageSocket(kib);
+	const int sock = storageSocket(kib, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) {
 		free(boxSet);
 		return;
@@ -515,7 +469,7 @@ static void message_create(void) {
 static void message_delete(void) {
 	if (lenDecrypted % 16 != 0) return;
 
-	const int sock = storageSocket(0);
+	const int sock = storageSocket(0, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -531,7 +485,7 @@ static void message_delete(void) {
 static void private_update(void) {
 	if (lenDecrypted != AEM_LEN_PRIVATE) return;
 
-	const int sock = accountSocket(AEM_API_PRIVATE_UPDATE, upk);
+	const int sock = accountSocket(AEM_API_PRIVATE_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -547,7 +501,7 @@ static void private_update(void) {
 static void setting_limits(void) {
 	if (lenDecrypted != 12) return;
 
-	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk);
+	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char response;
@@ -576,7 +530,7 @@ static void setting_limits(void) {
 int aem_api_prepare(const unsigned char * const pubkey, const bool ka) {
 	if (pubkey == NULL) return -1;
 
-	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, pubkey);
+	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, pubkey, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return -1;
 
 	unsigned char response;

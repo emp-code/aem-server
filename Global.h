@@ -56,3 +56,6 @@
 #define AEM_FLAG_MSGTYPE_EXTMSG 128
 
 #define AEM_ADDR32_SYSTEM {54, 125, 157, 58, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // 'system' in Addr32
+
+#define AEM_SOCKPATH_ACCOUNT "Account.sck"
+#define AEM_SOCKPATH_STORAGE "Storage.sck"

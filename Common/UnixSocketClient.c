@@ -6,7 +6,7 @@ static bool peerOk(const int sock, const pid_t pid) {
 	return (peer.pid == pid && peer.gid == getgid() && peer.uid == getuid());
 }
 
-static int getUnixSocket(const char * const path, const pid_t pid) {
+static int getUnixSocket(const char * const path, const pid_t pid, const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) return -1;
 
@@ -26,5 +26,29 @@ static int getUnixSocket(const char * const path, const pid_t pid) {
 		return -1;
 	}
 
+	const size_t lenClear = 1 + lenMsg;
+	unsigned char clear[lenClear];
+	clear[0] = command;
+	if (msg != NULL) memcpy(clear + 1, msg, lenMsg);
+
+	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	unsigned char encrypted[lenEncrypted];
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, (pid == pid_account) ? accessKey_account : accessKey_storage);
+
+	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		syslog(LOG_ERR, "Failed sending data to %s", path);
+		close(sock);
+		return -1;
+	}
+
 	return sock;
+}
+
+static int accountSocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+	return getUnixSocket(AEM_SOCKPATH_ACCOUNT, pid_account, command, msg, lenMsg);
+}
+
+static int storageSocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }

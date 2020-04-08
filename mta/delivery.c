@@ -69,45 +69,6 @@ static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 
 #include "../Common/UnixSocketClient.c"
 
-static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
-	const int sock = getUnixSocket("Account.sck", pid_account);
-	if (sock < 1) return -1;
-
-	const size_t lenClear = 1 + lenMsg;
-	unsigned char clear[lenClear];
-	clear[0] = command;
-	memcpy(clear + 1, msg, lenMsg);
-
-	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
-
-	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-
-static int storageSocket(const unsigned char * const msg, const size_t lenMsg) {
-	const int sock = getUnixSocket("Storage.sck", pid_storage);
-	if (sock < 1) return -1;
-
-	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenMsg;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, msg, lenMsg, encrypted, accessKey_storage);
-
-	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-
 static int getPublicKey(const unsigned char * const addr32, unsigned char * const pubkey, const bool isShield) {
 	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 15);
 	if (sock < 0) return -1;
@@ -156,11 +117,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		}
 
 		// Deliver
-		unsigned char cmd[1 + crypto_box_PUBLICKEYBYTES];
-		cmd[0] = bsLen / 1024;
-		memcpy(cmd + 1, pubkey, crypto_box_PUBLICKEYBYTES);
-
-		const int stoSock = storageSocket(cmd, 1 + crypto_box_PUBLICKEYBYTES);
+		const int stoSock = storageSocket(bsLen / 1024, pubkey, crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			if (send(stoSock, boxSet, bsLen, 0) != (ssize_t)bsLen)
 				syslog(LOG_ERR, "Failed sending to Storage");
