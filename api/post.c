@@ -169,15 +169,15 @@ static void account_create(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char response;
-	if (recv(sock, &response, 1, 0) != 1) {
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
 		return;
-	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_CREATE);
 		close(sock);
 		return;
-	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -198,15 +198,15 @@ static void account_delete(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char response;
-	if (recv(sock, &response, 1, 0) != 1) {
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
 		return;
-	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
 		close(sock);
 		return;
-	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -227,15 +227,15 @@ static void account_update(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char response;
-	if (recv(sock, &response, 1, 0) != 1) {
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
 		return;
-	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
 		close(sock);
 		return;
-	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -514,15 +514,15 @@ static void setting_limits(void) {
 	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char response;
-	if (recv(sock, &response, 1, 0) != 1) {
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
 		return;
-	} else if (response == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_SETTING_LIMITS);
 		close(sock);
 		return;
-	} else if (response != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -543,10 +543,10 @@ int aem_api_prepare(const unsigned char * const pubkey, const bool ka) {
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, pubkey, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return -1;
 
-	unsigned char response;
-	recv(sock, &response, 1, 0);
+	unsigned char resp;
+	recv(sock, &resp, 1, 0);
 	close(sock);
-	if (response != 1) return -1;
+	if (resp != 1) return -1;
 
 	memcpy(upk, pubkey, crypto_box_PUBLICKEYBYTES);
 	keepAlive = ka;
