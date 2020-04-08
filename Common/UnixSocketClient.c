@@ -1,12 +1,12 @@
-static bool peerOk(const int sock) {
+static bool peerOk(const int sock, const pid_t pid) {
 	// TODO: Verify peer PID (get Account/Storage PID from Manager at startup)
 	struct ucred peer;
 	socklen_t lenUc = sizeof(struct ucred);
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
+	return (peer.pid == pid && peer.gid == getgid() && peer.uid == getuid());
 }
 
-static int getUnixSocket(const char * const path) {
+static int getUnixSocket(const char * const path, const pid_t pid) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) return -1;
 
@@ -20,7 +20,7 @@ static int getUnixSocket(const char * const path) {
 		return -1;
 	}
 
-	if (!peerOk(sock)) {
+	if (!peerOk(sock, pid)) {
 		syslog(LOG_WARNING, "Invalid Unix socket peer");
 		close(sock);
 		return -1;

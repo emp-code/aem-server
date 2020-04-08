@@ -99,7 +99,7 @@ static int sockClient;
 static bool terminate = false;
 
 // For handling large writes on O_DIRECT pipes
-static int pipeWriteDirect(const int fd, const unsigned char * const data, const size_t len) {
+static int pipeWriteDirect(const int fd, const void * const data, const size_t len) {
 	size_t written = 0;
 
 	while (len - written > PIPE_BUF) {
@@ -476,8 +476,10 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_API:
 			if (
-			   pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
+			   pipeWriteDirect(fd[1], &pid_account, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], &pid_storage, sizeof(pid_t)) < 0
 
+			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 
@@ -488,7 +490,10 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_MTA:
 			if (
-			   pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
+			   pipeWriteDirect(fd[1], &pid_account, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], &pid_storage, sizeof(pid_t)) < 0
+
+			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0

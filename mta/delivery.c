@@ -24,8 +24,14 @@
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
 
+static pid_t pid_account = 0;
+static pid_t pid_storage = 0;
+
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
+
+void setAccountPid(const pid_t pid) {pid_account = pid;}
+void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 __attribute__((warn_unused_result))
 static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
@@ -64,7 +70,7 @@ static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 #include "../Common/UnixSocketClient.c"
 
 static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
-	const int sock = getUnixSocket("Account.sck");
+	const int sock = getUnixSocket("Account.sck", pid_account);
 	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + lenMsg;
@@ -86,7 +92,7 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 }
 
 static int storageSocket(const unsigned char * const msg, const size_t lenMsg) {
-	const int sock = getUnixSocket("Storage.sck");
+	const int sock = getUnixSocket("Storage.sck", pid_storage);
 	if (sock < 1) return -1;
 
 	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenMsg;

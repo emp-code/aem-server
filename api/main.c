@@ -92,6 +92,19 @@ static int pipeLoadTls(const int fd) {
 }
 
 __attribute__((warn_unused_result))
+static int pipeLoadPids(const int fd) {
+	pid_t pid;
+
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	setAccountPid(pid);
+
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	setStoragePid(pid);
+
+	return 0;
+}
+
+__attribute__((warn_unused_result))
 static int pipeLoadKeys(const int fd) {
 	unsigned char buf[AEM_PIPE_BUFSIZE];
 
@@ -139,6 +152,7 @@ int main(int argc, char *argv[]) {
 	if (setSignals()  != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
 	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 
+	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids"); return EXIT_FAILURE;}
 	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys"); return EXIT_FAILURE;}
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);

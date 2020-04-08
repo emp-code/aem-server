@@ -42,6 +42,8 @@ static unsigned char *decrypted;
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
+static pid_t pid_account = 0;
+static pid_t pid_storage = 0;
 
 void setApiKey(const unsigned char * const newKey) {
 	memcpy(ssk, newKey, crypto_box_PUBLICKEYBYTES);
@@ -49,6 +51,9 @@ void setApiKey(const unsigned char * const newKey) {
 
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
+
+void setAccountPid(const pid_t pid) {pid_account = pid;}
+void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 int aem_api_init(void) {
 	decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
@@ -68,7 +73,7 @@ static void clearDecrypted() {
 #include "../Common/UnixSocketClient.c"
 
 static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
-	const int sock = getUnixSocket("Account.sck");
+	const int sock = getUnixSocket("Account.sck", pid_account);
 	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
@@ -91,7 +96,7 @@ static int accountSocket(const unsigned char command, const unsigned char pubkey
 }
 
 static int storageSocket(const unsigned char command) {
-	const int sock = getUnixSocket("Storage.sck");
+	const int sock = getUnixSocket("Storage.sck", pid_storage);
 	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
