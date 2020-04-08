@@ -56,6 +56,8 @@ void setAccountPid(const pid_t pid) {pid_account = pid;}
 void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 int aem_api_init(void) {
+	if (pid_account == 0 || pid_storage == 0) return -1;
+
 	decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
 	return (decrypted != NULL) ? 0 : -1;
 }
