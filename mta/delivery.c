@@ -65,7 +65,7 @@ static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
 
 static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	const int sock = getUnixSocket("Account.sck");
-	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
+	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + lenMsg;
 	unsigned char clear[lenClear];
@@ -87,7 +87,7 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 
 static int storageSocket(const unsigned char * const msg, const size_t lenMsg) {
 	const int sock = getUnixSocket("Storage.sck");
-	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
+	if (sock < 1) return -1;
 
 	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenMsg;
 	unsigned char encrypted[lenEncrypted];

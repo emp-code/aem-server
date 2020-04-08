@@ -69,7 +69,7 @@ static void clearDecrypted() {
 
 static int accountSocket(const unsigned char command, const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	const int sock = getUnixSocket("Account.sck");
-	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Account: %m"); return -1;}
+	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
 	unsigned char clear[lenClear];
@@ -92,7 +92,7 @@ static int accountSocket(const unsigned char command, const unsigned char pubkey
 
 static int storageSocket(const unsigned char command) {
 	const int sock = getUnixSocket("Storage.sck");
-	if (sock < 1) {syslog(LOG_ERR, "Failed creating socket to Storage: %m"); return -1;}
+	if (sock < 1) return -1;
 
 	const size_t lenClear = 1 + crypto_box_PUBLICKEYBYTES;
 	unsigned char clear[lenClear];

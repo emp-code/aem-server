@@ -15,7 +15,7 @@ static int getUnixSocket(const char * const path) {
 	strcpy(sa.sun_path, path);
 
 	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
-		syslog(LOG_WARNING, "Failed connecting to Unix socket");
+		syslog(LOG_WARNING, "Failed connecting to Unix socket: %m");
 		close(sock);
 		return -1;
 	}
