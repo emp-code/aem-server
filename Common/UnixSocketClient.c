@@ -1,5 +1,4 @@
 static bool peerOk(const int sock, const pid_t pid) {
-	// TODO: Verify peer PID (get Account/Storage PID from Manager at startup)
 	struct ucred peer;
 	socklen_t lenUc = sizeof(struct ucred);
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
