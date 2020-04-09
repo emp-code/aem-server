@@ -39,6 +39,9 @@ static int pipeLoadTls(const int fd) {
 	|| pipeRead(fd, &keyData, &keyLen) != 0
 	) return -1;
 
-	setCertData(crtData, crtLen, keyData, keyLen);
-	return 0;
+	const int ret = tlsSetup(crtData, crtLen, keyData, keyLen);
+
+	sodium_free(crtData);
+	sodium_free(keyData);
+	return ret;
 }

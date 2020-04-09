@@ -4,8 +4,7 @@
 int setHtml(const unsigned char * const data, const size_t len);
 void freeHtml(void);
 
-int setCertData(unsigned char * const crtData, const size_t crtLen, unsigned char * const keyData, const size_t keyLen);
-int tlsSetup(void);
+int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree(void);
 
 void respondClient(int sock);

@@ -1,6 +1,3 @@
-static unsigned char *tlsCrt_data;
-static unsigned char *tlsKey_data;
-
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;
 
@@ -41,22 +38,6 @@ static int getDomainFromCert(void) {
 	return 0;
 }
 
-int setCertData(unsigned char * const crtData, const size_t crtLen, unsigned char * const keyData, const size_t keyLen) {
-	tlsCrt_data = crtData;
-	tlsKey_data = keyData;
-
-	mbedtls_x509_crt_init(&tlsCrt);
-	int ret = mbedtls_x509_crt_parse(&tlsCrt, crtData, crtLen);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %d", ret); return -1;}
-
-	mbedtls_pk_init(&tlsKey);
-	ret = mbedtls_pk_parse_key(&tlsKey, keyData, keyLen, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %d", ret); return -1;}
-
-	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
-	return 0;
-}
-
 #ifdef AEM_MTA
 __attribute__((warn_unused_result))
 static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
@@ -86,13 +67,23 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 }
 #endif
 
-int tlsSetup(void) {
+int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen) {
+	mbedtls_x509_crt_init(&tlsCrt);
+	int ret = mbedtls_x509_crt_parse(&tlsCrt, crtData, crtLen);
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %d", ret); return -1;}
+
+	mbedtls_pk_init(&tlsKey);
+	ret = mbedtls_pk_parse_key(&tlsKey, keyData, keyLen, NULL, 0);
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %d", ret); return -1;}
+
+	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
+
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
-	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %d", ret); return -1;}
 
 #ifdef AEM_MTA
@@ -117,8 +108,6 @@ int tlsSetup(void) {
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %d", ret); return -1;}
 
-	sodium_free(tlsCrt_data);
-	sodium_free(tlsKey_data);
 	return 0;
 }
 

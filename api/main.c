@@ -92,5 +92,6 @@ int main(int argc, char *argv[]) {
 		aem_api_free();
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
+	tlsFree();
 	return EXIT_SUCCESS;
 }

@@ -87,5 +87,6 @@ int main(int argc, char *argv[]) {
 
 	acceptClients();
 
+	tlsFree();
 	return EXIT_SUCCESS;
 }

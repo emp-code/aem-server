@@ -67,5 +67,6 @@ int main(int argc, char *argv[]) {
 	acceptClients();
 
 	freeHtml();
+	tlsFree();
 	return EXIT_SUCCESS;
 }
