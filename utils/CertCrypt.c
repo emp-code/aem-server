@@ -84,8 +84,8 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	bytes++;
 	buf[bytes] = '\0';
+	bytes++;
 
 	const size_t lenEncrypted = bytes + crypto_secretbox_MACBYTES;
 	unsigned char encrypted[lenEncrypted];
