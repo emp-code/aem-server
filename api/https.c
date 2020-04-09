@@ -13,29 +13,21 @@
 #include <mbedtls/ssl.h>
 
 #include "../Global.h"
-#include "../Common/https_suites.h"
 
 #include "https.h"
 #include "post.h"
 
 #define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 480
-#define AEM_HTTPS_TIMEOUT 30
+#define AEM_CLIENT_TIMEOUT 30
 
 #define AEM_SKIP_URL_POST 10 // 'POST /api/'
 #define AEM_LEN_URL_POST 14 // 'account/browse'
 
-static mbedtls_ssl_context ssl;
-static mbedtls_ssl_config conf;
-static mbedtls_entropy_context entropy;
-static mbedtls_ctr_drbg_context ctr_drbg;
-
-static const int https_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
-static const mbedtls_ecp_group_id https_curves[] = {AEM_TLS_CURVES_HIGH};
-static const int https_hashes[] = {AEM_TLS_HASHES_HIGH};
-
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
+
+#include "../Common/tls_setup.c"
 
 int setDomain(const char * const newDomain, const size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
@@ -93,8 +85,6 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 
 	return true;
 }
-
-#include "../Common/https_setup.c"
 
 void respondClient(int sock) {
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);

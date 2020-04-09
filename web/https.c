@@ -13,23 +13,13 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/https_suites.h"
-#include "Include/https_common.h"
+#include "Include/tls_common.h"
 
 #include "https.h"
 
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
 #define AEM_MAXLEN_REQ 800
-#define AEM_HTTPS_TIMEOUT 30
-
-static mbedtls_ssl_context ssl;
-static mbedtls_ssl_config conf;
-static mbedtls_entropy_context entropy;
-static mbedtls_ctr_drbg_context ctr_drbg;
-
-static const int https_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
-static const mbedtls_ecp_group_id https_curves[] = {AEM_TLS_CURVES_HIGH};
-static const int https_hashes[] = {AEM_TLS_HASHES_HIGH};
+#define AEM_CLIENT_TIMEOUT 30
 
 static char req[AEM_MAXLEN_REQ + 1];
 
@@ -38,6 +28,8 @@ static size_t lenHtml = 0;
 
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
+
+#include "../Common/tls_setup.c"
 
 int setDomain(const char * const src, const size_t len) {
 	if (len > AEM_MAXLEN_DOMAIN) return -1;
@@ -61,8 +53,6 @@ void freeHtml(void) {
 	sodium_free(html);
 	lenHtml = 0;
 }
-
-#include "../Common/https_setup.c"
 
 static void respond_mtasts(void) {
 	char data[377 + lenDomain];
