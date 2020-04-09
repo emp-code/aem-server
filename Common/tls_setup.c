@@ -117,6 +117,8 @@ int tlsSetup(void) {
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %d", ret); return -1;}
 
+	sodium_free(tlsCrt_data);
+	sodium_free(tlsKey_data);
 	return 0;
 }
 
@@ -125,10 +127,6 @@ void tlsFree(void) {
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_entropy_free(&entropy);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
-
 	mbedtls_x509_crt_free(&tlsCrt);
-	sodium_free(tlsCrt_data);
-
 	mbedtls_pk_free(&tlsKey);
-	sodium_free(tlsKey_data);
 }
