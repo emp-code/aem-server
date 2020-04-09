@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 	close(argv[0][0]);
 
 	if (aem_api_init() == 0) {
-		takeConnections();
+		acceptClients();
 		aem_api_free();
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 

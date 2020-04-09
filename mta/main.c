@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	takeConnections();
+	acceptClients();
 
 	return EXIT_SUCCESS;
 }

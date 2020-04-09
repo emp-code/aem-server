@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 	if (pipeLoadHtml(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading HTML"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	takeConnections();
+	acceptClients();
 
 	freeHtml();
 	return EXIT_SUCCESS;

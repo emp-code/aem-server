@@ -42,7 +42,7 @@ static int initSocket(const int sock) {
 	return 0;
 }
 
-static void takeConnections(void) {
+static void acceptClients(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
