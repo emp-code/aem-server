@@ -20,6 +20,9 @@
 #include "../Global.h"
 
 #define AEM_LOGNAME "AEM-Web"
+#define AEM_PORT AEM_PORT_WEB
+#define AEM_BACKLOG 25
+
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192
 #define AEM_SOCKET_TIMEOUT 15
@@ -63,26 +66,6 @@ static int pipeLoadHtml(const int fd) {
 	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
 	if (readBytes < AEM_MINLEN_PIPEREAD) return -1;
 	return setHtml(buf, readBytes);
-}
-
-static void takeConnections(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (initSocket(sock, AEM_PORT_WEB, 25) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
-
-	syslog(LOG_INFO, "Ready");
-
-	while (!terminate) {
-		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_WARNING, "Failed accepting connection"); continue;}
-		setSocketTimeout(newSock);
-		respond_https(newSock);
-		close(newSock);
-	}
-
-	tlsFree();
-	close(sock);
 }
 
 int main(int argc, char *argv[]) {

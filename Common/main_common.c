@@ -25,12 +25,12 @@ static void setSocketTimeout(const int sock) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int sock, const int port, const int backlog) {
+static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(port);
+	servAddr.sin_port = htons(AEM_PORT);
 
 	const int optval = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
@@ -38,7 +38,7 @@ static int initSocket(const int sock, const int port, const int backlog) {
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	if (setCaps(false) != 0) return -1;
 
-	listen(sock, backlog);
+	listen(sock, AEM_BACKLOG);
 	return 0;
 }
 
@@ -58,4 +58,40 @@ static int getDomainFromCert(void) {
 	c += 5;
 
 	return setDomain(c, end - c);
+}
+
+static void takeConnections(void) {
+	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
+	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
+
+	syslog(LOG_INFO, "Ready");
+
+#ifdef AEM_MTA
+	struct sockaddr_in clientAddr;
+	unsigned int clen = sizeof(clientAddr);
+#endif
+
+	while (!terminate) {
+#ifdef AEM_MTA
+		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
+#else
+		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
+#endif
+
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		setSocketTimeout(newSock);
+
+#ifdef AEM_MTA
+		respondClient(newSock, &clientAddr);
+#else
+		respondClient(newSock);
+#endif
+
+		close(newSock);
+	}
+
+	tlsFree();
+	close(sock);
 }

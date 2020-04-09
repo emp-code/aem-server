@@ -122,7 +122,7 @@ static void handleRequest(const size_t lenReq) {
 	sendData(&ssl, html, lenHtml);
 }
 
-void respond_https(int sock) {
+void respondClient(int sock) {
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;

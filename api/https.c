@@ -96,7 +96,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 
 #include "../Common/https_setup.c"
 
-void respond_https(int sock) {
+void respondClient(int sock) {
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;

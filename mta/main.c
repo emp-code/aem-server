@@ -20,7 +20,11 @@
 
 #include "../Global.h"
 
+#define AEM_MTA
 #define AEM_LOGNAME "AEM-MTA"
+#define AEM_PORT AEM_PORT_MTA
+#define AEM_BACKLOG 50
+
 #define AEM_MINLEN_PIPEREAD 128
 #define AEM_PIPE_BUFSIZE 8192
 #define AEM_SOCKET_TIMEOUT 30
@@ -82,29 +86,6 @@ static int pipeLoadKeys(const int fd) {
 
 	sodium_memzero(buf, AEM_PIPE_BUFSIZE);
 	return 0;
-}
-
-static void takeConnections(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (initSocket(sock, AEM_PORT_MTA, 50) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
-
-	syslog(LOG_INFO, "Ready");
-
-	struct sockaddr_in clientAddr;
-	unsigned int clen = sizeof(clientAddr);
-
-	while (!terminate) {
-		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
-		setSocketTimeout(newSock);
-		respond_smtp(newSock, &clientAddr);
-		close(newSock);
-	}
-
-	tlsFree();
-	close(sock);
 }
 
 int main(int argc, char *argv[]) {
