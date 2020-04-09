@@ -29,14 +29,6 @@ static size_t lenDomain;
 
 #include "../Common/tls_setup.c"
 
-int setDomain(const char * const newDomain, const size_t len) {
-	if (len > AEM_MAXLEN_DOMAIN) return -1;
-
-	lenDomain = len;
-	memcpy(domain, newDomain, len);
-	return 0;
-}
-
 __attribute__((warn_unused_result))
 static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;

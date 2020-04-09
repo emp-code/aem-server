@@ -31,13 +31,6 @@ static size_t lenDomain;
 
 #include "../Common/tls_setup.c"
 
-int setDomain(const char * const src, const size_t len) {
-	if (len > AEM_MAXLEN_DOMAIN) return -1;
-	memcpy(domain, src, len);
-	lenDomain = len;
-	return 0;
-}
-
 int setHtml(const unsigned char * const data, const size_t len) {
 	html = sodium_malloc(len);
 	if (html == NULL) return -1;

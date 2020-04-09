@@ -42,29 +42,11 @@ static int initSocket(const int sock) {
 	return 0;
 }
 
-__attribute__((warn_unused_result))
-static int getDomainFromCert(void) {
-	char certInfo[1024];
-	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
-
-	const char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return -1;
-	c += 17;
-
-	const char * const end = strchr(c, '\n');
-
-	c = strstr(c, ": CN=");
-	if (c == NULL || c > end) return -1;
-	c += 5;
-
-	return setDomain(c, end - c);
-}
-
 static void takeConnections(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed initSocket"); close(sock); return;}
-	if (tlsSetup(&tlsCrt, &tlsKey) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
+	if (tlsSetup() != 0) {syslog(LOG_ERR, "Failed setting up TLS"); close(sock); return;}
 
 	syslog(LOG_INFO, "Ready");
 

@@ -1,10 +1,9 @@
 #ifndef AEM_HTTPS_H
 #define AEM_HTTPS_H
 
-int setDomain(const char * const newDomain, const size_t len);
-
+int setCertData(unsigned char * const crtData, const size_t crtLen, unsigned char * const keyData, const size_t keyLen);
+int tlsSetup(void);
 void tlsFree(void);
-int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey);
 
 void respondClient(int sock);
 

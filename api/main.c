@@ -28,14 +28,6 @@
 #define AEM_PIPE_BUFSIZE 8192
 #define AEM_SOCKET_TIMEOUT 15
 
-static mbedtls_x509_crt tlsCrt;
-static mbedtls_pk_context tlsKey;
-
-static unsigned char *tls_crt;
-static unsigned char *tls_key;
-static size_t len_tls_crt;
-static size_t len_tls_key;
-
 static bool terminate = false;
 
 static void sigTerm(const int sig) {
@@ -48,10 +40,6 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	tlsFree();
-	mbedtls_x509_crt_free(&tlsCrt);
-	mbedtls_pk_free(&tlsKey);
-	sodium_free(tls_crt);
-	sodium_free(tls_key);
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -104,9 +92,5 @@ int main(int argc, char *argv[]) {
 		aem_api_free();
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
-	mbedtls_x509_crt_free(&tlsCrt);
-	mbedtls_pk_free(&tlsKey);
-	sodium_free(tls_crt);
-	sodium_free(tls_key);
 	return EXIT_SUCCESS;
 }
