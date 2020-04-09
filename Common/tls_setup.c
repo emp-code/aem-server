@@ -4,6 +4,13 @@ static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 
 #include "../Common/tls_suites.h"
+#ifdef AEM_MTA
+	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_MTA};
+#else
+	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
+	const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
+	const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
+#endif
 
 #ifdef AEM_MTA
 __attribute__((warn_unused_result))
@@ -43,17 +50,9 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 	int ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %d", ret); return -1;}
 
-	mbedtls_ssl_conf_ca_chain(&conf, tlsCert->next, NULL);
-	mbedtls_ssl_conf_read_timeout(&conf, AEM_CLIENT_TIMEOUT);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-
 #ifdef AEM_MTA
-	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_MTA};
+	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
 #else // API/Web
-	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
-	const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
-	const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
-
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
 	mbedtls_ssl_conf_curves(&conf, tls_curves);
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
@@ -61,6 +60,8 @@ int tlsSetup(mbedtls_x509_crt * const tlsCert, mbedtls_pk_context * const tlsKey
 #endif
 
 	mbedtls_ssl_conf_ciphersuites(&conf, tls_ciphersuites);
+	mbedtls_ssl_conf_read_timeout(&conf, AEM_CLIENT_TIMEOUT);
+	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %d", ret); return -1;}
