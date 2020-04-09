@@ -5,11 +5,11 @@ static mbedtls_ctr_drbg_context ctr_drbg;
 
 #include "../Common/tls_suites.h"
 #ifdef AEM_MTA
-	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_MTA};
+static const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_MTA};
 #else
-	const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
-	const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
-	const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
+static const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
+static const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
+static const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
 #endif
 
 #ifdef AEM_MTA
