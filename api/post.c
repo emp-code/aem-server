@@ -37,7 +37,7 @@ static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 static unsigned char response[AEM_MAXLEN_RESPONSE];
 static int lenResponse = AEM_API_ERROR;
 static unsigned char *decrypted;
-#define lenDecrypted *((const uint16_t * const)(decrypted + AEM_HTTPS_POST_SIZE))
+#define lenDecrypted *((const uint16_t * const)(decrypted + AEM_API_POST_SIZE))
 
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
@@ -58,7 +58,7 @@ void setStoragePid(const pid_t pid) {pid_storage = pid;}
 int aem_api_init(void) {
 	if (pid_account == 0 || pid_storage == 0) return -1;
 
-	decrypted = sodium_malloc(AEM_HTTPS_POST_SIZE + 2);
+	decrypted = sodium_malloc(AEM_API_POST_SIZE + 2);
 	return (decrypted != NULL) ? 0 : -1;
 }
 
@@ -68,7 +68,7 @@ void aem_api_free(void) {
 
 static void clearDecrypted() {
 	sodium_mprotect_readwrite(decrypted);
-	sodium_memzero(decrypted, AEM_HTTPS_POST_SIZE + 2);
+	sodium_memzero(decrypted, AEM_API_POST_SIZE + 2);
 	sodium_mprotect_noaccess(decrypted);
 }
 
@@ -558,7 +558,7 @@ int aem_api_process(mbedtls_ssl_context * const ssl, const char * const url, con
 	if (ssl == NULL || url == NULL || post == NULL) return -1;
 
 	sodium_mprotect_readwrite(decrypted);
-	if (crypto_box_open_easy(decrypted, post + crypto_box_NONCEBYTES, AEM_HTTPS_POST_SIZE + 2 + crypto_box_MACBYTES, post, upk, ssk) != 0) {
+	if (crypto_box_open_easy(decrypted, post + crypto_box_NONCEBYTES, AEM_API_POST_SIZE + 2 + crypto_box_MACBYTES, post, upk, ssk) != 0) {
 		sodium_mprotect_noaccess(decrypted);
 		return -1;
 	}

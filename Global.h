@@ -59,3 +59,6 @@
 
 #define AEM_SOCKPATH_ACCOUNT "Account.sck"
 #define AEM_SOCKPATH_STORAGE "Storage.sck"
+
+#define AEM_API_POST_SIZE 8192 // 8 KiB
+#define AEM_API_POST_BOXED_SIZE (crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES + AEM_API_POST_SIZE + 2 + crypto_box_MACBYTES)

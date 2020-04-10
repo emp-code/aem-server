@@ -92,7 +92,7 @@ void respondClient(int sock) {
 	}
 
 	while(1) {
-		unsigned char buf[AEM_HTTPS_POST_BOXED_SIZE];
+		unsigned char buf[AEM_API_POST_BOXED_SIZE];
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + crypto_box_PUBLICKEYBYTES);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		if (ret < 1) break;
 
@@ -120,8 +120,8 @@ void respondClient(int sock) {
 
 		memmove(buf, postBegin + 4, lenPost);
 
-		while (lenPost < AEM_HTTPS_POST_BOXED_SIZE) {
-			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_HTTPS_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		while (lenPost < AEM_API_POST_BOXED_SIZE) {
+			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_POST_BOXED_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 			if (ret < 1) break;
 			lenPost += ret;
 		}
@@ -129,7 +129,7 @@ void respondClient(int sock) {
 
 		if (aem_api_process(&ssl, url, buf + crypto_box_PUBLICKEYBYTES) != 0) break;
 
-		explicit_bzero(buf, AEM_HTTPS_POST_BOXED_SIZE);
+		explicit_bzero(buf, AEM_API_POST_BOXED_SIZE);
 		if (!keepAlive) break;
 	}
 
