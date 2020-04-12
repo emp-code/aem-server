@@ -93,8 +93,8 @@ static pid_t pid_storage = 0;
 static unsigned char encrypted[AEM_LEN_ENCRYPTED];
 static unsigned char decrypted[AEM_LEN_MSG];
 
-static int sockMain;
-static int sockClient;
+static int sockMain = -1;
+static int sockClient = -1;
 
 static bool terminate = false;
 
@@ -421,7 +421,7 @@ static void process_spawn(const int type) {
 		wipeKeys();
 		pid = getpid();
 
-		if (close(fd[1]) != 0 || ((type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) && (close(sockClient) != 0 || close(sockMain) != 0))) {
+		if (close(fd[1]) != 0 || (sockMain != -1 && close(sockMain) != 0) || (sockClient != -1 && close(sockClient) != 0)) {
 			syslog(LOG_ERR, "Failed closing fds");
 			exit(EXIT_FAILURE);
 		}
