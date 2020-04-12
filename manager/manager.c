@@ -413,9 +413,11 @@ static int process_new(void *params) {
 	close(sockMain);
 	close(sockClient);
 
-	pid_t pid = getpid();
+	const pid_t pid = getpid();
 	const int type = ((uint8_t*)params)[0];
 	const int pipefd = ((uint8_t*)params)[1];
+	const int closefd = ((uint8_t*)params)[2];
+	close(closefd);
 
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
 	if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
@@ -467,7 +469,7 @@ static void process_spawn(const int type) {
 	int fd[2];
 	if (pipe2(fd, O_DIRECT) < 0) return;
 
-	uint8_t params[] = {type, fd[0]};
+	uint8_t params[] = {type, fd[0], fd[1]};
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
 	if (pid < 0) return;
 
