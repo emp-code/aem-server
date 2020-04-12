@@ -467,11 +467,11 @@ static void process_spawn(const int type) {
 	}
 
 	int fd[2];
-	if (pipe2(fd, O_DIRECT) < 0) return;
+	if (pipe2(fd, O_DIRECT) < 0) {free(stack); return;}
 
 	uint8_t params[] = {type, fd[0], fd[1]};
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (pid < 0) return;
+	if (pid < 0) {free(stack); return;}
 
 	close(fd[0]);
 
