@@ -80,7 +80,7 @@ static int makeSpecial(const pid_t pid, const char * const name, const unsigned 
 	) ? 0 : -1;
 }
 
-int createMount(const pid_t pid, const int type, const pid_t pid_account, const pid_t pid_storage) {
+int createMount(const pid_t pid, const int type) {
 	umask(0);
 	setGroup();
 

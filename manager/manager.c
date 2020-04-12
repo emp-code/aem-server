@@ -422,7 +422,7 @@ static int process_new(void *params) {
 	close(closefd);
 
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
-	if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
+	if (createMount(pid, type) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
 	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 	if (dropRoot(pid) != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
