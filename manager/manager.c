@@ -19,6 +19,7 @@
 #include <grp.h>
 #include <linux/securebits.h>
 #include <pwd.h>
+#include <sched.h>
 #include <signal.h>
 #include <sodium.h>
 #include <stdbool.h>
@@ -44,6 +45,7 @@
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+#define AEM_STACKSIZE 1048576 // 1 MiB
 
 #define AEM_PATH_CONF "/etc/allears"
 #define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
@@ -86,9 +88,17 @@ static size_t len_tls_key;
 static unsigned char html[AEM_LEN_FILE_MAX];
 static size_t len_html;
 
-static pid_t pids[3][AEM_MAXPROCESSES];
+struct aem_process {
+	pid_t pid;
+	unsigned char *stack;
+};
+
+static struct aem_process aemProc[3][AEM_MAXPROCESSES];
+
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
+static unsigned char *stack_account;
+static unsigned char *stack_storage;
 
 static unsigned char encrypted[AEM_LEN_ENCRYPTED];
 static unsigned char decrypted[AEM_LEN_MSG];
@@ -185,9 +195,10 @@ static bool process_verify(const pid_t pid) {
 static void refreshPids(void) {
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (!process_verify(pids[type][i])) {
-				deleteMount(pids[type][i], type);
-				pids[type][i] = 0;
+			if (!process_verify(aemProc[type][i].pid)) {
+				deleteMount(aemProc[type][i].pid, type);
+				free(aemProc[type][i].stack);
+				aemProc[type][i].pid = 0;
 			}
 		}
 	}
@@ -213,7 +224,7 @@ void killAll(int sig) {
 
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (pids[type][i] > 0) kill(pids[type][i], sig); // Request process to terminate
+			if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, sig); // Request process to terminate
 		}
 	}
 
@@ -231,7 +242,7 @@ void killAll(int sig) {
 	if (sig == SIGUSR1) {
 		for (int type = 0; type < 3; type++) {
 			for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-				if (pids[type][i] > 0) kill(pids[type][i], SIGUSR2);
+				if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, SIGUSR2);
 			}
 		}
 
@@ -244,7 +255,7 @@ void killAll(int sig) {
 
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (pids[type][i] > 0) kill(pids[type][i], SIGKILL);
+			if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, SIGKILL);
 		}
 	}
 
@@ -379,7 +390,6 @@ __attribute__((warn_unused_result))
 static int dropRoot(const pid_t pid) {
 	char dir[50];
 	sprintf(dir, AEM_CHROOT"/%d", pid);
-
 	const struct passwd * const p = getpwnam("allears");
 
 	return (
@@ -397,12 +407,45 @@ static int dropRoot(const pid_t pid) {
 	) ? 0 : -1;
 }
 
+static int process_new(void *params) {
+	wipeKeys();
+	close(sockMain);
+	close(sockClient);
+
+	pid_t pid = getpid();
+	const int type = ((uint8_t*)params)[0];
+	const int pipefd = ((uint8_t*)params)[1];
+
+	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
+	if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
+	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
+	if (dropRoot(pid) != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
+	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
+
+	char arg1[] = {pipefd, '\0'};
+	char * const newargv[] = {arg1, NULL};
+
+	switch (type) {
+		case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
+		case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
+
+		case AEM_PROCESSTYPE_WEB: execv("usr/bin/allears-web", newargv); break;
+		case AEM_PROCESSTYPE_API: execv("usr/bin/allears-api", newargv); break;
+		case AEM_PROCESSTYPE_MTA: execv("usr/bin/allears-mta", newargv); break;
+	}
+
+	// Only runs if exec failed
+	syslog(LOG_ERR, "Failed starting process");
+	return 0;
+}
+
 static void process_spawn(const int type) {
 	int freeSlot = -1;
+	unsigned char *stack;
 
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (pids[type][i] == 0) {
+			if (aemProc[type][i].pid == 0) {
 				freeSlot = i;
 				break;
 			}
@@ -411,44 +454,22 @@ static void process_spawn(const int type) {
 		if (freeSlot < 0) return;
 	}
 
+	stack = calloc(AEM_STACKSIZE, 1);
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		aemProc[type][freeSlot].stack = stack;
+	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
+		stack_account = stack;
+	} else if (type == AEM_PROCESSTYPE_STORAGE) {
+		stack_storage = stack;
+	}
+
 	int fd[2];
 	if (pipe2(fd, O_DIRECT) < 0) return;
 
-	pid_t pid = fork();
+	uint8_t params[] = {type, fd[0]};
+	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
 	if (pid < 0) return;
 
-	if (pid == 0) { // Child process
-		wipeKeys();
-		pid = getpid();
-
-		if (close(fd[1]) != 0 || (sockMain != -1 && close(sockMain) != 0) || (sockClient != -1 && close(sockClient) != 0)) {
-			syslog(LOG_ERR, "Failed closing fds");
-			exit(EXIT_FAILURE);
-		}
-
-		if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
-		if (createMount(pid, type, pid_account, pid_storage) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
-		if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
-		if (dropRoot(pid) != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
-		if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
-
-		char arg1[] = {fd[0], '\0'};
-		char * const newargv[] = {arg1, NULL};
-		switch(type) {
-			case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
-			case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
-
-			case AEM_PROCESSTYPE_WEB: execv("usr/bin/allears-web", newargv); break; 
-			case AEM_PROCESSTYPE_API: execv("usr/bin/allears-api", newargv); break; 
-			case AEM_PROCESSTYPE_MTA: execv("usr/bin/allears-mta", newargv); break;
-		}
-
-		// Only runs if exec failed
-		syslog(LOG_ERR, "Failed starting process");
-		exit(EXIT_FAILURE);
-	}
-
-	// Parent
 	close(fd[0]);
 
 	switch(type) {
@@ -513,7 +534,7 @@ static void process_spawn(const int type) {
 	close(fd[1]);
 
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
-		pids[type][freeSlot] = pid;
+		aemProc[type][freeSlot].pid = pid;
 	}
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
 	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
@@ -526,7 +547,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 
 	bool found = false;
 	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-		if (pids[type][i] == pid) {
+		if (aemProc[type][i].pid == pid) {
 			found = true;
 			break;
 		}
@@ -546,7 +567,7 @@ void cryptSend(const int sock) {
 	for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
-			memcpy(decrypted + start, &(pids[i][j]), 4);
+			memcpy(decrypted + start, &(aemProc[i][j].pid), 4);
 		}
 	}
 
