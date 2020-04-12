@@ -160,34 +160,8 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME, tmpfs_opts);
 }
 
-int deleteMount(const pid_t pid, const int type) {
+int deleteMount(const pid_t pid) {
 	char path[50];
-
-	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-account", pid); break;
-		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-storage", pid); break;
-
-		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-web", pid); break;
-		case AEM_PROCESSTYPE_API: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-api", pid); break;
-		case AEM_PROCESSTYPE_MTA: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-mta", pid); break;
-
-		default: return -1;
-	}
-	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-
-	snprintf(path, 50, AEM_CHROOT"/%d/Account.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/Storage.sck", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-
-	snprintf(path, 50, AEM_CHROOT"/%d/Account.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/Stindex.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/Storage.aem", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-
-	snprintf(path, 50, AEM_CHROOT"/%d/dev/log",    pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/lib64",      pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/lib",        pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib64/", pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-	snprintf(path, 50, AEM_CHROOT"/%d/usr/lib/",   pid); umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
-
 	snprintf(path, 50, AEM_CHROOT"/%d", pid);
 	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	rmdir(path);

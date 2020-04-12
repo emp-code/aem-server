@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
+#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -195,7 +196,7 @@ static void refreshPids(void) {
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
-				deleteMount(aemProc[type][i].pid, type);
+				deleteMount(aemProc[type][i].pid);
 				free(aemProc[type][i].stack);
 				aemProc[type][i].pid = 0;
 			}
@@ -203,13 +204,13 @@ static void refreshPids(void) {
 	}
 
 	if (pid_account != 0 && !process_verify(pid_account)) {
-		deleteMount(pid_account, AEM_PROCESSTYPE_ACCOUNT);
+		deleteMount(pid_account);
 		free(stack_account);
 		pid_account = 0;
 	}
 
 	if (pid_storage != 0 && !process_verify(pid_storage)) {
-		deleteMount(pid_storage, AEM_PROCESSTYPE_STORAGE);
+		deleteMount(pid_storage);
 		free(stack_storage);
 		pid_storage = 0;
 	}
@@ -412,6 +413,8 @@ static int process_new(void *params) {
 	close(sockMain);
 	close(sockClient);
 
+	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
+
 	const pid_t pid = getpid();
 	const int type = ((uint8_t*)params)[0];
 	const int pipefd = ((uint8_t*)params)[1];
@@ -467,7 +470,7 @@ static void process_spawn(const int type) {
 	if (pipe2(fd, O_DIRECT) < 0) return;
 
 	uint8_t params[] = {type, fd[0], fd[1]};
-	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
+	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
 	if (pid < 0) return;
 
 	close(fd[0]);
