@@ -350,11 +350,8 @@ static int loadEmpty(void) {
 static int bindSocket(const int sock) {
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
-	strcpy(addr.sun_path, AEM_SOCKPATH_STORAGE);
-	unlink(addr.sun_path);
-	const int lenAddr = strlen(addr.sun_path) + sizeof(addr.sun_family);
-
-	return bind(sock, (struct sockaddr*)&addr, lenAddr);
+	memcpy(addr.sun_path, AEM_SOCKPATH_STORAGE, AEM_SOCKPATH_LEN);
+	return bind(sock, (struct sockaddr*)&addr, sizeof(addr.sun_family) + AEM_SOCKPATH_LEN);
 }
 
 static bool peerOk(const int sock) {

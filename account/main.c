@@ -514,10 +514,10 @@ static int takeConnections(void) {
 
 	struct sockaddr_un local;
 	local.sun_family = AF_UNIX;
-	strcpy(local.sun_path, AEM_SOCKPATH_ACCOUNT);
+	memcpy(local.sun_path, AEM_SOCKPATH_ACCOUNT, AEM_SOCKPATH_LEN);
 
 	const int sockMain = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (bind(sockMain, (struct sockaddr*)&local, strlen(local.sun_path) + sizeof(local.sun_family)) != 0) {
+	if (bind(sockMain, (struct sockaddr*)&local, sizeof(local.sun_family) + AEM_SOCKPATH_LEN) != 0) {
 		syslog(LOG_ERR, "Failed binding to socket: %m");
 		return -1;
 	}

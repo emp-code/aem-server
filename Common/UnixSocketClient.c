@@ -11,9 +11,9 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
-	strcpy(sa.sun_path, path);
+	memcpy(sa.sun_path, path, AEM_SOCKPATH_LEN);
 
-	if (connect(sock, (struct sockaddr*)&sa, strlen(sa.sun_path) + sizeof(sa.sun_family)) == -1) {
+	if (connect(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_SOCKPATH_LEN) == -1) {
 		syslog(LOG_WARNING, "Failed connecting to Unix socket: %m");
 		close(sock);
 		return -1;

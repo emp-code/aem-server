@@ -57,8 +57,9 @@
 
 #define AEM_ADDR32_SYSTEM {54, 125, 157, 58, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // 'system' in Addr32
 
-#define AEM_SOCKPATH_ACCOUNT "Account.sck"
-#define AEM_SOCKPATH_STORAGE "Storage.sck"
+#define AEM_SOCKPATH_ACCOUNT "\0AEM_Acc"
+#define AEM_SOCKPATH_STORAGE "\0AEM_Sto"
+#define AEM_SOCKPATH_LEN 8
 
 #define AEM_API_POST_SIZE 8192 // 8 KiB
 #define AEM_API_POST_BOXED_SIZE (crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES + AEM_API_POST_SIZE + 2 + crypto_box_MACBYTES)

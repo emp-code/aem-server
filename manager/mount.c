@@ -153,20 +153,6 @@ int createMount(const pid_t pid, const int type, const pid_t pid_account, const 
 		if (rwbind("/var/lib/allears/Stindex.aem", path) != 0) return -1;
 	}
 
-	if (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA) {
-		char pth2[50];
-
-		sprintf(path, AEM_CHROOT"/%d/Account.sck", pid);
-		sprintf(pth2, AEM_CHROOT"/%d/Account.sck", pid_account);
-		if (mknod(path, S_IFREG, 0) != 0) return -1;
-		if (rwbind(pth2, path) != 0) return -1;
-
-		sprintf(path, AEM_CHROOT"/%d/Storage.sck", pid);
-		sprintf(pth2, AEM_CHROOT"/%d/Storage.sck", pid_storage);
-		if (mknod(path, S_IFREG, 0) != 0) return -1;
-		if (rwbind(pth2, path) != 0) return -1;
-	}
-
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
