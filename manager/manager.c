@@ -205,11 +205,13 @@ static void refreshPids(void) {
 
 	if (pid_account != 0 && !process_verify(pid_account)) {
 		deleteMount(pid_account, AEM_PROCESSTYPE_ACCOUNT);
+		free(stack_account);
 		pid_account = 0;
 	}
 
 	if (pid_storage != 0 && !process_verify(pid_storage)) {
 		deleteMount(pid_storage, AEM_PROCESSTYPE_STORAGE);
+		free(stack_storage);
 		pid_storage = 0;
 	}
 }
