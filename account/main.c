@@ -82,7 +82,7 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-#include "../Common/SetSignals.c"
+#include "../Common/main_all.c"
 
 static int saveUser(void) {
 	if (userCount <= 0) return -1;

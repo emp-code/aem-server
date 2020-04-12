@@ -61,7 +61,7 @@ static void sigTerm(const int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-#include "../Common/SetSignals.c"
+#include "../Common/main_all.c"
 
 static int saveStindex(void) {
 	if (stindexCount < 1) return -1;
