@@ -7,7 +7,7 @@ static bool peerOk(const int sock, const pid_t pid) {
 
 static int getUnixSocket(const char * const path, const pid_t pid, const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (sock < 0) return -1;
+	if (sock < 0) {syslog(LOG_WARNING, "Failed creating Unix socket: %m"); return -1;}
 
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
