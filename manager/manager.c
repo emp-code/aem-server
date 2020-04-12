@@ -195,7 +195,7 @@ static bool process_verify(const pid_t pid) {
 static void refreshPids(void) {
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (!process_verify(aemProc[type][i].pid)) {
+			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
 				deleteMount(aemProc[type][i].pid, type);
 				free(aemProc[type][i].stack);
 				aemProc[type][i].pid = 0;
@@ -203,16 +203,15 @@ static void refreshPids(void) {
 		}
 	}
 
-	if (!process_verify(pid_account)) {
+	if (pid_account != 0 && !process_verify(pid_account)) {
 		deleteMount(pid_account, AEM_PROCESSTYPE_ACCOUNT);
 		pid_account = 0;
 	}
 
-	if (!process_verify(pid_storage)) {
+	if (pid_storage != 0 && !process_verify(pid_storage)) {
 		deleteMount(pid_storage, AEM_PROCESSTYPE_STORAGE);
 		pid_storage = 0;
 	}
-
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
