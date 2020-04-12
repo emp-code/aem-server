@@ -14,7 +14,6 @@
 #define _GNU_SOURCE // for pipe2(), accept4
 
 #include <arpa/inet.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <linux/securebits.h>
@@ -444,8 +443,6 @@ static int process_new(void *params) {
 
 static void process_spawn(const int type) {
 	int freeSlot = -1;
-	unsigned char *stack;
-
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid == 0) {
@@ -457,7 +454,7 @@ static void process_spawn(const int type) {
 		if (freeSlot < 0) return;
 	}
 
-	stack = calloc(AEM_STACKSIZE, 1);
+	unsigned char * const stack = calloc(AEM_STACKSIZE, 1);;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		aemProc[type][freeSlot].stack = stack;
 	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
