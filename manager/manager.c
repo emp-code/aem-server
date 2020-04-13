@@ -197,7 +197,7 @@ static void refreshPids(void) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
 				deleteMount(aemProc[type][i].pid);
-				free(aemProc[type][i].stack);
+				sodium_free(aemProc[type][i].stack);
 				aemProc[type][i].pid = 0;
 			}
 		}
@@ -205,13 +205,13 @@ static void refreshPids(void) {
 
 	if (pid_account != 0 && !process_verify(pid_account)) {
 		deleteMount(pid_account);
-		free(stack_account);
+		sodium_free(stack_account);
 		pid_account = 0;
 	}
 
 	if (pid_storage != 0 && !process_verify(pid_storage)) {
 		deleteMount(pid_storage);
-		free(stack_storage);
+		sodium_free(stack_storage);
 		pid_storage = 0;
 	}
 }
@@ -457,7 +457,9 @@ static void process_spawn(const int type) {
 		if (freeSlot < 0) return;
 	}
 
-	unsigned char * const stack = calloc(AEM_STACKSIZE, 1);;
+	unsigned char * const stack = sodium_malloc(AEM_STACKSIZE);
+	bzero(stack, AEM_STACKSIZE);
+
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		aemProc[type][freeSlot].stack = stack;
 	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
@@ -467,11 +469,11 @@ static void process_spawn(const int type) {
 	}
 
 	int fd[2];
-	if (pipe2(fd, O_DIRECT) < 0) {free(stack); return;}
+	if (pipe2(fd, O_DIRECT) < 0) {sodium_free(stack); return;}
 
 	uint8_t params[] = {type, fd[0], fd[1]};
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED, params, NULL, NULL, NULL); // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (pid < 0) {free(stack); return;}
+	if (pid < 0) {sodium_free(stack); return;}
 
 	close(fd[0]);
 
