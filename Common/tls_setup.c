@@ -44,7 +44,7 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
 
 	const char * const c = mbedtls_ssl_get_version(tls);
-	if (c == NULL || strlen(c) != 7 || memcmp(c, "TLSv1.", 6) != 0) return 0;
+	if (c == NULL || strncmp(c, "TLSv1.", 6) != 0) return 0;
 
 	switch(c[6]) {
 		case '0': return 1;
