@@ -28,6 +28,7 @@
 #define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
 #define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
 
+#define AEM_API_DECRYPTED_SIZE (AEM_API_POST_SIZE + 2)
 #define AEM_API_ERROR -1
 #define AEM_API_NOCONTENT 0
 #define AEM_MAXLEN_RESPONSE 132096
@@ -58,7 +59,7 @@ void setStoragePid(const pid_t pid) {pid_storage = pid;}
 int aem_api_init(void) {
 	if (pid_account == 0 || pid_storage == 0) return -1;
 
-	decrypted = sodium_malloc(AEM_API_POST_SIZE + 2);
+	decrypted = sodium_malloc(AEM_API_DECRYPTED_SIZE);
 	return (decrypted != NULL) ? 0 : -1;
 }
 
@@ -68,7 +69,7 @@ void aem_api_free(void) {
 
 static void clearDecrypted() {
 	sodium_mprotect_readwrite(decrypted);
-	sodium_memzero(decrypted, AEM_API_POST_SIZE + 2);
+	sodium_memzero(decrypted, AEM_API_DECRYPTED_SIZE);
 	sodium_mprotect_noaccess(decrypted);
 }
 
@@ -558,7 +559,7 @@ int aem_api_process(mbedtls_ssl_context * const ssl, const char * const url, con
 	if (ssl == NULL || url == NULL || post == NULL) return -1;
 
 	sodium_mprotect_readwrite(decrypted);
-	if (crypto_box_open_easy(decrypted, post + crypto_box_NONCEBYTES, AEM_API_POST_SIZE + 2 + crypto_box_MACBYTES, post, upk, ssk) != 0) {
+	if (crypto_box_open_easy(decrypted, post + crypto_box_NONCEBYTES, AEM_API_DECRYPTED_SIZE + crypto_box_MACBYTES, post, upk, ssk) != 0) {
 		sodium_mprotect_noaccess(decrypted);
 		return -1;
 	}
