@@ -427,13 +427,14 @@ static void api_address_lookup(const int sock) {
 	unsigned char hash[13];
 	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_ERR, "Failed hashing address"); return;}
 
-	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (userNum >= 0) {
+	unsigned char addrFlags;
+	const int userNum = hashToUserNum(hash, isShield, &addrFlags);
+	if (userNum >= 0 && addrFlags & AEM_ADDR_FLAG_ACCINT) {
 		send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 		return;
 	}
 
-	// User doesn't exist - respond with a deterministic fake. Prevents users who cannot register normal addresses from using the lookup to discover whether addresses are registered.
+	// Address doesn't exist, or blocks internal messages - respond with a fake pubkey
 	unsigned char fake[crypto_generichash_BYTES];
 	crypto_generichash(fake, sizeof(fake), hash, 13, salt_fake, crypto_generichash_KEYBYTES);
 	send(sock, fake, crypto_box_PUBLICKEYBYTES, 0);
