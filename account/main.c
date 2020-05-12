@@ -434,8 +434,8 @@ static void api_address_lookup(const int sock) {
 		return;
 	}
 
-	// Address doesn't exist, or blocks internal messages - respond with a fake pubkey
-	unsigned char fake[crypto_generichash_BYTES];
+	// Address doesn't exist, or blocks internal messages - respond with a deterministic fake
+	unsigned char fake[crypto_box_PUBLICKEYBYTES];
 	crypto_generichash(fake, sizeof(fake), hash, 13, salt_fake, crypto_generichash_KEYBYTES);
 	send(sock, fake, crypto_box_PUBLICKEYBYTES, 0);
 }
@@ -616,7 +616,6 @@ static int pipeLoad(const int fd) {
 }
 
 int main(int argc, char *argv[]) {
-	if (crypto_generichash_KEYBYTES != crypto_box_PUBLICKEYBYTES) return EXIT_FAILURE;
 #include "../Common/MainSetup.c"
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
