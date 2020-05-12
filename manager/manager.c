@@ -56,6 +56,7 @@
 
 #define AEM_PATH_SLT_NRM AEM_PATH_CONF"/Normal.slt"
 #define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
+#define AEM_PATH_SLT_FKE AEM_PATH_CONF"/Fake.slt"
 
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
 #define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
@@ -79,6 +80,7 @@ static unsigned char key_sto[AEM_LEN_KEY_STO];
 
 static unsigned char slt_nrm[AEM_LEN_SALT_ADDR];
 static unsigned char slt_shd[AEM_LEN_SALT_ADDR];
+static unsigned char slt_fke[AEM_LEN_SALT_FAKE];
 
 static unsigned char tls_crt[AEM_LEN_FILE_MAX];
 static unsigned char tls_key[AEM_LEN_FILE_MAX];
@@ -147,6 +149,7 @@ void wipeKeys(void) {
 
 	sodium_memzero(slt_nrm, AEM_LEN_SALT_ADDR);
 	sodium_memzero(slt_shd, AEM_LEN_SALT_ADDR);
+	sodium_memzero(slt_fke, AEM_LEN_SALT_FAKE);
 
 	sodium_memzero(tls_crt, len_tls_crt);
 	sodium_memzero(tls_key, len_tls_key);
@@ -304,6 +307,7 @@ int loadFiles(void) {
 
 	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_ADDR) == 0
 	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_ADDR) == 0
+	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE) == 0
 
 	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0) == 0
 	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0) == 0
@@ -484,6 +488,7 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], slt_nrm, AEM_LEN_SALT_ADDR) < 0
 			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_ADDR) < 0
+			|| pipeWriteDirect(fd[1], slt_fke, AEM_LEN_SALT_FAKE) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0

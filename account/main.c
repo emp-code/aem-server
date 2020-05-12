@@ -59,6 +59,7 @@ static unsigned char accountKey[crypto_secretbox_KEYBYTES];
 
 static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
 static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
+static unsigned char salt_fake[crypto_generichash_KEYBYTES];
 
 static unsigned char hash_system[13];
 
@@ -427,9 +428,15 @@ static void api_address_lookup(const int sock) {
 	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_ERR, "Failed hashing address"); return;}
 
 	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (userNum < 0) {syslog(LOG_DEBUG, "Hash not found"); return;}
+	if (userNum >= 0) {
+		send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+		return;
+	}
 
-	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+	// User doesn't exist - respond with a deterministic fake. Prevents users who cannot register normal addresses from using the lookup to discover whether addresses are registered.
+	unsigned char fake[crypto_generichash_BYTES];
+	crypto_generichash(fake, sizeof(fake), hash, 13, salt_fake, crypto_generichash_KEYBYTES);
+	send(sock, fake, crypto_box_PUBLICKEYBYTES, 0);
 }
 
 static void api_address_update(const int sock, const int num) {
@@ -600,6 +607,7 @@ static int pipeLoad(const int fd) {
 
 	&& read(fd, salt_normal, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
 	&& read(fd, salt_shield, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
+	&& read(fd, salt_fake,   AEM_LEN_SALT_FAKE) == AEM_LEN_SALT_FAKE
 
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
@@ -607,6 +615,7 @@ static int pipeLoad(const int fd) {
 }
 
 int main(int argc, char *argv[]) {
+	if (crypto_generichash_KEYBYTES != crypto_box_PUBLICKEYBYTES) return EXIT_FAILURE;
 #include "../Common/MainSetup.c"
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}

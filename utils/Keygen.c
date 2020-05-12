@@ -17,6 +17,7 @@
 
 #define AEM_PATH_SLT_NRM "Normal.slt"
 #define AEM_PATH_SLT_SHD "Shield.slt"
+#define AEM_PATH_SLT_FKE "Fake.slt"
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
@@ -76,6 +77,7 @@ int main(void) {
 
 	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_ADDR);
 	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_ADDR);
+	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;
