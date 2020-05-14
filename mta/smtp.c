@@ -54,18 +54,11 @@
 "\r\n250 SMTPUTF8" \
 "\r\n"
 
+// Set by getDomainFromCert() in tls_setup.c
 static size_t lenDomain;
 static char domain[AEM_MAXLEN_DOMAIN];
 
 #include "../Common/tls_setup.c"
-
-int setDomain(const char * const new, const size_t len) {
-	if (lenDomain > AEM_MAXLEN_DOMAIN) return -1;
-
-	lenDomain = len;
-	memcpy(domain, new, len);
-	return 0;
-}
 
 __attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
