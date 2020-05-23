@@ -277,25 +277,34 @@ void killAll(int sig) {
 
 static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen) {
 	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
-	if (fd < 0) return -1;
+	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
-	if (bytes < 1 || bytes > AEM_LEN_FILE_MAX - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {close(fd); return -1;}
+	if (bytes < 1 || bytes > AEM_LEN_FILE_MAX - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
+		syslog(LOG_ERR, "Invalid length for file: %s", path);
+		close(fd);
+		return -1;
+	}
 	lseek(fd, 0, SEEK_SET);
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
-	if (readBytes != crypto_secretbox_NONCEBYTES) {close(fd); return -1;}
+	if (readBytes != crypto_secretbox_NONCEBYTES) {syslog(LOG_ERR, "Failed reading nonce for file: %s", path); close(fd); return -1;}
 	bytes -= crypto_secretbox_NONCEBYTES;
 
 	unsigned char enc[bytes];
 	readBytes = read(fd, enc, bytes);
 	close(fd);
-	if (readBytes != bytes) return -1;
+	if (readBytes != bytes) {syslog(LOG_ERR, "Failed reading file: %s", path); return -1;}
 
 	if (len != NULL) *len = bytes - crypto_secretbox_MACBYTES;
 
-	return crypto_secretbox_open_easy(target, enc, bytes, nonce, master);
+	if (crypto_secretbox_open_easy(target, enc, bytes, nonce, master) != 0) {
+		syslog(LOG_ERR, "Failed decrypting file: %s", path);
+		return -1;
+	}
+
+	return 0;
 }
 
 int loadFiles(void) {
