@@ -162,8 +162,9 @@ Server keys:
 * Storage.key: Symmetric key used to encrypt message data prior to writing on disk
 
 Salts:
-* Normal.slt: Salt provided to Argon2 for hashing Normal addresses (public)
-* Shield.slt: Salt provided to Argon2 for hashing Shield addresses (secret)
+* Normal.slt: Public salt for hashing Normal addresses
+* Shield.slt: Secret salt for hashing Shield addresses
+* Fake.slt: Secret salt for generating deterministic fake responses
 
 TLS:
 * TLS.crt: The TLS certificate
