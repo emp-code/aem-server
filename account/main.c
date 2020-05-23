@@ -366,6 +366,13 @@ static void api_address_create(const int sock, const int num) {
 		if (addressToHash(hash, addr32, true) != 0) return;
 	} else if (len == 13) {
 		if (memcmp(hash, hash_system, 13) == 0) return; // Forbid 'system' address
+
+		if ((user[num].info & 3) != 3) {
+			// Not admin, check if hash is forbidden
+			for (int i = 0; i < hash_admin_count; i++) {
+				if (memcmp(hash, hash_admin + (i * 13), 13) == 0) return;
+			}
+		}
 	} else {
 		syslog(LOG_ERR, "Failed receiving data from API");
 		return;
