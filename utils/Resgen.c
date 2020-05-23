@@ -142,6 +142,6 @@ int main(void) {
 	write(fdBin, enc, lenEnc);
 	close(fdBin);
 
-	printf("Wrote %ld bytes\n", lenEnc);
+	printf("Wrote %zu bytes\n", lenEnc);
 	return 0;
 }
