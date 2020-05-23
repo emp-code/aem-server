@@ -64,7 +64,7 @@ static unsigned char salt_fake[crypto_generichash_KEYBYTES];
 
 static unsigned char hash_system[13];
 static unsigned char *hash_admin;
-static size_t hash_admin_count = 0;
+static int hash_admin_count = 0;
 
 static bool terminate = false;
 
@@ -76,12 +76,11 @@ static void sigTerm(const int sig) {
 	}
 
 	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
-	sodium_memzero(hash_admin, hash_admin_count * 13);
 	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
 	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
 
 	free(user);
-	free(hash_admin);
+	sodium_free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -640,7 +639,7 @@ int main(int argc, char *argv[]) {
 
 	takeConnections();
 	free(user);
-	free(hash_admin);
+	sodium_free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
