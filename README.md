@@ -170,7 +170,8 @@ TLS:
 * TLS.crt: The TLS certificate
 * TLS.key: The TLS private key
 
-Web:
+Other:
+* Admin.adr: List of addresses registrable only by admins
 * index.html: The HTML file for the web interface
 
 ## Signals ##

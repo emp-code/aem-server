@@ -30,6 +30,9 @@
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32 // AES-256
 
+#define AEM_ADDRESS_ARGON2_OPSLIMIT 3
+#define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
+
 #define AEM_ADDRESSES_PER_USER 50
 #define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
 #define AEM_LEN_SALT_FAKE crypto_generichash_KEYBYTES

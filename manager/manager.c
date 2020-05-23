@@ -48,6 +48,7 @@
 #define AEM_STACKSIZE 1048576 // 1 MiB
 
 #define AEM_PATH_CONF "/etc/allears"
+
 #define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
 #define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
 #define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
@@ -61,9 +62,11 @@
 #define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
 #define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
 
+#define AEM_PATH_ADR_ADM AEM_PATH_CONF"/Admin.adr"
 #define AEM_PATH_HTML AEM_PATH_CONF"/index.html"
 
 #define AEM_LEN_FILE_MAX 8192
+#define AEM_LEN_FIL2_MAX 65536
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
 
@@ -87,7 +90,9 @@ static unsigned char tls_key[AEM_LEN_FILE_MAX];
 static size_t len_tls_crt;
 static size_t len_tls_key;
 
+static unsigned char adr_adm[AEM_LEN_FIL2_MAX];
 static unsigned char html[AEM_LEN_FILE_MAX];
+static size_t len_adr_adm;
 static size_t len_html;
 
 struct aem_process {
@@ -154,10 +159,12 @@ void wipeKeys(void) {
 	sodium_memzero(tls_crt, len_tls_crt);
 	sodium_memzero(tls_key, len_tls_key);
 
+	sodium_memzero(adr_adm, len_adr_adm);
 	sodium_memzero(html, len_html);
 
 	len_tls_crt = 0;
 	len_tls_key = 0;
+	len_adr_adm = 0;
 	len_html = 0;
 
 	sodium_memzero(encrypted, AEM_LEN_ENCRYPTED);
@@ -275,12 +282,12 @@ void killAll(int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen) {
+static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
 	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
-	if (bytes < 1 || bytes > AEM_LEN_FILE_MAX - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
+	if (bytes < 1 || bytes > maxLen - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
 		syslog(LOG_ERR, "Invalid length for file: %s", path);
 		close(fd);
 		return -1;
@@ -309,19 +316,20 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 
 int loadFiles(void) {
 	return (
-	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC) == 0
-	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API) == 0
-	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG) == 0
-	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO) == 0
+	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
 
-	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_ADDR) == 0
-	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_ADDR) == 0
-	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE) == 0
+	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_ADDR, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_ADDR, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE, AEM_LEN_FILE_MAX) == 0
 
-	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0) == 0
-	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0) == 0
+	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0, AEM_LEN_FILE_MAX) == 0
 
-	&& loadFile(AEM_PATH_HTML, html, &len_html, 0) == 0
+	&& loadFile(AEM_PATH_ADR_ADM, adr_adm, &len_adr_adm, 0, AEM_LEN_FIL2_MAX) == 0
+	&& loadFile(AEM_PATH_HTML, html, &len_html, 0, AEM_LEN_FILE_MAX) == 0
 	) ? 0 : -1;
 }
 
@@ -501,6 +509,8 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
+
+			|| pipeWriteDirect(fd[1], adr_adm, len_adr_adm) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 

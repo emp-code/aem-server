@@ -13,8 +13,8 @@ static ssize_t pipeReadDirect(const int fd, unsigned char * const buf, const siz
 
 __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
-	unsigned char buf[AEM_PIPE_BUFSIZE];
-	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
+	unsigned char buf[AEM_MAXLEN_PIPEREAD];
+	const off_t readBytes = pipeReadDirect(fd, buf, AEM_MAXLEN_PIPEREAD);
 	if (readBytes < AEM_MINLEN_PIPEREAD) return -1;
 
 	*len = readBytes;
@@ -23,10 +23,11 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 	memcpy(*target, buf, *len);
 	sodium_mprotect_readonly(*target);
 
-	sodium_memzero(buf, AEM_PIPE_BUFSIZE);
+	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }
 
+#ifndef AEM_ACCOUNT
 __attribute__((warn_unused_result))
 static int pipeLoadTls(const int fd) {
 	unsigned char *crtData;
@@ -45,3 +46,4 @@ static int pipeLoadTls(const int fd) {
 	sodium_free(keyData);
 	return ret;
 }
+#endif

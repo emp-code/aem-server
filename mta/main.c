@@ -25,8 +25,9 @@
 #define AEM_PORT AEM_PORT_MTA
 #define AEM_BACKLOG 50
 
+#define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
-#define AEM_PIPE_BUFSIZE 8192
+
 #define AEM_SOCKET_TIMEOUT 30
 
 static bool terminate = false;
@@ -64,15 +65,15 @@ static int pipeLoadPids(const int fd) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(const int fd) {
-	unsigned char buf[AEM_PIPE_BUFSIZE];
+	unsigned char buf[AEM_MAXLEN_PIPEREAD];
 
-	if (read(fd, buf, AEM_PIPE_BUFSIZE) != AEM_LEN_ACCESSKEY) return -1;
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_account(buf);
 
-	if (read(fd, buf, AEM_PIPE_BUFSIZE) != AEM_LEN_ACCESSKEY) return -1;
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_storage(buf);
 
-	sodium_memzero(buf, AEM_PIPE_BUFSIZE);
+	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }
 

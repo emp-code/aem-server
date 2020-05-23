@@ -23,8 +23,9 @@
 #define AEM_PORT AEM_PORT_WEB
 #define AEM_BACKLOG 25
 
+#define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
-#define AEM_PIPE_BUFSIZE 8192
+
 #define AEM_SOCKET_TIMEOUT 15
 
 static bool terminate = false;
@@ -50,8 +51,8 @@ static void sigTerm(const int sig) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadHtml(const int fd) {
-	unsigned char buf[AEM_PIPE_BUFSIZE];
-	const off_t readBytes = pipeReadDirect(fd, buf, AEM_PIPE_BUFSIZE);
+	unsigned char buf[AEM_MAXLEN_PIPEREAD];
+	const off_t readBytes = pipeReadDirect(fd, buf, AEM_MAXLEN_PIPEREAD);
 	if (readBytes < AEM_MINLEN_PIPEREAD) return -1;
 	return setHtml(buf, readBytes);
 }

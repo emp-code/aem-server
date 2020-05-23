@@ -19,15 +19,16 @@
 
 #define AEM_LOGNAME "AEM-Acc"
 
+#define AEM_ACCOUNT
+#define AEM_MAXLEN_PIPEREAD 65533 // 5041 hashes max
+#define AEM_MINLEN_PIPEREAD 13
+
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8 unused
 #define AEM_ADDR_FLAG_USE_GK 4
 #define AEM_ADDR_FLAG_ACCINT 2
 #define AEM_ADDR_FLAG_ACCEXT 1
 #define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
-
-#define AEM_ADDRESS_ARGON2_OPSLIMIT 3
-#define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
 #define AEM_LIMIT_MIB 0
 #define AEM_LIMIT_NRM 1
@@ -62,6 +63,8 @@ static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 static unsigned char salt_fake[crypto_generichash_KEYBYTES];
 
 static unsigned char hash_system[13];
+static unsigned char *hash_admin;
+static size_t hash_admin_count = 0;
 
 static bool terminate = false;
 
@@ -73,11 +76,12 @@ static void sigTerm(const int sig) {
 	}
 
 	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
-
+	sodium_memzero(hash_admin, hash_admin_count * 13);
 	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
 	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
 
 	free(user);
+	free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -615,11 +619,17 @@ static int pipeLoad(const int fd) {
 	) ? 0 : -1;
 }
 
+#include "../Common/PipeLoad.c"
+
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 
+	size_t hash_admin_size = 1;
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
+	if (pipeRead(argv[0][0], &hash_admin, &hash_admin_size) < 0) {syslog(LOG_ERR, "Terminating: Failed loading admin hashes"); return EXIT_FAILURE;}
 	close(argv[0][0]);
+	if (hash_admin_size % 13 != 0) {syslog(LOG_ERR, "Terminating: Admin hashes: wrong size"); return EXIT_FAILURE;}
+	hash_admin_count = hash_admin_size / 13;
 
 	const unsigned char addr32_system[15] = AEM_ADDR32_SYSTEM;
 	if (addressToHash(hash_system, addr32_system, false) != 0) {syslog(LOG_ERR, "Terminating: Failed hash"); return EXIT_FAILURE;}
@@ -630,6 +640,7 @@ int main(int argc, char *argv[]) {
 
 	takeConnections();
 	free(user);
+	free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
