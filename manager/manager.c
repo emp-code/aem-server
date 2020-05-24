@@ -150,6 +150,7 @@ void wipeKeys(void) {
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
+	sodium_memzero(key_sti, AEM_LEN_KEY_STI);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
 
 	sodium_memzero(slt_nrm, AEM_LEN_SALT_ADDR);
