@@ -53,10 +53,10 @@ __attribute__((warn_unused_result))
 static int pipeLoadPids(const int fd) {
 	pid_t pid;
 
-	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
 	setAccountPid(pid);
 
-	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
 	setStoragePid(pid);
 
 	return 0;
@@ -66,13 +66,13 @@ __attribute__((warn_unused_result))
 static int pipeLoadKeys(const int fd) {
 	unsigned char buf[AEM_MAXLEN_PIPEREAD];
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
 	setApiKey(buf);
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_account(buf);
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "pipeRead(): %m"); return -1;}
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_storage(buf);
 
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
@@ -83,8 +83,8 @@ int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 	if (setCaps(true) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids"); return EXIT_FAILURE;}
-	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys"); return EXIT_FAILURE;}
+	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
+	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
