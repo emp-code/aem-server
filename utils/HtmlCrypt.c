@@ -1,13 +1,11 @@
 // HtmlCrypt.c: Encrypt index.html for All-Ears Mail
 // Copy the resulting file to /etc/allears/index.html
-// Compile: gcc -lsodium -lbrotlienc HtmlCrypt.c -o HtmlCrypt
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h> // for write
 
 #include <sodium.h>
@@ -15,49 +13,16 @@
 #include "../Global.h"
 
 #include "../Common/Brotli.c"
+#include "GetKey.h"
 
 static unsigned char master[crypto_secretbox_KEYBYTES];
-
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
-
-static int getKey(void) {
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES * 2);
-	return 0;
-}
 
 int main(int argc, char *argv[]) {
 	puts("HtmlCrypt: Encrypt index.html for All-Ears Mail");
 
 	if (argc < 2) {puts("Terminating: Use domain as argument"); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {puts("Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
-	if (getKey() != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
+	if (getKey(master) != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	int fd = open("index.html", O_RDONLY);
 	if (fd < 0) {
@@ -189,7 +154,7 @@ int main(int argc, char *argv[]) {
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
-	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
+	if ((unsigned long)ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
 		puts("Terminating: Failed writing index.html.enc");
 		return EXIT_FAILURE;
 	}

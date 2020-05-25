@@ -1,53 +1,18 @@
 // CertCrypt: Encrypts TLS cert/key files for All-Ears Mail
-// Compile: gcc -lsodium CertCrypt.c -o CertCrypt
 
 #include <ctype.h> // for isxdigit
 #include <fcntl.h> // for open
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h> // for write
 
 #include <sodium.h>
 
+#include "GetKey.h"
+
 #define AEM_MAXSIZE_FILE 8192
 
 unsigned char master[crypto_secretbox_KEYBYTES];
-
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
-
-static int getKey(void) {
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES * 2);
-	return 0;
-}
 
 int main(int argc, char *argv[]) {
 	puts("CertCrypt: Encrypt TLS certificate and private key files for All-Ears Mail");
@@ -62,7 +27,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	if (getKey() != 0) {
+	if (getKey(master) != 0) {
 		puts("Terminating: Failed reading key");
 		return EXIT_FAILURE;
 	}
@@ -110,7 +75,7 @@ int main(int argc, char *argv[]) {
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
-	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
+	if ((unsigned long)ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
 		printf("Terminating: Failed writing %s\n", path);
 		return EXIT_FAILURE;
 	}

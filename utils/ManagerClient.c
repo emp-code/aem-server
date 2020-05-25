@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include <sodium.h>
+
+#include "GetKey.h"
 
 #define AEM_PORT_MANAGER "940"
 #define AEM_MAXPROCESSES 25
@@ -43,21 +44,6 @@ static int makeSocket(const char * const host) {
 	return sock;
 }
 
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
-
 static int loadKey(void) {
 	// Load Manager Key box
 	const int fd = open(AEM_PATH_KEY_MNG, O_RDONLY);
@@ -72,23 +58,8 @@ static int loadKey(void) {
 	close(fd);
 	if (readBytes != crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES) return -1;
 
-	// Get Master Key
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
 	unsigned char master[crypto_secretbox_KEYBYTES];
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES);
+	getKey(master);
 
 	// Open Manager Key box
 	const int ret = crypto_secretbox_open_easy(key_manager, encrypted, crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES, nonce, master);

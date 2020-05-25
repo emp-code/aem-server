@@ -1,6 +1,5 @@
 // Resgen: Generate the Reserved Address List, Admin.adr
 // Warning: Slow and resource-intensive (Argon2)
-// Compile: gcc -lsodium Resgen.c -o Resgen
 
 #include <stdio.h>
 #include <ctype.h>
@@ -8,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h> // for open
-#include <termios.h>
 
 #include <sodium.h>
 
@@ -16,46 +14,14 @@
 
 #include "../Global.h"
 
+#include "GetKey.h"
+
 #define AEM_PATH_ADR_ADM "Admin.adr"
 #define AEM_PATH_SLT_NRM "/etc/allears/Normal.slt"
 
 unsigned char salt_normal[AEM_LEN_SALT_ADDR];
 
 unsigned char master[crypto_secretbox_KEYBYTES];
-
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
-
-static int getKey(void) {
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES * 2);
-	return 0;
-}
 
 static int getSalt(void) {
 	const int fd = open(AEM_PATH_SLT_NRM, O_RDONLY);
@@ -88,7 +54,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	getKey();
+	getKey(master);
 	getSalt();
 
 	const int fdTxt = open("Admin.adr.txt", O_RDONLY);

@@ -1,5 +1,4 @@
 // Keygen: Generate key files for All-Ears Mail
-// Compile: gcc -lsodium Keygen.c -o Keygen
 
 #include <stdio.h>
 #include <fcntl.h> // for open
@@ -12,6 +11,7 @@
 #define AEM_PATH_KEY_ACC "Account.key"
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
+#define AEM_PATH_KEY_SIG "Signing.key"
 #define AEM_PATH_KEY_STI "Stindex.key"
 #define AEM_PATH_KEY_STO "Storage.key"
 
@@ -44,7 +44,7 @@ static int writeRandomEncrypted(const char * const path, const size_t len) {
 	ret += write(fd, encrypted, lenEncrypted);
 	close(fd);
 
-	if (ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
+	if ((unsigned long)ret != crypto_secretbox_NONCEBYTES + lenEncrypted) {
 		printf("Failed writing %s\n", path);
 		return -1;
 	}
@@ -72,6 +72,7 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC);
 	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
+	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG);
 	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
 

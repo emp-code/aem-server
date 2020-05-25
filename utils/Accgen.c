@@ -1,5 +1,4 @@
 // Accgen.c: Generate Account.aem for All-Ears Mail
-// Compile: gcc -lsodium Accgen.c -o Accgen
 
 #include <fcntl.h>
 #include <locale.h> // for setlocale
@@ -7,13 +6,14 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <termios.h>
 #include <ctype.h>
 #include <unistd.h>
 
 #include <sodium.h>
 
 #include "../Global.h"
+
+#include "GetKey.h"
 
 #define AEM_PATH_KEY_ACC "/etc/allears/Account.key"
 
@@ -26,21 +26,6 @@ struct aem_user {
 };
 
 static unsigned char key_account[crypto_secretbox_KEYBYTES];
-
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
 
 static int loadKey(void) {
 	// Load Account Key box
@@ -56,23 +41,8 @@ static int loadKey(void) {
 	close(fd);
 	if (readBytes != crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES) return -1;
 
-	// Get Master Key
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
 	unsigned char master[crypto_secretbox_KEYBYTES];
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES);
+	getKey(master);
 
 	// Open Account Key box
 	const int ret = crypto_secretbox_open_easy(key_account, encrypted, crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES, nonce, master);
