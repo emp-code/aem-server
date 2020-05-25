@@ -92,6 +92,9 @@ unsigned char *makeMsg(const unsigned char * const upk, const unsigned char * co
 	memcpy(cleartext + 12, infoBytes, 9);
 	memcpy(cleartext + 21, email.toAddr32, 15);
 	memcpy(cleartext + 36, body, *lenBody);
+
+	// Deterministic random padding to verify integrity, signature to verify authenticity
+	randombytes_buf_deterministic(cleartext + lenUnpadded, padAmount, cleartext); // First randombytes_SEEDBYTES determine the padding bytes
 	crypto_sign_detached(cleartext + lenPadded - crypto_sign_BYTES, NULL, cleartext, lenPadded - crypto_sign_BYTES, sign_skey);
 
 	unsigned char *ciphertext = malloc(lenPadded + crypto_box_SEALBYTES);
