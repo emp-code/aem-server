@@ -110,11 +110,11 @@ int createMount(const pid_t pid, const int type) {
 	const char *bin;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-mta", pid); bin = "/usr/bin/allears/allears-mta"; break;
-		case AEM_PROCESSTYPE_API: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-api", pid); bin = "/usr/bin/allears/allears-api"; break;
-		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-web", pid); bin = "/usr/bin/allears/allears-web"; break;
-		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-account", pid); bin = "/usr/bin/allears/allears-account"; break;
-		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/allears-storage", pid); bin = "/usr/bin/allears/allears-storage"; break;
+		case AEM_PROCESSTYPE_MTA: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-mta", pid); bin = "/usr/bin/allears/aem-mta"; break;
+		case AEM_PROCESSTYPE_API: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-api", pid); bin = "/usr/bin/allears/aem-api"; break;
+		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
+		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
+		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
 		default: return -1;
 	}
 

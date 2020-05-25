@@ -15,12 +15,12 @@ Manager starts Account and Storage automatically. Web, API, and MTA processes ne
 Logging is kept to a minimum, and is mostly done in case of errors. All log messages are sent to syslog's mail facility.
 
 All-Ears consists of the following parts:
-1. [Manager](#allears-manager)
-2. [Account](#allears-account)
-3. [Storage](#allears-storage)
-4. [Web](#allears-web)
-5. [API](#allears-api)
-6. [MTA](#allears-mta)
+1. [Manager](#aem-manager)
+2. [Account](#aem-account)
+3. [Storage](#aem-storage)
+4. [Web](#aem-web)
+5. [API](#aem-api)
+6. [MTA](#aem-mta)
 7. [Utilities](#utilities)
 
 General information:
@@ -33,9 +33,9 @@ General information:
 
 - - - -
 
-## AllEars-Manager ##
+## Manager ##
 
-AllEars-Manager is the main server program. It sets up the environment for All-Ears to run, and interacts with `ManagerClient` (see [Utilities](#utilities)) on port 940 to start/stop processes remotely.
+aem-manager is the main server program. It sets up the environment for All-Ears to run, and interacts with `ManagerClient` (see [Utilities](#utilities)) on port 940 to start/stop processes remotely.
 
 At startup, Manager asks for the Master Key, used to decrypt files stored in `/etc/allears`. After this, no further interaction on the console is needed. Manager ignores `SIGHUP`, allowing closing the terminal and disconnecting SSH.
 
@@ -45,39 +45,39 @@ Manager runs as root, while all other programs are started as the `allears` user
 
 Shutting down Manager terminates all other All-Ears processes (see [Signals](#signals)).
 
-## AllEars-Account ##
+## Account ##
 
-AllEars-Account manages, serves, and stores all user (see [Users](#users)) and address (see [Addresses](#addresses)) information.
+aem-account manages, serves, and stores all user (see [Users](#users)) and address (see [Addresses](#addresses)) information.
 
-AllEars-API and AllEars-MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
+aem-api and aem-mta connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
 
-## AllEars-Storage ##
+## Storage ##
 
-AllEars-Storage handles the storage and retrieval of encrypted message data (see [Messages](#messages)).
+aem-storage handles the storage and retrieval of encrypted message data (see [Messages](#messages)).
 
-AllEars-API and AllEars-MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
+aem-api and aem-mta connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
 
 Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted with AES-ECB using the Storage Key. Deleted messages are overwritten with zeroes.
 
 An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using the Stindex Key.
 
-With the current design, AllEars-Storage is capable of storing up to 32 GiB of data, with individual messages being 1 to 128 KiB in size.
+With the current design, aem-storage is capable of storing up to 32 GiB of data, with individual messages being 1 to 128 KiB in size.
 
-## AllEars-Web ##
+## Web ##
 
-AllEars-Web is a simple, high-security web server. Its use is optional: the open web API provided by AllEars-API is usable by any website or client.
+aem-web is a simple, high-security web server. Its use is optional: the open web API provided by aem-api is usable by any website or client.
 
 The server is designed for single-page sites, supporting one HTML file in addition to its own static, built-in responses (such as MTA-STS).
 
 All other files are designed to be hosted externally. This makes the client-side code easier to verify, and [SRI](https://en.wikipedia.org/wiki/Subresource_Integrity) protects the integrity of the files.
 
-AllEars-Web is the only process type to run completely isolated with no capability to interact with others.
+aem-web is the only process type to run completely isolated with no capability to interact with others.
 
 Invalid requests are dropped without response. Only high-security HTTPS is supported, and clients are required to support Brotli compression.
 
-## AllEars-API ##
+## API ##
 
-AllEars-API provides an open web API to clients, such as websites or dedicated client programs.
+aem-api provides an open web API to clients, such as websites or dedicated client programs.
 
 API requests and responses are both encrypted with libsodium's Box, which provides [both authentication and confidentiality](https://en.wikipedia.org/wiki/Authenticated_encryption).
 
@@ -85,13 +85,13 @@ All requests use the POST method with the same amount of data, and all API URLs 
 
 Invalid requests, such as those made without a registered public key, are dropped without response.
 
-AllEars-Account and AllEars-Storage are contacted through Unix sockets.
+aem-account and aem-storage are contacted through Unix sockets.
 
-## AllEars-MTA ##
+## MTA ##
 
-AllEars-MTA runs the Mail Transfer Agent service, accepting email from other servers on the internet.
+aem-mta runs the Mail Transfer Agent service, accepting email from other servers on the internet.
 
-Received email is processed for compactness and simplified formatting. The public key of the owner of the receiver address is looked up through AllEars-Account, and the message is stored through AllEars-Storage.
+Received email is processed for compactness and simplified formatting. The public key of the owner of the receiver address is looked up through aem-account, and the message is stored through aem-storage.
 
 ## Utilities ##
 
@@ -100,13 +100,13 @@ The `utils` folder contains miscellaneous utilities:
 * `Keygen`: Generates key files
 * `CertCrypt`: Encrypts the TLS certificate and private key
 * `FileCrypt`: Encrypts index.html, compresses and adds the HTTP headers
-* `ManagerClient`: A client for AllEars-Manager
+* `ManagerClient`: A client for aem-manager
 
 - - - -
 
 ## Users ##
 
-AllEars-Account allocates 4 KiB for each user, storing:
+aem-account allocates 4 KiB for each user, storing:
 * The type, flags (settings), and Argon2 hash for each address (see [Addresses](#addresses))
 * The user's public key
 * The user's membership level
@@ -114,7 +114,7 @@ AllEars-Account allocates 4 KiB for each user, storing:
 
 The `private` data field can be used by clients to store 3363 bytes of arbitrary data. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The server does nothing with the data, and it can technically be used by clients for any purpose. The official clients encrypt it with libsodium's Sealed Box using the user's public key, and use it to store Address/Gatekeeper/Contacts data.
 
-User data is held in memory by AllEars-Account, and written to `/var/lib/allears/Account.aem`. Prior to writing, the data is padded to a multiple of 1024 users (4 MiB), and encrypted with libsodium's Secret Box using the Account Key.
+User data is held in memory by aem-account, and written to `/var/lib/allears/Account.aem`. Prior to writing, the data is padded to a multiple of 1024 users (4 MiB), and encrypted with libsodium's Secret Box using the Account Key.
 
 ### Addresses ###
 
@@ -155,9 +155,9 @@ On a technical level, messages are split into two parts: the headers (HeadBox) a
 Manager loads the following files from `/etc/allears`. Each is encrypted with libsodium's Secret Box using the Master Key, and needs to be generated by the relevant utility in `utils` (see [Utilities](#utilities)).
 
 Server keys:
-* API.key: Asymmetric key used by allears-api to securely communicate with API clients
+* API.key: Asymmetric key used by aem-api to securely communicate with API clients
 * Account.key: Symmetric key used to encrypt user data prior to storage
-* Manager.key: Symmetric key used to communicate with allears-manager
+* Manager.key: Symmetric key used to communicate with aem-manager
 * Signing.key: Asymmetric key used by aem-api and aem-mta to sign messages
 * Stindex.key: Symmetric key used to encrypt the message index prior to writing on disk
 * Storage.key: Symmetric key used to encrypt message data prior to writing on disk
@@ -177,7 +177,7 @@ Other:
 
 ## Signals ##
 
-Shutting down All-Ears should be done by sending a signal, either `SIGUSR1` or `SIGUSR2`, to AllEars-Manager.
+Shutting down All-Ears should be done by sending a signal, either `SIGUSR1` or `SIGUSR2`, to aem-manager.
 
 `SIGUSR1` is the normal shutdown signal, allowing for a 'clean' exit. This tells the processes to shut down after dealing with any currently connected clients, which may take some time.
 
@@ -197,6 +197,6 @@ Several of the programs make use of:
 * [libsodium](https://libsodium.org) for cryptography
 * [Brotli](https://github.com/google/brotli) for compression
 
-AllEars-MTA:
+aem-mta:
 * Geolocates email senders thanks to [MaxMind](https://dev.maxmind.com/geoip/geoip2/downloadable/).
 * Converts text to Unicode with [ICU](http://site.icu-project.org/home)

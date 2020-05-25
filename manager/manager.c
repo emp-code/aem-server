@@ -456,12 +456,12 @@ static int process_new(void *params) {
 	char * const newargv[] = {arg1, NULL};
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/allears-account", newargv); break;
-		case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/allears-storage", newargv); break;
+		case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/aem-account", newargv); break;
+		case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/aem-storage", newargv); break;
 
-		case AEM_PROCESSTYPE_WEB: execv("usr/bin/allears-web", newargv); break;
-		case AEM_PROCESSTYPE_API: execv("usr/bin/allears-api", newargv); break;
-		case AEM_PROCESSTYPE_MTA: execv("usr/bin/allears-mta", newargv); break;
+		case AEM_PROCESSTYPE_WEB: execv("usr/bin/aem-web", newargv); break;
+		case AEM_PROCESSTYPE_API: execv("usr/bin/aem-api", newargv); break;
+		case AEM_PROCESSTYPE_MTA: execv("usr/bin/aem-mta", newargv); break;
 	}
 
 	// Only runs if exec failed
