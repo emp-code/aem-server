@@ -3,6 +3,7 @@
 
 int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree(void);
+void setSignKey_mta(const unsigned char * const seed);
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr);
 

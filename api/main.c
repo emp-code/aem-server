@@ -69,6 +69,9 @@ static int pipeLoadKeys(const int fd) {
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
 	setApiKey(buf);
 
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
+	setSignKey(buf);
+
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_account(buf);
 

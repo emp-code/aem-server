@@ -43,11 +43,17 @@ static unsigned char *decrypted;
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
+static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
 
 void setApiKey(const unsigned char * const newKey) {
 	memcpy(ssk, newKey, crypto_box_PUBLICKEYBYTES);
+}
+
+void setSignKey(const unsigned char * const seed) {
+	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
+	crypto_sign_seed_keypair(tmp, sign_skey, seed);
 }
 
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
@@ -425,6 +431,7 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 }
 
 static void message_create(void) {
+/*
 	unsigned char * const fromAddr32 = decrypted;
 	unsigned char * const toAddr32   = decrypted + 15;
 	unsigned char * const toPubkey   = decrypted + 30;
@@ -453,7 +460,7 @@ static void message_create(void) {
 
 	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenBodyBox;
 	unsigned char * const boxSet = malloc(bsLen);
-	if (boxSet == NULL) return;
+	if (boxSet == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
 	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
@@ -475,7 +482,7 @@ static void message_create(void) {
 	}
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
-}
+*/}
 
 static void message_delete(void) {
 	if (lenDecrypted % 16 != 0) return;

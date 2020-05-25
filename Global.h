@@ -27,6 +27,7 @@
 #define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
+#define AEM_LEN_KEY_SIG crypto_sign_SEEDBYTES
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32 // AES-256
 
@@ -49,14 +50,8 @@
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 
-#define AEM_INFOBYTE_IS_ESMTP 128 // Extended protocol version
-#define AEM_INFOBYTE_CMD_QUIT  64 // QUIT issued
-#define AEM_INFOBYTE_CMD_RARE  32 // Rare command (NOOP/RSET etc)
-#define AEM_INFOBYTE_CMD_FAIL  16 // Invalid command
-#define AEM_INFOBYTE_PROTOERR   8 // Protocol violation (commands out of order etc)
-#define AEM_INFOBYTE_ISSHIELD   4 // Is receiving address a Shield address?
-
-#define AEM_HEADBOX_SIZE 35 // Encrypted: (AEM_HEADBOX_SIZE + crypto_box_SEALBYTES)
+#define AEM_EXTMSG_HEADERS_LEN 36
+#define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
 #define AEM_FLAG_MSGTYPE_EXTMSG 128
 
 #define AEM_ADDR32_SYSTEM {54, 125, 157, 58, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // 'system' in Addr32

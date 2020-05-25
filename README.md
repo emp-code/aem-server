@@ -158,6 +158,7 @@ Server keys:
 * API.key: Asymmetric key used by allears-api to securely communicate with API clients
 * Account.key: Symmetric key used to encrypt user data prior to storage
 * Manager.key: Symmetric key used to communicate with allears-manager
+* Signing.key: Asymmetric key used by aem-api and aem-mta to sign messages
 * Stindex.key: Symmetric key used to encrypt the message index prior to writing on disk
 * Storage.key: Symmetric key used to encrypt message data prior to writing on disk
 

@@ -10,12 +10,11 @@
 #include <syslog.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <time.h>
 
-#include <maxminddb.h>
 #include <sodium.h>
 
 #include "Include/Addr32.h"
-#include "Include/Message.h"
 
 #include "delivery.h"
 
@@ -24,48 +23,21 @@
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
 
+static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
+
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
 
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
+void setSignKey(const unsigned char * const seed) {
+	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
+	crypto_sign_seed_keypair(tmp, sign_skey, seed);
+}
+
 void setAccountPid(const pid_t pid) {pid_account = pid;}
 void setStoragePid(const pid_t pid) {pid_storage = pid;}
-
-__attribute__((warn_unused_result))
-static uint16_t getCountryCode(const struct sockaddr * const sockAddr) {
-	if (sockAddr == NULL) return 0;
-
-	MMDB_s mmdb;
-	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
-	if (status != MMDB_SUCCESS) {
-		syslog(LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
-		return 0;
-	}
-
-	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &status);
-	if (status != MMDB_SUCCESS) {
-		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(status));
-		MMDB_close(&mmdb);
-		return 0;
-	}
-
-	uint16_t ret = 0;
-	if (mmdb_result.found_entry) {
-		MMDB_entry_data_s entry_data;
-		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
-
-		if (status == MMDB_SUCCESS) {
-			memcpy(&ret, entry_data.utf8_string, 2);
-		} else {
-			syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
-		}
-	} else syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
-
-	MMDB_close(&mmdb);
-	return ret;
-}
 
 #include "../Common/UnixSocketClient.c"
 
@@ -78,8 +50,70 @@ static int getPublicKey(const unsigned char * const addr32, unsigned char * cons
 	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
 }
 
-void deliverMessage(char * const to, const size_t lenToTotal, const char * const from, const size_t lenFrom, const unsigned char * const msgBody, const size_t lenMsgBody, const struct sockaddr_in * const sockAddr, const int cs, const uint8_t tlsVer, unsigned char infoByte) {
-	if (to == NULL || lenToTotal < 1 || from == NULL || lenFrom < 1 || msgBody == NULL || lenMsgBody < 1 || sockAddr == NULL) return;
+__attribute__((warn_unused_result))
+unsigned char *makeMsg(const unsigned char * const upk, const unsigned char * const body, size_t * const lenBody, const struct emailInfo email) {
+	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
+
+	const unsigned int lenUnpadded = *lenBody + AEM_EXTMSG_HEADERS_LEN + crypto_sign_BYTES;
+	const uint16_t padAmount = ((lenUnpadded + crypto_box_SEALBYTES) % 1024 == 0) ? 0 : 1024 - ((lenUnpadded + crypto_box_SEALBYTES) % 1024);
+	const size_t lenPadded = lenUnpadded + padAmount;
+
+	unsigned char * const cleartext = sodium_malloc(lenPadded);
+	bzero(cleartext, lenPadded);
+
+	uint16_t padAmount16 = (padAmount << 6); // ExtMsg: 32/16=0; 8/4/2/1=unused
+	const uint16_t cs16 = (email.tls_ciphersuite > UINT16_MAX || email.tls_ciphersuite < 0) ? 1 : email.tls_ciphersuite;
+
+	uint8_t infoBytes[9];
+	infoBytes[0] = (email.tls_version << 5) | email.attachments;
+	infoBytes[1] = isupper(email.countryCode[0]) ? email.countryCode[0] - 'A' : 31;
+	infoBytes[2] = isupper(email.countryCode[1]) ? email.countryCode[1] - 'A' : 31;
+	infoBytes[3] = 0;
+	infoBytes[4] = 0;
+	infoBytes[5] = email.lenGreeting & 127;
+	infoBytes[6] = email.lenRdns     & 127;
+	infoBytes[7] = email.lenCharset  & 127;
+	infoBytes[8] = email.lenEnvFrom  & 127;
+
+	if (email.isShield) infoBytes[5] |= 128;
+
+	if (email.protocolEsmtp)     infoBytes[1] |= 128;
+	if (email.quitReceived)      infoBytes[1] |=  64;
+	if (email.protocolViolation) infoBytes[1] |=  32;
+
+	if (email.invalidCommands) infoBytes[2] |=  128;
+	if (email.rareCommands)    infoBytes[2] |=  64;
+	// [2] & 32 unused
+
+	memcpy(cleartext, &padAmount16, 2);
+	memcpy(cleartext + 2, &(email.timestamp), 4);
+	memcpy(cleartext + 6, &(email.ip), 4);
+	memcpy(cleartext + 10, &cs16, 2);
+	memcpy(cleartext + 12, infoBytes, 9);
+	memcpy(cleartext + 21, email.toAddr32, 15);
+	memcpy(cleartext + 36, body, *lenBody);
+	crypto_sign_detached(cleartext + lenPadded - crypto_sign_BYTES, NULL, cleartext, lenPadded - crypto_sign_BYTES, sign_skey);
+
+	unsigned char *ciphertext = malloc(lenPadded + crypto_box_SEALBYTES);
+	const int ret = crypto_box_seal(ciphertext, cleartext, lenPadded, upk);
+	sodium_free(cleartext);
+
+	if (ret != 0) return NULL;
+
+	*lenBody = lenPadded + crypto_box_SEALBYTES;
+	return ciphertext;
+}
+
+void deliverMessage(char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo email) {
+	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1) return;
+
+	if (email.attachments > 31) email.attachments = 31;
+	if (email.tls_version > 7) email.tls_version = 7;
+
+	if (email.lenGreeting > 127) email.lenGreeting = 127;
+	if (email.lenRdns     > 127) email.lenRdns     = 127;
+	if (email.lenCharset  > 127) email.lenCharset  = 127;
+	if (email.lenEnvFrom  > 127) email.lenEnvFrom  = 127;
 
 	char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
@@ -88,10 +122,11 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1 || lenTo > 24) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
-		if (lenTo == 24) infoByte |= AEM_INFOBYTE_ISSHIELD; else infoByte &= ~AEM_INFOBYTE_ISSHIELD;
 
 		unsigned char addr32[15];
 		addr32_store(addr32, toStart, lenTo);
+		memcpy(email.toAddr32, addr32, 15);
+		email.isShield = (lenTo == 24);
 
 		unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 		const int ret = getPublicKey(addr32, pubkey, lenTo == 24);
@@ -101,29 +136,21 @@ void deliverMessage(char * const to, const size_t lenToTotal, const char * const
 			continue;
 		}
 
-		const uint8_t attach = 0; // TODO
-		const uint8_t spamByte = 0; // TODO
-		const uint16_t countryCode = getCountryCode((struct sockaddr*)sockAddr);
-
-		size_t bodyLen = lenMsgBody;
-		unsigned char * const boxSet = makeMsg_Ext(pubkey, addr32, msgBody, &bodyLen, sockAddr->sin_addr.s_addr, cs, tlsVer, countryCode, attach, infoByte, spamByte);
-		const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + bodyLen + crypto_box_SEALBYTES;
-
-		if (boxSet == NULL || bsLen < 1 || bsLen % 1024 != 0) {
-			syslog(LOG_ERR, "makeMsg_Ext failed (%zu)", bsLen);
+		unsigned char * const box = makeMsg(pubkey, msgBody, &lenMsgBody, email);
+		if (box == NULL || lenMsgBody < 1 || lenMsgBody % 1024 != 0) {
+			syslog(LOG_ERR, "makeMsg failed (%zu)", lenMsgBody);
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
 		}
 
 		// Deliver
-		const int stoSock = storageSocket(bsLen / 1024, pubkey, crypto_box_PUBLICKEYBYTES);
+		const int stoSock = storageSocket(lenMsgBody / 1024, pubkey, crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
-			if (send(stoSock, boxSet, bsLen, 0) != (ssize_t)bsLen)
-				syslog(LOG_ERR, "Failed sending to Storage");
+			if (send(stoSock, box, lenMsgBody, 0) != (ssize_t)lenMsgBody) syslog(LOG_ERR, "Failed sending to Storage");
 		}
 
-		free(boxSet);
+		free(box);
 		close(stoSock);
 
 		if (nextTo == NULL) break;

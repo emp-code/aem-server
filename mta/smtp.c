@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <maxminddb.h>
 #include <sodium.h>
 
 #include <mbedtls/ctr_drbg.h>
@@ -54,11 +55,49 @@
 "\r\n250 SMTPUTF8" \
 "\r\n"
 
+struct emailInfo email;
+
 // Set by getDomainFromCert() in tls_setup.c
 static size_t lenDomain;
 static char domain[AEM_MAXLEN_DOMAIN];
 
 #include "../Common/tls_setup.c"
+
+void setSignKey_mta(const unsigned char * const seed) {
+	return setSignKey(seed);
+}
+
+static void getCountryCode(const struct sockaddr * const sockAddr) {
+	bzero(email.countryCode, 2);
+	if (sockAddr == NULL) return;
+
+	MMDB_s mmdb;
+	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
+	if (status != MMDB_SUCCESS) {
+		syslog(LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
+		return;
+	}
+
+	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &status);
+	if (status != MMDB_SUCCESS) {
+		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(status));
+		MMDB_close(&mmdb);
+		return;
+	}
+
+	if (mmdb_result.found_entry) {
+		MMDB_entry_data_s entry_data;
+		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
+
+		if (status == MMDB_SUCCESS) {
+			memcpy(email.countryCode, entry_data.utf8_string, 2);
+		} else {
+			syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
+		}
+	} else syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
+
+	MMDB_close(&mmdb);
+}
 
 __attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
@@ -104,24 +143,24 @@ static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const 
 }
 
 __attribute__((warn_unused_result))
-static size_t smtp_addr_sender(const char * const buf, const size_t len, char * const addr) {
-	if (buf == NULL || len < 1 || addr == NULL) return 0;
+static int smtp_addr_sender(const char * const buf, const size_t len) {
+	if (buf == NULL || len < 1) return -1;
 
 	size_t skipBytes = 0;
 	while (isspace(buf[skipBytes]) && skipBytes < len) skipBytes++;
-	if (skipBytes >= len) return 0;
+	if (skipBytes >= len) return -1;
 
-	if (buf[skipBytes] != '<') return 0;
+	if (buf[skipBytes] != '<') return -1;
 	skipBytes++;
 
-	const size_t max = len - skipBytes - 1;
-	size_t lenAddr = 0;
-	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
+	const int max = len - skipBytes - 1;
+	while (email.lenEnvFrom < max && buf[skipBytes + email.lenEnvFrom] != '>') (email.lenEnvFrom)++;
 
-	if (lenAddr < 1 || lenAddr > AEM_SMTP_MAX_ADDRSIZE) return 0;
+	if (email.lenEnvFrom < 1) return -1;
+	if (email.lenEnvFrom > 127) email.lenEnvFrom = 127;
 
-	memcpy(addr, buf + skipBytes, lenAddr);
-	return lenAddr;
+	memcpy(email.envFrom, buf + skipBytes, email.lenEnvFrom);
+	return 0;
 }
 
 __attribute__((warn_unused_result))
@@ -214,6 +253,10 @@ static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || lenDomain < 1 || clientAddr == NULL) return;
+	bzero(&email, sizeof(struct emailInfo));
+	getCountryCode((struct sockaddr*)clientAddr);
+	email.timestamp = (uint32_t)time(NULL);
+	email.ip = clientAddr->sin_addr.s_addr;
 
 	if (!smtp_greet(sock)) return smtp_fail(NULL, clientAddr, 0);
 
@@ -223,11 +266,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
 
-	uint8_t infoByte = 0;
-	if (buf[0] == 'E') infoByte |= AEM_INFOBYTE_IS_ESMTP;
-	const size_t lenGreeting = bytes - 7;
-	char greeting[lenGreeting];
-	memcpy(greeting, buf + 5, lenGreeting);
+	if (buf[0] == 'E') email.protocolEsmtp = true;
+
+	email.lenGreeting = bytes - 7;
+	if (email.lenGreeting > 127) email.lenGreeting = 127;
+	memcpy(email.greeting, buf + 5, email.lenGreeting);
 
 	bytes = recv(sock, buf, AEM_SMTP_SIZE_CMD, 0);
 
@@ -250,11 +293,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 		if (bytes == 0) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			tlsClose(tls);
 			return;
 		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
 			tlsClose(tls);
 			return;
@@ -270,11 +313,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
+		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
+		email.tls_version = getTlsVersion(tls);
+
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_SIZE_CMD);
 	}
 
-	size_t lenFrom = 0, lenTo = 0;
-	char from[AEM_SMTP_MAX_ADDRSIZE];
+	size_t lenTo = 0;
 	char to[AEM_SMTP_MAX_ADDRSIZE_TO];
 
 	char *body = NULL;
@@ -282,21 +327,18 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	while(1) {
 		if (bytes < 4) {
-			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
-			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), (int)lenGreeting, greeting);
+			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
+			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			break;
 		}
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			lenFrom = smtp_addr_sender(buf + 10, bytes - 10, from);
-			if (lenFrom < 1) {
-				return smtp_fail(tls, clientAddr, 100);
-			}
+			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) return smtp_fail(tls, clientAddr, 100);
 		}
 
 		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
-			if (lenFrom < 1) {
-				infoByte |= AEM_INFOBYTE_PROTOERR;
+			if (email.lenEnvFrom < 1) {
+				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
 					tlsClose(tls);
@@ -338,14 +380,14 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (strncasecmp(buf, "RSET", 4) == 0) {
-			infoByte |= AEM_INFOBYTE_CMD_RARE;
+			email.rareCommands = true;
 
-			lenFrom = 0;
+			email.lenEnvFrom = 0;
 			lenTo = 0;
 		}
 
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
-			infoByte |= AEM_INFOBYTE_CMD_RARE;
+			email.rareCommands = true;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
 				return smtp_fail(tls, clientAddr, 105);
@@ -361,8 +403,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (strncasecmp(buf, "DATA", 4) == 0) {
-			if (lenFrom < 1 || lenTo < 1) {
-				infoByte |= AEM_INFOBYTE_PROTOERR;
+			if (email.lenEnvFrom < 1 || lenTo < 1) {
+				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
 					return smtp_fail(tls, clientAddr, 106);
@@ -376,19 +418,18 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				return smtp_fail(tls, clientAddr, 107);
 			}
 
-			body = malloc(AEM_SMTP_SIZE_BODY + lenGreeting + lenFrom + 3);
+			body = malloc(AEM_SMTP_SIZE_BODY + email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
 				return smtp_fail(tls, clientAddr, 999);
 			}
 
-			// Copy greeting and from address to body
-			memcpy(body, greeting, lenGreeting);
-			body[lenGreeting] = '\n';
-			memcpy(body + lenGreeting + 1, from, lenFrom);
-			body[lenGreeting + 1 + lenFrom] = '\n';
-			lenBody += lenGreeting + lenFrom + 2;
+			lenBody = 0;
+			memcpy(body + lenBody, email.greeting, email.lenGreeting); lenBody += email.lenGreeting;
+			memcpy(body + lenBody, email.rdns,     email.lenRdns);     lenBody += email.lenRdns;
+			memcpy(body + lenBody, email.charset,  email.lenCharset);  lenBody += email.lenCharset;
+			memcpy(body + lenBody, email.envFrom,  email.lenEnvFrom);  lenBody += email.lenEnvFrom;
 
 			// Receive body
 			while(1) {
@@ -408,7 +449,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
-			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) infoByte |= AEM_INFOBYTE_CMD_QUIT;
+			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) email.quitReceived = true;
 
 			tabsToSpaces(body, lenBody);
 			removeControlChars((unsigned char*)body, &lenBody);
@@ -421,15 +462,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			removeSpaceBegin(body, &lenBody);
 			brotliCompress((unsigned char**)&body, &lenBody);
 
-			const int cs = (tls == NULL) ? 0 : mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-			const uint8_t tlsVersion = getTlsVersion(tls);
-			deliverMessage(to, lenTo, from, lenFrom, (unsigned char*)body, lenBody, clientAddr, cs, tlsVersion, infoByte);
+			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, email);
 
-			sodium_memzero(from, lenFrom);
+			sodium_memzero(&email, sizeof(struct emailInfo));
 			sodium_memzero(to, lenTo);
 			sodium_memzero(body, lenBody);
 
-			lenFrom = 0;
 			lenTo = 0;
 			lenBody = 0;
 			free(body);
@@ -439,11 +477,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (strncasecmp(buf, "NOOP", 4) == 0) {
-			infoByte |= AEM_INFOBYTE_CMD_RARE;
+			email.rareCommands = true;
 		}
 
 		else {
-			infoByte |= AEM_INFOBYTE_CMD_FAIL;
+			email.invalidCommands = true;
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
