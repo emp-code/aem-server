@@ -54,41 +54,41 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo email) {
+unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo *email) {
 	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
 
 	const size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
 	unsigned char * const content = sodium_malloc(lenContent);
 
 	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
-	const uint16_t cs16 = (email.tls_ciphersuite > UINT16_MAX || email.tls_ciphersuite < 0) ? 1 : email.tls_ciphersuite;
+	const uint16_t cs16 = (email->tls_ciphersuite > UINT16_MAX || email->tls_ciphersuite < 0) ? 1 : email->tls_ciphersuite;
 
 	uint8_t infoBytes[8];
-	infoBytes[0] = (email.tls_version << 5) | email.attachments;
-	infoBytes[1] = isupper(email.countryCode[0]) ? email.countryCode[0] - 'A' : 31;
-	infoBytes[2] = isupper(email.countryCode[1]) ? email.countryCode[1] - 'A' : 31;
+	infoBytes[0] = (email->tls_version << 5) | email->attachments;
+	infoBytes[1] = isupper(email->countryCode[0]) ? email->countryCode[0] - 'A' : 31;
+	infoBytes[2] = isupper(email->countryCode[1]) ? email->countryCode[1] - 'A' : 31;
 	infoBytes[3] = 0;
-	infoBytes[4] = email.lenGreeting & 127;
-	infoBytes[5] = email.lenRdns     & 127;
-	infoBytes[6] = email.lenCharset  & 127;
-	infoBytes[7] = email.lenEnvFrom  & 127;
+	infoBytes[4] = email->lenGreeting & 127;
+	infoBytes[5] = email->lenRdns     & 127;
+	infoBytes[6] = email->lenCharset  & 127;
+	infoBytes[7] = email->lenEnvFrom  & 127;
 
-	if (email.isShield) infoBytes[4] |= 128;
+	if (email->isShield) infoBytes[4] |= 128;
 
-	if (email.protocolEsmtp)     infoBytes[1] |= 128;
-	if (email.quitReceived)      infoBytes[1] |=  64;
-	if (email.protocolViolation) infoBytes[1] |=  32;
+	if (email->protocolEsmtp)     infoBytes[1] |= 128;
+	if (email->quitReceived)      infoBytes[1] |=  64;
+	if (email->protocolViolation) infoBytes[1] |=  32;
 
-	if (email.invalidCommands) infoBytes[2] |=  128;
-	if (email.rareCommands)    infoBytes[2] |=  64;
+	if (email->invalidCommands) infoBytes[2] |=  128;
+	if (email->rareCommands)    infoBytes[2] |=  64;
 	// [2] & 32 unused
 
 	memcpy(content, &padAmount16, 2);
-	memcpy(content + 2, &(email.timestamp), 4);
-	memcpy(content + 6, &(email.ip), 4);
+	memcpy(content + 2, &(email->timestamp), 4);
+	memcpy(content + 6, &(email->ip), 4);
 	memcpy(content + 10, &cs16, 2);
 	memcpy(content + 12, infoBytes, 8);
-	memcpy(content + 20, email.toAddr32, 10);
+	memcpy(content + 20, email->toAddr32, 10);
 	memcpy(content + 30, body, *lenBody);
 
 	unsigned char * const encrypted = msg_encrypt(content, lenContent, lenBody);
@@ -101,16 +101,16 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	return encrypted;
 }
 
-void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo email) {
+void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo *email) {
 	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1) return;
 
-	if (email.attachments > 31) email.attachments = 31;
-	if (email.tls_version > 7) email.tls_version = 7;
+	if (email->attachments > 31) email->attachments = 31;
+	if (email->tls_version > 7) email->tls_version = 7;
 
-	if (email.lenGreeting > 127) email.lenGreeting = 127;
-	if (email.lenRdns     > 127) email.lenRdns     = 127;
-	if (email.lenCharset  > 127) email.lenCharset  = 127;
-	if (email.lenEnvFrom  > 127) email.lenEnvFrom  = 127;
+	if (email->lenGreeting > 127) email->lenGreeting = 127;
+	if (email->lenRdns     > 127) email->lenRdns     = 127;
+	if (email->lenCharset  > 127) email->lenCharset  = 127;
+	if (email->lenEnvFrom  > 127) email->lenEnvFrom  = 127;
 
 	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
@@ -120,10 +120,10 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
 		if (lenTo < 1 || lenTo > 16) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
 
-		addr32_store(email.toAddr32, toStart, lenTo);
-		email.isShield = (lenTo == 16);
+		addr32_store(email->toAddr32, toStart, lenTo);
+		email->isShield = (lenTo == 16);
 
-		const int ret = getPublicKey(email.toAddr32, email.isShield);
+		const int ret = getPublicKey(email->toAddr32, email->isShield);
 		if (ret != 0) {
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;

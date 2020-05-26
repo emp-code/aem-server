@@ -462,7 +462,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			removeSpaceBegin(body, &lenBody);
 			brotliCompress((unsigned char**)&body, &lenBody);
 
-			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, email);
+			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, &email);
 
 			sodium_memzero(&email, sizeof(struct emailInfo));
 			sodium_memzero(to, lenTo);
