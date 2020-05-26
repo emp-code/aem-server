@@ -57,10 +57,10 @@ __attribute__((warn_unused_result))
 unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo email) {
 	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
 
-	size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
+	const size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
 	unsigned char * const content = sodium_malloc(lenContent);
 
-	uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
+	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
 	const uint16_t cs16 = (email.tls_ciphersuite > UINT16_MAX || email.tls_ciphersuite < 0) ? 1 : email.tls_ciphersuite;
 
 	uint8_t infoBytes[9];
@@ -102,7 +102,7 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	return encrypted;
 }
 
-void deliverMessage(char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo email) {
+void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo email) {
 	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1) return;
 
 	if (email.attachments > 31) email.attachments = 31;
@@ -113,7 +113,7 @@ void deliverMessage(char * const to, const size_t lenToTotal, const unsigned cha
 	if (email.lenCharset  > 127) email.lenCharset  = 127;
 	if (email.lenEnvFrom  > 127) email.lenEnvFrom  = 127;
 
-	char *toStart = to;
+	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
 	while(1) {

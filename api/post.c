@@ -433,10 +433,10 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 #include "../Common/Message.c"
 
 static void message_create(void) {
-	unsigned char * const fromAddr32 = decrypted;
-	unsigned char * const toAddr32   = decrypted + 15;
-	unsigned char * const toPubkey   = decrypted + 30;
-	unsigned char * const body = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
+	const unsigned char * const fromAddr32 = decrypted;
+	const unsigned char * const toAddr32   = decrypted + 15;
+	const unsigned char * const toPubkey   = decrypted + 30;
+	const unsigned char * const body = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
 	const size_t lenBody = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
 
 	if (!addr32OwnedByPubkey(upk,    fromAddr32, false)) return;
@@ -445,9 +445,9 @@ static void message_create(void) {
 	const int lenContent = AEM_INTMSG_HEADERS_LEN + lenBody;
 	unsigned char content[lenContent];
 
-	uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6) | 16; // IntMsg: 32=0/16=1; 8/4/2/1=unused
+	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6) | 16; // IntMsg: 32=0/16=1; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
-	unsigned char infoByte = getUserLevel(upk) & 3;
+	const unsigned char infoByte = getUserLevel(upk) & 3;
 
 	memcpy(content +  0, &padAmount16, 2);
 	memcpy(content +  2, &ts,          4);
