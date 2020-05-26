@@ -22,9 +22,9 @@
 
 #include "global.h"
 
-#define AEM_MODE_RO S_IRUSR | S_IRGRP
-#define AEM_MODE_RW S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP
-#define AEM_MODE_RX S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP
+#define AEM_MODE_RO (S_IRUSR | S_IRGRP)
+#define AEM_MODE_RW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
+#define AEM_MODE_RX (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
 
 static gid_t allearsGroup;
 
