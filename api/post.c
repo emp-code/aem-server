@@ -430,59 +430,60 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 	return ret;
 }
 
+#include "../Common/Message.c"
+
 static void message_create(void) {
-/*
 	unsigned char * const fromAddr32 = decrypted;
 	unsigned char * const toAddr32   = decrypted + 15;
 	unsigned char * const toPubkey   = decrypted + 30;
-	unsigned char * const bodyBox    = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
-	const size_t lenBodyBox = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
+	unsigned char * const body = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
+	const size_t lenBody = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
 
 	if (!addr32OwnedByPubkey(upk,    fromAddr32, false)) return;
 	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) return;
 
-	if ((lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) % 1024 != 0) return;
+	const int lenContent = AEM_INTMSG_HEADERS_LEN + lenBody;
+	unsigned char content[lenContent];
 
-	const size_t kib = (lenBodyBox + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES) / 1024;
-
+	uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6) | 16; // IntMsg: 32=0/16=1; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
 	unsigned char infoByte = getUserLevel(upk) & 3;
 
-	unsigned char headbox_clear[AEM_HEADBOX_SIZE];
-	headbox_clear[0] = infoByte;
-	memcpy(headbox_clear +  1, &ts, 4);
-	memcpy(headbox_clear +  5, fromAddr32, 15);
-	memcpy(headbox_clear + 20, toAddr32,   15);
+	memcpy(content +  0, &padAmount16, 2);
+	memcpy(content +  2, &ts,          4);
+	memcpy(content +  6, &infoByte,    1);
+	memcpy(content +  7, upk,         32); // Sender's public key
+	memcpy(content + 39, fromAddr32,  15);
+	memcpy(content + 54, toAddr32,    15);
 
-	unsigned char headBox[AEM_HEADBOX_SIZE + crypto_box_SEALBYTES];
-	crypto_box_seal(headBox, headbox_clear, AEM_HEADBOX_SIZE, toPubkey);
-	sodium_memzero(headbox_clear, AEM_HEADBOX_SIZE);
+	memcpy(content + AEM_INTMSG_HEADERS_LEN, body, lenBody);
 
-	const size_t bsLen = AEM_HEADBOX_SIZE + crypto_box_SEALBYTES + lenBodyBox;
-	unsigned char * const boxSet = malloc(bsLen);
-	if (boxSet == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
-
-	memcpy(boxSet, headBox, AEM_HEADBOX_SIZE + crypto_box_SEALBYTES);
-	memcpy(boxSet + AEM_HEADBOX_SIZE + crypto_box_SEALBYTES, bodyBox, lenBodyBox);
-
-	// Store
-	const int sock = storageSocket(kib, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) {
-		free(boxSet);
+	size_t lenEncrypted;
+	unsigned char * const encrypted = msg_encrypt(content, lenContent, &lenEncrypted);
+	sodium_memzero(content, lenContent);
+	if (encrypted == NULL) {
+		syslog(LOG_ERR, "Failed creating encrypted message");
 		return;
 	}
 
-	const ssize_t sentBytes = send(sock, boxSet, kib * 1024, 0);
-	free(boxSet);
+	// Store
+	const int sock = storageSocket(lenEncrypted / 1024, upk, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) {
+		free(encrypted);
+		return;
+	}
+
+	const ssize_t sentBytes = send(sock, encrypted, lenEncrypted, 0);
+	free(encrypted);
 	close(sock);
 
-	if (sentBytes != (ssize_t)(kib * 1024)) {
+	if (sentBytes != (ssize_t)(lenEncrypted)) {
 		syslog(LOG_ERR, "Failed communicating with Storage");
 		return;
 	}
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
-*/}
+}
 
 static void message_delete(void) {
 	if (lenDecrypted % 16 != 0) return;

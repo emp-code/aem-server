@@ -20,6 +20,8 @@
 
 #include "../Global.h"
 
+static unsigned char upk[crypto_box_PUBLICKEYBYTES];
+
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
 
@@ -40,28 +42,25 @@ void setAccountPid(const pid_t pid) {pid_account = pid;}
 void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 #include "../Common/UnixSocketClient.c"
+#include "../Common/Message.c"
 
-static int getPublicKey(const unsigned char * const addr32, unsigned char * const pubkey, const bool isShield) {
+static int getPublicKey(const unsigned char * const addr32, const bool isShield) {
 	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 15);
 	if (sock < 0) return -1;
 
-	const ssize_t ret = recv(sock, pubkey, crypto_box_PUBLICKEYBYTES, 0);
+	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
 	close(sock);
 	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeMsg(const unsigned char * const upk, const unsigned char * const body, size_t * const lenBody, const struct emailInfo email) {
+unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo email) {
 	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
 
-	const unsigned int lenUnpadded = *lenBody + AEM_EXTMSG_HEADERS_LEN + crypto_sign_BYTES;
-	const uint16_t padAmount = ((lenUnpadded + crypto_box_SEALBYTES) % 1024 == 0) ? 0 : 1024 - ((lenUnpadded + crypto_box_SEALBYTES) % 1024);
-	const size_t lenPadded = lenUnpadded + padAmount;
+	size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
+	unsigned char * const content = sodium_malloc(lenContent);
 
-	unsigned char * const cleartext = sodium_malloc(lenPadded);
-	bzero(cleartext, lenPadded);
-
-	uint16_t padAmount16 = (padAmount << 6); // ExtMsg: 32/16=0; 8/4/2/1=unused
+	uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
 	const uint16_t cs16 = (email.tls_ciphersuite > UINT16_MAX || email.tls_ciphersuite < 0) ? 1 : email.tls_ciphersuite;
 
 	uint8_t infoBytes[9];
@@ -85,26 +84,22 @@ unsigned char *makeMsg(const unsigned char * const upk, const unsigned char * co
 	if (email.rareCommands)    infoBytes[2] |=  64;
 	// [2] & 32 unused
 
-	memcpy(cleartext, &padAmount16, 2);
-	memcpy(cleartext + 2, &(email.timestamp), 4);
-	memcpy(cleartext + 6, &(email.ip), 4);
-	memcpy(cleartext + 10, &cs16, 2);
-	memcpy(cleartext + 12, infoBytes, 9);
-	memcpy(cleartext + 21, email.toAddr32, 15);
-	memcpy(cleartext + 36, body, *lenBody);
+	memcpy(content, &padAmount16, 2);
+	memcpy(content + 2, &(email.timestamp), 4);
+	memcpy(content + 6, &(email.ip), 4);
+	memcpy(content + 10, &cs16, 2);
+	memcpy(content + 12, infoBytes, 9);
+	memcpy(content + 21, email.toAddr32, 15);
+	memcpy(content + 36, body, *lenBody);
 
-	// Deterministic random padding to verify integrity, signature to verify authenticity
-	randombytes_buf_deterministic(cleartext + lenUnpadded, padAmount, cleartext); // First randombytes_SEEDBYTES determine the padding bytes
-	crypto_sign_detached(cleartext + lenPadded - crypto_sign_BYTES, NULL, cleartext, lenPadded - crypto_sign_BYTES, sign_skey);
+	unsigned char * const encrypted = msg_encrypt(content, lenContent, lenBody);
+	sodium_free(content);
+	if (encrypted == NULL) {
+		syslog(LOG_ERR, "Failed creating encrypted message");
+		return NULL;
+	}
 
-	unsigned char *ciphertext = malloc(lenPadded + crypto_box_SEALBYTES);
-	const int ret = crypto_box_seal(ciphertext, cleartext, lenPadded, upk);
-	sodium_free(cleartext);
-
-	if (ret != 0) return NULL;
-
-	*lenBody = lenPadded + crypto_box_SEALBYTES;
-	return ciphertext;
+	return encrypted;
 }
 
 void deliverMessage(char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo email) {
@@ -131,24 +126,23 @@ void deliverMessage(char * const to, const size_t lenToTotal, const unsigned cha
 		memcpy(email.toAddr32, addr32, 15);
 		email.isShield = (lenTo == 24);
 
-		unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-		const int ret = getPublicKey(addr32, pubkey, lenTo == 24);
+		const int ret = getPublicKey(addr32, lenTo == 24);
 		if (ret != 0) {
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
 		}
 
-		unsigned char * const box = makeMsg(pubkey, msgBody, &lenMsgBody, email);
+		unsigned char * const box = makeExtMsg(msgBody, &lenMsgBody, email);
 		if (box == NULL || lenMsgBody < 1 || lenMsgBody % 1024 != 0) {
-			syslog(LOG_ERR, "makeMsg failed (%zu)", lenMsgBody);
+			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenMsgBody);
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
 		}
 
 		// Deliver
-		const int stoSock = storageSocket(lenMsgBody / 1024, pubkey, crypto_box_PUBLICKEYBYTES);
+		const int stoSock = storageSocket(lenMsgBody / 1024, upk, crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			if (send(stoSock, box, lenMsgBody, 0) != (ssize_t)lenMsgBody) syslog(LOG_ERR, "Failed sending to Storage");
 		}
