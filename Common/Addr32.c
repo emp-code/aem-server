@@ -5,7 +5,7 @@
 		- The letter o is treated as the digit 0
 		- The letter v is treated as the letter w
 
-	Stores 24 characters (or length + 23) in 15 bytes
+	Stores 16 characters (or length + 15) in 10 bytes
 */
 
 #include <stdbool.h>
@@ -47,10 +47,10 @@
 #define ADDR32_CHAR_31 'z'
 
 static const char addr32_chars[] = {
-ADDR32_CHAR_0,  ADDR32_CHAR_1,  ADDR32_CHAR_2,  ADDR32_CHAR_3,  ADDR32_CHAR_4,  ADDR32_CHAR_5,  ADDR32_CHAR_6,  ADDR32_CHAR_7,
-ADDR32_CHAR_8,  ADDR32_CHAR_9,  ADDR32_CHAR_10, ADDR32_CHAR_11, ADDR32_CHAR_12, ADDR32_CHAR_13, ADDR32_CHAR_14, ADDR32_CHAR_15,
-ADDR32_CHAR_16, ADDR32_CHAR_17, ADDR32_CHAR_18, ADDR32_CHAR_19, ADDR32_CHAR_20, ADDR32_CHAR_21, ADDR32_CHAR_22, ADDR32_CHAR_23,
-ADDR32_CHAR_24, ADDR32_CHAR_25, ADDR32_CHAR_26, ADDR32_CHAR_27, ADDR32_CHAR_28, ADDR32_CHAR_29, ADDR32_CHAR_30, ADDR32_CHAR_31
+	ADDR32_CHAR_0,  ADDR32_CHAR_1,  ADDR32_CHAR_2,  ADDR32_CHAR_3,  ADDR32_CHAR_4,  ADDR32_CHAR_5,  ADDR32_CHAR_6,  ADDR32_CHAR_7,
+	ADDR32_CHAR_8,  ADDR32_CHAR_9,  ADDR32_CHAR_10, ADDR32_CHAR_11, ADDR32_CHAR_12, ADDR32_CHAR_13, ADDR32_CHAR_14, ADDR32_CHAR_15,
+	ADDR32_CHAR_16, ADDR32_CHAR_17, ADDR32_CHAR_18, ADDR32_CHAR_19, ADDR32_CHAR_20, ADDR32_CHAR_21, ADDR32_CHAR_22, ADDR32_CHAR_23,
+	ADDR32_CHAR_24, ADDR32_CHAR_25, ADDR32_CHAR_26, ADDR32_CHAR_27, ADDR32_CHAR_28, ADDR32_CHAR_29, ADDR32_CHAR_30, ADDR32_CHAR_31
 };
 
 __attribute__((warn_unused_result, const))
@@ -110,32 +110,15 @@ static void setBit(unsigned char *target, int * const bit, int * const byte, con
 	}
 }
 
-// Unused
-/*
-__attribute__((warn_unused_result))
-static bool getBit(const unsigned char * const src, int * const bit, int * const byte) {
-	const bool result = (1 & (src[*byte] >> (7 - *bit)));
-
-	(*bit)++;
-	if (*bit > 7) {
-		(*byte)++;
-		*bit = 0;
-	}
-
-	return result;
-}
-*/
-
-// out must be 15 bytes
 void addr32_store(unsigned char * const out, const char * const src, size_t len) {
-	if (len > 24) return;
+	if (len > 16) return;
 
-	bzero(out, 15);
+	bzero(out, 10);
 
 	int bit = 0;
 	int byte = 0;
 
-	if (len < 24) {
+	if (len < 16) {
 		// Normal address: First five bits store length
 		out[0] = len << 3;
 		bit = 5;
@@ -145,7 +128,7 @@ void addr32_store(unsigned char * const out, const char * const src, size_t len)
 		int num = charToUint5(src[i]);
 
 		if (num < 0) {
-			bzero(out, 15);
+			bzero(out, 10);
 			return;
 		}
 
@@ -156,32 +139,3 @@ void addr32_store(unsigned char * const out, const char * const src, size_t len)
 		setBit(out, &bit, &byte, (num >=  1));
 	}
 }
-
-// Unused, not updated
-/*
-// bin must be 15 bytes; out must be 24 bytes
-void addr32_fetch(char * const out, const unsigned char * const bin) {
-	int bit = 0;
-	int byte = 0;
-
-	bool shield = false;
-
-	for (int i = 0; i < 24; i++) {
-		int num = 0;
-		if (getBit(bin, &bit, &byte)) num += 16;
-		if (getBit(bin, &bit, &byte)) num +=  8;
-		if (getBit(bin, &bit, &byte)) num +=  4;
-		if (getBit(bin, &bit, &byte)) num +=  2;
-		if (getBit(bin, &bit, &byte)) num +=  1;
-
-		if (i == 0 && num == 0) shield = true;
-
-		out[i] = shield ? shld32_chars[num] : addr32_chars[num];
-	}
-
-	if (shield) {
-		out[0] = out[23];
-		out[23] = shld32_chars[0];
-	}
-}
-*/

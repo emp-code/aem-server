@@ -19,9 +19,9 @@
 
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	unsigned char info;
+	unsigned char info; // & 3 = level; >> 2 = addresscount
 	unsigned char private[AEM_LEN_PRIVATE];
-	unsigned char addrHash[AEM_ADDRESSES_PER_USER][13];
+	uint64_t addrHash[AEM_ADDRESSES_PER_USER];
 	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
 };
 
@@ -61,11 +61,9 @@ int main(void) {
 	crypto_box_keypair(pk, sk);
 
 	struct aem_user admin;
+	bzero(&admin, sizeof(struct aem_user));
 	admin.info = 3;
 	memcpy(admin.pubkey, pk, crypto_box_PUBLICKEYBYTES);
-
-	bzero(admin.addrHash, AEM_ADDRESSES_PER_USER * 13);
-	bzero(admin.addrFlag, AEM_ADDRESSES_PER_USER);
 
 	const size_t lenZero = AEM_LEN_PRIVATE - crypto_box_SEALBYTES;
 	unsigned char zero[lenZero];
@@ -73,12 +71,12 @@ int main(void) {
 	crypto_box_seal(admin.private, zero, lenZero, admin.pubkey);
 
 	// Pad
-	const uint32_t lenPadding = sizeof(struct aem_user) * 1023;
+	const uint32_t padAmount = sizeof(struct aem_user) * 1023;
 
 	const size_t lenPadded = 4 + sizeof(struct aem_user) * 1024;
 	unsigned char * const padded = sodium_malloc(lenPadded);
 
-	memcpy(padded, &lenPadding, 4);
+	memcpy(padded, &padAmount, 4);
 	memcpy(padded + 4, (unsigned char*)&admin, sizeof(struct aem_user));
 	randombytes_buf_deterministic(padded + 4 + sizeof(struct aem_user), lenPadded - 4 - sizeof(struct aem_user), padded);
 

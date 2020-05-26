@@ -37,9 +37,9 @@
 #define AEM_ADDRESSES_PER_USER 50
 #define AEM_LEN_SALT_ADDR crypto_pwhash_SALTBYTES
 #define AEM_LEN_SALT_FAKE crypto_generichash_KEYBYTES
-#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 14))
+#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
-#define AEM_MAXLEN_ADDR32 24 // 15 bytes Addr32 -> 24 characters
+#define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
 #define AEM_MAXLEN_DOMAIN 32
 
 #define AEM_PORT_MTA 25
@@ -50,11 +50,11 @@
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 
-#define AEM_EXTMSG_HEADERS_LEN 36
+#define AEM_EXTMSG_HEADERS_LEN 30
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
 #define AEM_INTMSG_HEADERS_LEN 69
 
-#define AEM_ADDR32_SYSTEM {54, 125, 157, 58, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // 'system' in Addr32
+#define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x0\x0\x0\x0\x0" // 'system' in Addr32
 
 #define AEM_SOCKPATH_ACCOUNT "\0AEM_Acc"
 #define AEM_SOCKPATH_STORAGE "\0AEM_Sto"

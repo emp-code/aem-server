@@ -258,7 +258,7 @@ static void account_update(void) {
 }
 
 static void address_create(void) {
-	if (lenDecrypted != 13 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return;
+	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return;
 
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -269,7 +269,7 @@ static void address_create(void) {
 		return;
 	}
 
-	if (lenDecrypted == 13) { // Normal
+	if (lenDecrypted == 8) { // Normal
 		unsigned char ret;
 		recv(sock, &ret, 1, 0);
 		close(sock);
@@ -278,18 +278,19 @@ static void address_create(void) {
 	}
 
 	// Shield
-	unsigned char data[28];
-	if (
-	   recv(sock, data, 13, 0) != 13
-	|| recv(sock, data + 13, 15, 0) != 15
-	) {syslog(LOG_ERR, "Failed receiving data from Account"); close(sock); return;}
+	unsigned char data[18];
+	if (recv(sock, data, 18, 0) != 18) {
+		syslog(LOG_ERR, "Failed receiving data from Account");
+		close(sock);
+		return;
+	}
 
 	close(sock);
-	shortResponse(data, 28);
+	shortResponse(data, 18);
 }
 
 static void address_delete(void) {
-	if (lenDecrypted != 13) return;
+	if (lenDecrypted != 8) return;
 
 	const int sock = accountSocket(AEM_API_ADDRESS_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -313,7 +314,7 @@ static void address_lookup(void) {
 	}
 
 	unsigned char addr[16];
-	addr[0] = (lenDecrypted == 24) ? 'S' : 'N';
+	addr[0] = (lenDecrypted == 16) ? 'S' : 'N';
 	addr32_store(addr + 1, (const char * const)decrypted, lenDecrypted);
 
 	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, upk, crypto_box_PUBLICKEYBYTES);
@@ -328,7 +329,7 @@ static void address_lookup(void) {
 }
 
 static void address_update(void) {
-	if (lenDecrypted % 14 != 0) return;
+	if (lenDecrypted % 9 != 0) return;
 
 	const int sock = accountSocket(AEM_API_ADDRESS_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -405,15 +406,15 @@ static void message_browse(void) {
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
-	unsigned char addrData[16];
+	unsigned char addrData[11];
 	addrData[0] = shield? 'S' : 'N';
-	memcpy(addrData + 1, ver_addr32, 15);
+	memcpy(addrData + 1, ver_addr32, 10);
 
 	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return false;
 
 	unsigned char pk[32];
-	if (send(sock, addrData, 16, 0) != 16) {close(sock); return false;}
+	if (send(sock, addrData, 11, 0) != 11) {close(sock); return false;}
 	if (recv(sock, pk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) {close(sock); return false;}
 	close(sock);
 

@@ -21,7 +21,7 @@
 
 #define AEM_ACCOUNT
 #define AEM_MAXLEN_PIPEREAD 65533 // 5041 hashes max
-#define AEM_MINLEN_PIPEREAD 13
+#define AEM_MINLEN_PIPEREAD 8
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8 unused
@@ -46,7 +46,7 @@ struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	unsigned char info; // & 3 = level; >> 2 = addresscount
 	unsigned char private[AEM_LEN_PRIVATE];
-	unsigned char addrHash[AEM_ADDRESSES_PER_USER][13];
+	uint64_t addrHash[AEM_ADDRESSES_PER_USER];
 	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
 };
 
@@ -62,8 +62,8 @@ static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
 static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
 static unsigned char salt_fake[crypto_generichash_KEYBYTES];
 
-static unsigned char hash_system[13];
-static unsigned char *hash_admin;
+static uint64_t hash_system;
+static uint64_t *hash_admin;
 static int hash_admin_count = 0;
 
 static bool terminate = false;
@@ -183,10 +183,10 @@ static int loadUser(void) {
 	return 0;
 }
 
-static int hashToUserNum(const unsigned char * const hash, const bool isShield, unsigned char * const flagp) {
+static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
 		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
-			if (memcmp(hash, user[userNum].addrHash[addrNum], 13) == 0) {
+			if (hash == user[userNum].addrHash[addrNum]) {
 				if (flagp != NULL) *flagp = user[userNum].addrFlag[addrNum];
 
 				if (isShield) {
@@ -202,13 +202,16 @@ static int hashToUserNum(const unsigned char * const hash, const bool isShield, 
 }
 
 __attribute__((warn_unused_result))
-static int addressToHash(unsigned char * const target, const unsigned char * const source, const bool shield) {
-	if (target == NULL || source == NULL) return -1;
+static uint64_t addressToHash(const unsigned char * const addr32, const bool shield) {
+	if (addr32 == NULL) return -1;
 
-	unsigned char tmp[16];
-	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, shield? salt_shield : salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
-	memcpy(target, tmp, 13);
-	return 0;
+	uint64_t halves[2];
+	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, shield? salt_shield : salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
+		syslog(LOG_ERR, "Failed hashing address");
+		return 0;
+	}
+
+	return halves[0] ^ halves[1];
 }
 
 static int userNumFromPubkey(const unsigned char * const pubkey) {
@@ -246,9 +249,9 @@ static void api_account_browse(const int sock, const int num) {
 	int len = 14;
 
 	for (int i = 0; i < addrCount; i++) {
-		memcpy(response + len, user[num].addrHash[i], 13);
-		response[len + 13] = user[num].addrFlag[i];
-		len += 14;
+		memcpy(response + len, &(user[num].addrHash[i]), 8);
+		response[len + 8] = user[num].addrFlag[i];
+		len += 9;
 	}
 
 	memcpy(response + len, user[num].private, AEM_LEN_PRIVATE);
@@ -291,7 +294,7 @@ static void api_account_create(const int sock, const int num) {
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
 	user[userCount].info = 0;
 
-	bzero(user[userCount].addrHash, AEM_ADDRESSES_PER_USER * 13);
+	bzero(user[userCount].addrHash, AEM_ADDRESSES_PER_USER);
 	bzero(user[userCount].addrFlag, AEM_ADDRESSES_PER_USER);
 
 	unsigned char empty[AEM_LEN_PRIVATE - crypto_box_SEALBYTES];
@@ -355,22 +358,23 @@ static void api_address_create(const int sock, const int num) {
 	int addrCount = user[num].info >> 2;
 	if (addrCount >= AEM_ADDRESSES_PER_USER) return;
 
-	unsigned char addr32[15];
-	unsigned char hash[13];
+	unsigned char addr32[10];
+	uint64_t hash;
 
-	const ssize_t len = recv(sock, hash, 13, 0);
-	const bool isShield = (len == 6 && memcmp(hash, "SHIELD", 6) == 0);
+	const ssize_t len = recv(sock, &hash, 8, 0);
+	const bool isShield = (len == 6 && memcmp(&hash, "SHIELD", 6) == 0);
 
 	if (isShield) {
-		randombytes_buf(addr32, 15);
-		if (addressToHash(hash, addr32, true) != 0) return;
-	} else if (len == 13) {
-		if (memcmp(hash, hash_system, 13) == 0) return; // Forbid 'system' address
+		randombytes_buf(addr32, 10);
+		hash = addressToHash(addr32, true);
+		if (hash == 0) return;
+	} else if (len == 8) {
+		if (hash == hash_system) return; // Forbid 'system' address
 
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
 			for (int i = 0; i < hash_admin_count; i++) {
-				if (memcmp(hash, hash_admin + (i * 13), 13) == 0) return;
+				if (hash == hash_admin[i]) return;
 			}
 		}
 	} else {
@@ -380,17 +384,18 @@ static void api_address_create(const int sock, const int num) {
 
 	if (hashToUserNum(hash, isShield, NULL) >= 0) return; // Address in use
 
-	memcpy(user[num].addrHash[addrCount], hash, 13);
+	user[num].addrHash[addrCount] = hash;
 	addrCount++;
 	user[num].info = (user[num].info & 3) + (addrCount << 2);
 
 	saveUser();
 
 	if (isShield) {
-		if (
-		   send(sock, hash, 13, 0) != 13
-		|| send(sock, addr32, 15, 0) != 15
-		) syslog(LOG_ERR, "Failed sending data to API");
+		unsigned char data[18];
+		memcpy(data, &hash, 8);
+		memcpy(data + 8, addr32, 10);
+
+		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
 
 		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else {
@@ -402,13 +407,13 @@ static void api_address_create(const int sock, const int num) {
 }
 
 static void api_address_delete(const int sock, const int num) {
-	unsigned char hash_del[13];
-	if (recv(sock, hash_del, 13, 0) != 13) return;
+	uint64_t hash_del;
+	if (recv(sock, &hash_del, 8, 0) != 8) return;
 
 	unsigned char addrCount = user[num].info >> 2;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
-		if (memcmp(user[num].addrHash[i], hash_del, 13) == 0) {
+		if (hash_del == user[num].addrHash[i]) {
 			delNum = i;
 			break;
 		}
@@ -418,7 +423,7 @@ static void api_address_delete(const int sock, const int num) {
 
 	if (delNum < (addrCount - 1)) {
 		for (int i = delNum; i < addrCount - 1; i++) {
-			memcpy(user[num].addrHash[i], user[num].addrHash[i + 1], 13);
+			user[num].addrHash[i] = user[num].addrHash[i + 1];
 			user[num].addrFlag[i] = user[num].addrFlag[i + 1];
 		}
 	}
@@ -430,12 +435,12 @@ static void api_address_delete(const int sock, const int num) {
 }
 
 static void api_address_lookup(const int sock) {
-	unsigned char addr[16];
-	if (recv(sock, addr, 16, 0) != 16) return;
+	unsigned char addr[11];
+	if (recv(sock, addr, 11, 0) != 11) return;
 	const bool isShield = addr[0] == 'S';
 
-	unsigned char hash[13];
-	if (addressToHash(hash, addr + 1, isShield) != 0) {syslog(LOG_ERR, "Failed hashing address"); return;}
+	const uint64_t hash = addressToHash(addr + 1, isShield);
+	if (hash == 0) return;
 
 	unsigned char addrFlags;
 	const int userNum = hashToUserNum(hash, isShield, &addrFlags);
@@ -446,21 +451,21 @@ static void api_address_lookup(const int sock) {
 
 	// Address doesn't exist, or blocks internal messages - respond with a deterministic fake
 	unsigned char fake[crypto_box_PUBLICKEYBYTES];
-	crypto_generichash(fake, sizeof(fake), hash, 13, salt_fake, crypto_generichash_KEYBYTES);
+	crypto_generichash(fake, sizeof(fake), (const unsigned char*)&hash, 8, salt_fake, crypto_generichash_KEYBYTES);
 	send(sock, fake, crypto_box_PUBLICKEYBYTES, 0);
 }
 
 static void api_address_update(const int sock, const int num) {
 	unsigned char buf[8192];
 	const ssize_t len = recv(sock, buf, 8192, 0);
-	if (len < 1 || len % 14 != 0) return;
+	if (len < 1 || len % 9 != 0) return;
 
 	const int addrCount = user[num].info >> 2;
 
-	for (int i = 0; i < (len / 14); i++) {
+	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if (memcmp(user[num].addrHash[j], buf + (i * 14), 13) == 0) {
-				user[num].addrFlag[j] = (buf[(i * 14) + 13] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+			if ((uint64_t)(buf + (i * 9)) == user[num].addrHash[j]) {
+				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				break;
 			}
 		}
@@ -510,8 +515,8 @@ static void api_internal_exist(const int sock) {
 }
 
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
-	unsigned char hash[13];
-	if (addressToHash(hash, addr32, isShield) != 0) {syslog(LOG_ERR, "Failed hashing address"); return;}
+	const uint64_t hash = addressToHash(addr32, isShield);
+	if (hash == 0) return;
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
@@ -594,7 +599,7 @@ static int takeConnections(void) {
 			continue;
 		}
 
-		if (reqLen == 16 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 16 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
+		if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
 			switch(req[0]) {
 				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;
 				case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sockClient, req + 1, true);  break;
@@ -630,15 +635,18 @@ static int pipeLoad(const int fd) {
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 
+	unsigned char *hash_admin_u8;
 	size_t hash_admin_size = 1;
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
-	if (pipeRead(argv[0][0], &hash_admin, &hash_admin_size) < 0) {syslog(LOG_ERR, "Terminating: Failed loading admin hashes"); return EXIT_FAILURE;}
+	if (pipeRead(argv[0][0], &hash_admin_u8, &hash_admin_size) < 0) {syslog(LOG_ERR, "Terminating: Failed loading admin hashes"); return EXIT_FAILURE;}
 	close(argv[0][0]);
-	if (hash_admin_size % 13 != 0) {syslog(LOG_ERR, "Terminating: Admin hashes: wrong size"); return EXIT_FAILURE;}
-	hash_admin_count = hash_admin_size / 13;
 
-	const unsigned char addr32_system[15] = AEM_ADDR32_SYSTEM;
-	if (addressToHash(hash_system, addr32_system, false) != 0) {syslog(LOG_ERR, "Terminating: Failed hash"); return EXIT_FAILURE;}
+	if (hash_admin_size % 8 != 0) {syslog(LOG_ERR, "Terminating: Admin hashes: wrong size"); return EXIT_FAILURE;}
+	hash_admin_count = hash_admin_size / 8;
+	hash_admin = (uint64_t*)hash_admin_u8;
+
+	hash_system = addressToHash(AEM_ADDR32_SYSTEM, false);
+	if (hash_system == 0) {syslog(LOG_ERR, "Terminating: Failed hashing system address"); return EXIT_FAILURE;}
 
 	if (loadUser() != 0) {syslog(LOG_ERR, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 

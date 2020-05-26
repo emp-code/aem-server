@@ -21,7 +21,6 @@ root
 sales
 security
 ssladmin
-ssladministrator
 sslwebmaster
 support
 sysadmin

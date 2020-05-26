@@ -45,7 +45,7 @@ void setStoragePid(const pid_t pid) {pid_storage = pid;}
 #include "../Common/Message.c"
 
 static int getPublicKey(const unsigned char * const addr32, const bool isShield) {
-	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 15);
+	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
 	if (sock < 0) return -1;
 
 	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
@@ -63,18 +63,17 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
 	const uint16_t cs16 = (email.tls_ciphersuite > UINT16_MAX || email.tls_ciphersuite < 0) ? 1 : email.tls_ciphersuite;
 
-	uint8_t infoBytes[9];
+	uint8_t infoBytes[8];
 	infoBytes[0] = (email.tls_version << 5) | email.attachments;
 	infoBytes[1] = isupper(email.countryCode[0]) ? email.countryCode[0] - 'A' : 31;
 	infoBytes[2] = isupper(email.countryCode[1]) ? email.countryCode[1] - 'A' : 31;
 	infoBytes[3] = 0;
-	infoBytes[4] = 0;
-	infoBytes[5] = email.lenGreeting & 127;
-	infoBytes[6] = email.lenRdns     & 127;
-	infoBytes[7] = email.lenCharset  & 127;
-	infoBytes[8] = email.lenEnvFrom  & 127;
+	infoBytes[4] = email.lenGreeting & 127;
+	infoBytes[5] = email.lenRdns     & 127;
+	infoBytes[6] = email.lenCharset  & 127;
+	infoBytes[7] = email.lenEnvFrom  & 127;
 
-	if (email.isShield) infoBytes[5] |= 128;
+	if (email.isShield) infoBytes[4] |= 128;
 
 	if (email.protocolEsmtp)     infoBytes[1] |= 128;
 	if (email.quitReceived)      infoBytes[1] |=  64;
@@ -88,9 +87,9 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	memcpy(content + 2, &(email.timestamp), 4);
 	memcpy(content + 6, &(email.ip), 4);
 	memcpy(content + 10, &cs16, 2);
-	memcpy(content + 12, infoBytes, 9);
-	memcpy(content + 21, email.toAddr32, 15);
-	memcpy(content + 36, body, *lenBody);
+	memcpy(content + 12, infoBytes, 8);
+	memcpy(content + 20, email.toAddr32, 10);
+	memcpy(content + 30, body, *lenBody);
 
 	unsigned char * const encrypted = msg_encrypt(content, lenContent, lenBody);
 	sodium_free(content);
@@ -119,14 +118,12 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 	while(1) {
 		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
 		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
-		if (lenTo < 1 || lenTo > 24) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
+		if (lenTo < 1 || lenTo > 16) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
 
-		unsigned char addr32[15];
-		addr32_store(addr32, toStart, lenTo);
-		memcpy(email.toAddr32, addr32, 15);
-		email.isShield = (lenTo == 24);
+		addr32_store(email.toAddr32, toStart, lenTo);
+		email.isShield = (lenTo == 16);
 
-		const int ret = getPublicKey(addr32, lenTo == 24);
+		const int ret = getPublicKey(email.toAddr32, email.isShield);
 		if (ret != 0) {
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;

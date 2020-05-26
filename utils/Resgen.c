@@ -39,11 +39,14 @@ static int getSalt(void) {
 	return crypto_secretbox_open_easy(salt_normal, encrypted, AEM_LEN_SALT_ADDR + crypto_secretbox_MACBYTES, nonce, master);
 }
 
-static int addressToHash(unsigned char * const target, const unsigned char * const source) {
-	unsigned char tmp[16];
-	if (crypto_pwhash(tmp, 16, (const char * const)source, 15, salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return -1;
-	memcpy(target, tmp, 13);
-	return 0;
+__attribute__((warn_unused_result))
+static uint64_t addressToHash(const unsigned char * const addr32) {
+	if (addr32 == NULL) return -1;
+
+	uint64_t halves[2];
+	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) return 0;
+
+	return halves[0] ^ halves[1];
 }
 
 int main(void) {
@@ -72,14 +75,13 @@ int main(void) {
 		unsigned char *lf = memchr(s, '\n', (data + len) - s);
 		if (lf == NULL) break;
 		const size_t lenSrc = lf - s;
-		if (lenSrc > 24) {puts("Line too long"); break;}
+		if (lenSrc > 15) {puts("Line too long"); break;}
 
-		unsigned char a32[15];
-		addr32_store(a32, (char*)s, lenSrc);
+		unsigned char addr32[10];
+		addr32_store(addr32, (char*)s, lenSrc);
 
-		unsigned char out[13];
-		addressToHash(out, a32);
-		write(fdBin, out, 13);
+		const uint64_t hash = addressToHash(addr32);
+		write(fdBin, &hash, 8);
 
 		s = lf + 1;
 	}
