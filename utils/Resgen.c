@@ -19,7 +19,7 @@
 #define AEM_PATH_ADR_ADM "Admin.adr"
 #define AEM_PATH_SLT_NRM "/etc/allears/Normal.slt"
 
-unsigned char salt_normal[AEM_LEN_SALT_ADDR];
+unsigned char salt_normal[AEM_LEN_SALT_NORM];
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
@@ -31,12 +31,12 @@ static int getSalt(void) {
 	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
 	if (readBytes != crypto_secretbox_NONCEBYTES) {close(fd); return -1;}
 
-	unsigned char encrypted[AEM_LEN_SALT_ADDR + crypto_secretbox_MACBYTES];
-	readBytes = read(fd, encrypted, AEM_LEN_SALT_ADDR + crypto_secretbox_MACBYTES);
+	unsigned char encrypted[AEM_LEN_SALT_NORM + crypto_secretbox_MACBYTES];
+	readBytes = read(fd, encrypted, AEM_LEN_SALT_NORM + crypto_secretbox_MACBYTES);
 	close(fd);
-	if (readBytes != AEM_LEN_SALT_ADDR + crypto_secretbox_MACBYTES) return -1;
+	if (readBytes != AEM_LEN_SALT_NORM + crypto_secretbox_MACBYTES) return -1;
 
-	return crypto_secretbox_open_easy(salt_normal, encrypted, AEM_LEN_SALT_ADDR + crypto_secretbox_MACBYTES, nonce, master);
+	return crypto_secretbox_open_easy(salt_normal, encrypted, AEM_LEN_SALT_NORM + crypto_secretbox_MACBYTES, nonce, master);
 }
 
 __attribute__((warn_unused_result))

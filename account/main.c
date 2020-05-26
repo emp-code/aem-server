@@ -58,8 +58,8 @@ static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
 
 static unsigned char accountKey[crypto_secretbox_KEYBYTES];
 
-static unsigned char salt_normal[AEM_LEN_SALT_ADDR];
-static unsigned char salt_shield[AEM_LEN_SALT_ADDR];
+static unsigned char salt_normal[AEM_LEN_SALT_NORM];
+static unsigned char salt_shield[AEM_LEN_SALT_SHLD];
 static unsigned char salt_fake[crypto_generichash_KEYBYTES];
 
 static uint64_t hash_system;
@@ -76,8 +76,8 @@ static void sigTerm(const int sig) {
 	}
 
 	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
-	sodium_memzero(salt_normal, AEM_LEN_SALT_ADDR);
-	sodium_memzero(salt_shield, AEM_LEN_SALT_ADDR);
+	sodium_memzero(salt_normal, AEM_LEN_SALT_NORM);
+	sodium_memzero(salt_shield, AEM_LEN_SALT_SHLD);
 
 	free(user);
 	sodium_free(hash_admin);
@@ -627,8 +627,8 @@ static int pipeLoad(const int fd) {
 	return (
 	   read(fd, accountKey, AEM_LEN_KEY_ACC) == AEM_LEN_KEY_ACC
 
-	&& read(fd, salt_normal, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
-	&& read(fd, salt_shield, AEM_LEN_SALT_ADDR) == AEM_LEN_SALT_ADDR
+	&& read(fd, salt_normal, AEM_LEN_SALT_NORM) == AEM_LEN_SALT_NORM
+	&& read(fd, salt_shield, AEM_LEN_SALT_SHLD) == AEM_LEN_SALT_SHLD
 	&& read(fd, salt_fake,   AEM_LEN_SALT_FAKE) == AEM_LEN_SALT_FAKE
 
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY

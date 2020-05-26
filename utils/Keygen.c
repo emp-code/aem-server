@@ -76,8 +76,8 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
 
-	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_ADDR);
-	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_ADDR);
+	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM);
+	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD);
 	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);

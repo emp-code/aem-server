@@ -83,8 +83,8 @@ static unsigned char key_sig[AEM_LEN_KEY_SIG];
 static unsigned char key_sti[AEM_LEN_KEY_STI];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
 
-static unsigned char slt_nrm[AEM_LEN_SALT_ADDR];
-static unsigned char slt_shd[AEM_LEN_SALT_ADDR];
+static unsigned char slt_nrm[AEM_LEN_SALT_NORM];
+static unsigned char slt_shd[AEM_LEN_SALT_SHLD];
 static unsigned char slt_fke[AEM_LEN_SALT_FAKE];
 
 static unsigned char tls_crt[AEM_LEN_FILE_MAX];
@@ -156,8 +156,8 @@ void wipeKeys(void) {
 	sodium_memzero(key_sti, AEM_LEN_KEY_STI);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
 
-	sodium_memzero(slt_nrm, AEM_LEN_SALT_ADDR);
-	sodium_memzero(slt_shd, AEM_LEN_SALT_ADDR);
+	sodium_memzero(slt_nrm, AEM_LEN_SALT_NORM);
+	sodium_memzero(slt_shd, AEM_LEN_SALT_SHLD);
 	sodium_memzero(slt_fke, AEM_LEN_SALT_FAKE);
 
 	sodium_memzero(tls_crt, len_tls_crt);
@@ -325,8 +325,8 @@ int loadFiles(void) {
 	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
 
-	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_ADDR, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_ADDR, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_NORM, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_SHLD, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE, AEM_LEN_FILE_MAX) == 0
 
 	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0, AEM_LEN_FILE_MAX) == 0
@@ -507,8 +507,8 @@ static void process_spawn(const int type) {
 			if (
 			   pipeWriteDirect(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
 
-			|| pipeWriteDirect(fd[1], slt_nrm, AEM_LEN_SALT_ADDR) < 0
-			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_ADDR) < 0
+			|| pipeWriteDirect(fd[1], slt_nrm, AEM_LEN_SALT_NORM) < 0
+			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_SHLD) < 0
 			|| pipeWriteDirect(fd[1], slt_fke, AEM_LEN_SALT_FAKE) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
