@@ -205,8 +205,14 @@ __attribute__((warn_unused_result))
 static uint64_t addressToHash(const unsigned char * const addr32, const bool shield) {
 	if (addr32 == NULL) return -1;
 
+	if (shield) {
+		uint64_t hash;
+		crypto_shorthash((unsigned char*)&hash, addr32, 10, salt_shield);
+		return hash;
+	}
+
 	uint64_t halves[2];
-	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, shield? salt_shield : salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
+	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
 		syslog(LOG_ERR, "Failed hashing address");
 		return 0;
 	}
