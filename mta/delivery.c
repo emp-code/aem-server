@@ -91,7 +91,7 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	memcpy(content + 20, email->toAddr32, 10);
 	memcpy(content + 30, body, *lenBody);
 
-	unsigned char * const encrypted = msg_encrypt(content, lenContent, lenBody);
+	unsigned char * const encrypted = msg_encrypt(upk, content, lenContent, lenBody);
 	sodium_free(content);
 	if (encrypted == NULL) {
 		syslog(LOG_ERR, "Failed creating encrypted message");

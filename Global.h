@@ -53,7 +53,7 @@
 
 #define AEM_EXTMSG_HEADERS_LEN 30
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
-#define AEM_INTMSG_HEADERS_LEN 69
+#define AEM_INTMSG_HEADERS_LEN 83
 
 #define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x0\x0\x0\x0\x0" // 'system' in Addr32
 

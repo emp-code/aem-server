@@ -435,10 +435,11 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 
 static void message_create(void) {
 	const unsigned char * const fromAddr32 = decrypted;
-	const unsigned char * const toAddr32   = decrypted + 15;
-	const unsigned char * const toPubkey   = decrypted + 30;
-	const unsigned char * const body = decrypted + 30 + crypto_box_PUBLICKEYBYTES;
-	const size_t lenBody = lenDecrypted - 30 - crypto_box_PUBLICKEYBYTES;
+	const unsigned char * const toAddr32   = decrypted + 10;
+	const unsigned char * const toPubkey   = decrypted + 20;
+	const unsigned char * const nonce      = decrypted + 20 + crypto_box_PUBLICKEYBYTES;
+	const unsigned char * const body       = decrypted + 20 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES;
+	const size_t lenBody = lenDecrypted - 20 - crypto_box_PUBLICKEYBYTES - crypto_box_NONCEBYTES;
 
 	if (!addr32OwnedByPubkey(upk,    fromAddr32, false)) return;
 	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) return;
@@ -450,17 +451,17 @@ static void message_create(void) {
 	const uint32_t ts = (uint32_t)time(NULL);
 	const unsigned char infoByte = getUserLevel(upk) & 3;
 
-	memcpy(content +  0, &padAmount16, 2);
-	memcpy(content +  2, &ts,          4);
-	memcpy(content +  6, &infoByte,    1);
-	memcpy(content +  7, upk,         32); // Sender's public key
-	memcpy(content + 39, fromAddr32,  15);
-	memcpy(content + 54, toAddr32,    15);
-
+	memcpy(content + 0, &padAmount16, 2);
+	memcpy(content + 2, &ts, 4);
+	memcpy(content + 6, &infoByte,  1);
+	memcpy(content + 7, upk, 32); // Sender's public key
+	memcpy(content + 7 + crypto_box_PUBLICKEYBYTES, fromAddr32, 10);
+	memcpy(content + 17 + crypto_box_PUBLICKEYBYTES, toAddr32, 10);
+	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES, nonce, crypto_box_NONCEBYTES);
 	memcpy(content + AEM_INTMSG_HEADERS_LEN, body, lenBody);
 
 	size_t lenEncrypted;
-	unsigned char * const encrypted = msg_encrypt(content, lenContent, &lenEncrypted);
+	unsigned char * const encrypted = msg_encrypt(toPubkey, content, lenContent, &lenEncrypted);
 	sodium_memzero(content, lenContent);
 	if (encrypted == NULL) {
 		syslog(LOG_ERR, "Failed creating encrypted message");
@@ -468,7 +469,7 @@ static void message_create(void) {
 	}
 
 	// Store
-	const int sock = storageSocket(lenEncrypted / 1024, upk, crypto_box_PUBLICKEYBYTES);
+	const int sock = storageSocket(lenEncrypted / 1024, toPubkey, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) {
 		free(encrypted);
 		return;
