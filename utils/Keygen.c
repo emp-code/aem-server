@@ -1,5 +1,6 @@
 // Keygen: Generate key files for All-Ears Mail
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for write
@@ -21,7 +22,7 @@
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
-static int writeRandomEncrypted(const char * const path, const size_t len) {
+static int writeRandomEncrypted(const char * const path, const size_t len, const bool print) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
 		printf("Failed creating %s\n", path);
@@ -30,6 +31,12 @@ static int writeRandomEncrypted(const char * const path, const size_t len) {
 
 	unsigned char buf[len];
 	randombytes_buf(buf, len);
+
+	if (print) {
+		char hex[(len * 2) + 1];
+		sodium_bin2hex(hex, (len * 2) + 1, buf, len);
+		printf("%s: %s\n", path, hex);
+	}
 
 	const size_t lenEncrypted = len + crypto_secretbox_MACBYTES;
 	unsigned char encrypted[lenEncrypted];
@@ -69,16 +76,16 @@ int main(void) {
 	printf("Master Key (hex): %s\n", master_hex);
 	sodium_memzero(master_hex, lenHex);
 
-	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC);
-	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API);
-	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
-	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG);
-	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI);
-	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO);
+	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC, false);
+	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, true);
+	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG, false);
+	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, true);
+	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI, false);
+	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, false);
 
-	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM);
-	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD);
-	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE);
+	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM, true);
+	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD, false);
+	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE, false);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;
