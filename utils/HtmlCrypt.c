@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 		"Content-Length: %zu\r\n"
 
 		"Content-Security-Policy: "
-			"connect-src"     " https://%s:302/api/ data:;"
+			"connect-src"     " https://%s:302/api data:;"
 			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
 			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
 

@@ -62,4 +62,4 @@
 #define AEM_SOCKPATH_LEN 8
 
 #define AEM_API_POST_SIZE 8192 // 8 KiB
-#define AEM_API_POST_BOXED_SIZE (crypto_box_NONCEBYTES + crypto_box_PUBLICKEYBYTES + AEM_API_POST_SIZE + 2 + crypto_box_MACBYTES)
+#define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)

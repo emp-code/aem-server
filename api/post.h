@@ -14,6 +14,6 @@ int aem_api_init(void);
 void aem_api_free(void);
 
 int aem_api_prepare(const unsigned char * const pubkey, const bool ka);
-int aem_api_process(mbedtls_ssl_context * const ssl, const char * const url, const unsigned char * const post);
+int aem_api_process(mbedtls_ssl_context * const ssl, const unsigned char * const postBox);
 
 #endif
