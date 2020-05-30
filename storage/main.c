@@ -187,6 +187,27 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	return 0;
 }
 
+static bool storage_idMatch(const int stindexNum, const int i, const unsigned char * const id) {
+	unsigned char buf[AEM_BLOCKSIZE];
+	const ssize_t readBytes = pread(fdMsg, buf, AEM_BLOCKSIZE, (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE);
+	if (readBytes != AEM_BLOCKSIZE) {
+		syslog(LOG_ERR, "Failed reading Storage.aem");
+		return false;
+	}
+
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, storageKey);
+
+	for (int j = 0; j < AEM_BLOCKSIZE / 16; j++)
+		AES_ECB_decrypt(&aes, buf + j * 16);
+
+	for (int j = 0; j < 16; j++) {
+		if (id[j] != buf[j * 64]) return false;
+	}
+
+	return true;
+}
+
 static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
 	int num = -1;
 	for (int i = 0; i < stindexCount; i++) {
@@ -199,28 +220,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	if (num == -1) {syslog(LOG_NOTICE, "Invalid pubkey in delete request"); return -1;}
 
 	for (int i = 0; i < stindex[num].msgCount; i++) {
-		unsigned char buf[AEM_BLOCKSIZE];
-		const ssize_t readBytes = pread(fdMsg, buf, AEM_BLOCKSIZE, (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE);
-		if (readBytes != AEM_BLOCKSIZE) {
-			syslog(LOG_ERR, "Failed reading Storage.aem");
-			return -1;
-		}
-
-		struct AES_ctx aes;
-		AES_init_ctx(&aes, storageKey);
-
-		for (int j = 0; j < AEM_BLOCKSIZE / 16; j++)
-			AES_ECB_decrypt(&aes, buf + j * 16);
-
-		bool found = true;
-		for (int j = 0; j < 16; j++) {
-			if (id[j] != buf[j * 64]) {
-				found = false;
-				break;
-			}
-		}
-
-		if (found) {
+		if (storage_idMatch(num, i, id)) {
 			uint32_t * const empty2 = realloc(empty, 4 * (emptyCount + 1));
 			if (empty2 != NULL) {
 				empty = empty2;
@@ -407,7 +407,7 @@ void takeConnections(void) {
 				} else syslog(LOG_ERR, "Failed receiving data from API");
 
 				free(msg);
-			} else { // Browse
+			} else if (clr[0] == UINT8_MAX) { // Browse
 				int stindexNum = -1;
 				for (int i = 0; i < stindexCount; i++) {
 					if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
@@ -421,13 +421,29 @@ void takeConnections(void) {
 					continue;
 				}
 
+				unsigned char startAfterId[16];
+				if (recv(sock, startAfterId, 16, 0) != 16) {
+					close(sock);
+					continue;
+				}
+
+				int startIndex = stindex[stindexNum].msgCount - 1;
+				if (memcmp(startAfterId, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) != 0) {
+					for (int i = startIndex; i >= 0; i--) {
+						if (storage_idMatch(stindexNum, i, startAfterId)) {
+							startIndex = i - 1;
+							break;
+						}
+					}
+				}
+
 				unsigned char msgData[131200]; // 128 bytes + 128 KiB
 				bzero(msgData, 131200);
 
 				int msgNum = 0;
 				int msgKib = 0;
 
-				for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
+				for (int i = startIndex; i >= 0; i--) {
 					const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
 					if (msgKib + kib > 128) break;
 

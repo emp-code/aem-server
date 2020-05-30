@@ -367,7 +367,7 @@ static void message_assign(void) {
 }
 
 static void message_browse(void) {
-	if (lenDecrypted != 1) return;
+	if (lenDecrypted != 16) return;
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
@@ -395,6 +395,8 @@ static void message_browse(void) {
 
 	const int sock = storageSocket(UINT8_MAX, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
+
+	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); return;}
 
 	unsigned char clr[131200];
 	const ssize_t rbytes = recv(sock, clr, 131200, MSG_WAITALL);
