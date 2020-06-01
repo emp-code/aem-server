@@ -34,7 +34,7 @@ static unsigned char storageKey[AEM_LEN_KEY_STO];
 struct aem_stindex {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	uint16_t msgCount;
-	uint32_t *msg;
+	uint32_t *msg; // (& 127) + 1: size; >> 7: position
 };
 
 static struct aem_stindex *stindex;
@@ -361,6 +361,18 @@ static bool peerOk(const int sock) {
 	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
+static void browse_infoBytes(const int stindexNum, unsigned char * const target) {
+	const uint16_t count = stindex[stindexNum].msgCount;
+
+	uint32_t kilos = 0;
+	for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
+		kilos += (stindex[stindexNum].msg[i] & 127) + 1;
+	}
+
+	memcpy(target, &count, 2);
+	memcpy(target + 2, &kilos, 3);
+}
+
 void takeConnections(void) {
 	umask(0077);
 
@@ -437,8 +449,10 @@ void takeConnections(void) {
 					}
 				}
 
-				unsigned char msgData[131200]; // 128 bytes + 128 KiB
-				bzero(msgData, 131200);
+				unsigned char msgData[131205]; // 128 bytes + 128 KiB + 5 bytes
+				bzero(msgData, 131205);
+
+				browse_infoBytes(stindexNum, msgData + sizeof(msgData) - 5);
 
 				int msgNum = 0;
 				int msgKib = 0;
@@ -470,7 +484,7 @@ void takeConnections(void) {
 					if (msgNum > 127) break;
 				}
 
-				if (send(sock, msgData, 131200, 0) != 131200) {syslog(LOG_ERR, "Failed send"); break;}
+				if (send(sock, msgData, 131205, 0) != 131205) {syslog(LOG_ERR, "Failed send"); break;}
 			}
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;

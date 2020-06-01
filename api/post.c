@@ -141,7 +141,7 @@ static void account_browse(void) {
 		"Expect-CT: enforce, max-age=99999999\r\n"
 		"Content-Length: 131240\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
+		"Cache-Control: no-store,      no-transform\r\n"
 		"Connection: Keep-Alive\r\n"
 		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
@@ -154,9 +154,9 @@ static void account_browse(void) {
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
-		"Padding-Ignore: abcdefghijk\r\n"
+		"Padding-Ignore: abcdefghijklmnop\r\n"
 		"\r\n"
-	, 281);
+	, 286);
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -166,13 +166,13 @@ static void account_browse(void) {
 	close(sock);
 
 	if (rbytes != 131200) {
-		syslog(LOG_WARNING, "Failed receiving data from Storage");
+		syslog(LOG_WARNING, "Failed receiving data from Account");
 		return;
 	}
 
-	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, upk, ssk) == 0)
-		lenResponse = 281 + 131240;
+	randombytes_buf(response + 286, crypto_box_NONCEBYTES);
+	if (crypto_box_easy(response + 286 + crypto_box_NONCEBYTES, clr, 131200, response + 286, upk, ssk) == 0)
+		lenResponse = 286 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + 131200;
 }
 
 static void account_create(void) {
@@ -374,7 +374,7 @@ static void message_browse(void) {
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131240\r\n"
+		"Content-Length: 131245\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: Keep-Alive\r\n"
@@ -385,7 +385,7 @@ static void message_browse(void) {
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131240\r\n"
+		"Content-Length: 131245\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
@@ -398,18 +398,18 @@ static void message_browse(void) {
 
 	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); return;}
 
-	unsigned char clr[131200];
-	const ssize_t rbytes = recv(sock, clr, 131200, MSG_WAITALL);
+	unsigned char clr[131205];
+	const ssize_t rbytes = recv(sock, clr, 131205, MSG_WAITALL);
 	close(sock);
 
-	if (rbytes != 131200) {
+	if (rbytes != 131205) {
 		syslog(LOG_WARNING, "Failed receiving data from Storage");
 		return;
 	}
 
 	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131200, response + 281, upk, ssk) == 0)
-		lenResponse = 281 + 131240;
+	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131205, response + 281, upk, ssk) == 0)
+		lenResponse = 281 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + 131205;
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
