@@ -34,7 +34,7 @@
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
-#define AEM_ADDRESSES_PER_USER 50
+#define AEM_ADDRESSES_PER_USER 50 // max 63
 #define AEM_LEN_SALT_NORM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SALT_SHLD crypto_shorthash_KEYBYTES
 #define AEM_LEN_SALT_FAKE crypto_generichash_KEYBYTES
@@ -55,7 +55,8 @@
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
 #define AEM_INTMSG_HEADERS_LEN 83
 
-#define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x0\x0\x0\x0\x0" // 'system' in Addr32
+#define AEM_ADDR32_ADMIN  (unsigned char*)"\xa6\xd0\x35\x0e\x75\x85\x68\x18" // 'administrator' in Addr32
+#define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x00\x00\x00\x00\x00" // 'system' in Addr32
 
 #define AEM_SOCKPATH_ACCOUNT "\0AEM_Acc"
 #define AEM_SOCKPATH_STORAGE "\0AEM_Sto"

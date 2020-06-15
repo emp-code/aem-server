@@ -17,9 +17,9 @@
 
 #include "../Global.h"
 
+#define AEM_ACCOUNT
 #define AEM_LOGNAME "AEM-Acc"
 
-#define AEM_ACCOUNT
 #define AEM_MAXLEN_PIPEREAD 65533 // 5041 hashes max
 #define AEM_MINLEN_PIPEREAD 8
 
@@ -372,6 +372,8 @@ static void api_address_create(const int sock, const int num) {
 
 	if (isShield) {
 		randombytes_buf(addr32, 10);
+		if (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) return; // Forbid addresses ending with 'administrator'
+
 		hash = addressToHash(addr32, true);
 		if (hash == 0) return;
 	} else if (len == 8) {
