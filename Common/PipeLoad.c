@@ -40,7 +40,12 @@ static int pipeLoadTls(const int fd) {
 	|| pipeRead(fd, &keyData, &keyLen) != 0
 	) return -1;
 
+#ifdef AEM_API
+	int ret = tlsSetup(crtData, crtLen, keyData, keyLen);
+	if (ret == 0) ret = tlsSetup_sendmail(crtData, crtLen, keyData, keyLen);
+#else
 	const int ret = tlsSetup(crtData, crtLen, keyData, keyLen);
+#endif
 
 	sodium_free(crtData);
 	sodium_free(keyData);

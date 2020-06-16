@@ -18,10 +18,11 @@ All-Ears consists of the following parts:
 1. [Manager](#aem-manager)
 2. [Account](#aem-account)
 3. [Storage](#aem-storage)
-4. [Web](#aem-web)
-5. [API](#aem-api)
-6. [MTA](#aem-mta)
-7. [Utilities](#utilities)
+4. [Enquiry](#aem-enquiry)
+5. [Web](#aem-web)
+6. [API](#aem-api)
+7. [MTA](#aem-mta)
+8. [Utilities](#utilities)
 
 General information:
 * [Users](#users)
@@ -62,6 +63,10 @@ Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted wit
 An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using the Stindex Key.
 
 With the current design, aem-storage is capable of storing up to 32 GiB of data, with individual messages being 1 to 128 KiB in size.
+
+## Enquiry ##
+
+aem-enquiry is a research assistant for API and MTA.
 
 ## Web ##
 
@@ -170,7 +175,7 @@ TLS:
 * TLS.key: The TLS private key
 
 Other:
-* Admin.adr: List of addresses registrable only by admins
+* Admin.adr: List of address hashes reserved for admins
 * index.html: The HTML file for the web interface
 
 ## Signals ##

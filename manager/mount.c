@@ -107,6 +107,10 @@ int createMount(const pid_t pid, const int type) {
 	|| dirMount(pid, "usr/lib64", "/usr/lib64") != 0
 	) return -1;
 
+	if ((type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_ENQUIRY) && (
+	   dirMount(pid, "ssl-certs", "/usr/share/ca-certificates/mozilla/") != 0
+	)) return -1;
+
 	const char *bin;
 
 	switch (type) {
@@ -115,6 +119,7 @@ int createMount(const pid_t pid, const int type) {
 		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
 		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
 		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
+		case AEM_PROCESSTYPE_ENQUIRY: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-enquiry", pid); bin = "/usr/bin/allears/aem-enquiry"; break;
 		default: return -1;
 	}
 

@@ -17,9 +17,11 @@
 
 #include "https.h"
 #include "post.h"
+#include "SendMail.h"
 
 #include "../Global.h"
 
+#define AEM_API
 #define AEM_LOGNAME "AEM-API"
 #define AEM_PORT AEM_PORT_API
 #define AEM_BACKLOG 25
@@ -41,6 +43,7 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	tlsFree();
+	tlsFree_sendmail();
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -58,6 +61,9 @@ static int pipeLoadPids(const int fd) {
 
 	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
 	setStoragePid(pid);
+
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
+	setEnquiryPid(pid);
 
 	return 0;
 }
@@ -78,6 +84,9 @@ static int pipeLoadKeys(const int fd) {
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
 	setAccessKey_storage(buf);
 
+	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
+	setAccessKey_enquiry(buf);
+
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }
@@ -97,5 +106,6 @@ int main(int argc, char *argv[]) {
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
 	tlsFree();
+	tlsFree_sendmail();
 	return EXIT_SUCCESS;
 }

@@ -4,11 +4,15 @@
 #include <sodium.h>
 
 void setApiKey(const unsigned char * const newKey);
+void setSignKey(const unsigned char * const seed);
+
 void setAccessKey_account(const unsigned char * const newKey);
 void setAccessKey_storage(const unsigned char * const newKey);
-void setSignKey(const unsigned char * const seed);
+void setAccessKey_enquiry(const unsigned char * const newKey);
+
 void setAccountPid(const pid_t pid);
 void setStoragePid(const pid_t pid);
+void setEnquiryPid(const pid_t pid);
 
 int aem_api_init(void);
 void aem_api_free(void);

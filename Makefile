@@ -1,13 +1,16 @@
 CC=gcc
 CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter -Wno-error=unused-variable
 
-all: aem-manager aem-account aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
+all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c -lsodium -lcap
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c -lsodium
+
+aem-enquiry: enquiry/*.c
+	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c -lsodium -lsodium -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c -lsodium
@@ -41,4 +44,4 @@ utils/Resgen: utils/Resgen.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
+	-rm aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen

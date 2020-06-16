@@ -33,7 +33,12 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char encrypted[lenEncrypted];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, (pid == pid_account) ? accessKey_account : accessKey_storage);
+
+	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
+	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
+#ifdef AEM_API
+	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_enquiry);
+#endif
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
 		syslog(LOG_ERR, "Failed sending data to %s", path);
@@ -51,3 +56,9 @@ static int accountSocket(const unsigned char command, const unsigned char * cons
 static int storageSocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }
+
+#ifdef AEM_API
+static int enquirySocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+	return getUnixSocket(AEM_SOCKPATH_ENQUIRY, pid_enquiry, command, msg, lenMsg);
+}
+#endif

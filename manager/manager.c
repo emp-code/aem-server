@@ -75,6 +75,7 @@ static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage_mta[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_enquiry_all[AEM_LEN_ACCESSKEY];
 
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_api[AEM_LEN_KEY_API];
@@ -106,8 +107,10 @@ static struct aem_process aemProc[3][AEM_MAXPROCESSES];
 
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
+static pid_t pid_enquiry = 0;
 static unsigned char *stack_account;
 static unsigned char *stack_storage;
+static unsigned char *stack_enquiry;
 
 static unsigned char encrypted[AEM_LEN_ENCRYPTED];
 static unsigned char decrypted[AEM_LEN_MSG];
@@ -139,6 +142,7 @@ void setAccessKeys(void) {
 	randombytes_buf(accessKey_account_mta, AEM_LEN_ACCESSKEY);
 	randombytes_buf(accessKey_storage_api, AEM_LEN_ACCESSKEY);
 	randombytes_buf(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
+	randombytes_buf(accessKey_enquiry_all, AEM_LEN_ACCESSKEY);
 }
 
 void wipeKeys(void) {
@@ -148,6 +152,7 @@ void wipeKeys(void) {
 	sodium_memzero(accessKey_account_mta, AEM_LEN_ACCESSKEY);
 	sodium_memzero(accessKey_storage_api, AEM_LEN_ACCESSKEY);
 	sodium_memzero(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
+	sodium_memzero(accessKey_enquiry_all, AEM_LEN_ACCESSKEY);
 
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
@@ -228,6 +233,12 @@ static void refreshPids(void) {
 		sodium_free(stack_storage);
 		pid_storage = 0;
 	}
+
+	if (pid_enquiry != 0 && !process_verify(pid_enquiry)) {
+		deleteMount(pid_enquiry);
+		sodium_free(stack_enquiry);
+		pid_enquiry = 0;
+	}
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
@@ -248,6 +259,7 @@ void killAll(int sig) {
 	} else {
 		if (pid_account > 0) kill(pid_account, SIGUSR2);
 		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
 	}
 
 	// Processes should have terminated after one second
@@ -263,6 +275,7 @@ void killAll(int sig) {
 
 		if (pid_account > 0) kill(pid_account, SIGUSR1);
 		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
+		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR1);
 
 		sleep(1);
 		refreshPids();
@@ -276,11 +289,14 @@ void killAll(int sig) {
 
 	if (pid_account > 0) kill(pid_account, SIGUSR2);
 	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+	if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
 
 	sleep(1);
 	refreshPids();
+
 	if (pid_account > 0) kill(pid_account, SIGKILL);
 	if (pid_storage > 0) kill(pid_storage, SIGKILL);
+	if (pid_enquiry > 0) kill(pid_enquiry, SIGKILL);
 
 	rmdir(AEM_CHROOT);
 	exit(EXIT_SUCCESS);
@@ -368,7 +384,7 @@ static int setCaps(const int type) {
 		&& cap_set_proc(caps) == 0
 		&& cap_free(caps) == 0
 		) ? 0 : -1;
-	} else if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) {
+	} else if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ENQUIRY) {
 		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 
 		// Allow changing SecureBits for the next part
@@ -403,6 +419,7 @@ static int setSubLimits(const int type) {
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; rlim.rlim_max = 5; break;
+		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; rlim.rlim_max = 15; break;
 
 		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
 		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
@@ -460,6 +477,7 @@ static int process_new(void *params) {
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/aem-account", newargv); break;
 		case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/aem-storage", newargv); break;
+		case AEM_PROCESSTYPE_ENQUIRY: execv("usr/bin/aem-enquiry", newargv); break;
 
 		case AEM_PROCESSTYPE_WEB: execv("usr/bin/aem-web", newargv); break;
 		case AEM_PROCESSTYPE_API: execv("usr/bin/aem-api", newargv); break;
@@ -493,6 +511,8 @@ static void process_spawn(const int type) {
 		stack_account = stack;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
 		stack_storage = stack;
+	} else if (type == AEM_PROCESSTYPE_ENQUIRY) {
+		stack_enquiry = stack;
 	}
 
 	int fd[2];
@@ -530,16 +550,24 @@ static void process_spawn(const int type) {
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
+		case AEM_PROCESSTYPE_ENQUIRY:
+			if (
+			   pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
+		break;
+
 		case AEM_PROCESSTYPE_API:
 			if (
 			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
 			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
 
 			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
 			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
@@ -577,6 +605,7 @@ static void process_spawn(const int type) {
 	}
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
 	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
+	else if (type == AEM_PROCESSTYPE_ENQUIRY) pid_enquiry = pid;
 
 }
 
@@ -673,6 +702,7 @@ int receiveConnections(void) {
 	setAccessKeys();
 	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
 	process_spawn(AEM_PROCESSTYPE_STORAGE);
+	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
 
 	sockMain = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}

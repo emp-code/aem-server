@@ -21,6 +21,8 @@
 #include "Include/Addr32.h"
 #include "Include/tls_common.h"
 
+#include "SendMail.h"
+
 #include "post.h"
 
 #define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
@@ -47,9 +49,11 @@ static unsigned char spk[crypto_box_SECRETKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
+static unsigned char accessKey_enquiry[AEM_LEN_ACCESSKEY];
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
+static pid_t pid_enquiry = 0;
 
 void setApiKey(const unsigned char * const newKey) {
 	memcpy(ssk, newKey, crypto_box_PUBLICKEYBYTES);
@@ -63,12 +67,14 @@ void setSignKey(const unsigned char * const seed) {
 
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
 void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
+void setAccessKey_enquiry(const unsigned char * const newKey) {memcpy(accessKey_enquiry, newKey, AEM_LEN_ACCESSKEY);}
 
 void setAccountPid(const pid_t pid) {pid_account = pid;}
 void setStoragePid(const pid_t pid) {pid_storage = pid;}
+void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
 
 int aem_api_init(void) {
-	if (pid_account == 0 || pid_storage == 0) return -1;
+	if (pid_account == 0 || pid_storage == 0 || pid_enquiry == 0) return -1;
 
 	decrypted = sodium_malloc(AEM_API_POST_SIZE);
 	return (decrypted != NULL) ? 0 : -1;
@@ -315,6 +321,9 @@ static void address_lookup(void) {
 
 	if (memchr(decrypted, '@', lenDecrypted) != NULL) {
 		// TODO: Email lookup
+		unsigned char zeroes[32];
+		bzero(zeroes, 32);
+		shortResponse(zeroes, 32);
 		return;
 	}
 
@@ -440,7 +449,56 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 
 #include "../Common/Message.c"
 
-static void message_create(void) {
+static void message_create_ext(void) {
+	// Address From
+	unsigned char *sep = memchr(decrypted + 1, '\n', lenDecrypted - 1);
+	if (sep == NULL) return;
+	const unsigned char * const addrFrom = decrypted + 1;
+	const size_t lenAddrFrom = sep - addrFrom;
+	if (lenAddrFrom < 1) return;
+	// TODO: Verify ownership of address
+
+	// Address To
+	const unsigned char * const addrTo = sep + 1;
+	sep = memchr(addrTo, '\n', (decrypted + lenDecrypted) - addrTo);
+	if (sep == NULL) return;
+	const size_t lenAddrTo = sep - addrTo;
+	if (lenAddrTo < 6) return; //a@b.cd
+
+	// Title
+	const unsigned char * const title = sep + 1;
+	sep = memchr(title, '\n', (decrypted + lenDecrypted) - title);
+	if (sep == NULL) return;
+	const size_t lenTitle = sep - title;
+	if (lenTitle < 3) return;
+
+	// Body
+	const unsigned char * const body = sep + 1;
+	const size_t lenBody = (decrypted + lenDecrypted) - body;
+	if (lenBody < 1) return;
+
+	// ToDomain
+	const unsigned char *toDomain = memchr(addrTo + 1, '@', lenAddrTo - 1);
+	if (toDomain == NULL) return;
+	toDomain++;
+	const size_t lenToDomain = (addrTo + lenAddrTo) - toDomain;
+	if (lenToDomain < 4) return; // a.bc
+
+	const int sock = enquirySocket(AEM_DNS_LOOKUP, toDomain, lenToDomain);
+	if (sock < 0) return;
+
+	uint32_t ip = 0;
+	recv(sock, &ip, 4, 0);
+	close(sock);
+	if (ip == 0) {
+		syslog(LOG_ERR, "DNS lookup failed");
+		return;
+	}
+
+	sendMail(ip, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+}
+
+static void message_create_int(void) {
 	const unsigned char * const fromAddr32 = decrypted;
 	const unsigned char * const toAddr32   = decrypted + 10;
 	const unsigned char * const toPubkey   = decrypted + 20;
@@ -492,6 +550,11 @@ static void message_create(void) {
 	}
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
+}
+
+static void message_create(void) {
+	// 'x' is 01111000 in ASCII. Addr32 understands this as a length of 16, which is higher than the maximum 15.
+	return (decrypted[0] == 'x') ? message_create_ext() : message_create_int();
 }
 
 static void message_delete(void) {
