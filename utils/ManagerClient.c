@@ -39,7 +39,8 @@ static int makeSocket(const char * const host) {
 	}
 
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	connect(sock, res->ai_addr, res->ai_addrlen);
+	if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {free(res); return -1;}
+
 	free(res);
 	return sock;
 }
