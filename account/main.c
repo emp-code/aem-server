@@ -517,11 +517,6 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
-static void api_internal_exist(const int sock) {
-	const unsigned char one = 1;
-	send(sock, &one, 1, 0);
-}
-
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	const uint64_t hash = addressToHash(addr32, isShield);
 	if (hash == 0) return;
@@ -597,7 +592,7 @@ static int takeConnections(void) {
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 
 				// Internal functions
-				case AEM_API_INTERNAL_EXIST: api_internal_exist(sockClient); break;
+				case AEM_API_INTERNAL_EXIST: send(sockClient, "\x01", 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 
 				//default: // Invalid

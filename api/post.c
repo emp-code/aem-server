@@ -636,7 +636,7 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	unsigned char resp;
 	recv(sock, &resp, 1, 0);
 	close(sock);
-	return (resp == 1) ? 0 : -1;
+	return (resp == '\x01') ? 0 : -1;
 }
 
 __attribute__((warn_unused_result))
