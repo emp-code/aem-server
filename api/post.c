@@ -45,7 +45,7 @@ static int lenResponse = AEM_API_ERROR;
 static unsigned char *decrypted;
 static uint16_t lenDecrypted;
 
-static unsigned char spk[crypto_box_SECRETKEYBYTES];
+static unsigned char spk[crypto_box_PUBLICKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
