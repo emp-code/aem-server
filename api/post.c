@@ -495,7 +495,8 @@ static void message_create_ext(void) {
 		return;
 	}
 
-	sendMail(ip, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	if (sendMail(ip, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody) == 0)
+		shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void message_create_int(void) {
