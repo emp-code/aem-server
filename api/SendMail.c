@@ -186,7 +186,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 
 	const time_t msgTime = ts - 1 - randombytes_uniform(15);
 	struct tm ourTime;
-	localtime_r(&msgTime, &ourTime);
+	if (localtime_r(&msgTime, &ourTime) == NULL) return NULL;
 	char rfctime[64];
 	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
