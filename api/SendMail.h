@@ -20,6 +20,9 @@
 #define AEM_SENDMAIL_ERR_SEND_STARTTLS -120
 #define AEM_SENDMAIL_ERR_RECV_STARTTLS -120
 
+void setDkimAdm(const unsigned char * const seed);
+void setDkimUsr(const unsigned char * const seed);
+
 int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree_sendmail(void);
 

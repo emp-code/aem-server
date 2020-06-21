@@ -1,4 +1,4 @@
-#define _GNU_SOURCE // for strcasestr
+#define _GNU_SOURCE // for memmem
 
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -12,6 +12,7 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h>
+#include <mbedtls/sha256.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509.h>
 
@@ -37,6 +38,19 @@ static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt cacert;
+
+static unsigned char dkim_adm_skey[crypto_sign_SECRETKEYBYTES];
+static unsigned char dkim_usr_skey[crypto_sign_SECRETKEYBYTES];
+
+void setDkimAdm(const unsigned char * const seed) {
+	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
+	crypto_sign_seed_keypair(tmp, dkim_adm_skey, seed);
+}
+
+void setDkimUsr(const unsigned char * const seed) {
+	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
+	crypto_sign_seed_keypair(tmp, dkim_usr_skey, seed);
+}
 
 __attribute__((warn_unused_result))
 static int getDomainFromCert(void) {
@@ -106,15 +120,15 @@ int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, 
 	if (mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/")) {syslog(LOG_ERR, "ssl-certs"); return -1;}
 	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) return -1;
 
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
+//	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
 	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
-	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
-	mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
-	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
+//	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
+//	mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
+//	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
+//	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %x", -ret); return -1;}
@@ -139,25 +153,96 @@ static int makeSocket(const uint32_t ip) {
 }
 
 static char *createEmail(const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
-	char msgId[32];
-	randombytes_buf(msgId, 32);
+	unsigned char body2[lenBody + 2000];
 
-	char *email = sodium_malloc(1000 + lenTitle + lenBody);
+	size_t lenBody2 = 0;
+	for (size_t copied = 0; copied < lenBody; copied++) {
+		if (body[copied] == '\n' && (copied < 1 || body[copied - 1] != '\r')) {
+			body2[lenBody2] = '\r';
+			lenBody2++;
+		}
+
+		body2[lenBody2] = body[copied];
+		lenBody2++;
+		if (lenBody2 > lenBody + 1950) return NULL;
+	}
+
+	body2[lenBody2] = '\r';
+	body2[lenBody2 + 1] = '\n';
+	lenBody2 += 2;
+
+	unsigned char bodyHash[32];
+	if (mbedtls_sha256_ret(body2, lenBody2, bodyHash, 0) != 0) return NULL;
+
+	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
+
+	unsigned char msgIdBin[24];
+	randombytes_buf(msgIdBin, 24);
+	char msgId[33];
+	sodium_bin2base64(msgId, 33, msgIdBin, 24, sodium_base64_VARIANT_URLSAFE);
+
+	const uint32_t ts = (uint32_t)time(NULL);
+
+// Wed, 17 Jun 2020 08:30:21 +0000 (UTC)
+	const time_t msgTime = ts - 1 - randombytes_uniform(15);
+	struct tm *ourTime = localtime(&msgTime);
+	char rfctime[64];
+	strftime(rfctime, 64, "%a, %d %b %Y %T %z", ourTime);
+
+// header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
+	char *email = sodium_malloc(1000 + lenTitle + lenBody2);
+	if (email == NULL) return NULL;
+	bzero(email, 1000 + lenTitle + lenBody2);
+
 	sprintf(email,
-		"From: <%.*s>\r\n"
+		"From: <%.*s@%.*s>\r\n"
 		"To: <%.*s>\r\n"
 		"Subject: %.*s\r\n"
-		"Date: \r\n"
-		"Message-ID: <%32s@%.*s>\r\n"
-		"\r\n"
-		"%.*s"
-		"\r\n"
-		"."
-		"\r\n"
-	, (int)lenAddrFrom, addrFrom
+		"Date: %s\r\n"
+		"Message-ID: <%s@%.*s>\r\n"
+		"DKIM-Signature: "
+			"v=1;"
+			"a=ed25519-sha256;"
+			"c=simple/simple;"
+			"d=%.*s;"
+			"i=@%.*s;"
+			"q=dns/txt;"
+			"s=admin;"
+			"t=%u;"
+			"x=%u;"
+			"h=from:to:subject:date:message-id;"
+			"bh=%s;"
+			"b="
+	, (int)lenAddrFrom, addrFrom, (int)lenDomain, domain
 	, (int)lenAddrTo, addrTo
 	, (int)lenTitle, title
-	, msgId, (int)lenDomain, domain, (int)lenBody, body);
+	, rfctime
+	, msgId, (int)lenDomain, domain
+	, (int)lenDomain, domain //d=
+	, (int)lenDomain, domain //i=
+	, ts // t=
+	, ts + 86400 // expire after a day
+	, bodyHashB64
+	);
+
+	unsigned char headHash[32];
+	if (mbedtls_sha256_ret((unsigned char*)email, strlen(email), headHash, 0) != 0) {sodium_free(email); return NULL;}
+
+	unsigned char sig[crypto_sign_BYTES];
+	crypto_sign_detached(sig, NULL, headHash, 32, dkim_adm_skey);
+
+	char sigB64[sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1];
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1, sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
+
+	strcpy(email + strlen(email), sigB64);
+	const size_t lenMsg = strlen(email) + 2;
+	memcpy(email + strlen(email), "\r\n", 2);
+	char *dkim = strstr(email, "\nDKIM-Signature:");
+	memmove(email + strlen(email), email, dkim - email); // Move headers after dkim-sig
+	memmove(email, dkim + 1, strlen(dkim + 1)); // Move everything back to the beginning
+
+	sprintf(email + lenMsg, "\r\n%.*s\r\n.\r\n", (int)lenBody2, body2);
 
 	return email;
 }
@@ -211,8 +296,7 @@ int sendMail(const uint32_t ip, const unsigned char * const addrFrom, const size
 	ssize_t len = smtp_recv(sock, buf, 1024);
 	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
 
-	buf[len] = '\0';
-	if (strcasestr(buf, "STARTTLS") != NULL) {
+	if (memmem(buf, len, "STARTTLS", 8) != NULL) {
 		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_STARTTLS;}
 
 		len = smtp_recv(sock, buf, 1024);
@@ -224,24 +308,23 @@ int sendMail(const uint32_t ip, const unsigned char * const addrFrom, const size
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
+				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", ret);
 				closeTls(sock);
 				return -1;
 			}
 		}
 
+		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
+		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert");} //closeTls(sock); return -1;}
+
 		useTls = true;
 
-		char buf[1024];
 		sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
 		if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
 
 		len = smtp_recv(sock, buf, 1024);
 		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
 	}
-
-	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-	if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return -1;}
 
 	// From
 	sprintf(buf, "MAIL FROM: <%.*s@%.*s>\r\n", (int)lenAddrFrom, addrFrom, (int)lenDomain, domain);
@@ -256,22 +339,22 @@ int sendMail(const uint32_t ip, const unsigned char * const addrFrom, const size
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_RCPT;} 
 
 	// Data
-	if (smtp_send(sock, "DATA", 4) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_DATA;}
+	if (smtp_send(sock, "DATA\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_DATA;}
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
 	char *msg = createEmail(addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	if (msg == NULL) {closeTls(sock); return -1;}
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);
 
 	len = smtp_recv(sock, buf, 128);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_BODY;} 
+	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_BODY;}
 
 	// Quit
-	if (smtp_send(sock, "QUIT", 4) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_QUIT;}
+	if (smtp_send(sock, "QUIT\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_QUIT;}
 	len = smtp_recv(sock, buf, 128);
-	if (len < 4 || memcmp(buf, "221 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_QUIT;} 
-
 	closeTls(sock);
-	return 0;
+
+	return (len > 3 || memcmp(buf, "221 ", 4) == 0) ? 0 : AEM_SENDMAIL_ERR_RECV_QUIT;
 }

@@ -16,6 +16,9 @@
 #define AEM_PATH_KEY_STI "Stindex.key"
 #define AEM_PATH_KEY_STO "Storage.key"
 
+#define AEM_PATH_DKI_ADM "Admin.dkim"
+#define AEM_PATH_DKI_USR "Users.dkim"
+
 #define AEM_PATH_SLT_NRM "Normal.slt"
 #define AEM_PATH_SLT_SHD "Shield.slt"
 #define AEM_PATH_SLT_FKE "Fake.slt"
@@ -82,6 +85,9 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, true);
 	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI, false);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, false);
+
+	writeRandomEncrypted(AEM_PATH_DKI_ADM, AEM_LEN_KEY_DKI, true);
+	writeRandomEncrypted(AEM_PATH_DKI_USR, AEM_LEN_KEY_DKI, true);
 
 	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM, true);
 	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD, false);

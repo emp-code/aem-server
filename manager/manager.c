@@ -20,7 +20,6 @@
 #include <pwd.h>
 #include <sched.h>
 #include <signal.h>
-#include <sodium.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +31,8 @@
 #include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
+
+#include <sodium.h>
 
 #include "../Global.h"
 
@@ -55,6 +56,9 @@
 #define AEM_PATH_KEY_SIG AEM_PATH_CONF"/Signing.key"
 #define AEM_PATH_KEY_STI AEM_PATH_CONF"/Stindex.key"
 #define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
+
+#define AEM_PATH_DKI_ADM AEM_PATH_CONF"/Admin.dkim"
+#define AEM_PATH_DKI_USR AEM_PATH_CONF"/Users.dkim"
 
 #define AEM_PATH_SLT_NRM AEM_PATH_CONF"/Normal.slt"
 #define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
@@ -83,6 +87,9 @@ static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_sig[AEM_LEN_KEY_SIG];
 static unsigned char key_sti[AEM_LEN_KEY_STI];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
+
+static unsigned char dki_adm[AEM_LEN_KEY_DKI];
+static unsigned char dki_usr[AEM_LEN_KEY_DKI];
 
 static unsigned char slt_nrm[AEM_LEN_SALT_NORM];
 static unsigned char slt_shd[AEM_LEN_SALT_SHLD];
@@ -343,6 +350,9 @@ int loadFiles(void) {
 	&& loadFile(AEM_PATH_KEY_STI, key_sti, NULL, AEM_LEN_KEY_STI, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
 
+	&& loadFile(AEM_PATH_DKI_ADM, dki_adm, NULL, AEM_LEN_KEY_DKI, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_DKI_USR, dki_usr, NULL, AEM_LEN_KEY_DKI, AEM_LEN_FILE_MAX) == 0
+
 	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_NORM, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_SHLD, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE, AEM_LEN_FILE_MAX) == 0
@@ -564,6 +574,9 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
 			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
+
+			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
+			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
 
 			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
