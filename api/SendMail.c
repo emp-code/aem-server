@@ -185,9 +185,10 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	const time_t msgTime = ts - 1 - randombytes_uniform(15);
-	struct tm *ourTime = localtime(&msgTime);
+	struct tm ourTime;
+	localtime_r(&msgTime, &ourTime);
 	char rfctime[64];
-	strftime(rfctime, 64, "%a, %d %b %Y %T %z", ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
+	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
 	char *email = sodium_malloc(1000 + lenTitle + lenBody2);
