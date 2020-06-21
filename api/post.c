@@ -55,12 +55,11 @@ static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
 static pid_t pid_enquiry = 0;
 
-void setApiKey(const unsigned char * const newKey) {
-	memcpy(ssk, newKey, crypto_box_PUBLICKEYBYTES);
-	crypto_scalarmult_base(spk, ssk);
+void setApiKey(const unsigned char * const seed) {
+	crypto_box_seed_keypair(spk, ssk, seed);
 }
 
-void setSignKey(const unsigned char * const seed) {
+void setSigKey(const unsigned char * const seed) {
 	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
 	crypto_sign_seed_keypair(tmp, sign_skey, seed);
 }

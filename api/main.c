@@ -76,7 +76,7 @@ static int pipeLoadKeys(const int fd) {
 	setApiKey(buf);
 
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
-	setSignKey(buf);
+	setSigKey(buf);
 
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_DKI) return -1;
 	setDkimAdm(buf);

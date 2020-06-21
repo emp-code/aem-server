@@ -3,8 +3,8 @@
 
 #include <sodium.h>
 
-void setApiKey(const unsigned char * const newKey);
-void setSignKey(const unsigned char * const seed);
+void setApiKey(const unsigned char * const seed);
+void setSigKey(const unsigned char * const seed);
 
 void setAccessKey_account(const unsigned char * const newKey);
 void setAccessKey_storage(const unsigned char * const newKey);
