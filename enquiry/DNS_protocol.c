@@ -166,8 +166,8 @@ static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset
 		if (offset < 1) {syslog(LOG_ERR, "os=%d", offset); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (memcmp(msg + offset + 0, "\x00\x0F", 2) != 0) {syslog(LOG_ERR, "Non_MX"); return 0;} // Non-MX record
-		if (memcmp(msg + offset + 2, "\x00\x01", 2) != 0) {syslog(LOG_ERR, "Non_IN"); return 0;} // Non-Internet class
+		if (memcmp(msg + offset + 0, "\x00\x0F", 2) != 0) {syslog(LOG_ERR, "Non_MX"); return -1;} // Non-MX record
+		if (memcmp(msg + offset + 2, "\x00\x01", 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
 		// +4 TTL (32 bits) ignored
 
 		uint16_t mxLen;
