@@ -152,7 +152,7 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
-static char *createEmail(const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+static char *createEmail(const int userLevel, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	unsigned char body2[lenBody + 2000];
 
 	size_t lenBody2 = 0;
@@ -184,11 +184,10 @@ static char *createEmail(const unsigned char * const addrFrom, const size_t lenA
 
 	const uint32_t ts = (uint32_t)time(NULL);
 
-// Wed, 17 Jun 2020 08:30:21 +0000 (UTC)
 	const time_t msgTime = ts - 1 - randombytes_uniform(15);
 	struct tm *ourTime = localtime(&msgTime);
 	char rfctime[64];
-	strftime(rfctime, 64, "%a, %d %b %Y %T %z", ourTime);
+	strftime(rfctime, 64, "%a, %d %b %Y %T %z", ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
 	char *email = sodium_malloc(1000 + lenTitle + lenBody2);
@@ -208,7 +207,7 @@ static char *createEmail(const unsigned char * const addrFrom, const size_t lenA
 			"d=%.*s;"
 			"i=@%.*s;"
 			"q=dns/txt;"
-			"s=admin;"
+			"s=%s;"
 			"t=%u;"
 			"x=%u;"
 			"h=from:to:subject:date:message-id;"
@@ -221,6 +220,7 @@ static char *createEmail(const unsigned char * const addrFrom, const size_t lenA
 	, msgId, (int)lenDomain, domain
 	, (int)lenDomain, domain //d=
 	, (int)lenDomain, domain //i=
+	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
 	, ts // t=
 	, ts + 86400 // expire after a day
 	, bodyHashB64
@@ -230,7 +230,7 @@ static char *createEmail(const unsigned char * const addrFrom, const size_t lenA
 	if (mbedtls_sha256_ret((unsigned char*)email, strlen(email), headHash, 0) != 0) {sodium_free(email); return NULL;}
 
 	unsigned char sig[crypto_sign_BYTES];
-	crypto_sign_detached(sig, NULL, headHash, 32, dkim_adm_skey);
+	crypto_sign_detached(sig, NULL, headHash, 32, (userLevel == AEM_USERLEVEL_MAX) ? dkim_adm_skey : dkim_usr_skey);
 
 	char sigB64[sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1, sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
@@ -280,7 +280,7 @@ static void closeTls(const int sock) {
 	close(sock);
 }
 
-int sendMail(const uint32_t ip, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+int sendMail(const uint32_t ip, const int userLevel, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	int sock = makeSocket(ip);
 	if (sock < 1) return -1;
 	useTls = false;
@@ -343,7 +343,7 @@ int sendMail(const uint32_t ip, const unsigned char * const addrFrom, const size
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
-	char *msg = createEmail(addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	char *msg = createEmail(userLevel, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
 	if (msg == NULL) {closeTls(sock); return -1;}
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);

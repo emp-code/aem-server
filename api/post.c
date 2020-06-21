@@ -450,7 +450,8 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 #include "../Common/Message.c"
 
 static void message_create_ext(void) {
-	if ((getUserLevel(upk) & 3) < AEM_MINLEVEL_SENDEMAIL) return;
+	const int userLevel = getUserLevel(upk);
+	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
 
 	// Address From
 	unsigned char *sep = memchr(decrypted + 1, '\n', lenDecrypted - 1);
@@ -497,7 +498,7 @@ static void message_create_ext(void) {
 		return;
 	}
 
-	if (sendMail(ip, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody) == 0)
+	if (sendMail(ip, userLevel, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody) == 0)
 		shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
