@@ -38,6 +38,8 @@
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
 #define AEM_ADDRESSES_PER_USER 50 // max 63
+#define AEM_MINLEVEL_SENDEMAIL 2
+
 #define AEM_LEN_SALT_NORM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SALT_SHLD crypto_shorthash_KEYBYTES
 #define AEM_LEN_SALT_FAKE crypto_generichash_KEYBYTES
