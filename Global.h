@@ -32,7 +32,7 @@
 #define AEM_LEN_KEY_SIG crypto_sign_SEEDBYTES
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32 // AES-256
-#define AEM_LEN_KEY_DKI crypto_sign_SEEDBYTES
+#define AEM_LEN_KEY_DKI 2048 //crypto_sign_SEEDBYTES // RSA/EdDSA
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864

@@ -39,17 +39,19 @@ static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt cacert;
 
-static unsigned char dkim_adm_skey[crypto_sign_SECRETKEYBYTES];
-static unsigned char dkim_usr_skey[crypto_sign_SECRETKEYBYTES];
+static unsigned char dkim_adm_skey[AEM_LEN_KEY_DKI];
+static unsigned char dkim_usr_skey[AEM_LEN_KEY_DKI];
 
-void setDkimAdm(const unsigned char * const seed) {
-	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
-	crypto_sign_seed_keypair(tmp, dkim_adm_skey, seed);
+// EdDSA
+//	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
+//	crypto_sign_seed_keypair(tmp, dkim_adm_skey, seed);
+
+void setDkimAdm(const unsigned char * const new) {
+	memcpy(dkim_adm_skey, new, AEM_LEN_KEY_DKI);
 }
 
-void setDkimUsr(const unsigned char * const seed) {
-	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
-	crypto_sign_seed_keypair(tmp, dkim_usr_skey, seed);
+void setDkimUsr(const unsigned char * const new) {
+	memcpy(dkim_usr_skey, new, AEM_LEN_KEY_DKI);
 }
 
 __attribute__((warn_unused_result))
@@ -152,6 +154,24 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
+static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)]) {
+	mbedtls_pk_context pk;
+	mbedtls_pk_init(&pk);
+
+	int ret = mbedtls_pk_parse_key(&pk, dkim_adm_skey, strlen((char*)dkim_adm_skey) + 1, NULL, 0);
+	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %d", ret); mbedtls_pk_free(&pk); return -1;}
+
+	// Calculate the signature of the hash
+	unsigned char sig[256];
+	size_t olen;
+	ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, sig, &olen, mbedtls_ctr_drbg_random, &ctr_drbg);
+	mbedtls_pk_free(&pk);
+	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %d", ret); return -1;}
+
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
+	return 0;
+}
+
 static char *createEmail(const int userLevel, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	unsigned char body2[lenBody + 2000];
 
@@ -203,7 +223,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 		"Message-ID: <%s@%.*s>\r\n"
 		"DKIM-Signature:"
 			" v=1;"
-			" a=ed25519-sha256;"
+			" a=rsa-sha256;" //ed25519-sha256
 			" c=simple/simple;"
 			" d=%.*s;"
 			" i=@%.*s;"
@@ -230,11 +250,18 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 	unsigned char headHash[32];
 	if (mbedtls_sha256_ret((unsigned char*)email, strlen(email), headHash, 0) != 0) {sodium_free(email); return NULL;}
 
+// RSA
+	char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)];
+	if (rsa_sign_b64(headHash, sigB64) != 0) {sodium_free(email); return NULL;}
+
+// EdDSA
+/*
 	unsigned char sig[crypto_sign_BYTES];
 	crypto_sign_detached(sig, NULL, headHash, 32, (userLevel == AEM_USERLEVEL_MAX) ? dkim_adm_skey : dkim_usr_skey);
 
-	char sigB64[sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1];
-	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1, sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
+	char sigB64[sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL)];
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL), sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
+*/
 
 	strcpy(email + strlen(email), sigB64);
 	const size_t lenMsg = strlen(email) + 2;
