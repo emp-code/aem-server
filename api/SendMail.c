@@ -154,11 +154,11 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
-static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)]) {
+static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)], const bool isAdmin) {
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
 
-	int ret = mbedtls_pk_parse_key(&pk, dkim_adm_skey, strlen((char*)dkim_adm_skey) + 1, NULL, 0);
+	int ret = mbedtls_pk_parse_key(&pk, isAdmin? dkim_adm_skey : dkim_usr_skey, 1 + strlen((char*)(isAdmin? dkim_adm_skey : dkim_usr_skey)), NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %d", ret); mbedtls_pk_free(&pk); return -1;}
 
 	// Calculate the signature of the hash
@@ -252,7 +252,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 
 // RSA
 	char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)];
-	if (rsa_sign_b64(headHash, sigB64) != 0) {sodium_free(email); return NULL;}
+	if (rsa_sign_b64(headHash, sigB64, (userLevel == AEM_USERLEVEL_MAX)) != 0) {sodium_free(email); return NULL;}
 
 // EdDSA
 /*
