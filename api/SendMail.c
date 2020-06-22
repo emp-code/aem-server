@@ -216,8 +216,8 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 	bzero(email, 1000 + lenTitle + lenBody2);
 
 	sprintf(email,
-		"From: <%.*s@%.*s>\r\n"
-		"To: <%.*s>\r\n"
+		"From: %.*s@%.*s\r\n"
+		"To: %.*s\r\n"
 		"Subject: %.*s\r\n"
 		"Date: %s\r\n"
 		"Message-ID: <%s@%.*s>\r\n"
