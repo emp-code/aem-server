@@ -224,12 +224,12 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 	} else ref[0] = '\0';
 
 	sprintf(email,
+		"%s" // Reply headers
 		"From: %.*s@%.*s\r\n"
-		"To: %.*s\r\n"
-		"Subject: %.*s\r\n"
 		"Date: %s\r\n"
 		"Message-ID: <%s@%.*s>\r\n"
-		"%s" // Reply headers
+		"Subject: %.*s\r\n"
+		"To: %.*s\r\n"
 		"DKIM-Signature:"
 			" v=1;"
 			" a=rsa-sha256;" //ed25519-sha256
@@ -243,12 +243,12 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 			" h=from:to:subject:date:message-id:references:in-reply-to;"
 			" bh=%s;"
 			" b="
+	, ref
 	, (int)lenAddrFrom, addrFrom, (int)lenDomain, domain
-	, (int)lenAddrTo, addrTo
-	, (int)lenTitle, title
 	, rfctime
 	, msgId, (int)lenDomain, domain
-	, ref
+	, (int)lenTitle, title
+	, (int)lenAddrTo, addrTo
 	, (int)lenDomain, domain //d=
 	, (int)lenDomain, domain //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
