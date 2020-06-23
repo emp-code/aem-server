@@ -448,6 +448,23 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 
 #include "../Common/Message.c"
 
+static int toAddr32(unsigned char target[10], const char * const src, const size_t lenSrc, bool * const isShield) {
+	char addr[16];
+	size_t lenAddr = 0;
+
+	for (size_t i = 0; i < lenSrc; i++) {
+		if (isalnum(src[i])) {
+			if (lenAddr >= 16) return -1; // Over 16 alphanumerics
+			addr[lenAddr] = src[i];
+			lenAddr++;
+		}
+	}
+
+	*isShield = (lenAddr == 16);
+	addr32_store(target, addr, lenAddr);
+	return 0;
+}
+
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
 	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
@@ -458,7 +475,10 @@ static void message_create_ext(void) {
 	const unsigned char * const addrFrom = decrypted + 1;
 	const size_t lenAddrFrom = sep - addrFrom;
 	if (lenAddrFrom < 1) return;
-	// TODO: Verify ownership of address
+	unsigned char addrFrom32[10];
+	bool fromShield = false;
+	if (toAddr32(addrFrom32, (char*)addrFrom, lenAddrFrom, &fromShield) != 0) return;
+	if (!addr32OwnedByPubkey(upk, addrFrom32, fromShield)) return;
 
 	// Address To
 	const unsigned char * const addrTo = sep + 1;
