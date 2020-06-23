@@ -240,7 +240,7 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 			" s=%s;"
 			" t=%u;"
 			" x=%u;"
-			" h=from:to:subject:date:message-id:references:in-reply-to;"
+			" h=references:in-reply-to:from:date:message-id:subject:to;"
 			" bh=%s;"
 			" b="
 	, ref
