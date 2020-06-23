@@ -467,6 +467,16 @@ static void message_create_ext(void) {
 	const size_t lenAddrTo = sep - addrTo;
 	if (lenAddrTo < 6) return; //a@b.cd
 
+	// ReplyID
+	const unsigned char *replyId = sep + 1;
+	sep = memchr(replyId, '\n', (decrypted + lenDecrypted) - replyId);
+	if (sep == NULL) return;
+	size_t lenReplyId = sep - replyId;
+	if (lenReplyId < 6) {
+		lenReplyId = 0;
+		replyId = NULL;
+	}
+
 	// Title
 	const unsigned char * const title = sep + 1;
 	sep = memchr(title, '\n', (decrypted + lenDecrypted) - title);
@@ -497,7 +507,7 @@ static void message_create_ext(void) {
 		return;
 	}
 
-	if (sendMail(ip, userLevel, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody) == 0)
+	if (sendMail(ip, userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody) == 0)
 		shortResponse(NULL, AEM_API_NOCONTENT);
 }
 

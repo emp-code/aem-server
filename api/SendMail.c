@@ -172,7 +172,7 @@ static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_
 	return 0;
 }
 
-static char *createEmail(const int userLevel, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+static char *createEmail(const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	unsigned char body2[lenBody + 2000];
 
 	size_t lenBody2 = 0;
@@ -211,9 +211,17 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
-	char *email = sodium_malloc(1000 + lenTitle + lenBody2);
+	char *email = sodium_malloc(2000 + lenTitle + lenBody2);
 	if (email == NULL) return NULL;
-	bzero(email, 1000 + lenTitle + lenBody2);
+	bzero(email, 2000 + lenTitle + lenBody2);
+
+	char ref[1000];
+	if (replyId != NULL && lenReplyId > 5) { // a@b.cd
+		sprintf(ref,
+			"References: <%.*s>\r\n"
+			"In-Reply-To: <%.*s>\r\n"
+		, (int)lenReplyId, replyId, (int)lenReplyId, replyId);
+	} else ref[0] = '\0';
 
 	sprintf(email,
 		"From: %.*s@%.*s\r\n"
@@ -221,6 +229,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 		"Subject: %.*s\r\n"
 		"Date: %s\r\n"
 		"Message-ID: <%s@%.*s>\r\n"
+		"%s" // Reply headers
 		"DKIM-Signature:"
 			" v=1;"
 			" a=rsa-sha256;" //ed25519-sha256
@@ -231,7 +240,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 			" s=%s;"
 			" t=%u;"
 			" x=%u;"
-			" h=from:to:subject:date:message-id;"
+			" h=from:to:subject:date:message-id:references:in-reply-to;"
 			" bh=%s;"
 			" b="
 	, (int)lenAddrFrom, addrFrom, (int)lenDomain, domain
@@ -239,6 +248,7 @@ static char *createEmail(const int userLevel, const unsigned char * const addrFr
 	, (int)lenTitle, title
 	, rfctime
 	, msgId, (int)lenDomain, domain
+	, ref
 	, (int)lenDomain, domain //d=
 	, (int)lenDomain, domain //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
@@ -308,7 +318,7 @@ static void closeTls(const int sock) {
 	close(sock);
 }
 
-int sendMail(const uint32_t ip, const int userLevel, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+int sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	int sock = makeSocket(ip);
 	if (sock < 1) return -1;
 	useTls = false;
@@ -371,7 +381,7 @@ int sendMail(const uint32_t ip, const int userLevel, const unsigned char * const
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
-	char *msg = createEmail(userLevel, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	char *msg = createEmail(userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
 	if (msg == NULL) {closeTls(sock); return -1;}
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);
