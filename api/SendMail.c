@@ -319,7 +319,7 @@ static void closeTls(const int sock) {
 }
 
 static int getAddrDomain(char * const target, const unsigned char * const addr, const size_t lenAddr) {
-	if (target == NULL || addr == NULL || lenAddr < 4) return -1;
+	if (target == NULL || addr == NULL || lenAddr < 6) return -1; // x@a.bc
 
 	const unsigned char *dom = memchr(addr + 1, '@', lenAddr - 1);
 	if (dom == NULL) return -1;
