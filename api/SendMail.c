@@ -124,13 +124,13 @@ int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, 
 
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-//	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
+	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
 	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
-//	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
-//	mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
-//	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
+	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
+	mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
+	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-//	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
+	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %x", -ret); return -1;}
@@ -353,7 +353,7 @@ int sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyI
 		}
 
 		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert");} //closeTls(sock); return -1;}
+		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return -1;}
 
 		useTls = true;
 
