@@ -97,6 +97,8 @@ static void userViolation(const int violation) {
 }
 
 static void shortResponse(const unsigned char * const data, const int len) {
+	if (len != AEM_API_ERROR && (len < 0 || len > 32)) return;
+
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
