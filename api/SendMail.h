@@ -18,7 +18,7 @@
 #define AEM_SENDMAIL_ERR_SEND_QUIT -111
 #define AEM_SENDMAIL_ERR_RECV_QUIT -112
 #define AEM_SENDMAIL_ERR_SEND_STARTTLS -120
-#define AEM_SENDMAIL_ERR_RECV_STARTTLS -120
+#define AEM_SENDMAIL_ERR_RECV_STARTTLS -121
 
 void setDkimAdm(const unsigned char * const seed);
 void setDkimUsr(const unsigned char * const seed);
