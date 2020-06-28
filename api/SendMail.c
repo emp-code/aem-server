@@ -318,6 +318,20 @@ static void closeTls(const int sock) {
 	close(sock);
 }
 
+static int getAddrDomain(char * const target, const unsigned char * const addr, const size_t lenAddr) {
+	if (target == NULL || addr == NULL || lenAddr < 4) return -1;
+
+	const unsigned char *dom = memchr(addr + 1, '@', lenAddr - 1);
+	if (dom == NULL) return -1;
+	dom++;
+
+	const size_t lenDom = (addr + lenAddr) - dom;
+	memcpy(target, dom, lenDom);
+	target[lenDom] = '\0';
+
+	return (lenDom >= 4) ? 0 : -1; // a.bc
+}
+
 int sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	int sock = makeSocket(ip);
 	if (sock < 1) return -1;
@@ -340,7 +354,10 @@ int sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyI
 		len = smtp_recv(sock, buf, 1024);
 		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STARTTLS;}
 
-//		mbedtls_ssl_set_hostname(&ssl, "");
+		char toDomain[lenAddrTo];
+		if (getAddrDomain(toDomain, addrTo, lenAddrTo) != 0) {close(sock); return -1;}
+		mbedtls_ssl_set_hostname(&ssl, toDomain);
+
 		mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 		int ret;
