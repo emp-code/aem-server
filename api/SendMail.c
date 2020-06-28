@@ -332,7 +332,13 @@ static int getAddrDomain(char * const target, const unsigned char * const addr, 
 	return (lenDom >= 4) ? 0 : -1; // a.bc
 }
 
-unsigned char sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+unsigned char sendMail(const uint32_t ip, const int userLevel,
+	const unsigned char * const replyId,  const size_t lenReplyId,
+	const unsigned char * const addrFrom, const size_t lenAddrFrom,
+	const unsigned char * const addrTo,   const size_t lenAddrTo,
+	const unsigned char * const title,    const size_t lenTitle,
+	const unsigned char * const body,     const size_t lenBody
+) {
 	int sock = makeSocket(ip);
 	if (sock < 1) return AEM_SENDMAIL_ERR_MISC;
 	useTls = false;

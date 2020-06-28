@@ -529,7 +529,14 @@ static void message_create_ext(void) {
 		return;
 	}
 
-	const unsigned char ret = sendMail(ip, userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	const unsigned char ret = sendMail(ip, userLevel,
+		replyId,  lenReplyId,
+		addrFrom, lenAddrFrom,
+		addrTo,   lenAddrTo,
+		title,    lenTitle,
+		body,     lenBody
+	);
+
 	if (ret == 0) {
 		shortResponse(NULL, AEM_API_NOCONTENT);
 	} else {
