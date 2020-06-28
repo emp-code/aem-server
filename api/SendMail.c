@@ -379,6 +379,9 @@ int sendMail(const uint32_t ip, const int userLevel, const unsigned char *replyI
 
 		len = smtp_recv(sock, buf, 1024);
 		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
+	} else {
+		closeTls(sock);
+		return AEM_SENDMAIL_ERR_NOTLS;
 	}
 
 	// From
