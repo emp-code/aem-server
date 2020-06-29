@@ -543,7 +543,7 @@ static int setCaps(const int type) {
 
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		// Make CAP_NET_BIND_SERVICE ambient
-		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0)                != 0) return -1;
+		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0) != 0) return -1;
 
 		// Allow changing SecureBits for the next part
@@ -567,27 +567,26 @@ static int setCaps(const int type) {
 		&& cap_set_proc(caps) == 0
 		&& cap_free(caps) == 0
 		) ? 0 : -1;
-	} else if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ENQUIRY) {
-		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
-
-		// Allow changing SecureBits for the next part
-		const cap_value_t capPcap = CAP_SETPCAP;
-		cap_t caps = cap_get_proc();
-		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
-
-		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_ERR, "Failed setting SecureBits");
-			return -1;
-		}
-
-		return (
-			cap_clear(caps) == 0
-		&& cap_set_proc(caps) == 0
-		&& cap_free(caps) == 0
-		) ? 0 : -1;
 	}
 
-	return -1;
+	// Others: Disable all capabilities
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
+
+	// Allow changing SecureBits for the next part
+	const cap_value_t capPcap = CAP_SETPCAP;
+	cap_t caps = cap_get_proc();
+	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
+
+	if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
+		syslog(LOG_ERR, "Failed setting SecureBits");
+		return -1;
+	}
+
+	return (
+		cap_clear(caps) == 0
+	&& cap_set_proc(caps) == 0
+	&& cap_free(caps) == 0
+	) ? 0 : -1;
 }
 
 static int setSubLimits(const int type) {
