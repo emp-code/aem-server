@@ -4,7 +4,7 @@ CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_
 all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -o aem-manager manager/*.c -lsodium -lcap
+	$(CC) $(CFLAGS) -o aem-manager manager/*.c -lsodium -lcap -lmbedx509 -lbrotlienc
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c -lsodium
