@@ -663,7 +663,7 @@ static int process_new(void *params) {
 
 	// Only runs if exec failed
 	syslog(LOG_ERR, "Failed starting process");
-	return 0;
+	exit(EXIT_FAILURE);
 }
 
 static void process_spawn(const int type) {
