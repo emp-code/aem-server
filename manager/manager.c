@@ -32,8 +32,11 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <mbedtls/x509_crt.h>
+
 #include <sodium.h>
 
+#include "../Common/Brotli.c"
 #include "../Global.h"
 
 #include "global.h"
@@ -104,6 +107,9 @@ static unsigned char adr_adm[AEM_LEN_FIL2_MAX];
 static unsigned char html[AEM_LEN_FILE_MAX];
 static size_t len_adr_adm;
 static size_t len_html;
+
+static char domain[AEM_MAXLEN_DOMAIN];
+static size_t lenDomain;
 
 struct aem_process {
 	pid_t pid;
@@ -309,6 +315,164 @@ void killAll(int sig) {
 	exit(EXIT_SUCCESS);
 }
 
+__attribute__((warn_unused_result))
+static int getDomainFromCert(void) {
+	mbedtls_x509_crt crt;
+	mbedtls_x509_crt_init(&crt);
+	int ret = mbedtls_x509_crt_parse(&crt, tls_crt, len_tls_crt);
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
+
+	char certInfo[1024];
+	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &crt);
+
+	const char *c = strstr(certInfo, "\nAEM_subject name");
+	if (c == NULL) return -1;
+	c += 17;
+
+	const char * const end = strchr(c, '\n');
+
+	c = strstr(c, ": CN=");
+	if (c == NULL || c > end) return -1;
+	c += 5;
+
+	const int len = end - c;
+	if (len > AEM_MAXLEN_DOMAIN) return -1;
+
+	memcpy(domain, c, len);
+	lenDomain = len;
+	return 0;
+}
+
+static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
+	// Key placeholders
+	unsigned char *placeholder = memmem(tmp, lenTmp, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
+	if (placeholder == NULL) {syslog(LOG_ERR, "API-Placeholder not found"); return -1;}
+	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
+	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
+	char api_hex[65];
+	crypto_box_seed_keypair(api_pub, api_tmp, key_api);
+	sodium_bin2hex(api_hex, 65, api_pub, crypto_box_PUBLICKEYBYTES);
+	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
+
+	placeholder = memmem(tmp, lenTmp, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
+	if (placeholder == NULL) {syslog(LOG_ERR, "Sig-Placeholder not found"); return -1;}
+	unsigned char sig_tmp[crypto_sign_SECRETKEYBYTES];
+	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
+	char sig_hex[65];
+	crypto_sign_seed_keypair(sig_pub, sig_tmp, key_sig);
+	sodium_bin2hex(sig_hex, 65, sig_pub, crypto_sign_PUBLICKEYBYTES);
+	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
+
+	placeholder = memmem(tmp, lenTmp, "AEM Normal Addr Salt placeholder", 32);
+	if (placeholder == NULL) {syslog(LOG_ERR, "Slt-Placeholder not found"); return -1;}
+	char slt_hex[33];
+	sodium_bin2hex(slt_hex, 33, slt_nrm, AEM_LEN_SALT_NORM);
+	memcpy(placeholder, slt_hex, AEM_LEN_SALT_NORM * 2);
+
+	// Compression
+	size_t lenBr = lenTmp;
+	unsigned char *br = malloc(lenTmp);
+	memcpy(br, tmp, lenTmp);
+
+	int ret = brotliCompress(&br, &lenBr);
+	if (ret != 0) {
+		free(br);
+		return -1;
+	}
+
+	char headers[2048];
+	sprintf(headers,
+		"HTTP/1.1 200 aem\r\n"
+
+		// General headers
+		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
+		"Connection: close\r\n"
+		"Content-Encoding: br\r\n"
+		"Content-Length: %zu\r\n"
+		"Content-Type: text/html; charset=utf-8\r\n"
+		"Server: All-Ears Mail\r\n"
+		"Tk: N\r\n"
+
+		// CSP
+		"Content-Security-Policy: "
+			"connect-src"     " https://%.*s:302/api data:;"
+			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
+			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
+
+			"base-uri"        " 'none';"
+			"child-src"       " 'none';"
+			"default-src"     " 'none';"
+			"font-src"        " 'none';"
+			"form-action"     " 'none';"
+			"frame-ancestors" " 'none';"
+			"frame-src"       " 'none';"
+			"img-src"         " 'none';"
+			"manifest-src"    " 'none';"
+			"media-src"       " 'none';"
+			"object-src"      " 'none';"
+			"prefetch-src"    " 'none';"
+			"worker-src"      " 'none';"
+
+			"block-all-mixed-content;"
+			"sandbox allow-scripts allow-same-origin;"
+		"\r\n"
+
+		// FP
+		"Feature-Policy: "
+			"accelerometer"                   " 'none';"
+			"ambient-light-sensor"            " 'none';"
+			"autoplay"                        " 'none';"
+			"battery"                         " 'none';"
+			"camera"                          " 'none';"
+			"display-capture"                 " 'none';"
+			"document-domain"                 " 'none';"
+			"document-write"                  " 'none';"
+			"encrypted-media"                 " 'none';"
+			"execution-while-not-rendered"    " 'none';"
+			"execution-while-out-of-viewport" " 'none';"
+			"fullscreen"                      " 'none';"
+			"geolocation"                     " 'none';"
+			"gyroscope"                       " 'none';"
+			"layout-animations"               " 'none';"
+			"legacy-image-formats"            " 'none';"
+			"magnetometer"                    " 'none';"
+			"microphone"                      " 'none';"
+			"midi"                            " 'none';"
+			"navigation-override"             " 'none';"
+			"oversized-images"                " 'none';"
+			"payment"                         " 'none';"
+			"picture-in-picture"              " 'none';"
+			"publickey-credentials"           " 'none';"
+			"speaker"                         " 'none';"
+			"sync-xhr"                        " 'none';"
+			"usb"                             " 'none';"
+			"vibrate"                         " 'none';"
+			"vr"                              " 'none';"
+			"wake-lock"                       " 'none';"
+			"xr-spatial-tracking"             " 'none';"
+		"\r\n"
+
+		// Security headers
+		"Cross-Origin-Opener-Policy: same-origin\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Referrer-Policy: no-referrer\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"X-Content-Type-Options: nosniff\r\n"
+		"X-DNS-Prefetch-Control: off\r\n"
+		"X-Frame-Options: deny\r\n"
+		"X-XSS-Protection: 1; mode=block\r\n"
+		"\r\n"
+	, lenBr, (int)lenDomain, domain);
+
+	const size_t lenHeaders = strlen(headers);
+	memcpy(html, headers, lenHeaders);
+	memcpy(html + lenHeaders, br, lenBr);
+
+	len_html = lenHeaders + lenBr;
+
+	return 0;
+}
+
 static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
 	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
@@ -338,11 +502,12 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 		return -1;
 	}
 
+	if (target == tls_crt) return getDomainFromCert();
 	return 0;
 }
 
 int loadFiles(void) {
-	return (
+	int ret = (
 	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
@@ -361,8 +526,16 @@ int loadFiles(void) {
 	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0, AEM_LEN_FILE_MAX) == 0
 
 	&& loadFile(AEM_PATH_ADR_ADM, adr_adm, &len_adr_adm, 0, AEM_LEN_FIL2_MAX) == 0
-	&& loadFile(AEM_PATH_HTML, html, &len_html, 0, AEM_LEN_FILE_MAX) == 0
 	) ? 0 : -1;
+	if (ret != 0) return -1;
+
+	unsigned char *tmp = malloc(102400);
+	if (tmp == NULL) return -1;
+	size_t lenTmp = 0;
+	if (loadFile(AEM_PATH_HTML, tmp, &lenTmp, 0, 102400) != 0) {free(tmp); return -1;}
+	ret = genHtml(tmp, lenTmp);
+	free(tmp);
+	return ret;
 }
 
 static int setCaps(const int type) {
