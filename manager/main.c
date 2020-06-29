@@ -111,26 +111,22 @@ static int setCaps(void) {
 
 	const cap_value_t capInherit[] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
 
-	// To be trimmed when it's clearer which caps are needed
-	const cap_value_t capMain[18] = {
-		CAP_CHOWN,
-		CAP_DAC_OVERRIDE,
-		CAP_DAC_READ_SEARCH,
-		CAP_FOWNER,
-		CAP_FSETID,
-		CAP_IPC_LOCK,
-		CAP_IPC_OWNER,
-		CAP_KILL,
-		CAP_LEASE,
-		CAP_MKNOD,
-		CAP_NET_BIND_SERVICE,
-		CAP_SETPCAP,
-		CAP_SETGID,
-		CAP_SETUID,
-		CAP_SYS_ADMIN,
-		CAP_SYS_CHROOT,
-		CAP_SYS_NICE,
-		CAP_SYS_RESOURCE
+	const cap_value_t capMain[15] = {
+		CAP_CHOWN, // Allow chown on any file
+		CAP_DAC_OVERRIDE, // Bypass file permission checks
+		CAP_DAC_READ_SEARCH, // Bypass file permission checks
+		CAP_FOWNER, // Bypass file ownership checks
+		CAP_KILL, // Kill any process
+		CAP_LEASE, // Allow leases on all files (get signal if file opened by another process)
+		CAP_MKNOD, // Make special files
+		CAP_NET_BIND_SERVICE, // Bind to port #<1024
+		CAP_SETGID, // Set group IDs
+		CAP_SETUID, // Set user ID
+		CAP_SETPCAP, // Allow capability/secbit changes
+		CAP_SYS_ADMIN, // Various, including mount()
+		CAP_SYS_CHROOT, // Allow chroot
+		CAP_SYS_NICE, // Allow raising process priorities
+		CAP_SYS_RESOURCE // Allow changing resource limits
 	};
 
 	cap_t caps = cap_get_proc();
