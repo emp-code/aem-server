@@ -28,9 +28,11 @@
 
 static gid_t allearsGroup;
 
-static void setGroup(void) {
+static int setGroup(void) {
 	const struct passwd * const p = getpwnam("allears");
+	if (p == NULL) return -1;
 	allearsGroup = p->pw_gid;
+	return 0;
 }
 
 static int robind(const char * const source, const char * const target) {
@@ -81,8 +83,8 @@ static int makeSpecial(const pid_t pid, const char * const name, const unsigned 
 }
 
 int createMount(const pid_t pid, const int type) {
+	if (setGroup() != 0) return -1;
 	umask(0);
-	setGroup();
 
 	char tmpfs_opts[50];
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE)
