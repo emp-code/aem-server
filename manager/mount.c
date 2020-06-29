@@ -76,12 +76,13 @@ static int dirMake(const pid_t pid, const char * const sub) {
 	) ? 0 : -1;
 }
 
-static int makeSpecial(const pid_t pid, const char * const name, const unsigned int major, const unsigned int minor) {
+static int makeSpecial(const pid_t pid, const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor) {
 	char path[512];
 	sprintf(path, AEM_CHROOT"/%d/dev/%s", pid, name);
 	return (
 	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
 	&& chown(path, 0, aemGroup) == 0
+	&& chmod(path, mode) == 0
 	) ? 0 : -1;
 }
 
@@ -145,11 +146,11 @@ int createMount(const pid_t pid, const int type) {
 	}
 
 	if (
-	   makeSpecial(pid, "null",    1, 3) != 0
-	|| makeSpecial(pid, "zero",    1, 5) != 0
-	|| makeSpecial(pid, "full",    1, 7) != 0
-	|| makeSpecial(pid, "random",  1, 8) != 0
-	|| makeSpecial(pid, "urandom", 1, 9) != 0
+	   makeSpecial(pid, "null",    AEM_MODE_RW, 1, 3) != 0
+	|| makeSpecial(pid, "zero",    AEM_MODE_RO, 1, 5) != 0
+	|| makeSpecial(pid, "full",    AEM_MODE_RW, 1, 7) != 0
+	|| makeSpecial(pid, "random",  AEM_MODE_RO, 1, 8) != 0
+	|| makeSpecial(pid, "urandom", AEM_MODE_RO, 1, 9) != 0
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
