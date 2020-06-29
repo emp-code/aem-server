@@ -104,7 +104,11 @@ int createMount(const pid_t pid, const int type) {
 	}
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
-	if (mkdir(path, 0) != 0 || mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) != 0) return -1;
+	if (
+	   mkdir(path, 0) != 0
+	|| mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) != 0
+	|| mount("", path, "", MS_UNBINDABLE, "") != 0
+	) return -1;
 
 	if (
 	   dirMake(pid, "dev") != 0
