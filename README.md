@@ -174,6 +174,10 @@ TLS:
 * TLS.crt: The TLS certificate
 * TLS.key: The TLS private key
 
+DKIM:
+* Admin.dkim: DKIM signing key for level 3 (admin) users
+* Users.dkim: DKIM signing key for level 0-2 users
+
 Other:
 * Admin.adr: List of address hashes reserved for admins
 * index.html: The HTML file for the web interface
