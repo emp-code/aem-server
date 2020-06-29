@@ -94,15 +94,18 @@ int createMount(const pid_t pid, const int type) {
 	char path[512];
 	char tmpfs_opts[512];
 
+	int nr_inodes = 0;
+	int fsmode = 1000;
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1550,size=1,nr_inodes=16", aemGroup); break;
-		case AEM_PROCESSTYPE_API: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1550,size=1,nr_inodes=16", aemGroup); break;
-		case AEM_PROCESSTYPE_WEB: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1550,size=1,nr_inodes=15", aemGroup); break;
-		case AEM_PROCESSTYPE_ACCOUNT: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1770,size=1,nr_inodes=16", aemGroup); break;
-		case AEM_PROCESSTYPE_STORAGE: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1770,size=1,nr_inodes=17", aemGroup); break;
-		case AEM_PROCESSTYPE_ENQUIRY: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=1550,size=1,nr_inodes=16", aemGroup); break;
+		case AEM_PROCESSTYPE_MTA: fsmode = 1550; nr_inodes = 16; break;
+		case AEM_PROCESSTYPE_API: fsmode = 1550; nr_inodes = 16; break;
+		case AEM_PROCESSTYPE_WEB: fsmode = 1550; nr_inodes = 15; break;
+		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 16; break;
+		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 17; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1550; nr_inodes = 16; break;
 		default: return -1;
 	}
+	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=%d,size=1,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
 	if (
@@ -172,7 +175,7 @@ int createMount(const pid_t pid, const int type) {
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
-	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
+	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=%d,size=1,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME | MS_SILENT, tmpfs_opts);
 }
 
