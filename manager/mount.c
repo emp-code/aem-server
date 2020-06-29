@@ -23,6 +23,7 @@
 #include "global.h"
 
 #define AEM_MODE_RO (S_IRUSR | S_IRGRP)
+#define AEM_MODE_XO (S_IXUSR | S_IXGRP)
 #define AEM_MODE_RW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define AEM_MODE_RX (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
 
@@ -68,7 +69,7 @@ static int dirMake(const pid_t pid, const char * const sub) {
 	sprintf(path, AEM_CHROOT"/%d/%s", pid, sub);
 
 	return (
-	   mkdir(path, AEM_MODE_RX) == 0
+	   mkdir(path, AEM_MODE_XO) == 0
 	&& chown(path, 0, aemGroup) == 0
 	) ? 0 : -1;
 }
