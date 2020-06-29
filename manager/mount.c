@@ -89,10 +89,15 @@ int createMount(const pid_t pid, const int type) {
 	char path[512];
 	char tmpfs_opts[512];
 
-	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE)
-		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=50", aemGroup);
-	else
-		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
+	switch (type) {
+		case AEM_PROCESSTYPE_MTA: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=16", aemGroup); break;
+		case AEM_PROCESSTYPE_API: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=16", aemGroup); break;
+		case AEM_PROCESSTYPE_WEB: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=15", aemGroup); break;
+		case AEM_PROCESSTYPE_ACCOUNT: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=16", aemGroup); break;
+		case AEM_PROCESSTYPE_STORAGE: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=17", aemGroup); break;
+		case AEM_PROCESSTYPE_ENQUIRY: sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=16", aemGroup); break;
+		default: return -1;
+	}
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
 	if (mkdir(path, 0) != 0 || mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) != 0) return -1;
