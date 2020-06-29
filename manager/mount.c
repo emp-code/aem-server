@@ -69,7 +69,7 @@ static int dirMake(const pid_t pid, const char * const sub) {
 
 	return (
 	   mkdir(path, AEM_MODE_RX) == 0
-	&& lchown(path, 0, aemGroup) == 0
+	&& chown(path, 0, aemGroup) == 0
 	) ? 0 : -1;
 }
 
@@ -78,7 +78,7 @@ static int makeSpecial(const pid_t pid, const char * const name, const unsigned 
 	sprintf(path, AEM_CHROOT"/%d/dev/%s", pid, name);
 	return (
 	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
-	&& lchown(path, 0, aemGroup) == 0
+	&& chown(path, 0, aemGroup) == 0
 	) ? 0 : -1;
 }
 
