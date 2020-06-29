@@ -57,15 +57,15 @@ static int rwbind(const char * const source, const char * const target) {
 }
 
 static int dirMount(const pid_t pid, const char * const sub, const char * const src) {
-	char path[100];
-	snprintf(path, 100, AEM_CHROOT"/%d/%s", pid, sub);
+	char path[512];
+	sprintf(path, AEM_CHROOT"/%d/%s", pid, sub);
 
 	return (mkdir(path, 0) == 0 && rxbind(src, path) == 0) ? 0 : -1;
 }
 
 static int dirMake(const pid_t pid, const char * const sub) {
-	char path[100];
-	snprintf(path, 100, AEM_CHROOT"/%d/%s", pid, sub);
+	char path[512];
+	sprintf(path, AEM_CHROOT"/%d/%s", pid, sub);
 
 	return (
 	   mkdir(path, AEM_MODE_RX) == 0
@@ -74,8 +74,8 @@ static int dirMake(const pid_t pid, const char * const sub) {
 }
 
 static int makeSpecial(const pid_t pid, const char * const name, const unsigned int major, const unsigned int minor) {
-	char path[100];
-	snprintf(path, 100, AEM_CHROOT"/%d/dev/%s", pid, name);
+	char path[512];
+	sprintf(path, AEM_CHROOT"/%d/dev/%s", pid, name);
 	return (
 	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
 	&& lchown(path, 0, aemGroup) == 0
@@ -86,14 +86,15 @@ int createMount(const pid_t pid, const int type) {
 	if (setAemGroup() != 0) return -1;
 	umask(0);
 
-	char tmpfs_opts[50];
+	char path[512];
+	char tmpfs_opts[512];
+
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE)
 		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=50", aemGroup);
 	else
 		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
 
-	char path[50];
-	snprintf(path, 50, AEM_CHROOT"/%d", pid);
+	sprintf(path, AEM_CHROOT"/%d", pid);
 	if (mkdir(path, 0) != 0 || mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) != 0) return -1;
 
 	if (
@@ -116,24 +117,24 @@ int createMount(const pid_t pid, const int type) {
 	const char *bin;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-mta", pid); bin = "/usr/bin/allears/aem-mta"; break;
-		case AEM_PROCESSTYPE_API: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-api", pid); bin = "/usr/bin/allears/aem-api"; break;
-		case AEM_PROCESSTYPE_WEB: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
-		case AEM_PROCESSTYPE_ACCOUNT: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
-		case AEM_PROCESSTYPE_STORAGE: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
-		case AEM_PROCESSTYPE_ENQUIRY: snprintf(path, 50, AEM_CHROOT"/%d/usr/bin/aem-enquiry", pid); bin = "/usr/bin/allears/aem-enquiry"; break;
+		case AEM_PROCESSTYPE_MTA: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-mta", pid); bin = "/usr/bin/allears/aem-mta"; break;
+		case AEM_PROCESSTYPE_API: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-api", pid); bin = "/usr/bin/allears/aem-api"; break;
+		case AEM_PROCESSTYPE_WEB: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
+		case AEM_PROCESSTYPE_ACCOUNT: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
+		case AEM_PROCESSTYPE_STORAGE: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
+		case AEM_PROCESSTYPE_ENQUIRY: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-enquiry", pid); bin = "/usr/bin/allears/aem-enquiry"; break;
 		default: return -1;
 	}
 
 	if (mknod(path, S_IFREG, 0) != 0) return -1;
 	if (rxbind(bin, path) != 0) return -1;
 
-	snprintf(path, 50, AEM_CHROOT"/%d/dev/log", pid);
+	sprintf(path, AEM_CHROOT"/%d/dev/log", pid);
 	if (mknod(path, S_IFREG, 0) != 0) return -1;
 	if (rwbind("/dev/log", path) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		snprintf(path, 50, AEM_CHROOT"/%d/GeoLite2-Country.mmdb", pid);
+		sprintf(path, AEM_CHROOT"/%d/GeoLite2-Country.mmdb", pid);
 		if (mknod(path, S_IFREG, 0) != 0) return -1;
 		if (robind("/var/lib/allears/GeoLite2-Country.mmdb", path) != 0) return -1;
 	}
@@ -168,8 +169,8 @@ int createMount(const pid_t pid, const int type) {
 }
 
 int deleteMount(const pid_t pid) {
-	char path[50];
-	snprintf(path, 50, AEM_CHROOT"/%d", pid);
+	char path[512];
+	sprintf(path, AEM_CHROOT"/%d", pid);
 	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	rmdir(path);
 
