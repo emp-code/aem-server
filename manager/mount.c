@@ -26,12 +26,12 @@
 #define AEM_MODE_RW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define AEM_MODE_RX (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
 
-static gid_t allearsGroup;
+static gid_t aemGroup;
 
-static int setGroup(void) {
+static int setAemGroup(void) {
 	const struct passwd * const p = getpwnam("allears");
 	if (p == NULL) return -1;
-	allearsGroup = p->pw_gid;
+	aemGroup = p->pw_gid;
 	return 0;
 }
 
@@ -69,7 +69,7 @@ static int dirMake(const pid_t pid, const char * const sub) {
 
 	return (
 	   mkdir(path, AEM_MODE_RX) == 0
-	&& lchown(path, 0, allearsGroup) == 0
+	&& lchown(path, 0, aemGroup) == 0
 	) ? 0 : -1;
 }
 
@@ -78,19 +78,19 @@ static int makeSpecial(const pid_t pid, const char * const name, const unsigned 
 	snprintf(path, 100, AEM_CHROOT"/%d/dev/%s", pid, name);
 	return (
 	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
-	&& lchown(path, 0, allearsGroup) == 0
+	&& lchown(path, 0, aemGroup) == 0
 	) ? 0 : -1;
 }
 
 int createMount(const pid_t pid, const int type) {
-	if (setGroup() != 0) return -1;
+	if (setAemGroup() != 0) return -1;
 	umask(0);
 
 	char tmpfs_opts[50];
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE)
-		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=50", allearsGroup);
+		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0770,size=1,nr_inodes=50", aemGroup);
 	else
-		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
+		sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
 
 	char path[50];
 	snprintf(path, 50, AEM_CHROOT"/%d", pid);
@@ -163,7 +163,7 @@ int createMount(const pid_t pid, const int type) {
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
-	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", allearsGroup);
+	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
 	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME, tmpfs_opts);
 }
 
