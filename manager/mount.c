@@ -50,7 +50,7 @@ static int bindMount(const char * const source, const char * const target, const
 	|| mount("",     target, "",   MS_UNBINDABLE, "") != 0
 	) return -1;
 
-	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOSUID | MS_NODEV | MS_NOATIME;
+	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOSUID | MS_NODEV | MS_NOATIME | MS_SILENT;
 
 	if (!allowExec)
 		mountFlags |= MS_NOEXEC;
@@ -107,7 +107,7 @@ int createMount(const pid_t pid, const int type) {
 	sprintf(path, AEM_CHROOT"/%d", pid);
 	if (
 	   mkdir(path, 0) != 0
-	|| mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME, tmpfs_opts) != 0
+	|| mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME | MS_SILENT, tmpfs_opts) != 0
 	|| mount("", path, "", MS_UNBINDABLE, "") != 0
 	) return -1;
 
@@ -173,7 +173,7 @@ int createMount(const pid_t pid, const int type) {
 
 	sprintf(path, AEM_CHROOT"/%d", pid);
 	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=0550,size=1,nr_inodes=50", aemGroup);
-	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME, tmpfs_opts);
+	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME | MS_SILENT, tmpfs_opts);
 }
 
 int deleteMount(const pid_t pid) {
