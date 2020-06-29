@@ -372,7 +372,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 	memcpy(placeholder, slt_hex, AEM_LEN_SALT_NORM * 2);
 
 	// Compression
-	if (brotliCompress(&tmp, &lenTmp) != 0) return -1;
+	if (brotliCompress(&tmp, &lenTmp) != 0) {syslog(LOG_ERR, "Compression failed"); return -1;}
 
 	// Headers
 	char headers[2048];
@@ -465,6 +465,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 
 	len_html = lenHeaders + lenTmp;
 
+	free(tmp);
 	return 0;
 }
 
@@ -529,7 +530,7 @@ int loadFiles(void) {
 	size_t lenTmp = 0;
 	if (loadFile(AEM_PATH_HTML, tmp, &lenTmp, 0, 102400) != 0) {free(tmp); return -1;}
 	ret = genHtml(tmp, lenTmp);
-	free(tmp);
+	if (ret != 0) free(tmp);
 	return ret;
 }
 
