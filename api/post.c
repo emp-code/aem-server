@@ -450,7 +450,7 @@ static unsigned char getUserLevel(const unsigned char * const pubkey) {
 
 #include "../Common/Message.c"
 
-static int toAddr32(unsigned char target[10], const char * const src, const size_t lenSrc, bool * const isShield) {
+static int getAddr32(unsigned char target[10], const char * const src, const size_t lenSrc, bool * const isShield) {
 	char addr[16];
 	size_t lenAddr = 0;
 
@@ -479,7 +479,7 @@ static void message_create_ext(void) {
 	if (lenAddrFrom < 1) return;
 	unsigned char addrFrom32[10];
 	bool fromShield = false;
-	if (toAddr32(addrFrom32, (char*)addrFrom, lenAddrFrom, &fromShield) != 0) return;
+	if (getAddr32(addrFrom32, (char*)addrFrom, lenAddrFrom, &fromShield) != 0) return;
 	if (!addr32OwnedByPubkey(upk, addrFrom32, fromShield)) return;
 
 	// Address To
