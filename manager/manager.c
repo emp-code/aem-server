@@ -351,6 +351,7 @@ static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
 	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
 	char api_hex[65];
 	crypto_box_seed_keypair(api_pub, api_tmp, key_api);
+	sodium_memzero(api_tmp, crypto_box_SECRETKEYBYTES);
 	sodium_bin2hex(api_hex, 65, api_pub, crypto_box_PUBLICKEYBYTES);
 	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
 
@@ -360,6 +361,7 @@ static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
 	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
 	char sig_hex[65];
 	crypto_sign_seed_keypair(sig_pub, sig_tmp, key_sig);
+	sodium_memzero(sig_tmp, crypto_sign_SECRETKEYBYTES);
 	sodium_bin2hex(sig_hex, 65, sig_pub, crypto_sign_PUBLICKEYBYTES);
 	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
 
