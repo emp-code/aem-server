@@ -343,7 +343,7 @@ static int getDomainFromCert(void) {
 	return 0;
 }
 
-static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
+static int genHtml(unsigned char *tmp, size_t lenTmp) {
 	// Key placeholders
 	unsigned char *placeholder = memmem(tmp, lenTmp, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
 	if (placeholder == NULL) {syslog(LOG_ERR, "API-Placeholder not found"); return -1;}
@@ -372,16 +372,9 @@ static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
 	memcpy(placeholder, slt_hex, AEM_LEN_SALT_NORM * 2);
 
 	// Compression
-	size_t lenBr = lenTmp;
-	unsigned char *br = malloc(lenTmp);
-	memcpy(br, tmp, lenTmp);
+	if (brotliCompress(&tmp, &lenTmp) != 0) return -1;
 
-	int ret = brotliCompress(&br, &lenBr);
-	if (ret != 0) {
-		free(br);
-		return -1;
-	}
-
+	// Headers
 	char headers[2048];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
@@ -464,13 +457,13 @@ static int genHtml(const unsigned char * const tmp, const size_t lenTmp) {
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenBr, (int)lenDomain, domain);
+	, lenTmp, (int)lenDomain, domain);
 
 	const size_t lenHeaders = strlen(headers);
 	memcpy(html, headers, lenHeaders);
-	memcpy(html + lenHeaders, br, lenBr);
+	memcpy(html + lenHeaders, tmp, lenTmp);
 
-	len_html = lenHeaders + lenBr;
+	len_html = lenHeaders + lenTmp;
 
 	return 0;
 }
