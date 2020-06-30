@@ -36,9 +36,7 @@ static int bindMount(const char * const source, const char * const target, const
 	}
 
 	if (
-	   chown(target, 0, 0) != 0
-	|| chmod(target, 0) != 0
-	|| mount(source, target, NULL, MS_BIND, "") != 0
+	   mount(source, target, NULL, MS_BIND, "") != 0
 	|| mount("",     target, "",   MS_UNBINDABLE, "") != 0
 	) return -1;
 
