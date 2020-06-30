@@ -28,7 +28,7 @@ static int setAemGroup(void) {
 	return 0;
 }
 
-static int bindMount(const char * const source, const char * const target, const mode_t mode, const bool allowExec, const bool isDir) {
+static int bindMount(const char * const source, const char * const target, const bool readOnly, const bool allowExec, const bool isDir) {
 	if (isDir) {
 		if (mkdir(target, 0) != 0) return -1;
 	} else {
@@ -45,7 +45,7 @@ static int bindMount(const char * const source, const char * const target, const
 	if (!allowExec)
 		mountFlags |= MS_NOEXEC;
 
-	if ((mode & S_IWUSR) == 0)
+	if (readOnly)
 		mountFlags |= MS_RDONLY;
 
 	return mount(NULL, target, NULL, mountFlags, NULL);
@@ -91,14 +91,14 @@ int createMount(const int type) {
 	) return -1;
 
 	if (
-	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       AEM_MODE_XO, true, true) != 0
-	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     AEM_MODE_XO, true, true) != 0
-	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   AEM_MODE_XO, true, true) != 0
-	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", AEM_MODE_XO, true, true) != 0
+	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       true, true, true) != 0
+	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     true, true, true) != 0
+	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   true, true, true) != 0
+	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", true, true, true) != 0
 	) return -1;
 
 	if ((type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_ENQUIRY) && (
-	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MODE_RX, false, true) != 0
+	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", true, false, true) != 0
 	)) return -1;
 
 	const char *path;
@@ -112,12 +112,12 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_ENQUIRY: path = AEM_MOUNTDIR"/usr/bin/aem-enquiry"; bin = "/usr/bin/allears/aem-enquiry"; break;
 		default: return -1;
 	}
-	if (bindMount(bin, path, AEM_MODE_RO, true, false) != 0) return -1;
+	if (bindMount(bin, path, true, true, false) != 0) return -1;
 
-	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MODE_RW, false, false) != 0) return -1;
+	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", false, false, false) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount("/var/lib/allears/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MODE_RO, false, false) != 0) return -1;
+		if (bindMount("/var/lib/allears/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", true, false, false) != 0) return -1;
 	}
 
 	if (
@@ -129,10 +129,10 @@ int createMount(const int type) {
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		if (bindMount("/var/lib/allears/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MODE_RW, false, false) != 0) return -1;
+		if (bindMount("/var/lib/allears/Account.aem", AEM_MOUNTDIR"/Account.aem", false, false, false) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		if (bindMount("/var/lib/allears/Storage.aem", AEM_MOUNTDIR"/Storage.aem", AEM_MODE_RW, false, false) != 0) return -1;
-		if (bindMount("/var/lib/allears/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MODE_RW, false, false) != 0) return -1;
+		if (bindMount("/var/lib/allears/Storage.aem", AEM_MOUNTDIR"/Storage.aem", false, false, false) != 0) return -1;
+		if (bindMount("/var/lib/allears/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", false, false, false) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
