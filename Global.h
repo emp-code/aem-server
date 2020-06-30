@@ -74,9 +74,8 @@
 #define AEM_API_POST_SIZE 8192 // 8 KiB
 #define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
-#define AEM_MOUNTDIR "/var/lib/allears/mounts"
-#define AEM_MOUNTDIR_OPTS "uid=0,gid=0,mode=1000,size=1"
-#define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_SILENT)
+#define AEM_MOUNTDIR "/var/lib/allears/mount"
+#define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
 
 #define AEM_PROCESSTYPE_MTA 0
 #define AEM_PROCESSTYPE_WEB 1

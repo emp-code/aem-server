@@ -227,7 +227,6 @@ static void refreshPids(void) {
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
-				deleteMount(aemProc[type][i].pid);
 				sodium_free(aemProc[type][i].stack);
 				aemProc[type][i].pid = 0;
 			}
@@ -235,19 +234,16 @@ static void refreshPids(void) {
 	}
 
 	if (pid_account != 0 && !process_verify(pid_account)) {
-		deleteMount(pid_account);
 		sodium_free(stack_account);
 		pid_account = 0;
 	}
 
 	if (pid_storage != 0 && !process_verify(pid_storage)) {
-		deleteMount(pid_storage);
 		sodium_free(stack_storage);
 		pid_storage = 0;
 	}
 
 	if (pid_enquiry != 0 && !process_verify(pid_enquiry)) {
-		deleteMount(pid_enquiry);
 		sodium_free(stack_enquiry);
 		pid_enquiry = 0;
 	}
@@ -609,15 +605,13 @@ static int setSubLimits(const int type) {
 }
 
 __attribute__((warn_unused_result))
-static int dropRoot(const pid_t pid) {
-	char dir[50];
-	sprintf(dir, AEM_MOUNTDIR"/%d", pid);
+static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 
 	return (
 	   p != NULL
 
-	&& chroot(dir) == 0
+	&& chroot(AEM_MOUNTDIR) == 0
 	&& chdir("/") == 0
 
 	&& setgroups(0, NULL) == 0
@@ -636,16 +630,15 @@ static int process_new(void *params) {
 
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 
-	const pid_t pid = getpid();
 	const int type = ((uint8_t*)params)[0];
 	const int pipefd = ((uint8_t*)params)[1];
 	const int closefd = ((uint8_t*)params)[2];
 	close(closefd);
 
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
-	if (createMount(pid, type) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
+	if (createMount(type) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
 	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
-	if (dropRoot(pid) != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
+	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
 	char arg1[] = {pipefd, '\0'};
