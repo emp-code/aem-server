@@ -65,9 +65,8 @@ static int makeSpecial(const char * const name, const mode_t mode, const unsigne
 	char path[512];
 	sprintf(path, AEM_MOUNTDIR"/dev/%s", name);
 	return (
-	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
+	   mknod(path, S_IFCHR | mode, makedev(major, minor)) == 0
 	&& chown(path, 0, aemGroup) == 0
-	&& chmod(path, mode) == 0
 	) ? 0 : -1;
 }
 
