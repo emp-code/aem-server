@@ -20,7 +20,7 @@
 
 #include "mount.h"
 
-#include "global.h"
+#include "../Global.h"
 
 #define AEM_MODE_RO (S_IRUSR | S_IRGRP)
 #define AEM_MODE_XO (S_IXUSR | S_IXGRP)

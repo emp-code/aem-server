@@ -39,7 +39,6 @@
 #include "../Common/Brotli.c"
 #include "../Global.h"
 
-#include "global.h"
 #include "mount.h"
 
 #include "manager.h"

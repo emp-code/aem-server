@@ -22,7 +22,7 @@
 
 #include <sodium.h>
 
-#include "global.h"
+#include "../Global.h"
 #include "mount.h"
 
 #include "manager.h"
