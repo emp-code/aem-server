@@ -61,16 +61,6 @@ static int bindMount(const char * const source, const char * const target, const
 	return mount(NULL, target, NULL, mountFlags, NULL);
 }
 
-static int dirMake(const char * const sub) {
-	char path[512];
-	sprintf(path, AEM_MOUNTDIR"/%s", sub);
-
-	return (
-	   mkdir(path, AEM_MODE_XO) == 0
-	&& chown(path, 0, aemGroup) == 0
-	) ? 0 : -1;
-}
-
 static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor) {
 	char path[512];
 	sprintf(path, AEM_MOUNTDIR"/dev/%s", name);
@@ -103,9 +93,12 @@ int createMount(const int type) {
 	if (mount("", AEM_MOUNTDIR, "", MS_UNBINDABLE, "") != 0) return -1;
 
 	if (
-	   dirMake("dev") != 0
-	|| dirMake("usr") != 0
-	|| dirMake("usr/bin") != 0
+	   mkdir(AEM_MOUNTDIR"/dev",     AEM_MODE_XO) != 0
+	|| mkdir(AEM_MOUNTDIR"/usr",     AEM_MODE_XO) != 0
+	|| mkdir(AEM_MOUNTDIR"/usr/bin", AEM_MODE_XO) != 0
+	|| chown(AEM_MOUNTDIR"/dev",     0, aemGroup) != 0
+	|| chown(AEM_MOUNTDIR"/usr",     0, aemGroup) != 0
+	|| chown(AEM_MOUNTDIR"/usr/bin", 0, aemGroup) != 0
 	) return -1;
 
 	if (
