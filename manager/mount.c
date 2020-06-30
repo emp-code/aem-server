@@ -1,4 +1,5 @@
 #include <grp.h>
+#include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,6 @@
 #include <sys/sysmacros.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <pwd.h>
 
 #include "mount.h"
 
