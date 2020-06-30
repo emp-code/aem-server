@@ -63,13 +63,13 @@ static int bindMount(const char * const source, const char * const target, const
 
 static int dirMount(const pid_t pid, const char * const sub, const char * const src, const mode_t mode, const bool allowExec) {
 	char path[512];
-	sprintf(path, AEM_CHROOT"/%d/%s", pid, sub);
+	sprintf(path, AEM_MOUNTDIR"/%d/%s", pid, sub);
 	return bindMount(src, path, mode, allowExec, true);
 }
 
 static int dirMake(const pid_t pid, const char * const sub) {
 	char path[512];
-	sprintf(path, AEM_CHROOT"/%d/%s", pid, sub);
+	sprintf(path, AEM_MOUNTDIR"/%d/%s", pid, sub);
 
 	return (
 	   mkdir(path, AEM_MODE_XO) == 0
@@ -79,7 +79,7 @@ static int dirMake(const pid_t pid, const char * const sub) {
 
 static int makeSpecial(const pid_t pid, const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor) {
 	char path[512];
-	sprintf(path, AEM_CHROOT"/%d/dev/%s", pid, name);
+	sprintf(path, AEM_MOUNTDIR"/%d/dev/%s", pid, name);
 	return (
 	   mknod(path, S_IFCHR | AEM_MODE_RW, makedev(major, minor)) == 0
 	&& chown(path, 0, aemGroup) == 0
@@ -107,7 +107,7 @@ int createMount(const pid_t pid, const int type) {
 	}
 	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=%d,size=1,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 
-	sprintf(path, AEM_CHROOT"/%d", pid);
+	sprintf(path, AEM_MOUNTDIR"/%d", pid);
 	if (
 	   mkdir(path, 0) != 0
 	|| mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NOATIME | MS_SILENT, tmpfs_opts) != 0
@@ -134,22 +134,22 @@ int createMount(const pid_t pid, const int type) {
 	const char *bin;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-mta", pid); bin = "/usr/bin/allears/aem-mta"; break;
-		case AEM_PROCESSTYPE_API: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-api", pid); bin = "/usr/bin/allears/aem-api"; break;
-		case AEM_PROCESSTYPE_WEB: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
-		case AEM_PROCESSTYPE_ACCOUNT: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
-		case AEM_PROCESSTYPE_STORAGE: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
-		case AEM_PROCESSTYPE_ENQUIRY: sprintf(path, AEM_CHROOT"/%d/usr/bin/aem-enquiry", pid); bin = "/usr/bin/allears/aem-enquiry"; break;
+		case AEM_PROCESSTYPE_MTA: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-mta", pid); bin = "/usr/bin/allears/aem-mta"; break;
+		case AEM_PROCESSTYPE_API: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-api", pid); bin = "/usr/bin/allears/aem-api"; break;
+		case AEM_PROCESSTYPE_WEB: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-web", pid); bin = "/usr/bin/allears/aem-web"; break;
+		case AEM_PROCESSTYPE_ACCOUNT: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-account", pid); bin = "/usr/bin/allears/aem-account"; break;
+		case AEM_PROCESSTYPE_STORAGE: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-storage", pid); bin = "/usr/bin/allears/aem-storage"; break;
+		case AEM_PROCESSTYPE_ENQUIRY: sprintf(path, AEM_MOUNTDIR"/%d/usr/bin/aem-enquiry", pid); bin = "/usr/bin/allears/aem-enquiry"; break;
 		default: return -1;
 	}
 
 	if (bindMount(bin, path, AEM_MODE_RO, true, false) != 0) return -1;
 
-	sprintf(path, AEM_CHROOT"/%d/dev/log", pid);
+	sprintf(path, AEM_MOUNTDIR"/%d/dev/log", pid);
 	if (bindMount("/dev/log", path, AEM_MODE_RW, false, false) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		sprintf(path, AEM_CHROOT"/%d/GeoLite2-Country.mmdb", pid);
+		sprintf(path, AEM_MOUNTDIR"/%d/GeoLite2-Country.mmdb", pid);
 		if (bindMount("/var/lib/allears/GeoLite2-Country.mmdb", path, AEM_MODE_RO, false, false) != 0) return -1;
 	}
 
@@ -162,26 +162,26 @@ int createMount(const pid_t pid, const int type) {
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		sprintf(path, AEM_CHROOT"/%d/Account.aem", pid);
+		sprintf(path, AEM_MOUNTDIR"/%d/Account.aem", pid);
 		if (bindMount("/var/lib/allears/Account.aem", path, AEM_MODE_RW, false, false) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		sprintf(path, AEM_CHROOT"/%d/Storage.aem", pid);
+		sprintf(path, AEM_MOUNTDIR"/%d/Storage.aem", pid);
 		if (bindMount("/var/lib/allears/Storage.aem", path, AEM_MODE_RW, false, false) != 0) return -1;
 
-		sprintf(path, AEM_CHROOT"/%d/Stindex.aem", pid);
+		sprintf(path, AEM_MOUNTDIR"/%d/Stindex.aem", pid);
 		if (bindMount("/var/lib/allears/Stindex.aem", path, AEM_MODE_RW, false, false) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
 
-	sprintf(path, AEM_CHROOT"/%d", pid);
+	sprintf(path, AEM_MOUNTDIR"/%d", pid);
 	sprintf(tmpfs_opts, "uid=0,gid=%d,mode=%d,size=1,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 	return mount(NULL, path, NULL, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NOATIME | MS_SILENT, tmpfs_opts);
 }
 
 int deleteMount(const pid_t pid) {
 	char path[512];
-	sprintf(path, AEM_CHROOT"/%d", pid);
+	sprintf(path, AEM_MOUNTDIR"/%d", pid);
 	umount2(path, UMOUNT_NOFOLLOW | MNT_DETACH);
 	rmdir(path);
 

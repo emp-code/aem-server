@@ -311,7 +311,7 @@ void killAll(int sig) {
 	if (pid_storage > 0) kill(pid_storage, SIGKILL);
 	if (pid_enquiry > 0) kill(pid_enquiry, SIGKILL);
 
-	rmdir(AEM_CHROOT);
+	umount2(AEM_MOUNTDIR, MNT_DETACH);
 	exit(EXIT_SUCCESS);
 }
 
@@ -612,7 +612,7 @@ static int setSubLimits(const int type) {
 __attribute__((warn_unused_result))
 static int dropRoot(const pid_t pid) {
 	char dir[50];
-	sprintf(dir, AEM_CHROOT"/%d", pid);
+	sprintf(dir, AEM_MOUNTDIR"/%d", pid);
 	const struct passwd * const p = getpwnam("allears");
 
 	return (

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/capability.h>
 #include <sys/mman.h> // for memlockall
+#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -219,9 +220,11 @@ int main(void) {
 	if (setCaps()    != 0) return 24;
 	if (dropBounds() != 0) return 25;
 
-	if (mkdir(AEM_CHROOT, 0) != 0) {printf("Terminating: %s exists\n", AEM_CHROOT); return 30;}
-	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 31;}
-	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 32;}
+	if (mount("tmpfs", AEM_MOUNTDIR, "tmpfs", AEM_MOUNTDIR_FLAGS, AEM_MOUNTDIR_OPTS",nr_inodes=50") != 0) return 30;
+	if (mount("", AEM_MOUNTDIR, "", MS_UNBINDABLE, "") != 0) return 31;
+
+	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
+	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
 
 	puts("Ready");
 

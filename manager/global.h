@@ -1,4 +1,6 @@
-#define AEM_CHROOT "/tmp/allears"
+#define AEM_MOUNTDIR_OPTS "uid=0,gid=0,mode=1000,size=1"
+#define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
+#define AEM_MOUNTDIR "/var/lib/allears/mounts"
 
 #define AEM_PROCESSTYPE_MTA 0
 #define AEM_PROCESSTYPE_WEB 1
