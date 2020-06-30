@@ -680,6 +680,7 @@ static void process_spawn(const int type) {
 	}
 
 	unsigned char * const stack = sodium_malloc(AEM_STACKSIZE);
+	if (stack == NULL) return;
 	bzero(stack, AEM_STACKSIZE);
 
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
