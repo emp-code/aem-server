@@ -61,12 +61,6 @@ static int bindMount(const char * const source, const char * const target, const
 	return mount(NULL, target, NULL, mountFlags, NULL);
 }
 
-static int dirMount(const char * const sub, const char * const src, const mode_t mode, const bool allowExec) {
-	char path[512];
-	sprintf(path, AEM_MOUNTDIR"/%s", sub);
-	return bindMount(src, path, mode, allowExec, true);
-}
-
 static int dirMake(const char * const sub) {
 	char path[512];
 	sprintf(path, AEM_MOUNTDIR"/%s", sub);
@@ -115,14 +109,14 @@ int createMount(const int type) {
 	) return -1;
 
 	if (
-	   dirMount("lib",       "/lib",       AEM_MODE_XO, true) != 0
-	|| dirMount("lib64",     "/lib64",     AEM_MODE_XO, true) != 0
-	|| dirMount("usr/lib",   "/usr/lib",   AEM_MODE_XO, true) != 0
-	|| dirMount("usr/lib64", "/usr/lib64", AEM_MODE_XO, true) != 0
+	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       AEM_MODE_XO, true, true) != 0
+	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     AEM_MODE_XO, true, true) != 0
+	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   AEM_MODE_XO, true, true) != 0
+	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", AEM_MODE_XO, true, true) != 0
 	) return -1;
 
 	if ((type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_ENQUIRY) && (
-	   dirMount("ssl-certs", "/usr/share/ca-certificates/mozilla/", AEM_MODE_RX, false) != 0
+	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MODE_RX, false, true) != 0
 	)) return -1;
 
 	const char *path;
