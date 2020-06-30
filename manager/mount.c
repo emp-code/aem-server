@@ -1,19 +1,11 @@
-#include <ctype.h> // for isxdigit
-#include <fcntl.h>
 #include <grp.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h> // for memlockall
 #include <sys/mount.h>
-#include <sys/prctl.h>
-#include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <pwd.h>
