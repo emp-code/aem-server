@@ -33,6 +33,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <mbedtls/sha256.h>
 #include <mbedtls/x509_crt.h>
 
 #include <sodium.h>
@@ -372,6 +373,12 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 	// Compression
 	if (brotliCompress(&tmp, &lenTmp) != 0) {syslog(LOG_ERR, "Compression failed"); return -1;}
 
+	unsigned char bodyHash[32];
+	if (mbedtls_sha256_ret((unsigned char*)tmp, lenTmp, bodyHash, 0) != 0) {syslog(LOG_ERR, "Hash failed"); return -1;}
+
+	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
+
 	// Headers
 	char headers[2048];
 	sprintf(headers,
@@ -448,6 +455,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 
 		// Security headers
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
+		"Digest: sha-256=%s\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
 		"Referrer-Policy: no-referrer\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
@@ -456,7 +464,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenTmp, (int)lenDomain, domain, (int)lenDomain, domain);
+	, lenTmp, (int)lenDomain, domain, (int)lenDomain, domain, bodyHashB64);
 
 	const size_t lenHeaders = strlen(headers);
 	memcpy(html, headers, lenHeaders);
