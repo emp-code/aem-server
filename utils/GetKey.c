@@ -8,20 +8,7 @@
 
 #include <sodium.h>
 
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
+#include "../Common/ToggleEcho.h"
 
 int getKey(unsigned char * const master) {
 	toggleEcho(false);

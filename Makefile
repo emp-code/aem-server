@@ -4,7 +4,7 @@ CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_GNU_SOUR
 all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -o aem-manager manager/*.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc
+	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c -lsodium
@@ -25,22 +25,22 @@ aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
-	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c -lsodium
+	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
 utils/CertCrypt: utils/CertCrypt.c
-	$(CC) $(CFLAGS) -o utils/CertCrypt utils/CertCrypt.c utils/GetKey.c -lsodium
+	$(CC) $(CFLAGS) -o utils/CertCrypt utils/CertCrypt.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
 utils/FileCrypt: utils/FileCrypt.c
-	$(CC) $(CFLAGS) -o utils/FileCrypt utils/FileCrypt.c utils/GetKey.c -lsodium -lbrotlienc
+	$(CC) $(CFLAGS) -o utils/FileCrypt utils/FileCrypt.c utils/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc
 
 utils/Keygen: utils/Keygen.c
 	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
 
 utils/ManagerClient: utils/ManagerClient.c
-	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c utils/GetKey.c -lsodium
+	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
 utils/Resgen: utils/Resgen.c
-	$(CC) $(CFLAGS) -o utils/Resgen utils/Resgen.c utils/GetKey.c -lsodium
+	$(CC) $(CFLAGS) -o utils/Resgen utils/Resgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
 .PHONY: clean
 clean:

@@ -10,35 +10,18 @@
 #include <string.h>
 #include <sys/capability.h>
 #include <sys/mman.h> // for memlockall
-#include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
-#include <sys/stat.h>
 #include <syslog.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/ToggleEcho.h"
 #include "mount.h"
 
 #include "manager.h"
-
-static void toggleEcho(const bool on) {
-	struct termios t;
-	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
-
-	if (on) {
-		t.c_lflag |= ((tcflag_t)ECHO);
-		t.c_lflag |= ((tcflag_t)ICANON);
-	} else {
-		t.c_lflag &= ~((tcflag_t)ECHO);
-		t.c_lflag &= ~((tcflag_t)ICANON);
-	}
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
 
 static int getKey(void) {
 	toggleEcho(false);
