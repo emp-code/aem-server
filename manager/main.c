@@ -115,8 +115,8 @@ static int setCaps(void) {
 	return (
 	   cap_clear(caps) == 0
 
-	&& cap_set_flag(caps, CAP_PERMITTED, 18, capMain, CAP_SET) == 0
-	&& cap_set_flag(caps, CAP_EFFECTIVE, 18, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_PERMITTED, 14, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_EFFECTIVE, 14, capMain, CAP_SET) == 0
 
 	&& cap_set_flag(caps, CAP_INHERITABLE, 2, capInherit, CAP_SET) == 0
 
