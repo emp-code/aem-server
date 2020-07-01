@@ -82,10 +82,10 @@ int createMount(const int type) {
 	if (mount("", AEM_MOUNTDIR, "", MS_UNBINDABLE, "") != 0) return -1;
 
 	if (
-	   mkdir(AEM_MOUNTDIR"/dev",     AEM_MODE_XO) != 0
-	|| mkdir(AEM_MOUNTDIR"/usr",     AEM_MODE_XO) != 0
-	|| chown(AEM_MOUNTDIR"/dev",     0, aemGroup) != 0
-	|| chown(AEM_MOUNTDIR"/usr",     0, aemGroup) != 0
+	   mkdir(AEM_MOUNTDIR"/dev", AEM_MODE_XO) != 0
+	|| mkdir(AEM_MOUNTDIR"/usr", AEM_MODE_XO) != 0
+	|| chown(AEM_MOUNTDIR"/dev", 0, aemGroup) != 0
+	|| chown(AEM_MOUNTDIR"/usr", 0, aemGroup) != 0
 	) return -1;
 
 	if (
