@@ -93,13 +93,12 @@ static int setCaps(void) {
 
 	const cap_value_t capInherit[] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
 
-	const cap_value_t capMain[15] = {
+	const cap_value_t capMain[14] = {
 		CAP_CHOWN, // Allow chown on any file
 		CAP_DAC_OVERRIDE, // Bypass file permission checks
 		CAP_DAC_READ_SEARCH, // Bypass file permission checks
 		CAP_FOWNER, // Bypass file ownership checks
 		CAP_KILL, // Kill any process
-		CAP_LEASE, // Allow leases on all files (get signal if file opened by another process)
 		CAP_MKNOD, // Make special files
 		CAP_NET_BIND_SERVICE, // Bind to port #<1024
 		CAP_SETGID, // Set group IDs
