@@ -17,7 +17,7 @@ int getKey(unsigned char * const master) {
 
 	char masterHex[crypto_secretbox_KEYBYTES * 2];
 	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar();
+		const int gc = getchar_unlocked();
 		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
 		masterHex[i] = gc;
 	}
