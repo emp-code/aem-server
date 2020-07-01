@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for peercred
-
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <stdbool.h>

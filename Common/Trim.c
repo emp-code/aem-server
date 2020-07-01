@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for memmem
-
 #include <stddef.h>
 #include <string.h>
 

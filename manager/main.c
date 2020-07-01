@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for unshare
-
 #include <ctype.h> // for isxdigit
 #include <fcntl.h>
 #include <linux/securebits.h>

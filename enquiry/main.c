@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for struct ucred, accept4
-
 #include <fcntl.h>
 #include <locale.h> // for setlocale
 #include <signal.h>

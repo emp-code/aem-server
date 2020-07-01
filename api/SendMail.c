@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for memmem
-
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <string.h>

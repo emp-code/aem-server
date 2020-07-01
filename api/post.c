@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for peercred
-
 #include <ctype.h> // for islower
 #include <stdbool.h>
 #include <stdint.h>

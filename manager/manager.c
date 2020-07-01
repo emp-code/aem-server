@@ -11,8 +11,6 @@
 	The encryption is mostly for authentication. There is no forward secrecy.
 */
 
-#define _GNU_SOURCE // for pipe2(), accept4
-
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <grp.h>

@@ -1,5 +1,3 @@
-#define _GNU_SOURCE // for strcasestr
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
