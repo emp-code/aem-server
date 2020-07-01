@@ -121,15 +121,7 @@ static int saveUser(void) {
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
 
-	struct timespec zeroTime[2];
-	zeroTime[0].tv_sec = 0;
-	zeroTime[0].tv_nsec = 0;
-	zeroTime[1].tv_sec = 0;
-	zeroTime[1].tv_nsec = 0;
-	futimens(fd, zeroTime);
-
 	close(fd);
-
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
 
