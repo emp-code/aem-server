@@ -668,13 +668,16 @@ static int process_new(void *params) {
 	close(sockMain);
 	close(sockClient);
 
-	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
-
 	const int type = ((uint8_t*)params)[0];
 	const int pipefd = ((uint8_t*)params)[1];
 	const int closefd = ((uint8_t*)params)[2];
 	close(closefd);
 
+	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
+		if (i != type) close(binfd[i]);
+	}
+
+	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
 	if (createMount(type) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
 	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
