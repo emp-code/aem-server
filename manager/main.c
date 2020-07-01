@@ -91,7 +91,7 @@ static int dropBounds(void) {
 static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	const cap_value_t capInherit[] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
+	const cap_value_t capInherit[2] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
 
 	const cap_value_t capMain[14] = {
 		CAP_CHOWN, // Allow chown on any file
@@ -115,10 +115,10 @@ static int setCaps(void) {
 	return (
 	   cap_clear(caps) == 0
 
+	&& cap_set_flag(caps, CAP_INHERITABLE, 2, capInherit, CAP_SET) == 0
+
 	&& cap_set_flag(caps, CAP_PERMITTED, 14, capMain, CAP_SET) == 0
 	&& cap_set_flag(caps, CAP_EFFECTIVE, 14, capMain, CAP_SET) == 0
-
-	&& cap_set_flag(caps, CAP_INHERITABLE, 2, capInherit, CAP_SET) == 0
 
 	&& cap_set_proc(caps) == 0
 	&& cap_free(caps) == 0
