@@ -383,6 +383,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 		"Content-Encoding: br\r\n"
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
+		"Link: <https://%.*s>; rel=\"canonical\"\r\n"
 		"Server: All-Ears Mail\r\n"
 		"Tk: N\r\n"
 
@@ -455,7 +456,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenTmp, (int)lenDomain, domain);
+	, lenTmp, (int)lenDomain, domain, (int)lenDomain, domain);
 
 	const size_t lenHeaders = strlen(headers);
 	memcpy(html, headers, lenHeaders);
