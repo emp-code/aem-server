@@ -674,7 +674,8 @@ static int process_new(void *params) {
 
 	char arg1[] = {pipefd, '\0'};
 	char * const newargv[] = {arg1, NULL};
-	fexecve(binfd[type], newargv, environ);
+	char * const emptyEnviron[] = {NULL};
+	fexecve(binfd[type], newargv, emptyEnviron);
 
 	// Only runs if exec failed
 	syslog(LOG_ERR, "Failed starting process");
