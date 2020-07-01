@@ -101,19 +101,6 @@ int createMount(const int type) {
 	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", true, false, true) != 0
 	)) return -1;
 
-	const char *path;
-	const char *bin;
-	switch (type) {
-		case AEM_PROCESSTYPE_MTA: path = AEM_MOUNTDIR"/usr/bin/aem-mta"; bin = "/usr/bin/allears/aem-mta"; break;
-		case AEM_PROCESSTYPE_API: path = AEM_MOUNTDIR"/usr/bin/aem-api"; bin = "/usr/bin/allears/aem-api"; break;
-		case AEM_PROCESSTYPE_WEB: path = AEM_MOUNTDIR"/usr/bin/aem-web"; bin = "/usr/bin/allears/aem-web"; break;
-		case AEM_PROCESSTYPE_ACCOUNT: path = AEM_MOUNTDIR"/usr/bin/aem-account"; bin = "/usr/bin/allears/aem-account"; break;
-		case AEM_PROCESSTYPE_STORAGE: path = AEM_MOUNTDIR"/usr/bin/aem-storage"; bin = "/usr/bin/allears/aem-storage"; break;
-		case AEM_PROCESSTYPE_ENQUIRY: path = AEM_MOUNTDIR"/usr/bin/aem-enquiry"; bin = "/usr/bin/allears/aem-enquiry"; break;
-		default: return -1;
-	}
-	if (bindMount(bin, path, true, true, false) != 0) return -1;
-
 	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", false, false, false) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {

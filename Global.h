@@ -77,11 +77,23 @@
 #define AEM_MOUNTDIR "/var/lib/allears/mount"
 #define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
 
+#define AEM_PROCESSTYPES_COUNT 6
 #define AEM_PROCESSTYPE_MTA 0
 #define AEM_PROCESSTYPE_WEB 1
 #define AEM_PROCESSTYPE_API 2
-#define AEM_PROCESSTYPE_ACCOUNT 10
-#define AEM_PROCESSTYPE_STORAGE 11
-#define AEM_PROCESSTYPE_ENQUIRY 12
+#define AEM_PROCESSTYPE_STORAGE 3
+#define AEM_PROCESSTYPE_ACCOUNT 4
+#define AEM_PROCESSTYPE_ENQUIRY 5
+
+// XXX The above and below lists MUST be in the same order
+
+#define AEM_PATH_EXE { \
+	AEM_PATH_CONF"/bin/aem-mta", \
+	AEM_PATH_CONF"/bin/aem-web", \
+	AEM_PATH_CONF"/bin/aem-api", \
+	AEM_PATH_CONF"/bin/aem-storage", \
+	AEM_PATH_CONF"/bin/aem-account", \
+	AEM_PATH_CONF"/bin/aem-enquiry" \
+}
 
 #endif

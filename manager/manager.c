@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
+#include <sys/mman.h> // for memfd_create()
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -76,6 +77,8 @@
 #define AEM_LEN_FIL2_MAX 65536
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
+
+static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0};
 
 static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
@@ -497,7 +500,35 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 	return 0;
 }
 
+static int loadExec(void) {
+	const char * const path[] = AEM_PATH_EXE;
+
+	unsigned char * const tmp = sodium_malloc(524288);
+	size_t lenTmp;
+
+	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
+		if (loadFile(path[i], tmp, &lenTmp, 0, 524288) != 0) {
+			sodium_free(tmp);
+			return -1;
+		}
+
+		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+
+		if (write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp) {
+			sodium_free(tmp);
+			return -1;
+		}
+
+		fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE);
+	}
+
+	sodium_free(tmp);
+	return 0;
+}
+
 int loadFiles(void) {
+	if (loadExec() != 0) return -1;
+
 	int ret = (
 	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
@@ -643,16 +674,7 @@ static int process_new(void *params) {
 
 	char arg1[] = {pipefd, '\0'};
 	char * const newargv[] = {arg1, NULL};
-
-	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: execv("usr/bin/aem-account", newargv); break;
-		case AEM_PROCESSTYPE_STORAGE: execv("usr/bin/aem-storage", newargv); break;
-		case AEM_PROCESSTYPE_ENQUIRY: execv("usr/bin/aem-enquiry", newargv); break;
-
-		case AEM_PROCESSTYPE_WEB: execv("usr/bin/aem-web", newargv); break;
-		case AEM_PROCESSTYPE_API: execv("usr/bin/aem-api", newargv); break;
-		case AEM_PROCESSTYPE_MTA: execv("usr/bin/aem-mta", newargv); break;
-	}
+	fexecve(binfd[type], newargv, environ);
 
 	// Only runs if exec failed
 	syslog(LOG_ERR, "Failed starting process");

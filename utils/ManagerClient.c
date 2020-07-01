@@ -15,9 +15,10 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "GetKey.h"
 
-#define AEM_PORT_MANAGER "940"
+#define AEM_PORT_MANAGER_STR "940"
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + AEM_LEN_MSG)
@@ -33,7 +34,7 @@ static int makeSocket(const char * const host) {
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if (getaddrinfo(host, AEM_PORT_MANAGER, &hints, &res) != 0) {
+	if (getaddrinfo(host, AEM_PORT_MANAGER_STR, &hints, &res) != 0) {
 		puts("getaddrinfo failed");
 		return -1;
 	}
@@ -73,9 +74,9 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 	decrypted[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
 	switch(comType) {
-		case 'M': decrypted[1] = 0; break;
-		case 'W': decrypted[1] = 1; break;
-		case 'A': decrypted[1] = 2; break;
+		case 'M': decrypted[1] = AEM_PROCESSTYPE_MTA; break;
+		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB; break;
+		case 'A': decrypted[1] = AEM_PROCESSTYPE_API; break;
 	}
 
 	memcpy(decrypted + 2, &comNum, 4);
