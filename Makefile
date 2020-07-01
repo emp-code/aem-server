@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter -Wno-error=unused-variable
 
-all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
+all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c -lsodium -lcap -lmbedx509 -lbrotlienc
@@ -30,8 +30,8 @@ utils/Accgen: utils/Accgen.c
 utils/CertCrypt: utils/CertCrypt.c
 	$(CC) $(CFLAGS) -o utils/CertCrypt utils/CertCrypt.c utils/GetKey.c -lsodium
 
-utils/HtmlCrypt: utils/HtmlCrypt.c
-	$(CC) $(CFLAGS) -o utils/HtmlCrypt utils/HtmlCrypt.c utils/GetKey.c -lsodium -lbrotlienc
+utils/FileCrypt: utils/FileCrypt.c
+	$(CC) $(CFLAGS) -o utils/FileCrypt utils/FileCrypt.c utils/GetKey.c -lsodium -lbrotlienc
 
 utils/Keygen: utils/Keygen.c
 	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
@@ -44,4 +44,4 @@ utils/Resgen: utils/Resgen.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/HtmlCrypt utils/Keygen utils/ManagerClient utils/Resgen
+	-rm aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
