@@ -102,7 +102,7 @@ int createMount(const int type) {
 	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", false, false, false) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount("/var/lib/allears/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", true, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", true, false, false) != 0) return -1;
 	}
 
 	if (
@@ -114,10 +114,10 @@ int createMount(const int type) {
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		if (bindMount("/var/lib/allears/Account.aem", AEM_MOUNTDIR"/Account.aem", false, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", false, false, false) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		if (bindMount("/var/lib/allears/Storage.aem", AEM_MOUNTDIR"/Storage.aem", false, false, false) != 0) return -1;
-		if (bindMount("/var/lib/allears/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", false, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Storage.aem", AEM_MOUNTDIR"/Storage.aem", false, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", false, false, false) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
