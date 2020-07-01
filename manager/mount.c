@@ -84,10 +84,8 @@ int createMount(const int type) {
 	if (
 	   mkdir(AEM_MOUNTDIR"/dev",     AEM_MODE_XO) != 0
 	|| mkdir(AEM_MOUNTDIR"/usr",     AEM_MODE_XO) != 0
-	|| mkdir(AEM_MOUNTDIR"/usr/bin", AEM_MODE_XO) != 0
 	|| chown(AEM_MOUNTDIR"/dev",     0, aemGroup) != 0
 	|| chown(AEM_MOUNTDIR"/usr",     0, aemGroup) != 0
-	|| chown(AEM_MOUNTDIR"/usr/bin", 0, aemGroup) != 0
 	) return -1;
 
 	if (
