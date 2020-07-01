@@ -101,7 +101,7 @@ static int saveStindex(void) {
 	sodium_memzero(clear, lenClear);
 	free(clear);
 
-	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
@@ -245,7 +245,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 }
 
 int loadStindex() {
-	const int fd = open("Stindex.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("Stindex.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
 	if (fd < 0) return -1;
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
@@ -521,8 +521,9 @@ int main(int argc, char *argv[]) {
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
+	fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	if (fdMsg < 0) {syslog(LOG_ERR, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}
 	if (loadStindex() != 0) {syslog(LOG_ERR, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}
-	if ((fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC)) < 0) {syslog(LOG_ERR, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}
 	if (loadEmpty() != 0) {syslog(LOG_ERR, "Terminating: Failed loading Storage.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_INFO, "Ready");
