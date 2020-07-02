@@ -147,7 +147,7 @@ static int smtp_addr_sender(const char * const buf, const size_t len) {
 	if (buf == NULL || len < 1) return -1;
 
 	size_t skipBytes = 0;
-	while (isspace(buf[skipBytes]) && skipBytes < len) skipBytes++;
+	while (skipBytes < len && isspace(buf[skipBytes])) skipBytes++;
 	if (skipBytes >= len) return -1;
 
 	if (buf[skipBytes] != '<') return -1;
