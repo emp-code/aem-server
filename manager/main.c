@@ -194,6 +194,7 @@ int main(void) {
 		| CLONE_SYSVSEM // Unused
 	) != 0) return 13;
 
+	if (setpriority(PRIO_PROCESS, 0, -20) != 0) {return 26;}
 	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 20;
 	if (sodium_init() < 0) return 21;
 	if (setSignals() != 0) return 22;

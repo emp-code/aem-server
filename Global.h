@@ -97,4 +97,13 @@
 	AEM_PATH_CONF"/bin/aem-enquiry" \
 }
 
+#define AEM_NICE { \
+	/*MTA*/ -8, \
+	/*Web*/ 4, \
+	/*API*/ -4, \
+	/*Sto*/ -18, \
+	/*Acc*/ -16, \
+	/*Enq*/ -18 \
+}
+
 #endif
