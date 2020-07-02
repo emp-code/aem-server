@@ -609,26 +609,27 @@ static int setCaps(const int type) {
 static int setSubLimits(const int type) {
 	struct rlimit rlim;
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_ENQUIRY) {
 		rlim.rlim_cur = 0;
 		rlim.rlim_max = 0;
 		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
 	}
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
-		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; rlim.rlim_max = 5; break;
-		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; rlim.rlim_max = 15; break;
+		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
+		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
 
-		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
-		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; rlim.rlim_max = 4; break;
-		case AEM_PROCESSTYPE_WEB: rlim.rlim_cur = 3; rlim.rlim_max = 3; break;
+		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_WEB: rlim.rlim_cur = 3; break;
 	}
 
+	rlim.rlim_max = rlim.rlim_cur;
 	if (setrlimit(RLIMIT_OFILE, &rlim) != 0) return -1;
 
 	rlim.rlim_cur = (typeNice[type] * -1) + 20; // The actual ceiling for the nice value is calculated as 20 - rlim_cur
-	rlim.rlim_max = (typeNice[type] * -1) + 20;
+	rlim.rlim_max = rlim.rlim_cur;
 	return setrlimit(RLIMIT_NICE, &rlim);
 }
 
