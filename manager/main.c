@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
-#include <sys/mman.h> // for memlockall
+#include <sys/mman.h> // for mlockall
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <syslog.h>
@@ -91,13 +91,14 @@ static int dropBounds(void) {
 static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	const cap_value_t capInherit[2] = {CAP_NET_BIND_SERVICE, CAP_SETPCAP};
+	const cap_value_t capInherit[3] = {CAP_NET_BIND_SERVICE, CAP_IPC_LOCK, CAP_SETPCAP};
 
-	const cap_value_t capMain[14] = {
+	const cap_value_t capMain[15] = {
 		CAP_CHOWN, // Allow chown on any file
 		CAP_DAC_OVERRIDE, // Bypass file permission checks
 		CAP_DAC_READ_SEARCH, // Bypass file permission checks
 		CAP_FOWNER, // Bypass file ownership checks
+		CAP_IPC_LOCK, // mlockall()
 		CAP_KILL, // Kill any process
 		CAP_MKNOD, // Make special files
 		CAP_NET_BIND_SERVICE, // Bind to port #<1024
@@ -115,10 +116,10 @@ static int setCaps(void) {
 	return (
 	   cap_clear(caps) == 0
 
-	&& cap_set_flag(caps, CAP_INHERITABLE, 2, capInherit, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_INHERITABLE, 3, capInherit, CAP_SET) == 0
 
-	&& cap_set_flag(caps, CAP_PERMITTED, 14, capMain, CAP_SET) == 0
-	&& cap_set_flag(caps, CAP_EFFECTIVE, 14, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_PERMITTED, 15, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_EFFECTIVE, 15, capMain, CAP_SET) == 0
 
 	&& cap_set_proc(caps) == 0
 	&& cap_free(caps) == 0

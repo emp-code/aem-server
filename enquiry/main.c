@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h> // for mlockall
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -15,6 +16,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/SetCaps.h"
 
 #include "DNS.h"
 
@@ -95,6 +97,11 @@ void takeConnections(void) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+
+	if (
+	   setCaps(CAP_IPC_LOCK) != 0
+	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
+	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (read(argv[0][0], accessKey, AEM_LEN_ACCESSKEY) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "Terminating: Failed loading AccessKey"); return EXIT_FAILURE;}
 	close(argv[0][0]);

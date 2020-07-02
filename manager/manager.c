@@ -570,49 +570,35 @@ int loadFiles(void) {
 static int setCaps(const int type) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
-		// Make CAP_NET_BIND_SERVICE ambient
-		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
-		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0) != 0) return -1;
+	// Ambient capabilities
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 
-		// Allow changing SecureBits for the next part
-		const cap_value_t capPcap = CAP_SETPCAP;
-		cap_t caps = cap_get_proc();
-		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
-
-		// Disable and lock further ambient caps
-		if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
-			syslog(LOG_ERR, "Failed setting SecureBits");
-			return -1;
-		}
-
-		// Disable all but the one capability needed
-		const cap_value_t capBind = CAP_NET_BIND_SERVICE;
-		return (
-			cap_clear(caps) == 0
-		&& cap_set_flag(caps, CAP_INHERITABLE, 1, &capBind, CAP_SET) == 0
-		&& cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) == 0
-		&& cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) == 0
-		&& cap_set_proc(caps) == 0
-		&& cap_free(caps) == 0
-		) ? 0 : -1;
+	cap_value_t cap;
+	if (type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_ENQUIRY) {
+		cap = CAP_IPC_LOCK;
+	} else if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+		cap = CAP_NET_BIND_SERVICE;
 	}
 
-	// Others: Disable all capabilities
-	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap, 0, 0) != 0) return -1;
 
 	// Allow changing SecureBits for the next part
 	const cap_value_t capPcap = CAP_SETPCAP;
 	cap_t caps = cap_get_proc();
 	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capPcap, CAP_SET) != 0 || cap_set_proc(caps) != 0) return -1;
 
+	// Disable and lock further ambient caps
 	if (prctl(PR_SET_SECUREBITS, SECBIT_NO_CAP_AMBIENT_RAISE | SECBIT_NO_CAP_AMBIENT_RAISE_LOCKED | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) != 0) {
 		syslog(LOG_ERR, "Failed setting SecureBits");
 		return -1;
 	}
 
+	// Disable all but the one capability needed
 	return (
 		cap_clear(caps) == 0
+	&& cap_set_flag(caps, CAP_INHERITABLE, 1, &cap, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_PERMITTED,   1, &cap, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_EFFECTIVE,   1, &cap, CAP_SET) == 0
 	&& cap_set_proc(caps) == 0
 	&& cap_free(caps) == 0
 	) ? 0 : -1;

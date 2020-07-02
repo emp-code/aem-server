@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h> // for mlockall
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -17,6 +18,7 @@
 #include "aes.h"
 
 #include "../Global.h"
+#include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-Sto"
 #define AEM_BLOCKSIZE 1024
@@ -515,6 +517,11 @@ static int pipeLoad(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+
+	if (
+	   setCaps(CAP_IPC_LOCK) != 0
+	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
+	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);

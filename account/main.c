@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h> // for mlockall
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
@@ -14,6 +15,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/SetCaps.h"
 
 #define AEM_ACCOUNT
 #define AEM_LOGNAME "AEM-Acc"
@@ -627,6 +629,11 @@ static int pipeLoad(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+
+	if (
+	   setCaps(CAP_IPC_LOCK) != 0
+	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
+	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	unsigned char *hash_admin_u8;
 	size_t hash_admin_size = 1;

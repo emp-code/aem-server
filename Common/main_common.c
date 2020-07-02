@@ -1,22 +1,5 @@
 // Common functions for Web/API/MTA main.c
 
-static int setCaps(const bool allowBind) {
-	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
-
-	cap_t caps = cap_get_proc();
-	if (cap_clear(caps) != 0) {cap_free(caps); return -1;}
-
-	if (allowBind) {
-		const cap_value_t capBind = CAP_NET_BIND_SERVICE;
-		if (cap_set_flag(caps, CAP_PERMITTED, 1, &capBind, CAP_SET) != 0) {cap_free(caps); return -1;}
-		if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &capBind, CAP_SET) != 0) {cap_free(caps); return -1;}
-	}
-
-	if (cap_set_proc(caps) != 0) {cap_free(caps); return -1;}
-
-	return cap_free(caps);
-}
-
 static void setSocketTimeout(const int sock) {
 	struct timeval tv;
 	tv.tv_sec = AEM_SOCKET_TIMEOUT;
@@ -36,7 +19,7 @@ static int initSocket(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
-	if (setCaps(false) != 0) return -1;
+	if (setCaps(0) != 0) return -1;
 
 	listen(sock, AEM_BACKLOG);
 	return 0;

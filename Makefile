@@ -7,22 +7,22 @@ aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc
 
 aem-account: account/*.c
-	$(CC) $(CFLAGS) -o aem-account account/*.c -lsodium
+	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c -lsodium -lsodium -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-storage: storage/*.c
-	$(CC) $(CFLAGS) -o aem-storage storage/*.c -lsodium
+	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-api: api/*.c
-	$(CC) $(CFLAGS) -o aem-api api/*.c api/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
+	$(CC) $(CFLAGS) -o aem-api api/*.c api/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
 
 aem-web: web/*.c
-	$(CC) $(CFLAGS) -o aem-web web/*.c web/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
+	$(CC) $(CFLAGS) -o aem-web web/*.c web/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap -lbrotlienc -lmaxminddb -licuuc -licui18n
+	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
