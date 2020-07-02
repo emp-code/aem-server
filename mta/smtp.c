@@ -168,7 +168,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 	if (buf == NULL || len < 1 || addr == NULL) return 0;
 
 	size_t skipBytes = 0;
-	while (isspace(buf[skipBytes]) && skipBytes < len) skipBytes++;
+	while (skipBytes < len && isspace(buf[skipBytes])) skipBytes++;
 	if (skipBytes >= len) return 0;
 
 	if (buf[skipBytes] != '<') return 0;
