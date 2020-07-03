@@ -426,8 +426,14 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	else
 		sprintf(conn, "s://%.*s", (int)lenDomain, domain);
 
+	char onionLoc[91];
+	if (onion)
+		sprintf(onionLoc, "Onion-Location: http://%.56s.onion/\r\n", onionId);
+	else
+		onionLoc[0] = '\0';
+
 	// Headers
-	char headers[2048];
+	char headers[2500];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 
@@ -438,6 +444,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Link: <https://%.*s>; rel=\"canonical\"\r\n"
+		"%s"
 		"Server: All-Ears Mail\r\n"
 		"Tk: N\r\n"
 
@@ -514,6 +521,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	, onion? "deflate" : "br", // Content-Encoding
 	lenData, // Content-Length
 	(int)lenDomain, domain, // Canonical
+	onionLoc,
 	conn, // CSP connect
 	bodyHashB64); // Digest
 
