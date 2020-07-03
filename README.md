@@ -80,6 +80,8 @@ aem-web is the only process type to run completely isolated with no capability t
 
 Invalid requests are dropped without response. Only high-security HTTPS is supported, and clients are required to support Brotli compression.
 
+aem-web-oni does the same as a Tor onion service.
+
 ## API ##
 
 aem-api provides an open web API to clients, such as websites or dedicated client programs.
@@ -202,7 +204,7 @@ Other signals:
 Several of the programs make use of:
 * [mbed TLS](https://tls.mbed.org) for TLS
 * [libsodium](https://libsodium.org) for cryptography
-* [Brotli](https://github.com/google/brotli) for compression
+* [Brotli](https://github.com/google/brotli) and [zlib](https://zlib.net) for compression
 
 aem-mta:
 * Geolocates email senders thanks to [MaxMind](https://dev.maxmind.com/geoip/geoip2/downloadable/).
