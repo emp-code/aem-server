@@ -58,7 +58,7 @@ static int initSocket(const int * const sock) {
 	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
 	if (ret < 0) return ret;
 
-	listen(*sock, AEM_BACKLOG); // socket, backlog (# of connections to keep in queue)
+	listen(*sock, AEM_BACKLOG);
 	return 0;
 }
 
