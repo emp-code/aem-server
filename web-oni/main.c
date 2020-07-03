@@ -14,7 +14,7 @@
 
 #include "../Global.h"
 
-#define AEM_LOGNAME "AEM-Web-Onion"
+#define AEM_LOGNAME "AEM-WOn"
 #define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
