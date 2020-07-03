@@ -111,6 +111,7 @@ static size_t len_adr_adm;
 static size_t len_html;
 static size_t len_html_oni;
 
+static char onionId[56];
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
 
@@ -149,6 +150,18 @@ static int pipeWriteDirect(const int fd, const unsigned char * const data, const
 	}
 
 	return write(fd, data + written, len - written);
+}
+
+static int getOnionId(void) {
+	const int fd = open("/var/lib/tor/hidden_service/hostname", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	if (fd < 0 || read(fd, onionId, 56) != 56) {
+		close(fd);
+		syslog(LOG_ERR, "Failed reading onionId");
+		return -1;
+	}
+
+	close(fd);
+	return 0;
 }
 
 void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
@@ -407,6 +420,12 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
 
+	char conn[66];
+	if (onion)
+		sprintf(conn, "://%.56s.onion", onionId);
+	else
+		sprintf(conn, "s://%.*s", (int)lenDomain, domain);
+
 	// Headers
 	char headers[2048];
 	sprintf(headers,
@@ -424,7 +443,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 
 		// CSP
 		"Content-Security-Policy: "
-			"connect-src"     " https://%.*s:302/api data:;"
+			"connect-src"     " http%s:302/api data:;"
 			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
 			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
 
@@ -495,7 +514,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	, onion? "deflate" : "br", // Content-Encoding
 	lenData, // Content-Length
 	(int)lenDomain, domain, // Canonical
-	(int)lenDomain, domain, // CSP connect; TODO: onion
+	conn, // CSP connect
 	bodyHashB64); // Digest
 
 	const size_t lenHeaders = strlen(headers);
@@ -571,6 +590,7 @@ static int loadExec(void) {
 }
 
 int loadFiles(void) {
+	if (getOnionId() != 0) return -1;
 	if (loadExec() != 0) return -1;
 
 	int ret = (
