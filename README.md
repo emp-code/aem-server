@@ -204,7 +204,7 @@ Other signals:
 Several of the programs make use of:
 * [mbed TLS](https://tls.mbed.org) for TLS
 * [libsodium](https://libsodium.org) for cryptography
-* [Brotli](https://github.com/google/brotli) and [zlib](https://zlib.net) for compression
+* [Brotli](https://github.com/google/brotli) and [Zopfli](https://github.com/google/zopfli) for compression
 
 aem-mta:
 * Geolocates email senders thanks to [MaxMind](https://dev.maxmind.com/geoip/geoip2/downloadable/).

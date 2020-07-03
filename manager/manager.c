@@ -34,7 +34,7 @@
 #include <mbedtls/sha256.h>
 #include <mbedtls/x509_crt.h>
 #include <sodium.h>
-#include <zlib.h>
+#include <zopfli/zopfli.h>
 
 #include "../Common/Brotli.c"
 #include "../Global.h"
@@ -394,13 +394,16 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	unsigned char *data;
 	size_t lenData;
 	// Compression
-	if (onion) { // zlib (deflate)
-		size_t lenData = compressBound(lenSrc);
-		data = malloc(lenData);
+	if (onion) { // Zopfli (deflate)
+		ZopfliOptions zopOpt;
+		ZopfliInitOptions(&zopOpt);
 
-		if (data == NULL || compress2(data, &lenData, src, lenSrc, Z_BEST_COMPRESSION) != Z_OK) {
-			if (data != NULL) free(data);
-			syslog(LOG_ERR, "Failed zlib compression");
+		lenData = 0;
+		data = 0;
+
+		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, src, lenSrc, &data, &lenData);
+		if (data == 0 || lenData < 1) {
+			syslog(LOG_ERR, "Failed zopfli compression");
 			return -1;
 		}
 	} else { // Brotli, HTTPS-only
