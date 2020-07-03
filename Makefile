@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter -Wno-error=unused-variable
+CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack
 
 all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-web-oni aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
