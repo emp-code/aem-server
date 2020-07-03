@@ -793,7 +793,7 @@ static void process_spawn(const int type) {
 
 	uint8_t params[] = {type, fd[0], fd[1]};
 	int flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED; // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (type == AEM_PROCESSTYPE_WEB || AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, flags, params, NULL, NULL, NULL);
 	if (pid < 0) {sodium_free(stack); return;}
