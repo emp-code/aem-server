@@ -406,6 +406,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	} else { // Brotli, HTTPS-only
 		lenData = lenSrc;
 		data = malloc(lenData);
+		memcpy(data, src, lenData);
 
 		if (data == NULL || brotliCompress(&data, &lenData) != 0) {
 			if (data != NULL) free(data);
@@ -428,9 +429,9 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 
 	char onionLoc[91];
 	if (onion)
-		sprintf(onionLoc, "Onion-Location: http://%.56s.onion/\r\n", onionId);
-	else
 		onionLoc[0] = '\0';
+	else
+		sprintf(onionLoc, "Onion-Location: http://%.56s.onion/\r\n", onionId);
 
 	// Headers
 	char headers[2500];
@@ -526,13 +527,16 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	bodyHashB64); // Digest
 
 	const size_t lenHeaders = strlen(headers);
-	memcpy(html, headers, lenHeaders);
-	memcpy(html + lenHeaders, data, lenData);
 
-	if (onion)
-		len_html = lenHeaders + lenData;
-	else
+	if (onion) {
+		memcpy(html_oni, headers, lenHeaders);
+		memcpy(html_oni + lenHeaders, data, lenData);
 		len_html_oni = lenHeaders + lenData;
+	} else {
+		memcpy(html, headers, lenHeaders);
+		memcpy(html + lenHeaders, data, lenData);
+		len_html = lenHeaders + lenData;
+	}
 
 	free(data);
 	return 0;
@@ -870,7 +874,7 @@ static void process_spawn(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_WEB_ONI:
-			if (pipeWriteDirect(fd[1], html, len_html) < 0)
+			if (pipeWriteDirect(fd[1], html_oni, len_html_oni) < 0)
 				syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 	}
