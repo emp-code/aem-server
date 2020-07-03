@@ -35,16 +35,16 @@
 #define AEM_LIMIT_SHD 2
 
 unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
-//	 MiB, Nrm, Shd | MiB = value + 1; 1-256 MiB
-	{31,  0,   5},
+//	 MiB  Nrm Shd | MiB = value + 1; 1-256 MiB
+	{31,  0,  5},
 	{63,  3,  10},
-	{127, 10, 30},
-	{255, 50, 50} // Admin
+	{127, 10, AEM_ADDRESSES_PER_USER}, // AEM_ADDRESSES_PER_USER = max
+	{255, AEM_ADDRESSES_PER_USER, AEM_ADDRESSES_PER_USER} // Admin
 };
 
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	unsigned char info; // & 3 = level; >> 2 = addresscount
+	unsigned char info; // & 3 = level; & 4 = unused; >> 3 = addresscount
 	unsigned char private[AEM_LEN_PRIVATE];
 	uint64_t addrHash[AEM_ADDRESSES_PER_USER];
 	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
@@ -177,7 +177,7 @@ static int loadUser(void) {
 
 static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
-		for (int addrNum = 0; addrNum < (user[userNum].info >> 2); addrNum++) {
+		for (int addrNum = 0; addrNum < (user[userNum].info >> 3); addrNum++) {
 			if (hash == user[userNum].addrHash[addrNum]) {
 				if (flagp != NULL) *flagp = user[userNum].addrFlag[addrNum];
 
@@ -223,7 +223,7 @@ static int userNumFromPubkey(const unsigned char * const pubkey) {
 static int numAddresses(const int num, const bool shield) {
 	int counter = 0;
 
-	for (int i = 0; i < user[num].info >> 2; i++) {
+	for (int i = 0; i < user[num].info >> 3; i++) {
 		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAG_SHIELD) == AEM_ADDR_FLAG_SHIELD;
 		if (isShield == shield) counter++;
 	}
@@ -232,7 +232,7 @@ static int numAddresses(const int num, const bool shield) {
 }
 
 static void api_account_browse(const int sock, const int num) {
-	const int addrCount = user[num].info >> 2;
+	const int addrCount = user[num].info >> 3;
 
 	unsigned char response[131200];
 	bzero(response, 131200);
@@ -353,7 +353,7 @@ static void api_account_update(const int sock, const int num) {
 }
 
 static void api_address_create(const int sock, const int num) {
-	int addrCount = user[num].info >> 2;
+	int addrCount = user[num].info >> 3;
 	if (addrCount >= AEM_ADDRESSES_PER_USER) return;
 
 	unsigned char addr32[10];
@@ -386,7 +386,7 @@ static void api_address_create(const int sock, const int num) {
 
 	user[num].addrHash[addrCount] = hash;
 	addrCount++;
-	user[num].info = (user[num].info & 3) + (addrCount << 2);
+	user[num].info = (user[num].info & 3) + (addrCount << 3);
 
 	saveUser();
 
@@ -410,7 +410,7 @@ static void api_address_delete(const int sock, const int num) {
 	uint64_t hash_del;
 	if (recv(sock, &hash_del, 8, 0) != 8) return;
 
-	unsigned char addrCount = user[num].info >> 2;
+	unsigned char addrCount = user[num].info >> 3;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
 		if (hash_del == user[num].addrHash[i]) {
@@ -429,7 +429,7 @@ static void api_address_delete(const int sock, const int num) {
 	}
 
 	addrCount--;
-	user[num].info = (user[num].info & 3) | (addrCount << 2);
+	user[num].info = (user[num].info & 3) | (addrCount << 3);
 
 	saveUser();
 }
@@ -460,7 +460,7 @@ static void api_address_update(const int sock, const int num) {
 	const ssize_t len = recv(sock, buf, 8192, 0);
 	if (len < 1 || len % 9 != 0) return;
 
-	const int addrCount = user[num].info >> 2;
+	const int addrCount = user[num].info >> 3;
 
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
