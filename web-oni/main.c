@@ -2,7 +2,6 @@
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -50,8 +49,8 @@ static void acceptClients(void) {
 	if (html == NULL || lenHtml < 1) return;
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {puts("ERROR: Opening socket failed"); return;}
-	if (initSocket(&sock) < 0) {puts("ERROR: Binding socket failed"); return;}
+	if (sock < 0) {syslog(LOG_ERR, "Failed opening socket"); return;}
+	if (initSocket(&sock) < 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
 	listen(sock, AEM_BACKLOG);
 
 	syslog(LOG_INFO, "Ready");
