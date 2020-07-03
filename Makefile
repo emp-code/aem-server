@@ -16,16 +16,16 @@ aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-api: api/*.c
-	$(CC) $(CFLAGS) -o aem-api api/*.c api/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
+	$(CC) $(CFLAGS) -o aem-api api/*.c api/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web: web/*.c
-	$(CC) $(CFLAGS) -o aem-web web/*.c web/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
+	$(CC) $(CFLAGS) -o aem-web web/*.c web/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c -lsodium
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap -lbrotlienc -lmaxminddb -licuuc -licui18n
+	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
