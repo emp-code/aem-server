@@ -436,6 +436,8 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	else
 		sprintf(onionLoc, "Onion-Location: http://%.56s.onion/\r\n", onionId);
 
+	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
+
 	// Headers
 	char headers[2500];
 	sprintf(headers,
@@ -512,11 +514,10 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 		"\r\n"
 
 		// Security headers
+		"%s"
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
 		"Digest: sha-256=%s\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
 		"Referrer-Policy: no-referrer\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-DNS-Prefetch-Control: off\r\n"
 		"X-Frame-Options: deny\r\n"
@@ -527,6 +528,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	(int)lenDomain, domain, // Canonical
 	onionLoc,
 	conn, // CSP connect
+	tlsHeaders,
 	bodyHashB64); // Digest
 
 	const size_t lenHeaders = strlen(headers);
