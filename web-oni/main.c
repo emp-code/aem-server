@@ -23,24 +23,8 @@
 unsigned char *html;
 size_t lenHtml;
 
-static bool terminate = false;
-
-static void freeHtml(void) {
-	if (lenHtml == 0) return;
-	sodium_free(html);
-	lenHtml = 0;
-}
-
 static void sigTerm(const int sig) {
-	terminate = true;
-
-	if (sig == SIGUSR1) {
-		syslog(LOG_INFO, "Terminating after next connection");
-		return;
-	}
-
-	// SIGUSR2: Fast kill
-	freeHtml();
+	sodium_free(html);
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -72,7 +56,7 @@ static void acceptClients(void) {
 
 	syslog(LOG_INFO, "Ready");
 
-	while (!terminate) {
+	while(1) {
 		const int sockClient = accept4(sock, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
 		if (sockClient < 0) continue;
 
@@ -110,6 +94,6 @@ int main(int argc, char *argv[]) {
 
 	acceptClients();
 
-	freeHtml();
+	sodium_free(html);
 	return EXIT_SUCCESS;
 }
