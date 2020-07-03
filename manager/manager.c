@@ -33,8 +33,8 @@
 
 #include <mbedtls/sha256.h>
 #include <mbedtls/x509_crt.h>
-
 #include <sodium.h>
+#include <zlib.h>
 
 #include "../Common/Brotli.c"
 #include "../Global.h"
@@ -77,7 +77,7 @@
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
 
-static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0};
+static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
 
 static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
 static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
@@ -106,8 +106,10 @@ static size_t len_tls_key;
 
 static unsigned char adr_adm[AEM_LEN_FIL2_MAX];
 static unsigned char html[AEM_LEN_FILE_MAX];
+static unsigned char html_oni[AEM_LEN_FILE_MAX];
 static size_t len_adr_adm;
 static size_t len_html;
+static size_t len_html_oni;
 
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
@@ -119,7 +121,7 @@ struct aem_process {
 	unsigned char *stack;
 };
 
-static struct aem_process aemProc[3][AEM_MAXPROCESSES];
+static struct aem_process aemProc[5][AEM_MAXPROCESSES];
 
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
@@ -186,11 +188,13 @@ void wipeKeys(void) {
 
 	sodium_memzero(adr_adm, len_adr_adm);
 	sodium_memzero(html, len_html);
+	sodium_memzero(html_oni, len_html_oni);
 
 	len_tls_crt = 0;
 	len_tls_key = 0;
 	len_adr_adm = 0;
 	len_html = 0;
+	len_html_oni = 0;
 
 	sodium_memzero(encrypted, AEM_LEN_ENCRYPTED);
 	sodium_memzero(decrypted, AEM_LEN_MSG);
@@ -228,7 +232,7 @@ static bool process_verify(const pid_t pid) {
 }
 
 static void refreshPids(void) {
-	for (int type = 0; type < 3; type++) {
+	for (int type = 0; type < 5; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
 				sodium_free(aemProc[type][i].stack);
@@ -342,9 +346,9 @@ static int getDomainFromCert(void) {
 	return 0;
 }
 
-static int genHtml(unsigned char *tmp, size_t lenTmp) {
+static int modHtml(unsigned char * const src, const size_t lenSrc) {
 	// Key placeholders
-	unsigned char *placeholder = memmem(tmp, lenTmp, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
+	unsigned char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
 	if (placeholder == NULL) {syslog(LOG_ERR, "API-Placeholder not found"); return -1;}
 	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
 	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
@@ -354,7 +358,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 	sodium_bin2hex(api_hex, 65, api_pub, crypto_box_PUBLICKEYBYTES);
 	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
 
-	placeholder = memmem(tmp, lenTmp, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
+	placeholder = memmem(src, lenSrc, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
 	if (placeholder == NULL) {syslog(LOG_ERR, "Sig-Placeholder not found"); return -1;}
 	unsigned char sig_tmp[crypto_sign_SECRETKEYBYTES];
 	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
@@ -364,17 +368,41 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 	sodium_bin2hex(sig_hex, 65, sig_pub, crypto_sign_PUBLICKEYBYTES);
 	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
 
-	placeholder = memmem(tmp, lenTmp, "AEM Normal Addr Salt placeholder", 32);
+	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
 	if (placeholder == NULL) {syslog(LOG_ERR, "Slt-Placeholder not found"); return -1;}
 	char slt_hex[33];
 	sodium_bin2hex(slt_hex, 33, slt_nrm, AEM_LEN_SALT_NORM);
 	memcpy(placeholder, slt_hex, AEM_LEN_SALT_NORM * 2);
 
+	return 0;
+}
+
+static int genHtml(const unsigned char * const src, const size_t lenSrc, const bool onion) {
+	unsigned char *data;
+	size_t lenData;
 	// Compression
-	if (brotliCompress(&tmp, &lenTmp) != 0) {syslog(LOG_ERR, "Compression failed"); return -1;}
+	if (onion) { // zlib (deflate)
+		size_t lenData = compressBound(lenSrc);
+		data = malloc(lenData);
+
+		if (data == NULL || compress2(data, &lenData, src, lenSrc, Z_BEST_COMPRESSION) != Z_OK) {
+			if (data != NULL) free(data);
+			syslog(LOG_ERR, "Failed zlib compression");
+			return -1;
+		}
+	} else { // Brotli, HTTPS-only
+		lenData = lenSrc;
+		data = malloc(lenData);
+
+		if (data == NULL || brotliCompress(&data, &lenData) != 0) {
+			if (data != NULL) free(data);
+			syslog(LOG_ERR, "Failed brotli compression");
+			return -1;
+		}
+	}
 
 	unsigned char bodyHash[32];
-	if (mbedtls_sha256_ret((unsigned char*)tmp, lenTmp, bodyHash, 0) != 0) {syslog(LOG_ERR, "Hash failed"); return -1;}
+	if (mbedtls_sha256_ret((unsigned char*)data, lenData, bodyHash, 0) != 0) {syslog(LOG_ERR, "Hash failed"); return -1;}
 
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
@@ -387,7 +415,7 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 		// General headers
 		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
 		"Connection: close\r\n"
-		"Content-Encoding: br\r\n"
+		"Content-Encoding: %s\r\n"
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"Link: <https://%.*s>; rel=\"canonical\"\r\n"
@@ -464,15 +492,22 @@ static int genHtml(unsigned char *tmp, size_t lenTmp) {
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenTmp, (int)lenDomain, domain, (int)lenDomain, domain, bodyHashB64);
+	, onion? "deflate" : "br", // Content-Encoding
+	lenData, // Content-Length
+	(int)lenDomain, domain, // Canonical
+	(int)lenDomain, domain, // CSP connect; TODO: onion
+	bodyHashB64); // Digest
 
 	const size_t lenHeaders = strlen(headers);
 	memcpy(html, headers, lenHeaders);
-	memcpy(html + lenHeaders, tmp, lenTmp);
+	memcpy(html + lenHeaders, data, lenData);
 
-	len_html = lenHeaders + lenTmp;
+	if (onion)
+		len_html = lenHeaders + lenData;
+	else
+		len_html_oni = lenHeaders + lenData;
 
-	free(tmp);
+	free(data);
 	return 0;
 }
 
@@ -560,12 +595,18 @@ int loadFiles(void) {
 	) ? 0 : -1;
 	if (ret != 0) return -1;
 
-	unsigned char *tmp = malloc(102400);
+	unsigned char * const tmp = malloc(102400);
 	if (tmp == NULL) return -1;
 	size_t lenTmp = 0;
 	if (loadFile(AEM_PATH_HTML, tmp, &lenTmp, 0, 102400) != 0) {free(tmp); return -1;}
-	ret = genHtml(tmp, lenTmp);
-	if (ret != 0) free(tmp);
+
+	ret = (
+	   modHtml(tmp, lenTmp) == 0
+	&& genHtml(tmp, lenTmp, false) == 0
+	&& genHtml(tmp, lenTmp, true) == 0
+	) ? 0 : -1;
+
+	free(tmp);
 	return ret;
 }
 
@@ -578,7 +619,7 @@ static int setCaps(const int type) {
 	cap_value_t cap;
 	if (type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_ENQUIRY) {
 		cap = CAP_IPC_LOCK;
-	} else if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	} else {
 		cap = CAP_NET_BIND_SERVICE;
 	}
 
@@ -609,7 +650,7 @@ static int setCaps(const int type) {
 static int setSubLimits(const int type) {
 	struct rlimit rlim;
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_ENQUIRY) {
+	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
 		rlim.rlim_cur = 0;
 		rlim.rlim_max = 0;
 		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
@@ -619,10 +660,11 @@ static int setSubLimits(const int type) {
 		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; break;
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
 		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
-
-		case AEM_PROCESSTYPE_MTA: rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_WEB: rlim.rlim_cur = 3; break;
+		case AEM_PROCESSTYPE_MTA:     rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_API:
+		case AEM_PROCESSTYPE_API_ONI: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_WEB_ONI: rlim.rlim_cur = 3; break;
 	}
 
 	rlim.rlim_max = rlim.rlim_cur;
@@ -686,7 +728,7 @@ static int process_new(void *params) {
 
 static void process_spawn(const int type) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid == 0) {
 				freeSlot = i;
@@ -701,7 +743,7 @@ static void process_spawn(const int type) {
 	if (stack == NULL) return;
 	bzero(stack, AEM_STACKSIZE);
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_ONI) {
 		aemProc[type][freeSlot].stack = stack;
 	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
 		stack_account = stack;
@@ -716,7 +758,7 @@ static void process_spawn(const int type) {
 
 	uint8_t params[] = {type, fd[0], fd[1]};
 	int flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED; // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (type == AEM_PROCESSTYPE_WEB) flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB || AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, flags, params, NULL, NULL, NULL);
 	if (pid < 0) {sodium_free(stack); return;}
@@ -798,11 +840,16 @@ static void process_spawn(const int type) {
 			|| pipeWriteDirect(fd[1], html, len_html) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
+
+		case AEM_PROCESSTYPE_WEB_ONI:
+			if (pipeWriteDirect(fd[1], html, len_html) < 0)
+				syslog(LOG_ERR, "Failed writing to pipe: %m");
+		break;
 	}
 
 	close(fd[1]);
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_ONI) {
 		aemProc[type][freeSlot].pid = pid;
 	}
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
@@ -834,7 +881,7 @@ void cryptSend(const int sock) {
 
 	bzero(decrypted, AEM_LEN_MSG);
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
 			memcpy(decrypted + start, &(aemProc[i][j].pid), 4);

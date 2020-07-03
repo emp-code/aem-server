@@ -78,13 +78,15 @@
 #define AEM_MOUNTDIR AEM_HOMEDIR"/mount"
 #define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
 
-#define AEM_PROCESSTYPES_COUNT 6
+#define AEM_PROCESSTYPES_COUNT 8
 #define AEM_PROCESSTYPE_MTA 0
 #define AEM_PROCESSTYPE_WEB 1
 #define AEM_PROCESSTYPE_API 2
-#define AEM_PROCESSTYPE_STORAGE 3
-#define AEM_PROCESSTYPE_ACCOUNT 4
-#define AEM_PROCESSTYPE_ENQUIRY 5
+#define AEM_PROCESSTYPE_WEB_ONI 3
+#define AEM_PROCESSTYPE_API_ONI 4
+#define AEM_PROCESSTYPE_STORAGE 5
+#define AEM_PROCESSTYPE_ACCOUNT 6
+#define AEM_PROCESSTYPE_ENQUIRY 7
 
 // XXX The above and below lists MUST be in the same order
 
@@ -92,18 +94,22 @@
 	AEM_PATH_CONF"/bin/aem-mta", \
 	AEM_PATH_CONF"/bin/aem-web", \
 	AEM_PATH_CONF"/bin/aem-api", \
+	AEM_PATH_CONF"/bin/aem-web-oni", \
+	AEM_PATH_CONF"/bin/aem-api-oni", \
 	AEM_PATH_CONF"/bin/aem-storage", \
 	AEM_PATH_CONF"/bin/aem-account", \
 	AEM_PATH_CONF"/bin/aem-enquiry" \
 }
 
 #define AEM_NICE { \
-	/*MTA*/ -8, \
-	/*Web*/ 4, \
-	/*API*/ -4, \
-	/*Sto*/ -18, \
-	/*Acc*/ -16, \
-	/*Enq*/ -18 \
+	/*MTA*/      -8, \
+	/*Web*/       4, \
+	/*API*/      -4, \
+	/*Web-O*/     8, \
+	/*API-O*/    -2, \
+	/*Storage*/ -18, \
+	/*Account*/ -16, \
+	/*Enquiry*/ -18 \
 }
 
 #endif

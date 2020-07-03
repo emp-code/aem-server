@@ -20,7 +20,7 @@
 
 #define AEM_PORT_MANAGER_STR "940"
 #define AEM_MAXPROCESSES 25
-#define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
+#define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 5 * 4
 #define AEM_LEN_ENCRYPTED (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + AEM_LEN_MSG)
 #define AEM_PATH_KEY_MNG "/etc/allears/Manager.key"
 
@@ -77,6 +77,8 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 		case 'M': decrypted[1] = AEM_PROCESSTYPE_MTA; break;
 		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB; break;
 		case 'A': decrypted[1] = AEM_PROCESSTYPE_API; break;
+		case 'w': decrypted[1] = AEM_PROCESSTYPE_WEB_ONI; break;
+		case 'a': decrypted[1] = AEM_PROCESSTYPE_API_ONI; break;
 	}
 
 	memcpy(decrypted + 2, &comNum, 4);
@@ -124,7 +126,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			uint32_t pid;
 			memcpy(&pid, decrypted + ((i * AEM_MAXPROCESSES + j) * 4), 4);

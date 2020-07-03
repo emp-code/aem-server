@@ -1,10 +1,10 @@
 CC=gcc
-CFLAGS=-g -O1 -march=native -pipe -Wall -Wextra -Werror -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter -Wno-error=unused-variable
+CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Wno-error=unused-result  -Wno-error=unused-function -Wno-error=unused-parameter -Wno-error=unused-variable
 
-all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
+all: aem-manager aem-account aem-enquiry aem-storage aem-api aem-web aem-web-oni aem-mta utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc
+	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc -lz
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
@@ -20,6 +20,9 @@ aem-api: api/*.c
 
 aem-web: web/*.c
 	$(CC) $(CFLAGS) -o aem-web web/*.c web/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap
+
+aem-web-oni: web-oni/main.c
+	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c -lsodium
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lmbedtls -lmbedcrypto -lmbedx509 -lcap -lbrotlienc -lmaxminddb -licuuc -licui18n

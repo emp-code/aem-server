@@ -11,6 +11,7 @@ static ssize_t pipeReadDirect(const int fd, unsigned char * const buf, const siz
 	}
 }
 
+#ifndef AEM_WEBONION
 __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
 	unsigned char buf[AEM_MAXLEN_PIPEREAD];
@@ -26,8 +27,10 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }
+#endif
 
 #ifndef AEM_ACCOUNT
+#ifndef AEM_WEBONION
 __attribute__((warn_unused_result))
 static int pipeLoadTls(const int fd) {
 	unsigned char *crtData;
@@ -51,4 +54,5 @@ static int pipeLoadTls(const int fd) {
 	sodium_free(keyData);
 	return ret;
 }
+#endif
 #endif
