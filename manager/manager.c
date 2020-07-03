@@ -360,7 +360,6 @@ static int getDomainFromCert(void) {
 }
 
 static int modHtml(unsigned char * const src, const size_t lenSrc) {
-	// Key placeholders
 	unsigned char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
 	if (placeholder == NULL) {syslog(LOG_ERR, "API-Placeholder not found"); return -1;}
 	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
