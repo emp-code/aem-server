@@ -703,10 +703,10 @@ static int setSubLimits(const int type) {
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
 		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
 		case AEM_PROCESSTYPE_MTA:     rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_API:
-		case AEM_PROCESSTYPE_API_ONI: rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI: rlim.rlim_cur = 3; break;
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI: rlim.rlim_cur = 4; break;
 	}
 
 	rlim.rlim_max = rlim.rlim_cur;
@@ -770,7 +770,7 @@ static int process_new(void *params) {
 
 static void process_spawn(const int type) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemProc[type][i].pid == 0) {
 				freeSlot = i;
@@ -785,7 +785,7 @@ static void process_spawn(const int type) {
 	if (stack == NULL) return;
 	bzero(stack, AEM_STACKSIZE);
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		aemProc[type][freeSlot].stack = stack;
 	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
 		stack_account = stack;
@@ -800,7 +800,7 @@ static void process_spawn(const int type) {
 
 	uint8_t params[] = {type, fd[0], fd[1]};
 	int flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED; // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, flags, params, NULL, NULL, NULL);
 	if (pid < 0) {sodium_free(stack); return;}
@@ -839,7 +839,7 @@ static void process_spawn(const int type) {
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
-		case AEM_PROCESSTYPE_API:
+		case AEM_PROCESSTYPE_API_CLR:
 			if (
 			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
 			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
@@ -875,7 +875,7 @@ static void process_spawn(const int type) {
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
-		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_WEB_CLR:
 			if (
 			   pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
@@ -891,7 +891,7 @@ static void process_spawn(const int type) {
 
 	close(fd[1]);
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		aemProc[type][freeSlot].pid = pid;
 	}
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;

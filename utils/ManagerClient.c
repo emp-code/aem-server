@@ -75,9 +75,9 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 
 	switch(comType) {
 		case 'M': decrypted[1] = AEM_PROCESSTYPE_MTA; break;
-		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB; break;
-		case 'A': decrypted[1] = AEM_PROCESSTYPE_API; break;
+		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB_CLR; break;
 		case 'w': decrypted[1] = AEM_PROCESSTYPE_WEB_ONI; break;
+		case 'A': decrypted[1] = AEM_PROCESSTYPE_API_CLR; break;
 		case 'a': decrypted[1] = AEM_PROCESSTYPE_API_ONI; break;
 	}
 
@@ -94,9 +94,9 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 static char numToChar(const unsigned char n) {
 	switch (n) {
 		case AEM_PROCESSTYPE_MTA: return 'M';
-		case AEM_PROCESSTYPE_WEB: return 'W';
-		case AEM_PROCESSTYPE_API: return 'A';
+		case AEM_PROCESSTYPE_WEB_CLR: return 'W';
 		case AEM_PROCESSTYPE_WEB_ONI: return 'w';
+		case AEM_PROCESSTYPE_API_CLR: return 'A';
 		case AEM_PROCESSTYPE_API_ONI: return 'a';
 	}
 

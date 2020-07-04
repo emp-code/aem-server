@@ -53,7 +53,7 @@
 
 #define AEM_PORT_MTA 25
 #define AEM_PORT_WEB 443
-#define AEM_PORT_API 302
+#define AEM_PORT_API_CLR 302
 #define AEM_PORT_WEB_ONI 880
 #define AEM_PORT_MANAGER 940
 
@@ -81,9 +81,9 @@
 
 enum aem_process_types {
 	AEM_PROCESSTYPE_MTA,
-	AEM_PROCESSTYPE_WEB,
-	AEM_PROCESSTYPE_API,
+	AEM_PROCESSTYPE_WEB_CLR,
 	AEM_PROCESSTYPE_WEB_ONI,
+	AEM_PROCESSTYPE_API_CLR,
 	AEM_PROCESSTYPE_API_ONI,
 	AEM_PROCESSTYPE_STORAGE,
 	AEM_PROCESSTYPE_ACCOUNT,
@@ -95,9 +95,9 @@ enum aem_process_types {
 
 #define AEM_PATH_EXE { \
 	AEM_PATH_CONF"/bin/aem-mta", \
-	AEM_PATH_CONF"/bin/aem-web", \
-	AEM_PATH_CONF"/bin/aem-api", \
+	AEM_PATH_CONF"/bin/aem-web-clr", \
 	AEM_PATH_CONF"/bin/aem-web-oni", \
+	AEM_PATH_CONF"/bin/aem-api-clr", \
 	AEM_PATH_CONF"/bin/aem-api-oni", \
 	AEM_PATH_CONF"/bin/aem-storage", \
 	AEM_PATH_CONF"/bin/aem-account", \
@@ -106,10 +106,10 @@ enum aem_process_types {
 
 #define AEM_NICE { \
 	/*MTA*/      -8, \
-	/*Web*/       4, \
-	/*API*/      -4, \
-	/*Web-O*/     8, \
-	/*API-O*/    -2, \
+	/*Web-Clr*/   4, \
+	/*Web-Oni*/   8, \
+	/*API-Clr*/  -4, \
+	/*API-Oni*/  -2, \
 	/*Storage*/ -18, \
 	/*Account*/ -16, \
 	/*Enquiry*/ -18 \

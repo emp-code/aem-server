@@ -16,12 +16,14 @@
 
 #include "../Global.h"
 
-#include "Include/Addr32.h"
-#include "Include/tls_common.h"
+#include "../Common/Addr32.h"
+#include "../Common/tls_common.h"
 
 #include "SendMail.h"
 
 #include "post.h"
+
+#define AEM_API
 
 #define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
 #define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341

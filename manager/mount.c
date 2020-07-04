@@ -67,10 +67,10 @@ int createMount(const int type) {
 	int nr_inodes, fsmode;
 	switch (type) {
 		case AEM_PROCESSTYPE_MTA:     fsmode = 1550; nr_inodes = 14; break;
-		case AEM_PROCESSTYPE_API:
-		case AEM_PROCESSTYPE_API_ONI: fsmode = 1550; nr_inodes = 14; break;
-		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1550; nr_inodes = 13; break;
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI: fsmode = 1550; nr_inodes = 14; break;
 		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 14; break;
 		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 15; break;
 		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1550; nr_inodes = 14; break;
@@ -97,7 +97,7 @@ int createMount(const int type) {
 	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", true, true, true) != 0
 	) return -1;
 
-	if ((type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_ENQUIRY) && (
+	if ((type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) && (
 	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", true, false, true) != 0
 	)) return -1;
 
