@@ -36,7 +36,7 @@ static int initSocket(const int * const sock) {
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	servAddr.sin_port = htons(80);
+	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
 
 	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
 	if (ret < 0) return ret;

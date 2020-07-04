@@ -54,6 +54,7 @@
 #define AEM_PORT_MTA 25
 #define AEM_PORT_WEB 443
 #define AEM_PORT_API 302
+#define AEM_PORT_WEB_ONI 880
 #define AEM_PORT_MANAGER 940
 
 #define AEM_USERLEVEL_MAX 3
