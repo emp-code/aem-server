@@ -91,6 +91,18 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 	send(sock, encrypted, AEM_LEN_ENCRYPTED, 0);
 }
 
+static char numToChar(const unsigned char n) {
+	switch (n) {
+		case AEM_PROCESSTYPE_MTA: return 'M';
+		case AEM_PROCESSTYPE_WEB: return 'W';
+		case AEM_PROCESSTYPE_API: return 'A';
+		case AEM_PROCESSTYPE_WEB_ONI: return 'w';
+		case AEM_PROCESSTYPE_API_ONI: return 'a';
+	}
+
+	return '?';
+}
+
 int main(int argc, char *argv[]) {
 	setlocale(LC_ALL, "C");
 
@@ -130,7 +142,7 @@ int main(int argc, char *argv[]) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			uint32_t pid;
 			memcpy(&pid, decrypted + ((i * AEM_MAXPROCESSES + j) * 4), 4);
-			if (pid != 0) printf("%d/%d=%u\n", i, j, pid);
+			if (pid != 0) printf("%c/%d=%u\n", numToChar(i), j, pid);
 		}
 	}
 
