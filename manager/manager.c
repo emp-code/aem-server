@@ -406,12 +406,17 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 			return -1;
 		}
 	} else { // Brotli, HTTPS-only
-		lenData = lenSrc;
-		data = malloc(lenData);
-		memcpy(data, src, lenData);
+		data = malloc(lenSrc);
+		if (data == NULL) {
+			syslog(LOG_ERR, "Failed allocation");
+			return -1;
+		}
 
-		if (data == NULL || brotliCompress(&data, &lenData) != 0) {
-			if (data != NULL) free(data);
+		memcpy(data, src, lenSrc);
+		lenData = lenSrc;
+
+		if (brotliCompress(&data, &lenData) != 0) {
+			free(data);
 			syslog(LOG_ERR, "Failed brotli compression");
 			return -1;
 		}
