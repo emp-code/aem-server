@@ -519,6 +519,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 
 		// Security headers
 		"%s"
+		"Cross-Origin-Embedder-Policy: require-corp\r\n"
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
 		"Digest: sha-256=%s\r\n"
 		"Referrer-Policy: no-referrer\r\n"
