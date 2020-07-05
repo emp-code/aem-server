@@ -389,6 +389,27 @@ static int modHtml(unsigned char * const src, const size_t lenSrc) {
 	return 0;
 }
 
+// Add email domain (onion service)
+static int emlHtml(unsigned char * const src, size_t * const lenSrc) {
+	unsigned char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
+	if (placeholder == NULL) {syslog(LOG_ERR, "Eml-Placeholder not found"); return -1;}
+	memcpy(placeholder, domain, lenDomain);
+	memmove(placeholder + lenDomain, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
+	*lenSrc -= (32 - lenDomain);
+
+	return 0;
+}
+
+// Remove email domain (clearnet)
+static int emrHtml(unsigned char * const src, size_t * const lenSrc) {
+	unsigned char * const placeholder = memmem(src, *lenSrc, "aeemldom=\"", 10);
+	if (placeholder == NULL) {syslog(LOG_ERR, "Emr-Placeholder not found"); return -1;}
+	memmove(placeholder + 10, placeholder + 10 + lenDomain, (src + *lenSrc) - (placeholder + 10 + lenDomain));
+	*lenSrc -= (lenDomain);
+
+	return 0;
+}
+
 static int genHtml(const unsigned char * const src, const size_t lenSrc, const bool onion) {
 	unsigned char *data;
 	size_t lenData;
@@ -644,8 +665,10 @@ int loadFiles(void) {
 
 	ret = (
 	   modHtml(tmp, lenTmp) == 0
-	&& genHtml(tmp, lenTmp, false) == 0
-	&& genHtml(tmp, lenTmp, true) == 0
+	&& emlHtml(tmp, &lenTmp) == 0 // Add email-domain
+	&& genHtml(tmp, lenTmp, true) == 0 // Generate onion HTML
+	&& emrHtml(tmp, &lenTmp) == 0 // Remove email-domain
+	&& genHtml(tmp, lenTmp, false) == 0 // Generate clearnet HTML
 	) ? 0 : -1;
 
 	free(tmp);
