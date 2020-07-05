@@ -78,9 +78,9 @@ All other files are designed to be hosted externally. This makes the client-side
 
 aem-web is the only process type to run completely isolated with no capability to interact with others.
 
-Invalid requests are dropped without response. Only high-security HTTPS is supported, and clients are required to support Brotli compression.
+aem-web-clr is the clearnet variant. Only high-security HTTPS is supported, and clients are required to support Brotli compression. It doesn't respond to invalid requests.
 
-aem-web-oni does the same as a Tor onion service.
+aem-web-oni is the onion service variant using HTTP with Zopfli Deflate compression. It doesn't read requests at all, and simply responds to all connections with the HTML page.
 
 ## API ##
 
@@ -94,7 +94,7 @@ Invalid requests, such as those made without a registered public key, are droppe
 
 aem-account and aem-storage are contacted through Unix sockets.
 
-aem-api-oni is the onion service variant.
+aem-api-clr is the HTTPS clearnet variant, aem-api-oni is the HTTP onion service variant.
 
 ## MTA ##
 
