@@ -10,7 +10,7 @@
 
 #include "http.h"
 
-#define AEM_MINLEN_POST 133 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:303\r\nContent-Length: 8264\r\n\r\n
+#define AEM_MINLEN_POST 133 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 540
 #define AEM_CLIENT_TIMEOUT 30
 
@@ -26,7 +26,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 //	const char * const host = strstr(req, "\r\nHost: ");
 //	if (host == NULL) return false;
 //	if (strncmp(host + 8, onionId, 56) != 0) return false;
-//	if (strncmp(host + 64, ".onion:303\r\n", 12) != 0) return false;
+//	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
 
 	if (strstr(req, "\r\nContent-Length: 8328\r\n") == NULL) return false;
 
