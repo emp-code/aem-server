@@ -54,8 +54,8 @@
 #define AEM_PORT_MTA 25
 #define AEM_PORT_WEB 443
 #define AEM_PORT_API_CLR 302
-#define AEM_PORT_API_ONI 303
-#define AEM_PORT_WEB_ONI 880
+#define AEM_PORT_API_ONI 303 // Actual port is AEM_PORT_API_CLR, this is just Tor's localhost port
+#define AEM_PORT_WEB_ONI 880 // Actual port is 80 (HTTP), this is just Tor's localhost port
 #define AEM_PORT_MANAGER 940
 
 #define AEM_USERLEVEL_MAX 3
