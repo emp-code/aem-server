@@ -94,6 +94,8 @@ Invalid requests, such as those made without a registered public key, are droppe
 
 aem-account and aem-storage are contacted through Unix sockets.
 
+aem-api-oni is the onion service variant.
+
 ## MTA ##
 
 aem-mta runs the Mail Transfer Agent service, accepting email from other servers on the internet.

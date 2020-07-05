@@ -15,9 +15,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
-
 #include "../Common/Addr32.h"
-#include "../Common/tls_common.h"
 
 #include "SendMail.h"
 
@@ -688,8 +686,8 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 }
 
 __attribute__((warn_unused_result))
-int aem_api_process(mbedtls_ssl_context * const ssl, const unsigned char * const postBox) {
-	if (ssl == NULL || postBox == NULL) return -1;
+int aem_api_process(const unsigned char * const postBox, unsigned char ** const response_p) {
+	if (postBox == NULL) return -1;
 
 	sodium_mprotect_readwrite(decrypted);
 	if (crypto_box_open_easy(decrypted, postBox, AEM_API_POST_SIZE + crypto_box_MACBYTES, postNonce, upk, ssk) != 0) {
@@ -719,11 +717,12 @@ int aem_api_process(mbedtls_ssl_context * const ssl, const unsigned char * const
 	else if (memcmp(postUrl, "private/update", 14) == 0) private_update();
 	else if (memcmp(postUrl, "setting/limits", 14) == 0) setting_limits();
 
-	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERROR);
-	if (lenResponse > 0) sendData(ssl, response, lenResponse);
-
-	bzero(response, AEM_MAXLEN_RESPONSE);
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
-	return 0;
+
+	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERROR);
+	if (lenResponse < 0) return -1;
+
+	*response_p = response;
+	return lenResponse;
 }

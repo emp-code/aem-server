@@ -11,9 +11,10 @@
 #include <mbedtls/ssl.h>
 
 #include "../Global.h"
+#include "../api-common/post.h"
+#include "../Common/tls_common.h"
 
 #include "https.h"
-#include "../api-common/post.h"
 
 #define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
 #define AEM_MAXLEN_REQ 480
@@ -118,8 +119,12 @@ void respondClient(int sock) {
 		}
 		if (ret < 1) break;
 
-		if (aem_api_process(&ssl, buf) != 0) break;
+		unsigned char *resp;
+		const int lenResp = aem_api_process(buf, &resp);
+		if (lenResp < 0) break;
+		sendData(&ssl, resp, lenResp);
 
+		sodium_memzero(resp, lenResp);
 		sodium_memzero(buf, AEM_API_POST_SIZE + crypto_box_MACBYTES);
 		if (!keepAlive) break;
 	}

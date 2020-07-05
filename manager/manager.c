@@ -839,27 +839,6 @@ static void process_spawn(const int type) {
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-			if (
-			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
-
-			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
-			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
-
-			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
-			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
-
-			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
-
-			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
-			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
-		break;
-
 		case AEM_PROCESSTYPE_MTA:
 			if (
 			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
@@ -886,6 +865,45 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_WEB_ONI:
 			if (pipeWriteDirect(fd[1], html_oni, len_html_oni) < 0)
 				syslog(LOG_ERR, "Failed writing to pipe: %m");
+		break;
+
+		case AEM_PROCESSTYPE_API_CLR:
+			if (
+			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
+
+			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
+			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
+
+			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
+			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
+
+			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
+
+			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
+			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
+		break;
+
+		case AEM_PROCESSTYPE_API_ONI:
+			if (
+			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
+			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
+
+			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
+			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
+
+			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
+			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
+
+			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
+			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
+			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 	}
 

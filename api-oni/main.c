@@ -10,19 +10,19 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/ssl.h>
 #include <sodium.h>
-
-#include "https.h"
-#include "post.h"
-#include "SendMail.h"
 
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../api-common/post.h"
+#include "../api-common/SendMail.h"
+
+#include "http.h"
 
 #define AEM_API
-#define AEM_LOGNAME "AEM-API"
-#define AEM_PORT AEM_PORT_API
+#define AEM_API_ONI
+#define AEM_LOGNAME "AEM-AOn"
+#define AEM_PORT AEM_PORT_API_ONI
 #define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
@@ -41,8 +41,6 @@ static void sigTerm(const int sig) {
 	}
 
 	// SIGUSR2: Fast kill
-	tlsFree();
-	tlsFree_sendmail();
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -102,7 +100,6 @@ int main(int argc, char *argv[]) {
 
 	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
-	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
 	if (aem_api_init() == 0) {
@@ -110,7 +107,5 @@ int main(int argc, char *argv[]) {
 		aem_api_free();
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
-	tlsFree();
-	tlsFree_sendmail();
 	return EXIT_SUCCESS;
 }

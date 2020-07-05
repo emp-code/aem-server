@@ -1,28 +1,20 @@
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
-#include <ctype.h> // for islower
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <syslog.h>
 
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-
 #include "../Global.h"
+#include "../api-common/post.h"
 
-#include "https.h"
-#include "post.h"
+#include "http.h"
 
-#define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
-#define AEM_MAXLEN_REQ 480
+#define AEM_MINLEN_POST 133 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:303\r\nContent-Length: 8264\r\n\r\n
+#define AEM_MAXLEN_REQ 540
 #define AEM_CLIENT_TIMEOUT 30
 
-static char domain[AEM_MAXLEN_DOMAIN];
-static size_t lenDomain;
-
-#include "../Common/tls_setup.c"
+//static char onionId[56];
 
 __attribute__((warn_unused_result))
 static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive) {
@@ -31,10 +23,10 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
 
 	// Host header
-	const char * const host = strstr(req, "\r\nHost: ");
-	if (host == NULL) return false;
-	if (strncmp(host + 8, domain, lenDomain) != 0) return false;
-	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return false;
+//	const char * const host = strstr(req, "\r\nHost: ");
+//	if (host == NULL) return false;
+//	if (strncmp(host + 8, onionId, 56) != 0) return false;
+//	if (strncmp(host + 64, ".onion:303\r\n", 12) != 0) return false;
 
 	if (strstr(req, "\r\nContent-Length: 8328\r\n") == NULL) return false;
 
@@ -66,43 +58,31 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	return true;
 }
 
-void respondClient(int sock) {
-	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-	int ret;
-	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			syslog(LOG_DEBUG, "mbedtls_ssl_handshake failed: %d", ret);
-			mbedtls_ssl_close_notify(&ssl);
-			mbedtls_ssl_session_reset(&ssl);
-			return;
-		}
-	}
-
+void respondClient(const int sock) {
 	while(1) {
 		unsigned char buf[AEM_API_POST_SIZE + crypto_box_MACBYTES];
-		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + AEM_API_SEALBOX_SIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		if (ret < 1) break;
+		int ret = recv(sock, buf, AEM_MAXLEN_REQ + AEM_API_SEALBOX_SIZE, 0);
+		if (ret < 1) return;
 
 		unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
-		if (postBegin == NULL) break;
+		if (postBegin == NULL) return;
 		postBegin[3] = '\0';
 
 		bool keepAlive = true;
-		if (!isRequestValid((char*)buf, ret, &keepAlive)) break;
+		if (!isRequestValid((char*)buf, ret, &keepAlive)) return;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		memmove(buf, postBegin + 4, lenPost);
 
 		if (lenPost < AEM_API_SEALBOX_SIZE) {
-			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-			if (ret < 1) break;
+			ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
+			if (ret < 1) return;
 
 			lenPost += ret;
-			if (lenPost < AEM_API_SEALBOX_SIZE) break;
+			if (lenPost < AEM_API_SEALBOX_SIZE) return;
 		}
 
-		if (aem_api_prepare(buf, keepAlive) != 0) break;
+		if (aem_api_prepare(buf, keepAlive) != 0) return;
 
 		if (lenPost > AEM_API_SEALBOX_SIZE) {
 			lenPost -= AEM_API_SEALBOX_SIZE;
@@ -112,18 +92,18 @@ void respondClient(int sock) {
 		}
 
 		while (lenPost < AEM_API_POST_SIZE + crypto_box_MACBYTES) {
-			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_POST_SIZE + crypto_box_MACBYTES - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-			if (ret < 1) break;
+			ret = recv(sock, buf + lenPost, AEM_API_POST_SIZE + crypto_box_MACBYTES - lenPost, 0);
+			if (ret < 1) return;
 			lenPost += ret;
 		}
-		if (ret < 1) break;
 
-		if (aem_api_process(&ssl, buf) != 0) break;
+		unsigned char *resp;
+		const int lenResp = aem_api_process(buf, &resp);
+		if (lenResp < 0) break;
+		send(sock, resp, lenResp, 0);
 
+		sodium_memzero(resp, lenResp);
 		sodium_memzero(buf, AEM_API_POST_SIZE + crypto_box_MACBYTES);
-		if (!keepAlive) break;
+		if (!keepAlive) return;
 	}
-
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
 }

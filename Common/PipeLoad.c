@@ -31,6 +31,7 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 
 #ifndef AEM_ACCOUNT
 #ifndef AEM_WEBONION
+#ifndef AEM_API_ONI
 __attribute__((warn_unused_result))
 static int pipeLoadTls(const int fd) {
 	unsigned char *crtData;
@@ -54,5 +55,6 @@ static int pipeLoadTls(const int fd) {
 	sodium_free(keyData);
 	return ret;
 }
+#endif
 #endif
 #endif

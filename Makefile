@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Werror=implicit-function-declaration -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack
-all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
+all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc -lzopfli
@@ -14,14 +14,17 @@ aem-enquiry: enquiry/*.c
 aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c -lsodium -lcap
 
-aem-api-clr: api-clr/*.c
-	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
-
 aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c web-clr/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c -lsodium
+
+aem-api-clr: api-clr/*.c
+	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+
+aem-api-oni: api-oni/*.c
+	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
