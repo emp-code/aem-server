@@ -256,7 +256,7 @@ static void api_account_browse(const int sock, const int num) {
 	len += AEM_LEN_PRIVATE;
 
 	if ((user[num].info & 3) == 3) {
-		const uint32_t u32 = userCount;
+		const uint32_t u32 = userCount - 1;
 		memcpy(response + len, &u32, 4);
 		len += 4;
 
