@@ -262,6 +262,8 @@ static void api_account_browse(const int sock, const int num) {
 
 		for (int i = 0; i < userCount; i++) {
 			if (i == num) continue; // Skip own user
+			if (len + 35 > 131200) break;
+
 			response[len + 0] = user[i].info & 3;
 			response[len + 1] = numAddresses(i, false);
 			response[len + 2] = numAddresses(i, true);
