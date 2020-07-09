@@ -153,9 +153,7 @@ All-Ears has four types of messages:
 * Uploaded files
 * Textual notes
 
-All messages are encrypted with libsodium's Sealed Box using the user's public key. Email is encrypted by the server at reception, while all others are encrypted by the client prior to sending. All are indistinguishable--it is impossible to tell what type a message is (or what its contents are) without the user's Secret Key.
-
-All messages are padded to the nearest 1 KiB prior to encryption, making message sizes only approximate. No metadata about the messages is stored other than their owner's public key.
+Messages are stored as 1-KiB blocks encrypted with libsodium's Sealed Box using the user's public key.
 
 ## Files ##
 
