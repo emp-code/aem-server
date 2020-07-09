@@ -369,7 +369,7 @@ static void message_storet(void) {
 	// TODO: Compression
 
 	unsigned char msg[6 + lenDecrypted];
-	const uint16_t padAmount16 = (msg_getPadAmount(lenDecrypted) << 6) | 32; // TextNote: 32=1/16=0; 8/4/2/1=unused
+	const uint16_t padAmount16 = (msg_getPadAmount(6 + lenDecrypted) << 6) | 32; // TextNote: 32=1/16=0; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
 	memcpy(msg + 0, &padAmount16, 2);
 	memcpy(msg + 2, &ts, 4);
