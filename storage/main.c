@@ -110,9 +110,7 @@ static int saveStindex(void) {
 	return (ret == lenEncrypted) ? 0 : -1;
 }
 
-static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const int size) {
-	if (size < 1 || size > 128) return -1;
-
+static int getWritePos(const int size) {
 	off_t pos = (off_t)-1;
 	for (int i = 0; i < emptyCount; i++) {
 		int emptyPos = empty[i] >> 7;
@@ -138,6 +136,15 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
 		if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
 	}
+
+	return pos;
+}
+
+static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const int size) {
+	if (size < 1 || size > 128) return -1;
+
+	const int pos = getWritePos(size);
+	if (pos < 1) return -1;
 
 	// Encrypt & Write
 	struct AES_ctx aes;
