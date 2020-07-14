@@ -116,7 +116,7 @@ static int getWritePos(const int size) {
 		if (emptySze < size - 1) continue; // Empty slot too small
 
 		int emptyPos = empty[i] >> 7;
-		const int pos = emptyPos * AEM_BLOCKSIZE;
+		const int pos = emptyPos;
 
 		if (emptySze == size - 1) { // Exact match, use and remove this empty slot
 			memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
@@ -132,9 +132,11 @@ static int getWritePos(const int size) {
 	}
 
 	// No suitable empty slot found - append to end
-	const off_t pos = lseek(fdMsg, 0, SEEK_END);
-	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
-	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
+	off_t pos = lseek(fdMsg, 0, SEEK_END);
+	if (pos == (off_t)-1 || pos % AEM_BLOCKSIZE != 0) return -1;
+
+	pos /= AEM_BLOCKSIZE;
+	if (pos > 33554431) return -1; // 25-bit limit
 	return pos;
 }
 
@@ -152,7 +154,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		AES_ECB_encrypt(&aes, data + i * 16);
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
-	if (pwrite(fdMsg, data, size * AEM_BLOCKSIZE, pos) != size * AEM_BLOCKSIZE) return -1;
+	if (pwrite(fdMsg, data, size * AEM_BLOCKSIZE, pos * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
 
 	// Stindex
 	int num = -1;
@@ -186,7 +188,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	}
 
 	const int msgNum = stindex[num].msgCount;
-	stindex[num].msg[msgNum] = ((pos / 1024) << 7) | (size - 1);
+	stindex[num].msg[msgNum] = (pos << 7) | (size - 1);
 	stindex[num].msgCount++;
 
 	return 0;
