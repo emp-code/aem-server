@@ -112,26 +112,26 @@ static int saveStindex(void) {
 
 static int getWritePos(const int size) {
 	for (int i = 0; i < emptyCount; i++) {
-		int emptyPos = empty[i] >> 7;
 		int emptySze = empty[i] & 127;
+		if (emptySze < size - 1) continue; // Empty slot too small
 
-		if (emptySze >= size - 1) {
-			const int pos = emptyPos * AEM_BLOCKSIZE;
+		int emptyPos = empty[i] >> 7;
+		const int pos = emptyPos * AEM_BLOCKSIZE;
 
-			if (emptySze - size < 0) {
-				memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
-				emptyCount--;
-			} else {
-				emptySze -= size;
-				emptyPos += size;
+		if (emptySze == size - 1) { // Exact match, use and remove this empty slot
+			memmove((unsigned char*)empty + i * 4, (unsigned char*)empty + 4 * (i + 1), 4 * (emptyCount - i - 1));
+			emptyCount--;
+		} else { // Use part of, and adjust this empty slot
+			emptySze -= size;
+			emptyPos += size;
 
-				empty[i] = (emptyPos << 7) | emptySze;
-			}
-
-			return pos;
+			empty[i] = (emptyPos << 7) | emptySze;
 		}
+
+		return pos;
 	}
 
+	// No suitable empty slot found - append to end
 	const off_t pos = lseek(fdMsg, 0, SEEK_END);
 	if (pos == (off_t)-1 || pos % 1024 != 0) return -1;
 	if (pos > (33554431L * AEM_BLOCKSIZE)) return -1; // 25-bit limit
