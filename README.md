@@ -146,14 +146,13 @@ While the server does not directly know the real address (only its hash), it is 
 Because addresses are simple to register and delete, addresses are not strictly tied to accounts. No history is kept, and therefore it can only be learned that the address is _currently_ held by that account.
 
 ## Messages ##
-All-Ears has four types of messages:
+All-Ears has three types of messages:
 
 * Email
 * Internal mail
 * Uploaded files
-* Textual notes
 
-Messages are stored as 1-KiB blocks encrypted with libsodium's Sealed Box using the user's public key.
+Messages are stored as 1-KiB blocks encrypted with libsodium's Sealed Box using the user's public key. Uploaded files are additionally encrypted client-side with the user's secret symmetric key.
 
 ## Files ##
 
