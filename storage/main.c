@@ -63,6 +63,14 @@ static void sigTerm(const int sig) {
 
 #include "../Common/main_all.c"
 
+static void getStorageKey(unsigned char * const target, const uint32_t ps, const unsigned char * const pubkey) {
+	uint64_t keyId;
+	memcpy(&keyId, &ps, 4);
+	memcpy((unsigned char*)&keyId + 4, pubkey, 4);
+
+	crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+}
+
 static int saveStindex(void) {
 	if (stindexCount < 1) return -1;
 
@@ -147,13 +155,17 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	if (pos < 0) return -1;
 
 	// Encrypt & Write
+	unsigned char aesKey[32];
+	getStorageKey(aesKey, (pos << 7) | (size - 1), pubkey);
 	struct AES_ctx aes;
-	AES_init_ctx(&aes, storageKey);
+	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
 
 	for (int i = 0; i < (size * AEM_BLOCKSIZE) / 16; i++)
 		AES_ECB_encrypt(&aes, data + i * 16);
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
+
 	if (pwrite(fdMsg, data, size * AEM_BLOCKSIZE, pos * AEM_BLOCKSIZE) != size * AEM_BLOCKSIZE) return -1;
 
 	// Stindex
@@ -202,8 +214,11 @@ static bool storage_idMatch(const int stindexNum, const int i, const unsigned ch
 		return false;
 	}
 
+	unsigned char aesKey[32];
+	getStorageKey(aesKey, stindex[stindexNum].msg[i], stindex[stindexNum].pubkey);
 	struct AES_ctx aes;
-	AES_init_ctx(&aes, storageKey);
+	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
 
 	for (int j = 0; j < AEM_BLOCKSIZE / 16; j++)
 		AES_ECB_decrypt(&aes, buf + j * 16);
@@ -480,8 +495,11 @@ void takeConnections(void) {
 						break;
 					}
 
+					unsigned char aesKey[32];
+					getStorageKey(aesKey, stindex[stindexNum].msg[i], stindex[stindexNum].pubkey);
 					struct AES_ctx aes;
-					AES_init_ctx(&aes, storageKey);
+					AES_init_ctx(&aes, aesKey);
+					sodium_memzero(aesKey, 32);
 
 					for (int j = 0; j < (kib * AEM_BLOCKSIZE) / 16; j++)
 						AES_ECB_decrypt(&aes, msgData + msgPos + (j * 16));
