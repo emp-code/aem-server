@@ -208,6 +208,8 @@ static bool storage_idMatch(const int stindexNum, const int i, const unsigned ch
 	for (int j = 0; j < AEM_BLOCKSIZE / 16; j++)
 		AES_ECB_decrypt(&aes, buf + j * 16);
 
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
+
 	for (int j = 0; j < 16; j++) {
 		if (id[j] != buf[j * 64]) return false;
 	}
