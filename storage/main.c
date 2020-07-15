@@ -486,6 +486,8 @@ void takeConnections(void) {
 					for (int j = 0; j < (kib * AEM_BLOCKSIZE) / 16; j++)
 						AES_ECB_decrypt(&aes, msgData + msgPos + (j * 16));
 
+					sodium_memzero(&aes, sizeof(struct AES_ctx));
+
 					msgData[msgNum] = kib;
 
 					msgKib += kib;
