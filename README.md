@@ -121,7 +121,7 @@ aem-account allocates 4 KiB for each user, storing:
 * The user's membership level
 * The `private` data field
 
-The `private` data field can be used by clients to store 3784 bytes of arbitrary data. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The server does nothing with the data, and it can technically be used by clients for any purpose. The official clients encrypt it with libsodium's Sealed Box using the user's public key, and use it to store Address/Gatekeeper/Contacts data.
+The `private` data field can be used by clients to store up to 3,784 bytes. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. Encrypted client-side, it stores data useful to the client but not needed by the server, such as address-hash data.
 
 User data is held in memory by aem-account, and written to `/var/lib/allears/Account.aem`. Prior to writing, the data is padded to a multiple of 1024 users (4 MiB), and encrypted with libsodium's Secret Box using the Account Key.
 
