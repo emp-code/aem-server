@@ -60,7 +60,7 @@ aem-api and aem-mta connect to it, each with their own Access Key. Depending on 
 
 Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted with AES-ECB using keys derived from the Storage Key. Deleted messages are overwritten with zeroes.
 
-An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using the Stindex Key.
+An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using a key derived from the Storage Key.
 
 With the current design, aem-storage is capable of storing up to 32 GiB of data, with individual messages being 1 to 128 KiB in size.
 
@@ -164,7 +164,6 @@ Server keys:
 * Account.key: Symmetric key used to encrypt user data prior to storage
 * Manager.key: Symmetric key used to communicate with aem-manager
 * Signing.key: Asymmetric key used by aem-api and aem-mta to sign messages
-* Stindex.key: Symmetric key used to encrypt the message index prior to writing on disk
 * Storage.key: Symmetric key used to encrypt message data prior to writing on disk
 
 Salts:

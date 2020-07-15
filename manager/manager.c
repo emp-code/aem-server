@@ -56,7 +56,6 @@
 #define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
 #define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
 #define AEM_PATH_KEY_SIG AEM_PATH_CONF"/Signing.key"
-#define AEM_PATH_KEY_STI AEM_PATH_CONF"/Stindex.key"
 #define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
 
 #define AEM_PATH_DKI_ADM AEM_PATH_CONF"/Admin.dkim"
@@ -89,7 +88,6 @@ static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_sig[AEM_LEN_KEY_SIG];
-static unsigned char key_sti[AEM_LEN_KEY_STI];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
 
 static unsigned char dki_adm[AEM_LEN_KEY_DKI];
@@ -189,7 +187,6 @@ void wipeKeys(void) {
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
 	sodium_memzero(key_sig, AEM_LEN_KEY_SIG);
-	sodium_memzero(key_sti, AEM_LEN_KEY_STI);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
 
 	sodium_memzero(slt_nrm, AEM_LEN_SALT_NORM);
@@ -641,7 +638,6 @@ int loadFiles(void) {
 	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_STI, key_sti, NULL, AEM_LEN_KEY_STI, AEM_LEN_FILE_MAX) == 0
 	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
 
 	&& loadFile(AEM_PATH_DKI_ADM, dki_adm, NULL, AEM_LEN_KEY_DKI, AEM_LEN_FILE_MAX) == 0
@@ -848,9 +844,7 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
-			   pipeWriteDirect(fd[1], key_sti, AEM_LEN_KEY_STI) < 0
-			|| pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
-
+			   pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
 			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");

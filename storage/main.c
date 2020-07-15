@@ -537,8 +537,7 @@ void takeConnections(void) {
 __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
 	return (
-	   read(fd, stindexKey, AEM_LEN_KEY_STI) == AEM_LEN_KEY_STI
-	&& read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
+	   read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
 	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	) ? 0 : -1;
@@ -554,6 +553,7 @@ int main(int argc, char *argv[]) {
 
 	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
 	close(argv[0][0]);
+	crypto_kdf_derive_from_key(stindexKey, AEM_LEN_KEY_STI, 1, "AEM-Sti0", storageKey);
 
 	fdMsg = open("Storage.aem", O_RDWR | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
 	if (fdMsg < 0) {syslog(LOG_ERR, "Terminating: Failed opening Storage.aem"); return EXIT_FAILURE;}

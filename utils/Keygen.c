@@ -13,7 +13,6 @@
 #define AEM_PATH_KEY_API "API.key"
 #define AEM_PATH_KEY_MNG "Manager.key"
 #define AEM_PATH_KEY_SIG "Signing.key"
-#define AEM_PATH_KEY_STI "Stindex.key"
 #define AEM_PATH_KEY_STO "Storage.key"
 
 #define AEM_PATH_DKI_ADM "Admin.dkim"
@@ -83,7 +82,6 @@ int main(void) {
 	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, true);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG, false);
 	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, true);
-	writeRandomEncrypted(AEM_PATH_KEY_STI, AEM_LEN_KEY_STI, false);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, false);
 
 	writeRandomEncrypted(AEM_PATH_DKI_ADM, AEM_LEN_KEY_DKI, true);
