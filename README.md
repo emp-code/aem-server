@@ -164,7 +164,7 @@ Server keys:
 * Account.key: Symmetric key used to encrypt user data prior to storage
 * Manager.key: Symmetric key used to communicate with aem-manager
 * Signing.key: Asymmetric key used by aem-api and aem-mta to sign messages
-* Storage.key: Symmetric key used to encrypt message data prior to writing on disk
+* Storage.key: Key used to derive subkeys for encrypting message data prior to writing on disk
 
 Salts:
 * Normal.slt: Public salt for hashing Normal addresses
