@@ -58,7 +58,7 @@ aem-storage handles the storage and retrieval of encrypted message data (see [Me
 
 aem-api and aem-mta connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
 
-Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted with AES-ECB using keys derived from the Storage Key. Deleted messages are overwritten with zeroes.
+Message data is stored in the file `/var/lib/allears/Storage.aem`, encrypted with AES-ECB using keys derived from the Storage Key. Deleted messages are overwritten with random data generated deterministically using a seed derived from the Storage Key.
 
 An index of messages is kept, containing the owner's public key, the position/size of the data in Storage.aem. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using a key derived from the Storage Key.
 

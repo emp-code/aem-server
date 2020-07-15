@@ -252,16 +252,22 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 				emptyCount++;
 			}
 
-			const int pos = (stindex[num].msg[i] >> 7) * AEM_BLOCKSIZE;
-			const int sze = ((stindex[num].msg[i] & 127) + 1) * AEM_BLOCKSIZE;
+			const int pos = (stindex[num].msg[i] >> 7);
+			const int sze = ((stindex[num].msg[i] & 127) + 1);
 
 			memmove((unsigned char*)stindex[num].msg + i * 4, (unsigned char*)stindex[num].msg + 4 * (i + 1), 4 * (stindex[num].msgCount - i - 1));
 			stindex[num].msgCount--;
 			saveStindex();
 
-			unsigned char zero[sze];
-			bzero(zero, sze);
-			pwrite(fdMsg, zero, sze, pos);
+			for (int j = 0; j < sze; j++) {
+				unsigned char nullSeed[randombytes_SEEDBYTES];
+				crypto_kdf_derive_from_key(nullSeed, randombytes_SEEDBYTES, pos + j, "AEM-Stz0", storageKey);
+
+				unsigned char nullData[AEM_BLOCKSIZE];
+				randombytes_buf_deterministic(nullData, AEM_BLOCKSIZE, nullSeed);
+
+				pwrite(fdMsg, nullData, AEM_BLOCKSIZE, (pos + j) * AEM_BLOCKSIZE);
+			}
 		}
 	}
 
@@ -328,44 +334,50 @@ void freeStindex(void) {
 static int loadEmpty(void) {
 	const off_t total = lseek(fdMsg, 0, SEEK_END);
 	if (total % AEM_BLOCKSIZE != 0) return -1;
+	const int totalBlocks = total / AEM_BLOCKSIZE;
 
 	empty = malloc(1);
 	if (empty == NULL) return -1;
 	emptyCount = 0;
 
-	int blocks = 0;
-	int pos = -1;
+	unsigned char nullSeed[randombytes_SEEDBYTES];
+	unsigned char nullData[AEM_BLOCKSIZE];
+	unsigned char readData[AEM_BLOCKSIZE];
 
-	for (int i = 0; i < (total / AEM_BLOCKSIZE); i++) {
-		unsigned char buf[AEM_BLOCKSIZE];
-		if (pread(fdMsg, buf, AEM_BLOCKSIZE, i * AEM_BLOCKSIZE) != AEM_BLOCKSIZE) {
+	int emptySze = 0;
+	int emptyPos = -1;
+
+	for (int readBlocks = 0; readBlocks < totalBlocks; readBlocks++) {
+		if (pread(fdMsg, readData, AEM_BLOCKSIZE, readBlocks * AEM_BLOCKSIZE) != AEM_BLOCKSIZE) {
 			syslog(LOG_ERR, "Failed read");
 			free(empty);
 			return -1;
 		}
 
-		bool isEmpty = true;
-		for (int j = 0; j < AEM_BLOCKSIZE; j++) {
-			if (buf[j] != 0) {isEmpty = false; break;}
+		crypto_kdf_derive_from_key(nullSeed, randombytes_SEEDBYTES, readBlocks, "AEM-Stz0", storageKey);
+		randombytes_buf_deterministic(nullData, AEM_BLOCKSIZE, nullSeed);
+		if (memcmp(readData, nullData, AEM_BLOCKSIZE) != 0) {
+			if (emptyPos != -1) {
+				// End for this set of empty blocks
+				uint32_t * const empty2 = realloc(empty, (emptyCount + 1) * sizeof(uint32_t));
+				if (empty2 == NULL) {free(empty); return -1;}
+				empty = empty2;
+
+				empty[emptyCount] = (emptyPos << 7) | emptySze;
+
+				emptyPos = -1;
+				emptySze = 0;
+				emptyCount++;
+			}
+
+			continue;
 		}
 
-		if (isEmpty) {
-			// TODO handle >128 blocks
-
-			if (pos == -1) pos = i;
-
-			blocks++;
-		} else if (blocks > 0) {
-			uint32_t * const empty2 = realloc(empty, (emptyCount + 1) * 4);
-			if (empty2 == NULL) {free(empty); return -1;}
-			empty = empty2;
-
-			empty[emptyCount] = pos << 7 | (blocks - 1);
-
-			blocks = 0;
-			pos = -1;
-			emptyCount++;
-		}
+		// This block is empty
+		if (emptyPos == -1)
+			emptyPos = readBlocks;
+		else
+			emptySze++;
 	}
 
 	return 0;
