@@ -358,18 +358,9 @@ static void address_update(void) {
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
-static void message_storef(void) {
-// TODO
-//	unsigned char msg[6 + lenDecrypted];
-//	const uint16_t padAmount16 = (msg_getPadAmount(lenDecrypted) << 6) | 48; // FileNote: 32=1/16=1; 8/4/2/1=unused
-//	const uint32_t ts = (uint32_t)time(NULL);
-}
-
-static void message_storet(void) {
-	// TODO: Compression
-
+static void message_upload(void) {
 	unsigned char msg[6 + lenDecrypted];
-	const uint16_t padAmount16 = (msg_getPadAmount(6 + lenDecrypted) << 6) | 32; // TextNote: 32=1/16=0; 8/4/2/1=unused
+	const uint16_t padAmount16 = (msg_getPadAmount(6 + lenDecrypted) << 6) | 32; // Upload: 32=1/16=0; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
 	memcpy(msg + 0, &padAmount16, 2);
 	memcpy(msg + 2, &ts, 4);
@@ -729,8 +720,7 @@ int aem_api_process(const unsigned char * const postBox, unsigned char ** const 
 	else if (memcmp(postUrl, "message/browse", 14) == 0) message_browse();
 	else if (memcmp(postUrl, "message/create", 14) == 0) message_create();
 	else if (memcmp(postUrl, "message/delete", 14) == 0) message_delete();
-	else if (memcmp(postUrl, "message/storef", 14) == 0) message_storef();
-	else if (memcmp(postUrl, "message/storet", 14) == 0) message_storet();
+	else if (memcmp(postUrl, "message/upload", 14) == 0) message_upload();
 
 	else if (memcmp(postUrl, "private/update", 14) == 0) private_update();
 	else if (memcmp(postUrl, "setting/limits", 14) == 0) setting_limits();
