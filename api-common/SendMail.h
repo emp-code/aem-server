@@ -24,6 +24,7 @@
 
 void setDkimAdm(const unsigned char * const seed);
 void setDkimUsr(const unsigned char * const seed);
+void setMsgIdKeys(const unsigned char * const src);
 
 int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree_sendmail(void);
