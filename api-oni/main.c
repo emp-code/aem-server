@@ -42,6 +42,7 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	aem_api_free();
+	tlsFree_sendmail();
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
