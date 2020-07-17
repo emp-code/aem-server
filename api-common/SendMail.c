@@ -269,7 +269,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 			" s=%s;"
 			" t=%u;"
 			" x=%u;"
-			" h=References:In-Reply-To:From:Date:Message-ID:Subject:To;"
+			" h=References:In-Reply-To:From:Date:Message-ID:Subject:To:Cc:Reply-To:Sender:Mime-Version;"
 			" bh=%s;"
 			" b="
 	, ref
