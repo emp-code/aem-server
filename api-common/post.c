@@ -40,7 +40,7 @@ static unsigned char postNonce[crypto_box_NONCEBYTES];
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 static unsigned char response[AEM_MAXLEN_RESPONSE];
 static int lenResponse = AEM_API_ERROR;
-static unsigned char *decrypted;
+static unsigned char *decrypted = NULL;
 static uint16_t lenDecrypted;
 
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
@@ -84,6 +84,7 @@ int aem_api_init(void) {
 
 void aem_api_free(void) {
 	sodium_free(decrypted);
+	decrypted = NULL;
 }
 
 static void clearDecrypted() {
@@ -700,7 +701,7 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 
 __attribute__((warn_unused_result))
 int aem_api_process(const unsigned char * const postBox, unsigned char ** const response_p) {
-	if (postBox == NULL) return -1;
+	if (decrypted == NULL || postBox == NULL) return -1;
 
 	sodium_mprotect_readwrite(decrypted);
 	if (crypto_box_open_easy(decrypted, postBox, AEM_API_POST_SIZE + crypto_box_MACBYTES, postNonce, upk, ssk) != 0) {
