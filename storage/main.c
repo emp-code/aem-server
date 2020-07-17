@@ -15,10 +15,9 @@
 
 #include <sodium.h>
 
-#include "aes.h"
-
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../Common/aes.h"
 
 #define AEM_LOGNAME "AEM-Sto"
 #define AEM_BLOCKSIZE 1024

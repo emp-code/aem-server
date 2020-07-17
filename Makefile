@@ -12,7 +12,7 @@ aem-enquiry: enquiry/*.c
 	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-storage: storage/*.c
-	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c -lsodium -lcap
+	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c web-clr/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
