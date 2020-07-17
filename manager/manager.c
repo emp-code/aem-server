@@ -452,7 +452,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	else
 		sprintf(conn, "s://%.*s", (int)lenDomain, domain);
 
-	char onionLoc[91];
+	char onionLoc[89];
 	if (onion)
 		onionLoc[0] = '\0';
 	else
