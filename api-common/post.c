@@ -83,6 +83,11 @@ int aem_api_init(void) {
 }
 
 void aem_api_free(void) {
+	sodium_memzero(spk, crypto_box_PUBLICKEYBYTES);
+	sodium_memzero(ssk, crypto_box_SECRETKEYBYTES);
+	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
+	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
+	sm_clearKeys();
 	sodium_free(decrypted);
 	decrypted = NULL;
 }

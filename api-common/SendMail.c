@@ -60,6 +60,13 @@ void setDkimUsr(const unsigned char * const new) {
 	memcpy(dkim_usr_skey, new, AEM_LEN_KEY_DKI);
 }
 
+void sm_clearKeys() {
+	sodium_memzero(dkim_adm_skey, AEM_LEN_KEY_DKI);
+	sodium_memzero(dkim_usr_skey, AEM_LEN_KEY_DKI);
+	sodium_memzero(msgId_hashKey, crypto_generichash_KEYBYTES);
+	sodium_memzero(msgId_aesKey, 32);
+}
+
 __attribute__((warn_unused_result))
 static int getDomainFromCert(void) {
 	char certInfo[1024];
