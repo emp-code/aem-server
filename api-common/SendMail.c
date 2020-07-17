@@ -10,7 +10,6 @@
 #include <mbedtls/entropy.h>
 #include <mbedtls/error.h>
 #include <mbedtls/net_sockets.h>
-#include <mbedtls/sha256.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509.h>
 
@@ -190,7 +189,7 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 	lenBody2 += 2;
 
 	unsigned char bodyHash[32];
-	if (mbedtls_sha256_ret(body2, lenBody2, bodyHash, 0) != 0) return NULL;
+	if (crypto_hash_sha256(bodyHash, body2, lenBody2) != 0) return NULL;
 
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
@@ -256,7 +255,7 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 	);
 
 	unsigned char headHash[32];
-	if (mbedtls_sha256_ret((unsigned char*)email, strlen(email), headHash, 0) != 0) {sodium_free(email); return NULL;}
+	if (crypto_hash_sha256(headHash, (unsigned char*)email, strlen(email)) != 0) {sodium_free(email); return NULL;}
 
 // RSA
 	char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)];
