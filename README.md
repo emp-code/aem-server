@@ -162,7 +162,7 @@ Server keys:
 * API.key: Asymmetric key used by aem-api to securely communicate with API clients
 * Account.key: Symmetric key used to encrypt user data prior to storage
 * Manager.key: Symmetric key used to communicate with aem-manager
-* Signing.key: Asymmetric key used by aem-api and aem-mta to sign messages
+* Signing.key: Key used to derive subkeys for signing messages
 * Storage.key: Key used to derive subkeys for encrypting message data prior to writing on disk
 
 Salts:

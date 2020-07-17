@@ -28,7 +28,7 @@ void setDkimUsr(const unsigned char * const seed);
 int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree_sendmail(void);
 
-unsigned char sendMail(const uint32_t ip, const int userLevel,
+unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const int userLevel,
 	const unsigned char * const replyId,  const size_t lenReplyId,
 	const unsigned char * const addrFrom, const size_t lenAddrFrom,
 	const unsigned char * const addrTo,   const size_t lenAddrTo,

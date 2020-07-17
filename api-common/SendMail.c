@@ -16,6 +16,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/aes.h"
 
 #include "SendMail.h"
 
@@ -42,6 +43,14 @@ static unsigned char dkim_usr_skey[AEM_LEN_KEY_DKI];
 // EdDSA
 //	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
 //	crypto_sign_seed_keypair(tmp, dkim_adm_skey, seed);
+
+unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
+unsigned char msgId_aesKey[32];
+
+void setMsgIdKeys(const unsigned char * const src) {
+	crypto_kdf_derive_from_key(msgId_hashKey, crypto_generichash_KEYBYTES, 1, "AEM-MsId", src);
+	crypto_kdf_derive_from_key(msgId_aesKey, 32, 2, "AEM-MsId", src);
+}
 
 void setDkimAdm(const unsigned char * const new) {
 	memcpy(dkim_adm_skey, new, AEM_LEN_KEY_DKI);
@@ -169,7 +178,25 @@ static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_
 	return 0;
 }
 
-static char *createEmail(const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
+static void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk) {
+	unsigned char hash_src[36];
+	memcpy(hash_src, &ts, 4); // Timestamp for uniqueness
+	memcpy(hash_src + 4, upk, 32);
+
+	unsigned char hash[48]; // 384-bit
+	crypto_generichash(hash, 48, hash_src, 36, msgId_hashKey, crypto_generichash_KEYBYTES);
+
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, msgId_aesKey);
+	AES_ECB_encrypt(&aes, hash);
+	AES_ECB_encrypt(&aes, hash + 16);
+	AES_ECB_encrypt(&aes, hash + 32);
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
+
+	sodium_bin2base64(out, 65, hash, 48, sodium_base64_VARIANT_URLSAFE);
+}
+
+static char *createEmail(const unsigned char * const upk, const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
 	unsigned char body2[lenBody + 2000];
 
 	size_t lenBody2 = 0;
@@ -194,12 +221,10 @@ static char *createEmail(const int userLevel, const unsigned char *replyId, cons
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
 
-	unsigned char msgIdBin[24];
-	randombytes_buf(msgIdBin, 24);
-	char msgId[33];
-	sodium_bin2base64(msgId, 33, msgIdBin, 24, sodium_base64_VARIANT_URLSAFE);
-
 	const uint32_t ts = (uint32_t)time(NULL);
+
+	char msgId[65];
+	genMsgId(msgId, ts, upk);
 
 	const time_t msgTime = ts - 1 - randombytes_uniform(15);
 	struct tm ourTime;
@@ -329,7 +354,7 @@ static int getAddrDomain(char * const target, const unsigned char * const addr, 
 	return (lenDom >= 4) ? 0 : -1; // a.bc
 }
 
-unsigned char sendMail(const uint32_t ip, const int userLevel,
+unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const int userLevel,
 	const unsigned char * const replyId,  const size_t lenReplyId,
 	const unsigned char * const addrFrom, const size_t lenAddrFrom,
 	const unsigned char * const addrTo,   const size_t lenAddrTo,
@@ -404,7 +429,7 @@ unsigned char sendMail(const uint32_t ip, const int userLevel,
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
-	char *msg = createEmail(userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	char *msg = createEmail(upk, userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
 	if (msg == NULL) {closeTls(sock); return AEM_SENDMAIL_ERR_MISC;}
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);

@@ -21,10 +21,10 @@ aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c -lsodium
 
 aem-api-clr: api-clr/*.c
-	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-api-oni: api-oni/*.c
-	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -o aem-mta mta/*.c mta/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n

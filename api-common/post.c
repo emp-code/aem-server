@@ -57,9 +57,14 @@ void setApiKey(const unsigned char * const seed) {
 	crypto_box_seed_keypair(spk, ssk, seed);
 }
 
-void setSigKey(const unsigned char * const seed) {
+void setSigKey(const unsigned char * const src) {
+	unsigned char seed[crypto_sign_SEEDBYTES];
+	crypto_kdf_derive_from_key(seed, crypto_sign_SEEDBYTES, 1, "AEM-Sign", src);
+
 	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
 	crypto_sign_seed_keypair(tmp, sign_skey, seed);
+
+	setMsgIdKeys(src);
 }
 
 void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
@@ -535,7 +540,7 @@ static void message_create_ext(void) {
 		return;
 	}
 
-	const unsigned char ret = sendMail(ip, userLevel,
+	const unsigned char ret = sendMail(ip, upk, userLevel,
 		replyId,  lenReplyId,
 		addrFrom, lenAddrFrom,
 		addrTo,   lenAddrTo,
