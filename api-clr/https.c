@@ -37,7 +37,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	if (strncmp(host + 8, domain, lenDomain) != 0) return false;
 	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return false;
 
-	if (strstr(req, "\r\nContent-Length: 8328\r\n") == NULL) return false;
+	if (strstr(req, "\r\nContent-Length: 65672\r\n") == NULL) return false;
 
 	// Forbidden request headers
 	if (

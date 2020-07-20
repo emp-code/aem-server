@@ -443,7 +443,7 @@ void takeConnections(void) {
 						storage_delete(clr + 1, ids + i * 16);
 					}
 				} else syslog(LOG_ERR, "Invalid data received");
-			} else if (clr[0] <= 8) { // Store
+			} else if (clr[0] <= 64) { // Store
 				const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;
 				unsigned char * const msg = malloc(bytes);
 				if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}

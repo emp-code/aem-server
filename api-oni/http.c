@@ -28,7 +28,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 //	if (strncmp(host + 8, onionId, 56) != 0) return false;
 //	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
 
-	if (strstr(req, "\r\nContent-Length: 8328\r\n") == NULL) return false;
+	if (strstr(req, "\r\nContent-Length: 65672\r\n") == NULL) return false;
 
 	// Forbidden request headers
 	if (

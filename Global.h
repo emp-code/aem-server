@@ -73,7 +73,7 @@
 #define AEM_SOCKPATH_ENQUIRY "\0AEM_Enq"
 #define AEM_SOCKPATH_LEN 8
 
-#define AEM_API_POST_SIZE 8192 // 8 KiB
+#define AEM_API_POST_SIZE 65536 // 64 KiB
 #define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
 #define AEM_HOMEDIR "/var/lib/allears"
