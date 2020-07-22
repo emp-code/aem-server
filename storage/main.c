@@ -20,7 +20,6 @@
 #include "../Common/aes.h"
 
 #define AEM_LOGNAME "AEM-Sto"
-#define AEM_BLOCKSIZE 1024
 #define AEM_STINDEX_PAD 1048576 // 1 MiB
 #define AEM_SOCK_QUEUE 50
 
@@ -33,7 +32,7 @@ static unsigned char storageKey[AEM_LEN_KEY_STO];
 struct aem_stindex {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	uint16_t msgCount;
-	uint32_t *msg; // (& 127) + 1: size; >> 7: position
+	uint32_t *msg; // (& AEM_MAX_MSG_BLOCKS - 1) + 1: size; >> 7: position
 };
 
 static struct aem_stindex *stindex;
@@ -119,7 +118,7 @@ static int saveStindex(void) {
 
 static int getWritePos(const int size) {
 	for (int i = 0; i < emptyCount; i++) {
-		int emptySze = empty[i] & 127;
+		int emptySze = empty[i] & (AEM_MAX_MSG_BLOCKS - 1);
 		if (emptySze < size - 1) continue; // Empty slot too small
 
 		int emptyPos = empty[i] >> 7;
@@ -252,7 +251,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 			}
 
 			const int pos = (stindex[num].msg[i] >> 7);
-			const int sze = ((stindex[num].msg[i] & 127) + 1);
+			const int sze = ((stindex[num].msg[i] & (AEM_MAX_MSG_BLOCKS - 1)) + 1);
 
 			memmove((unsigned char*)stindex[num].msg + i * 4, (unsigned char*)stindex[num].msg + 4 * (i + 1), 4 * (stindex[num].msgCount - i - 1));
 			stindex[num].msgCount--;
@@ -396,16 +395,16 @@ static bool peerOk(const int sock) {
 	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
-static void browse_infoBytes(const int stindexNum, unsigned char * const target) {
+static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
 	const uint16_t count = stindex[stindexNum].msgCount;
 
-	uint32_t kilos = 0;
+	uint32_t blocks = 0;
 	for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
-		kilos += (stindex[stindexNum].msg[i] & 127) + 1;
+		blocks += (stindex[stindexNum].msg[i] & (AEM_MAX_MSG_BLOCKS - 1)) + 1;
 	}
 
 	memcpy(target, &count, 2);
-	memcpy(target + 2, &kilos, 3);
+	memcpy(target + 2, &blocks, 3);
 }
 
 void takeConnections(void) {
@@ -484,24 +483,24 @@ void takeConnections(void) {
 					}
 				}
 
-				unsigned char msgData[131205]; // 128 bytes + 128 KiB + 5 bytes
-				bzero(msgData, 131205);
+				unsigned char msgData[AEM_MAXLEN_MSGDATA];
+				bzero(msgData, AEM_MAXLEN_MSGDATA);
+				browse_infoBytes(msgData, stindexNum);
 
-				browse_infoBytes(stindexNum, msgData + sizeof(msgData) - 5);
-
-				int msgNum = 0;
-				int msgKib = 0;
+				int offset = 5;
 
 				for (int i = startIndex; i >= 0; i--) {
-					const int kib = (stindex[stindexNum].msg[i] & 127) + 1;
-					if (msgKib + kib > 128) break;
+					const int blocks = (stindex[stindexNum].msg[i] & (AEM_MAX_MSG_BLOCKS - 1)) + 1;
 
-					const ssize_t len = kib * AEM_BLOCKSIZE;
+					const ssize_t len = blocks * AEM_BLOCKSIZE;
 					const size_t pos = (stindex[stindexNum].msg[i] >> 7) * AEM_BLOCKSIZE;
 
-					const size_t msgPos = 128 + (msgKib * 1024);
+					if (offset + 1 + len > AEM_MAXLEN_MSGDATA) break;
 
-					if (pread(fdMsg, msgData + msgPos, len, pos) != len) {
+					msgData[offset] = blocks;
+					offset++;
+
+					if (pread(fdMsg, msgData + offset, len, pos) != len) {
 						syslog(LOG_ERR, "Failed read");
 						break;
 					}
@@ -512,19 +511,15 @@ void takeConnections(void) {
 					AES_init_ctx(&aes, aesKey);
 					sodium_memzero(aesKey, 32);
 
-					for (int j = 0; j < (kib * AEM_BLOCKSIZE) / 16; j++)
-						AES_ECB_decrypt(&aes, msgData + msgPos + (j * 16));
+					for (int j = 0; j < (blocks * AEM_BLOCKSIZE) / 16; j++)
+						AES_ECB_decrypt(&aes, msgData + offset + (j * 16));
 
 					sodium_memzero(&aes, sizeof(struct AES_ctx));
 
-					msgData[msgNum] = kib;
-
-					msgKib += kib;
-					msgNum++;
-					if (msgNum > 127) break;
+					offset += len;
 				}
 
-				if (send(sock, msgData, 131205, 0) != 131205) {syslog(LOG_ERR, "Failed send"); break;}
+				if (send(sock, msgData, AEM_MAXLEN_MSGDATA, 0) != AEM_MAXLEN_MSGDATA) {syslog(LOG_ERR, "Failed send"); break;}
 			}
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			const ssize_t bytes = clr[0] * AEM_BLOCKSIZE;

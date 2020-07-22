@@ -31,7 +31,6 @@
 #define AEM_LEN_URL_POST 14 // 'account/browse'
 #define AEM_API_ERROR -1
 #define AEM_API_NOCONTENT 0
-#define AEM_MAXLEN_RESPONSE 132096
 
 static bool keepAlive;
 static char postUrl[AEM_LEN_URL_POST];
@@ -427,18 +426,18 @@ static void message_browse(void) {
 
 	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); return;}
 
-	unsigned char clr[131205];
-	const ssize_t rbytes = recv(sock, clr, 131205, MSG_WAITALL);
+	unsigned char clr[AEM_MAXLEN_RESPONSE];
+	const ssize_t rbytes = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
 
-	if (rbytes != 131205) {
+	if (rbytes != AEM_MAXLEN_MSGDATA) {
 		syslog(LOG_WARNING, "Failed receiving data from Storage");
 		return;
 	}
 
 	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, 131205, response + 281, upk, ssk) == 0)
-		lenResponse = 281 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + 131205;
+	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, AEM_MAXLEN_MSGDATA, response + 281, upk, ssk) == 0)
+		lenResponse = 281 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + AEM_MAXLEN_MSGDATA;
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
