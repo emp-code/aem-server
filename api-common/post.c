@@ -369,18 +369,23 @@ static void address_update(void) {
 }
 
 static void message_upload(void) {
-	unsigned char msg[6 + lenDecrypted];
-	const uint16_t padAmount16 = (msg_getPadAmount(6 + lenDecrypted) << 6) | 32; // Upload: 32=1/16=0; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
-	memcpy(msg + 0, &padAmount16, 2);
-	memcpy(msg + 2, &ts, 4);
-	memcpy(msg + 6, decrypted, lenDecrypted);
+
+	unsigned char msg[5 + lenDecrypted];
+	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
+	memcpy(msg + 1, &ts, 4);
+	memcpy(msg + 5, decrypted, lenDecrypted);
 
 	size_t lenEnc;
-	unsigned char *enc = msg_encrypt(upk, msg, 6 + lenDecrypted, &lenEnc);
+	unsigned char * const enc = msg_encrypt(upk, msg, 5 + lenDecrypted, &lenEnc);
 	if (enc == NULL) return;
 
-	const int sock = storageSocket(lenEnc / 1024, upk, crypto_box_PUBLICKEYBYTES);
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+
+	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
@@ -397,47 +402,35 @@ static void message_upload(void) {
 static void message_browse(void) {
 	if (lenDecrypted != 16) return;
 
-	memcpy(response, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131245\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: Keep-Alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131245\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: close\r\n"
-		"Padding-Ignore: abcdefghijk\r\n"
-		"\r\n"
-	, 281);
-
-	const int sock = storageSocket(UINT8_MAX, upk, crypto_box_PUBLICKEYBYTES);
+	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); return;}
+	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); syslog(LOG_ERR, "Failed communicating with Storage (1)"); return;}
 
-	unsigned char clr[AEM_MAXLEN_RESPONSE];
-	const ssize_t rbytes = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
+	unsigned char clr[AEM_MAXLEN_MSGDATA];
+	const ssize_t lenClr = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
+	if (lenClr < 1) {syslog(LOG_ERR, "Failed communicating with Storage (2)"); return;}
 
-	if (rbytes != AEM_MAXLEN_MSGDATA) {
-		syslog(LOG_WARNING, "Failed receiving data from Storage");
-		return;
-	}
+	const char * const kaStr = keepAlive ? "Connection: Keep-Alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
-	randombytes_buf(response + 281, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + 281 + crypto_box_NONCEBYTES, clr, AEM_MAXLEN_MSGDATA, response + 281, upk, ssk) == 0)
-		lenResponse = 281 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + AEM_MAXLEN_MSGDATA;
+	sprintf((char*)response,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: %zd\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"%s"
+		"\r\n"
+	, crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr, kaStr);
+	const size_t lenHeaders = strlen(response);
+
+	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) return;
+
+	lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
@@ -624,7 +617,7 @@ static void message_create(void) {
 static void message_delete(void) {
 	if (lenDecrypted % 16 != 0) return;
 
-	const int sock = storageSocket(0, upk, crypto_box_PUBLICKEYBYTES);
+	const int sock = storageSocket(AEM_API_MESSAGE_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {

@@ -58,7 +58,6 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	const size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
 	unsigned char * const content = sodium_malloc(lenContent);
 
-	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6); // ExtMsg: 32=0/16=0; 8/4/2/1=unused
 	const uint16_t cs16 = (email->tls_ciphersuite > UINT16_MAX || email->tls_ciphersuite < 0) ? 1 : email->tls_ciphersuite;
 
 	uint8_t infoBytes[8];
@@ -81,13 +80,13 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	if (email->rareCommands)    infoBytes[2] |=  64;
 	// [2] & 32 unused
 
-	memcpy(content, &padAmount16, 2);
-	memcpy(content + 2, &(email->timestamp), 4);
-	memcpy(content + 6, &(email->ip), 4);
-	memcpy(content + 10, &cs16, 2);
-	memcpy(content + 12, infoBytes, 8);
-	memcpy(content + 20, email->toAddr32, 10);
-	memcpy(content + 30, body, *lenBody);
+	content[0] = msg_getPadAmount(lenContent);
+	memcpy(content + 1, &(email->timestamp), 4);
+	memcpy(content + 5, &(email->ip), 4);
+	memcpy(content + 9, &cs16, 2);
+	memcpy(content + 11, infoBytes, 8);
+	memcpy(content + 19, email->toAddr32, 10);
+	memcpy(content + 29, body, *lenBody);
 
 	unsigned char * const encrypted = msg_encrypt(upk, content, lenContent, lenBody);
 	sodium_free(content);
@@ -129,7 +128,7 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 		}
 
 		unsigned char * const box = makeExtMsg(msgBody, &lenMsgBody, email);
-		if (box == NULL || lenMsgBody < 1 || lenMsgBody % 1024 != 0) {
+		if (box == NULL || lenMsgBody < 1 || lenMsgBody % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenMsgBody);
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
@@ -137,7 +136,12 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 		}
 
 		// Deliver
-		const int stoSock = storageSocket(lenMsgBody / 1024, upk, crypto_box_PUBLICKEYBYTES);
+		unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+		const uint16_t u = (lenMsgBody / 16) - AEM_MSG_MINBLOCKS;
+		memcpy(sockMsg, &u, 2);
+		memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+
+		const int stoSock = storageSocket(AEM_MTA_INSERT, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			if (send(stoSock, box, lenMsgBody, 0) != (ssize_t)lenMsgBody) syslog(LOG_ERR, "Failed sending to Storage");
 		}

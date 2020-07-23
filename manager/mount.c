@@ -19,6 +19,10 @@
 #define AEM_MODE_RW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define AEM_MODE_RX (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
 
+#define AEM_MOUNT_ISFILE 1
+#define AEM_MOUNT_NOEXEC 2
+#define AEM_MOUNT_RDONLY 4
+
 static gid_t aemGroup;
 
 static int setAemGroup(void) {
@@ -28,11 +32,11 @@ static int setAemGroup(void) {
 	return 0;
 }
 
-static int bindMount(const char * const source, const char * const target, const bool readOnly, const bool allowExec, const bool isDir) {
-	if (isDir) {
-		if (mkdir(target, 0) != 0) return -1;
-	} else {
+static int bindMount(const char * const source, const char * const target, const int flags) {
+	if (flags & AEM_MOUNT_ISFILE) {
 		if (mknod(target, S_IFREG, 0) != 0) return -1;
+	} else {
+		if (mkdir(target, 0) != 0) return -1;
 	}
 
 	if (
@@ -42,10 +46,10 @@ static int bindMount(const char * const source, const char * const target, const
 
 	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOSUID | MS_NODEV | MS_NOATIME | MS_SILENT;
 
-	if (!allowExec)
+	if (flags & AEM_MOUNT_NOEXEC)
 		mountFlags |= MS_NOEXEC;
 
-	if (readOnly)
+	if (flags & AEM_MOUNT_RDONLY)
 		mountFlags |= MS_RDONLY;
 
 	return mount(NULL, target, NULL, mountFlags, NULL);
@@ -91,20 +95,20 @@ int createMount(const int type) {
 	) return -1;
 
 	if (
-	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       true, true, true) != 0
-	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     true, true, true) != 0
-	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   true, true, true) != 0
-	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", true, true, true) != 0
+	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       AEM_MOUNT_RDONLY) != 0
+	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     AEM_MOUNT_RDONLY) != 0
+	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   AEM_MOUNT_RDONLY) != 0
+	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", AEM_MOUNT_RDONLY) != 0
 	) return -1;
 
 	if ((type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) && (
-	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", true, false, true) != 0
+	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0
 	)) return -1;
 
-	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", false, false, false) != 0) return -1;
+	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", true, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
 	}
 
 	if (
@@ -116,10 +120,10 @@ int createMount(const int type) {
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", false, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		if (bindMount(AEM_HOMEDIR"/Storage.aem", AEM_MOUNTDIR"/Storage.aem", false, false, false) != 0) return -1;
-		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", false, false, false) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", AEM_MOUNT_NOEXEC) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;

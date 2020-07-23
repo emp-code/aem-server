@@ -14,6 +14,10 @@
 #define AEM_API_ADDRESS_LOOKUP 22
 #define AEM_API_ADDRESS_UPDATE 23
 
+#define AEM_API_MESSAGE_BROWSE 30
+#define AEM_API_MESSAGE_DELETE 31
+#define AEM_API_MESSAGE_UPLOAD 32
+
 #define AEM_API_PRIVATE_UPDATE 40
 #define AEM_API_SETTING_LIMITS 50
 
@@ -22,7 +26,7 @@
 
 #define AEM_MTA_GETPUBKEY_NORMAL 10
 #define AEM_MTA_GETPUBKEY_SHIELD 11
-#define AEM_MTA_ADDMESSAGE 20
+#define AEM_MTA_INSERT 20
 
 #define AEM_DNS_LOOKUP 10
 
@@ -61,7 +65,7 @@
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 
-#define AEM_EXTMSG_HEADERS_LEN 30
+#define AEM_EXTMSG_HEADERS_LEN 29
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
 #define AEM_INTMSG_HEADERS_LEN 83
 
@@ -76,11 +80,15 @@
 #define AEM_API_POST_SIZE 65536 // 64 KiB
 #define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
-#define AEM_MAX_MSG_BLOCKS 128
-#define AEM_BLOCKSIZE 1024
-#define AEM_RESPONSE_MAXMSG 128
-#define AEM_MAXLEN_MSGDATA ((AEM_RESPONSE_MAXMSG * AEM_BLOCKSIZE) + AEM_RESPONSE_MAXMSG + 5)
-#define AEM_MAXLEN_RESPONSE (AEM_MAXLEN_MSGDATA + 1024) // AEM_MAXLEN_MSGDATA + enough for HTTP headers etc
+#define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
+#define AEM_MAXLEN_RESPONSE 4194304 // 4 MiB
+
+// Minimum block count: treat zero as this number. Allows higher max size.
+// Base: 64 (sig) + 40 (box) = 104
+// ExtMsg: 29; total 133 (27 bytes min: headers + contents)
+// UplMsg: 46; total 150 (10 bytes min: filename + contents)
+// 10 * 16 = 160
+#define AEM_MSG_MINBLOCKS 10
 
 #define AEM_HOMEDIR "/var/lib/allears"
 #define AEM_MOUNTDIR AEM_HOMEDIR"/mount"

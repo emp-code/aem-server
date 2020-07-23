@@ -1,10 +1,10 @@
-static uint16_t msg_getPadAmount(const int lenContent) {
-	const unsigned int lenUnpadded = lenContent + crypto_sign_BYTES;
-	return ((lenUnpadded + crypto_box_SEALBYTES) % 1024 == 0) ? 0 : 1024 - ((lenUnpadded + crypto_box_SEALBYTES) % 1024);
+static uint8_t msg_getPadAmount(const size_t lenContent) {
+	const size_t lenUnpadded = lenContent + crypto_sign_BYTES;
+	return ((lenUnpadded + crypto_box_SEALBYTES) % 16 == 0) ? 0 : 16 - ((lenUnpadded + crypto_box_SEALBYTES) % 16);
 }
 
 static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned char * const content, const size_t lenContent, size_t * const lenEncrypted) {
-	const uint16_t padAmount = msg_getPadAmount(lenContent);
+	const uint8_t padAmount = msg_getPadAmount(lenContent);
 	const size_t lenPadded = lenContent + padAmount + crypto_sign_BYTES;
 
 	unsigned char * const clear = sodium_malloc(lenPadded);
