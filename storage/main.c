@@ -32,7 +32,7 @@ static unsigned char storageKey[AEM_LEN_KEY_STO];
 struct aem_stindex {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	uint16_t msgCount;
-	uint16_t *msg; // 0 = 5 (->80), 1 = 6 (->96), ... UINT16_MAX = UINT16_MAX + AEM_MSG_MINBLOCKS (->1 MiB + 80 B)
+	uint16_t *msg;
 };
 
 static struct aem_stindex *stindex;
