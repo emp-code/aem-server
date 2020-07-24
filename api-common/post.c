@@ -407,10 +407,10 @@ static void message_browse(void) {
 
 	if (send(sock, decrypted, lenDecrypted, 0) != lenDecrypted) {close(sock); syslog(LOG_ERR, "Failed communicating with Storage (1)"); return;}
 
-	unsigned char clr[AEM_MAXLEN_MSGDATA];
+	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA);
 	const ssize_t lenClr = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
-	if (lenClr < 1) {syslog(LOG_ERR, "Failed communicating with Storage (2)"); return;}
+	if (lenClr < 1) {syslog(LOG_ERR, "Failed communicating with Storage (2)"); sodium_free(clr); return;}
 
 	const char * const kaStr = keepAlive ? "Connection: Keep-Alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
@@ -428,7 +428,8 @@ static void message_browse(void) {
 	const size_t lenHeaders = strlen(response);
 
 	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) return;
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) {sodium_free(clr); return;}
+	sodium_free(clr);
 
 	lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
 }
