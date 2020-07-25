@@ -420,18 +420,14 @@ void takeConnections(void) {
 				break;}
 
 				case AEM_API_MESSAGE_BROWSE: {
+					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES + 16) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
+
 					int stindexNum = -1;
 					for (int i = 0; i < stindexCount; i++) {
 						if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
 							stindexNum = i;
 							break;
 						}
-					}
-
-					unsigned char startAfterId[16];
-					if (recv(sock, startAfterId, 16, 0) != 16) {
-						close(sock);
-						continue;
 					}
 
 					if (stindexNum < 0) {
@@ -442,7 +438,7 @@ void takeConnections(void) {
 					}
 
 					unsigned char *msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
-					const int sz = storage_read(msgData, stindexNum, startAfterId);
+					const int sz = storage_read(msgData, stindexNum, clr + 1 + crypto_box_PUBLICKEYBYTES);
 					if (send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
 					sodium_free(msgData);
 				break;}
