@@ -189,32 +189,6 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	return 0;
 }
 
-/*static bool storage_idMatch(const int stindexNum, const int i, const unsigned char * const id) {
-	unsigned char buf[16];
-	const ssize_t readBytes = pread(fdMsg, buf, 16, stindex[stindexNum].msg[i].pos * 16);
-	if (readBytes != 16) {
-		syslog(LOG_ERR, "Failed reading Storage.aem");
-		return false;
-	}
-
-	unsigned char aesKey[32];
-	getStorageKey(aesKey, stindex[stindexNum].pubkey, stindex[stindexNum].msg[i].sze);
-	struct AES_ctx aes;
-	AES_init_ctx(&aes, aesKey);
-	sodium_memzero(aesKey, 32);
-
-	AES_ECB_decrypt(&aes, buf);
-
-	sodium_memzero(&aes, sizeof(struct AES_ctx));
-
-	for (int j = 0; j < 16; j++) {
-		if (id[j] != buf[j]) return false;
-	}
-
-	return true;
-}
-*/
-
 static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
 	int num = -1;
 	for (int i = 0; i < stindexCount; i++) {
@@ -301,6 +275,30 @@ static bool peerOk(const int sock) {
 	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
+static bool storage_idMatch(const int fdMsg, const int stindexNum, const int sze, const int pos, const unsigned char * const id) {
+	unsigned char buf[16];
+	if (pread(fdMsg, buf, 16, pos) != 16) {
+		syslog(LOG_ERR, "Failed read");
+		return false;
+	}
+
+	unsigned char aesKey[32];
+	getStorageKey(aesKey, stindex[stindexNum].pubkey, sze);
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
+
+	AES_ECB_decrypt(&aes, buf);
+
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
+
+	for (int j = 0; j < 16; j++) {
+		if (id[j] != buf[j]) return false;
+	}
+
+	return true;
+}
+
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
 	const uint16_t count = stindex[stindexNum].msgCount;
 
@@ -314,29 +312,32 @@ static void browse_infoBytes(unsigned char * const target, const int stindexNum)
 }
 
 int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const startAfterId) {
-	int startIndex = stindex[stindexNum].msgCount - 1;
-/*	if (startAfterId != NULL) {
-		for (int i = startIndex; i >= 0; i--) {
-			if (storage_idMatch(stindexNum, i, startAfterId)) {
-				startIndex = i - 1;
-				break;
-			}
-		}
-	}
-*/
-
 	bzero(msgData, AEM_MAXLEN_MSGDATA);
 	browse_infoBytes(msgData, stindexNum);
-
-	int offset = 6;
 
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
 	const int fdMsg = open(path, O_CLOEXEC | O_CREAT | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDONLY, S_IRUSR | S_IWUSR | S_ISVTX);
-	if (fdMsg < 0) return offset;
+	if (fdMsg < 0) return fdMsg;
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
+
+	int startIndex = stindex[stindexNum].msgCount - 1;
+	if (startAfterId != NULL) {
+		for (int i = startIndex; i >= 0; i--) {
+			filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+
+			if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, startAfterId)) {
+				startIndex = i - 1;
+				break;
+			}
+		}
+
+		filePos = lseek(fdMsg, 0, SEEK_END);
+	}
+
+	int offset = 6;
 
 	for (int i = startIndex; i >= 0; i--) {
 		const uint16_t sze = stindex[stindexNum].msg[i];
