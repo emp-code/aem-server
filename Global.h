@@ -83,12 +83,13 @@
 #define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
 #define AEM_MAXLEN_RESPONSE 4194304 // 4 MiB
 
-// Minimum block count: treat zero as this number. Allows higher max size.
+// Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
 // Base: 64 (sig) + 40 (box) = 104
-// ExtMsg: 29; total 133 (27 bytes min: headers + contents)
-// UplMsg: 46; total 150 (10 bytes min: filename + contents)
-// 10 * 16 = 160
-#define AEM_MSG_MINBLOCKS 10
+// ExtMsg: 29/133; 44B .. 1M + 59B
+// IntMsg: 53/157; 20B .. 1M + 35B
+// UplMsg: 46/150; 27B .. 1M + 42B
+// 12 * 16 = 192 (-15 --> 177 min)
+#define AEM_MSG_MINBLOCKS 12
 
 #define AEM_HOMEDIR "/var/lib/allears"
 #define AEM_MOUNTDIR AEM_HOMEDIR"/mount"
