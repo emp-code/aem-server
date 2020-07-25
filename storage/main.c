@@ -313,9 +313,9 @@ static void browse_infoBytes(unsigned char * const target, const int stindexNum)
 	memcpy(target + 2, &blocks, 4);
 }
 
-int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char startAfterId[16]) {
+int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const startAfterId) {
 	int startIndex = stindex[stindexNum].msgCount - 1;
-/*	if (memcmp(startAfterId, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) != 0) {
+/*	if (startAfterId != NULL) {
 		for (int i = startIndex; i >= 0; i--) {
 			if (storage_idMatch(stindexNum, i, startAfterId)) {
 				startIndex = i - 1;
@@ -420,7 +420,7 @@ void takeConnections(void) {
 				break;}
 
 				case AEM_API_MESSAGE_BROWSE: {
-					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES + 16) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
+					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 16) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
 
 					int stindexNum = -1;
 					for (int i = 0; i < stindexCount; i++) {
@@ -438,7 +438,7 @@ void takeConnections(void) {
 					}
 
 					unsigned char *msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
-					const int sz = storage_read(msgData, stindexNum, clr + 1 + crypto_box_PUBLICKEYBYTES);
+					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 16) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
 					if (send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
 					sodium_free(msgData);
 				break;}

@@ -405,11 +405,9 @@ static void message_browse(void) {
 
 	if (lenDecrypted == 16)
 		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
-	else if (lenDecrypted == 1)
-		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, (unsigned char*)"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16);
-	else return;
+	else if (lenDecrypted != 1) return;
 
-	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + 16);
+	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + (lenDecrypted == 16) ? lenDecrypted : 0);
 	if (sock < 0) return;
 
 	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA);
