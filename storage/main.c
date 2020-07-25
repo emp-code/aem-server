@@ -389,7 +389,7 @@ void takeConnections(void) {
 		unsigned char enc[crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 64];
 		const ssize_t lenEnc = recv(sock, enc, crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 64, 0);
 		if (lenEnc < crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1) {close(sock); continue;}
-		const size_t lenClr = lenEnc - crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
+		const size_t lenClr = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 
 		unsigned char clr[lenClr];
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
