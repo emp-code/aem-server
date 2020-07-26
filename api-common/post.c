@@ -37,9 +37,9 @@ static char postUrl[AEM_LEN_URL_POST];
 static unsigned char postNonce[crypto_box_NONCEBYTES];
 
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
-static unsigned char response[AEM_MAXLEN_RESPONSE];
-static int lenResponse = AEM_API_ERROR;
+static unsigned char *response = NULL;
 static unsigned char *decrypted = NULL;
+static int lenResponse = AEM_API_ERROR;
 static uint16_t lenDecrypted;
 
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
@@ -77,6 +77,9 @@ void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
 int aem_api_init(void) {
 	if (pid_account == 0 || pid_storage == 0 || pid_enquiry == 0) return -1;
 
+	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 1024); // enough for headers
+	if (response == NULL) return -1;
+
 	decrypted = sodium_malloc(AEM_API_POST_SIZE);
 	return (decrypted != NULL) ? 0 : -1;
 }
@@ -88,6 +91,7 @@ void aem_api_free(void) {
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 	sm_clearKeys();
 	sodium_free(decrypted);
+	sodium_free(response);
 	decrypted = NULL;
 }
 
