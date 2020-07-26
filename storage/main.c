@@ -323,13 +323,13 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
 
-	int startIndex = stindex[stindexNum].msgCount - 1;
+	int stopIndex = -1;
 	if (startAfterId != NULL) {
-		for (int i = startIndex; i >= 0; i--) {
+		for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
 			filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 
 			if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, startAfterId)) {
-				startIndex = i - 1;
+				stopIndex = i;
 				break;
 			}
 		}
@@ -337,9 +337,9 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 		filePos = lseek(fdMsg, 0, SEEK_END);
 	}
 
-	int offset = 6;
+	int offset = 6; // browse_infoBytes
 
-	for (int i = startIndex; i >= 0; i--) {
+	for (int i = stindex[stindexNum].msgCount - 1; i > stopIndex; i--) {
 		const uint16_t sze = stindex[stindexNum].msg[i];
 		if (offset + 2 + ((sze + AEM_MSG_MINBLOCKS) * 16) > AEM_MAXLEN_MSGDATA) break;
 
