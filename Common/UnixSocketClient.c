@@ -5,7 +5,7 @@ static bool peerOk(const int sock, const pid_t pid) {
 	return (peer.pid == pid && peer.gid == getgid() && peer.uid == getuid());
 }
 
-static int getUnixSocket(const char * const path, const pid_t pid, const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+static int getUnixSocket(const char * const path, const pid_t pid, const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_WARNING, "Failed creating Unix socket: %m"); return -1;}
 
@@ -49,16 +49,16 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	return sock;
 }
 
-static int accountSocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ACCOUNT, pid_account, command, msg, lenMsg);
 }
 
-static int storageSocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+static int storageSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }
 
 #ifdef AEM_API
-static int enquirySocket(const unsigned char command, const unsigned char * const msg, size_t lenMsg) {
+static int enquirySocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ENQUIRY, pid_enquiry, command, msg, lenMsg);
 }
 #endif
