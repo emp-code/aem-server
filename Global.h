@@ -81,7 +81,6 @@
 #define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
 #define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
-#define AEM_MAXLEN_RESPONSE 4194304 // 4 MiB
 
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
 // Base: 64 (sig) + 40 (box) = 104
