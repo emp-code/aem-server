@@ -68,7 +68,7 @@
 #define AEM_MSG_MINBLOCKS 12
 
 #define AEM_API_BOX_SIZE_MAX ((UINT16_MAX + AEM_MSG_MINBLOCKS) * 16)
-#define AEM_API_SEALBOX_SIZE (14 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
+#define AEM_API_SEALBOX_SIZE (1 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
 #define AEM_HOMEDIR "/var/lib/allears"
 #define AEM_MOUNTDIR AEM_HOMEDIR"/mount"

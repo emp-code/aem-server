@@ -33,7 +33,7 @@
 #define AEM_API_NOCONTENT 0
 
 static bool keepAlive;
-static char postUrl[AEM_LEN_URL_POST];
+static int postCmd;
 static unsigned char postNonce[crypto_box_NONCEBYTES];
 
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
@@ -690,9 +690,9 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	unsigned char sealDec[AEM_API_SEALBOX_SIZE - crypto_box_SEALBYTES];
 	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return -1;
 
-	memcpy(postUrl, sealDec, 14);
-	memcpy(postNonce, sealDec + 14, crypto_box_NONCEBYTES);
-	memcpy(upk, sealDec + 14 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
+	postCmd = sealDec[0];
+	memcpy(postNonce, sealDec + 1, crypto_box_NONCEBYTES);
+	memcpy(upk, sealDec + 1 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return -1;
@@ -717,23 +717,25 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 	sodium_mprotect_readonly(decrypted);
 	lenResponse = -1;
 
-	     if (memcmp(postUrl, "account/browse", 14) == 0) account_browse();
-	else if (memcmp(postUrl, "account/create", 14) == 0) account_create();
-	else if (memcmp(postUrl, "account/delete", 14) == 0) account_delete();
-	else if (memcmp(postUrl, "account/update", 14) == 0) account_update();
+	switch (postCmd) {
+		case AEM_API_ACCOUNT_BROWSE: account_browse(); break;
+		case AEM_API_ACCOUNT_CREATE: account_create(); break;
+		case AEM_API_ACCOUNT_DELETE: account_delete(); break;
+		case AEM_API_ACCOUNT_UPDATE: account_update(); break;
 
-	else if (memcmp(postUrl, "address/create", 14) == 0) address_create();
-	else if (memcmp(postUrl, "address/delete", 14) == 0) address_delete();
-	else if (memcmp(postUrl, "address/lookup", 14) == 0) address_lookup();
-	else if (memcmp(postUrl, "address/update", 14) == 0) address_update();
+		case AEM_API_ADDRESS_CREATE: address_create(); break;
+		case AEM_API_ADDRESS_DELETE: address_delete(); break;
+		case AEM_API_ADDRESS_LOOKUP: address_lookup(); break;
+		case AEM_API_ADDRESS_UPDATE: address_update(); break;
 
-	else if (memcmp(postUrl, "message/browse", 14) == 0) message_browse();
-	else if (memcmp(postUrl, "message/create", 14) == 0) message_create();
-	else if (memcmp(postUrl, "message/delete", 14) == 0) message_delete();
-	else if (memcmp(postUrl, "message/upload", 14) == 0) message_upload();
+		case AEM_API_MESSAGE_BROWSE: message_browse(); break;
+		case AEM_API_MESSAGE_CREATE: message_create(); break;
+		case AEM_API_MESSAGE_DELETE: message_delete(); break;
+		case AEM_API_MESSAGE_UPLOAD: message_upload(); break;
 
-	else if (memcmp(postUrl, "private/update", 14) == 0) private_update();
-	else if (memcmp(postUrl, "setting/limits", 14) == 0) setting_limits();
+		case AEM_API_PRIVATE_UPDATE: private_update(); break;
+		case AEM_API_SETTING_LIMITS: setting_limits(); break;
+	}
 
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
