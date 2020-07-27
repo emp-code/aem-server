@@ -16,7 +16,7 @@
 
 #include "https.h"
 
-#define AEM_MINLEN_POST 75 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 8264\r\n\r\n
+#define AEM_MINLEN_POST 74 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 480
 #define AEM_CLIENT_TIMEOUT 30
 
@@ -26,7 +26,7 @@ static size_t lenDomain;
 #include "../Common/tls_setup.c"
 
 __attribute__((warn_unused_result))
-static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive) {
+static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive, long * const clen) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 	if (lenReq < AEM_MINLEN_POST) return false;
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
@@ -37,7 +37,10 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	if (strncmp(host + 8, domain, lenDomain) != 0) return false;
 	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return false;
 
-	if (strstr(req, "\r\nContent-Length: 65672\r\n") == NULL) return false;
+	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
+	if (clenStr == NULL) return false;
+	*clen = strtol(clenStr + 18, NULL, 10);
+	if (*clen < 1) return false;
 
 	// Forbidden request headers
 	if (
@@ -80,52 +83,53 @@ void respondClient(int sock) {
 		}
 	}
 
+	unsigned char buf[AEM_API_SEALBOX_SIZE];
+
 	while(1) {
-		unsigned char buf[AEM_API_POST_SIZE + crypto_box_MACBYTES];
-		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ + AEM_API_SEALBOX_SIZE);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 		if (ret < 1) break;
 
 		unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
 		if (postBegin == NULL) break;
 		postBegin[3] = '\0';
 
+		long clen = -1;
 		bool keepAlive = true;
-		if (!isRequestValid((char*)buf, ret, &keepAlive)) break;
+		if (!isRequestValid((char*)buf, ret, &keepAlive, &clen)) break;
+		if (clen > AEM_API_SEALBOX_SIZE + AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES) break;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
-		memmove(buf, postBegin + 4, lenPost);
+		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
 
-		if (lenPost < AEM_API_SEALBOX_SIZE) {
-			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-			if (ret < 1) break;
-
-			lenPost += ret;
-			if (lenPost < AEM_API_SEALBOX_SIZE) break;
-		}
+		do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		lenPost += ret;
+		if (lenPost != AEM_API_SEALBOX_SIZE) break;
 
 		if (aem_api_prepare(buf, keepAlive) != 0) break;
 
-		if (lenPost > AEM_API_SEALBOX_SIZE) {
-			lenPost -= AEM_API_SEALBOX_SIZE;
-			memmove(buf, buf + AEM_API_SEALBOX_SIZE, lenPost);
-		} else {
-			lenPost = 0;
-		}
+		// Request is valid
+		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
+		unsigned char *box = malloc(lenBox);
 
-		while (lenPost < AEM_API_POST_SIZE + crypto_box_MACBYTES) {
-			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_POST_SIZE + crypto_box_MACBYTES - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		lenPost = 0;
+		while (lenPost < lenBox) {
+			do {ret = mbedtls_ssl_read(&ssl, box + lenPost, lenBox - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 			if (ret < 1) break;
 			lenPost += ret;
 		}
-		if (ret < 1) break;
+		if (ret < 1) {free(box); break;}
 
 		unsigned char *resp;
-		const int lenResp = aem_api_process(buf, &resp);
+		const int lenResp = aem_api_process(box, lenBox, &resp);
+
+		sodium_memzero(buf, AEM_MAXLEN_REQ);
+		sodium_memzero(box, lenBox);
+		free(box);
+
 		if (lenResp < 0) break;
 		sendData(&ssl, resp, lenResp);
-
 		sodium_memzero(resp, lenResp);
-		sodium_memzero(buf, AEM_API_POST_SIZE + crypto_box_MACBYTES);
+
 		if (!keepAlive) break;
 	}
 

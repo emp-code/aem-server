@@ -10,14 +10,14 @@
 
 #include "http.h"
 
-#define AEM_MINLEN_POST 133 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:302\r\nContent-Length: 8264\r\n\r\n
+#define AEM_MINLEN_POST 132 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 540
 #define AEM_CLIENT_TIMEOUT 30
 
 //static char onionId[56];
 
 __attribute__((warn_unused_result))
-static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive) {
+static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive, long * const clen) {
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 	if (lenReq < AEM_MINLEN_POST) return false;
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
@@ -28,7 +28,10 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 //	if (strncmp(host + 8, onionId, 56) != 0) return false;
 //	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
 
-	if (strstr(req, "\r\nContent-Length: 65672\r\n") == NULL) return false;
+	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
+	if (clenStr == NULL) return false;
+	*clen = strtol(clenStr + 18, NULL, 10);
+	if (*clen < 1) return false;
 
 	// Forbidden request headers
 	if (
@@ -59,51 +62,52 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 }
 
 void respondClient(const int sock) {
+	unsigned char buf[AEM_API_SEALBOX_SIZE];
+
 	while(1) {
-		unsigned char buf[AEM_API_POST_SIZE + crypto_box_MACBYTES];
-		int ret = recv(sock, buf, AEM_MAXLEN_REQ + AEM_API_SEALBOX_SIZE, 0);
+		int ret = recv(sock, buf, AEM_MAXLEN_REQ, 0);
 		if (ret < 1) return;
 
 		unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
 		if (postBegin == NULL) return;
 		postBegin[3] = '\0';
 
+		long clen = -1;
 		bool keepAlive = true;
-		if (!isRequestValid((char*)buf, ret, &keepAlive)) return;
+		if (!isRequestValid((char*)buf, ret, &keepAlive, &clen)) break;
+		if (clen > AEM_API_SEALBOX_SIZE + AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES) break;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
-		memmove(buf, postBegin + 4, lenPost);
+		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
 
-		if (lenPost < AEM_API_SEALBOX_SIZE) {
-			ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
-			if (ret < 1) return;
-
-			lenPost += ret;
-			if (lenPost < AEM_API_SEALBOX_SIZE) return;
-		}
+		ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
+		lenPost += ret;
+		if (lenPost != AEM_API_SEALBOX_SIZE) return;
 
 		if (aem_api_prepare(buf, keepAlive) != 0) return;
 
-		if (lenPost > AEM_API_SEALBOX_SIZE) {
-			lenPost -= AEM_API_SEALBOX_SIZE;
-			memmove(buf, buf + AEM_API_SEALBOX_SIZE, lenPost);
-		} else {
-			lenPost = 0;
-		}
+		// Request is valid
+		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
+		unsigned char *box = malloc(lenBox);
 
-		while (lenPost < AEM_API_POST_SIZE + crypto_box_MACBYTES) {
-			ret = recv(sock, buf + lenPost, AEM_API_POST_SIZE + crypto_box_MACBYTES - lenPost, 0);
-			if (ret < 1) return;
+		lenPost = 0;
+		while (lenPost < lenBox) {
+			ret = recv(sock, box + lenPost, lenBox - lenPost, 0);
+			if (ret < 1) {free(box); return;}
 			lenPost += ret;
 		}
 
 		unsigned char *resp;
-		const int lenResp = aem_api_process(buf, &resp);
+		const int lenResp = aem_api_process(box, lenBox, &resp);
+
+		sodium_memzero(buf, AEM_API_SEALBOX_SIZE);
+		sodium_memzero(box, lenBox);
+		free(box);
+
 		if (lenResp < 0) break;
 		send(sock, resp, lenResp, 0);
-
 		sodium_memzero(resp, lenResp);
-		sodium_memzero(buf, AEM_API_POST_SIZE + crypto_box_MACBYTES);
+
 		if (!keepAlive) return;
 	}
 }

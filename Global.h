@@ -77,9 +77,6 @@
 #define AEM_SOCKPATH_ENQUIRY "\0AEM_Enq"
 #define AEM_SOCKPATH_LEN 8
 
-#define AEM_API_POST_SIZE 65536 // 64 KiB
-#define AEM_API_SEALBOX_SIZE (16 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
-
 #define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
 
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
@@ -89,6 +86,9 @@
 // UplMsg: 46/150; 27B .. 1M + 42B
 // 12 * 16 = 192 (-15 --> 177 min)
 #define AEM_MSG_MINBLOCKS 12
+
+#define AEM_API_BOX_SIZE_MAX ((UINT16_MAX + AEM_MSG_MINBLOCKS) * 16)
+#define AEM_API_SEALBOX_SIZE (14 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
 #define AEM_HOMEDIR "/var/lib/allears"
 #define AEM_MOUNTDIR AEM_HOMEDIR"/mount"

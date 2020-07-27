@@ -40,7 +40,7 @@ static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 static unsigned char *response = NULL;
 static unsigned char *decrypted = NULL;
 static int lenResponse = AEM_API_ERROR;
-static uint16_t lenDecrypted;
+static uint32_t lenDecrypted;
 
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
@@ -80,7 +80,7 @@ int aem_api_init(void) {
 	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 1024); // enough for headers
 	if (response == NULL) return -1;
 
-	decrypted = sodium_malloc(AEM_API_POST_SIZE);
+	decrypted = sodium_malloc(AEM_API_BOX_SIZE_MAX);
 	return (decrypted != NULL) ? 0 : -1;
 }
 
@@ -97,7 +97,7 @@ void aem_api_free(void) {
 
 static void clearDecrypted() {
 	sodium_mprotect_readwrite(decrypted);
-	sodium_memzero(decrypted, AEM_API_POST_SIZE);
+	sodium_memzero(decrypted, AEM_API_BOX_SIZE_MAX);
 	sodium_mprotect_noaccess(decrypted);
 }
 
@@ -690,10 +690,9 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	unsigned char sealDec[AEM_API_SEALBOX_SIZE - crypto_box_SEALBYTES];
 	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return -1;
 
-	memcpy(&lenDecrypted, sealDec, 2);
-	memcpy(postUrl, sealDec + 2, 14);
-	memcpy(postNonce, sealDec + 16, crypto_box_NONCEBYTES);
-	memcpy(upk, sealDec + 16 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
+	memcpy(postUrl, sealDec, 14);
+	memcpy(postNonce, sealDec + 14, crypto_box_NONCEBYTES);
+	memcpy(upk, sealDec + 14 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return -1;
@@ -705,15 +704,15 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 }
 
 __attribute__((warn_unused_result))
-int aem_api_process(const unsigned char * const postBox, unsigned char ** const response_p) {
-	if (decrypted == NULL || postBox == NULL) return -1;
+int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned char ** const response_p) {
+	if (decrypted == NULL || box == NULL) return -1;
 
 	sodium_mprotect_readwrite(decrypted);
-	if (crypto_box_open_easy(decrypted, postBox, AEM_API_POST_SIZE + crypto_box_MACBYTES, postNonce, upk, ssk) != 0) {
+	if (crypto_box_open_easy(decrypted, box, lenBox, postNonce, upk, ssk) != 0) {
 		sodium_mprotect_noaccess(decrypted);
 		return -1;
 	}
-	if (lenDecrypted < 1) return -1;
+	lenDecrypted = lenBox - crypto_box_MACBYTES;
 
 	sodium_mprotect_readonly(decrypted);
 	lenResponse = -1;
