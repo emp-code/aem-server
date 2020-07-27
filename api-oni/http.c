@@ -62,7 +62,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 }
 
 void respondClient(const int sock) {
-	unsigned char buf[AEM_API_SEALBOX_SIZE];
+	unsigned char buf[AEM_MAXLEN_REQ];
 
 	while(1) {
 		int ret = recv(sock, buf, AEM_MAXLEN_REQ, 0);
@@ -80,9 +80,11 @@ void respondClient(const int sock) {
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
 
-		ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
-		lenPost += ret;
-		if (lenPost != AEM_API_SEALBOX_SIZE) return;
+		if (lenPost < AEM_API_SEALBOX_SIZE) {
+			ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
+			lenPost += ret;
+		}
+		if (lenPost < AEM_API_SEALBOX_SIZE) return;
 
 		if (aem_api_prepare(buf, keepAlive) != 0) return;
 
@@ -90,7 +92,11 @@ void respondClient(const int sock) {
 		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
 		unsigned char *box = malloc(lenBox);
 
-		lenPost = 0;
+		if (lenPost > AEM_API_SEALBOX_SIZE) {
+			memcpy(box, buf + AEM_API_SEALBOX_SIZE, lenPost - AEM_API_SEALBOX_SIZE);
+			lenPost -= AEM_API_SEALBOX_SIZE;
+		} else lenPost = 0;
+
 		while (lenPost < lenBox) {
 			ret = recv(sock, box + lenPost, lenBox - lenPost, 0);
 			if (ret < 1) {free(box); return;}

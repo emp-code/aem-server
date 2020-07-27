@@ -83,7 +83,7 @@ void respondClient(int sock) {
 		}
 	}
 
-	unsigned char buf[AEM_API_SEALBOX_SIZE];
+	unsigned char buf[AEM_MAXLEN_REQ];
 
 	while(1) {
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
@@ -101,9 +101,11 @@ void respondClient(int sock) {
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
 
-		do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		lenPost += ret;
-		if (lenPost != AEM_API_SEALBOX_SIZE) break;
+		if (lenPost < AEM_API_SEALBOX_SIZE) {
+			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+			lenPost += ret;
+		}
+		if (lenPost < AEM_API_SEALBOX_SIZE) break;
 
 		if (aem_api_prepare(buf, keepAlive) != 0) break;
 
@@ -111,12 +113,17 @@ void respondClient(int sock) {
 		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
 		unsigned char *box = malloc(lenBox);
 
-		lenPost = 0;
+		if (lenPost > AEM_API_SEALBOX_SIZE) {
+			memcpy(box, buf + AEM_API_SEALBOX_SIZE, lenPost - AEM_API_SEALBOX_SIZE);
+			lenPost -= AEM_API_SEALBOX_SIZE;
+		} else lenPost = 0;
+
 		while (lenPost < lenBox) {
 			do {ret = mbedtls_ssl_read(&ssl, box + lenPost, lenBox - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 			if (ret < 1) break;
 			lenPost += ret;
 		}
+
 		if (ret < 1) {free(box); break;}
 
 		unsigned char *resp;
