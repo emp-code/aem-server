@@ -338,6 +338,7 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 			}
 
 			if (stopIndex == -1) {close(fdMsg); return -1;} // matchId not found
+			filePos = lseek(fdMsg, 0, SEEK_END);
 		} else { // older
 			filePos = lseek(fdMsg, 0, SEEK_SET); // TODO: check for error
 
