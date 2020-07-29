@@ -404,20 +404,20 @@ static void message_upload(void) {
 }
 
 static void message_browse(void) {
-	unsigned char sockMsg[crypto_box_PUBLICKEYBYTES + 16];
+	unsigned char sockMsg[crypto_box_PUBLICKEYBYTES + 17];
 	memcpy(sockMsg, upk, crypto_box_PUBLICKEYBYTES);
 
-	if (lenDecrypted == 16)
+	if (lenDecrypted == 17)
 		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
 	else if (lenDecrypted != 1) return;
 
-	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((lenDecrypted == 16) ? lenDecrypted : 0));
+	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((lenDecrypted == 17) ? lenDecrypted : 0));
 	if (sock < 0) return;
 
 	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA);
 	const ssize_t lenClr = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
-	if (lenClr < 1) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_free(clr); return;}
+	if (lenClr < 1) {sodium_free(clr); return;}
 
 	const char * const kaStr = keepAlive ? "Connection: Keep-Alive\r\nKeep-Alive: timeout=30\r\n" : "";
 

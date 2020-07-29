@@ -311,7 +311,7 @@ static void browse_infoBytes(unsigned char * const target, const int stindexNum)
 	memcpy(target + 2, &blocks, 4);
 }
 
-int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const startAfterId) {
+int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const matchId) {
 	bzero(msgData, AEM_MAXLEN_MSGDATA);
 	browse_infoBytes(msgData, stindexNum);
 
@@ -323,23 +323,41 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
 
+	int startIndex = stindex[stindexNum].msgCount - 1;
 	int stopIndex = -1;
-	if (startAfterId != NULL) {
-		for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
-			filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 
-			if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, startAfterId)) {
-				stopIndex = i;
-				break;
+	if (matchId != NULL) {
+		if (matchId[0]) { // newer
+			for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
+				filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+
+				if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
+					stopIndex = i;
+					break;
+				}
 			}
-		}
 
-		filePos = lseek(fdMsg, 0, SEEK_END);
+			if (stopIndex == -1) {close(fdMsg); return -1;} // matchId not found
+		} else { // older
+			filePos = lseek(fdMsg, 0, SEEK_SET); // TODO: check for error
+
+			for (int i = 0; i < stindex[stindexNum].msgCount - 1; i++) {
+				if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
+					startIndex = i;
+					filePos += (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+					break;
+				}
+
+				filePos += (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+			}
+
+			if (startIndex == 0 || startIndex == stindex[stindexNum].msgCount - 1) {close(fdMsg); return -1;} // matchId not found, or is the oldest
+		}
 	}
 
 	int offset = 6; // browse_infoBytes
 
-	for (int i = stindex[stindexNum].msgCount - 1; i > stopIndex; i--) {
+	for (int i = startIndex; i > stopIndex; i--) {
 		const uint16_t sze = stindex[stindexNum].msg[i];
 		if (offset + 2 + ((sze + AEM_MSG_MINBLOCKS) * 16) > AEM_MAXLEN_MSGDATA) break;
 
@@ -421,7 +439,7 @@ void takeConnections(void) {
 				break;}
 
 				case AEM_API_MESSAGE_BROWSE: {
-					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 16) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
+					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 17) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
 
 					int stindexNum = -1;
 					for (int i = 0; i < stindexCount; i++) {
@@ -439,8 +457,8 @@ void takeConnections(void) {
 					}
 
 					unsigned char *msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
-					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 16) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
-					if (send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
+					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 17) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
+					if (sz > 0 && send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
 					sodium_free(msgData);
 				break;}
 
