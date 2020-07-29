@@ -480,6 +480,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 			"connect-src"     " http%s:302/api data:;"
 			"img-src"         " blob: data:;"
 			"media-src"       " blob:;"
+			"object-src"      " blob:;" // PDF
 			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
 			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
 
@@ -491,7 +492,6 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 			"frame-ancestors" " 'none';"
 			"frame-src"       " 'none';"
 			"manifest-src"    " 'none';"
-			"object-src"      " 'none';"
 			"prefetch-src"    " 'none';"
 			"worker-src"      " 'none';"
 
