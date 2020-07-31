@@ -39,12 +39,13 @@ static int initSocket(const int sock) {
 	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
 
 	const int intTrue = 1;
-	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3); // Tor: loopback only
-	setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int));
-	setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int));
-
-	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
-	return listen(sock, AEM_BACKLOG);
+	return (
+	   setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) == 0
+	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
+	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
+	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
+	&& listen(sock, AEM_BACKLOG) == 0
+	) ? 0 : -1;
 }
 
 static void acceptClients(void) {
