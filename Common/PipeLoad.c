@@ -11,7 +11,7 @@ static ssize_t pipeReadDirect(const int fd, unsigned char * const buf, const siz
 	}
 }
 
-#ifndef AEM_WEBONION
+#ifndef AEM_WEB_ONI
 __attribute__((warn_unused_result))
 static int pipeRead(const int fd, unsigned char ** const target, size_t * const len) {
 	unsigned char buf[AEM_MAXLEN_PIPEREAD];
@@ -30,8 +30,8 @@ static int pipeRead(const int fd, unsigned char ** const target, size_t * const 
 #endif
 
 #ifndef AEM_ACCOUNT
-#ifndef AEM_WEBONION
 #ifndef AEM_API_ONI
+#ifndef AEM_WEB_ONI
 __attribute__((warn_unused_result))
 static int pipeLoadTls(const int fd) {
 	unsigned char *crtData;
