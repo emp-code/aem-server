@@ -22,7 +22,7 @@
 #define AEM_API
 #define AEM_API_ONI
 #define AEM_LOGNAME "AEM-AOn"
-#define AEM_PORT AEM_PORT_API_ONI
+#define AEM_PORT AEM_PORT_API
 #define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
