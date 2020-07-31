@@ -21,6 +21,7 @@ static int initSocket(const int sock) {
 
 #ifdef AEM_API_ONI
 	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3); // Tor: loopback only
+	setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (const void*)&intTrue, sizeof(int));
 #endif
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
