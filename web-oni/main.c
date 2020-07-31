@@ -53,8 +53,7 @@ static void acceptClients(void) {
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed opening socket"); return;}
-	if (initSocket(sock) < 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
-	listen(sock, AEM_BACKLOG);
+	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
 
 	syslog(LOG_INFO, "Ready");
 
