@@ -20,9 +20,7 @@ static int initSocket(const int sock) {
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	if (setCaps(0) != 0) return -1;
-
-	listen(sock, AEM_BACKLOG);
-	return 0;
+	return listen(sock, AEM_BACKLOG);
 }
 
 static void acceptClients(void) {
