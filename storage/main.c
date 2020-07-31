@@ -261,6 +261,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 		}
 
 		stindex[stindexNum].msgCount--;
+		saveStindex();
 		break;
 	}
 
