@@ -15,14 +15,14 @@ static int initSocket(const int sock) {
 	servAddr.sin_port = htons(AEM_PORT);
 
 	const int intTrue = 1;
-	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,   (const void*)&intTrue, sizeof(int));
-	setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int));
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,   (const void*)&intTrue, sizeof(int)) != 0) return -1;
+	if (setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) != 0) return -1;
 
 #ifdef AEM_API_ONI
 	// Tor: loopback only
 	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3);
-	setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (const void*)&intTrue, sizeof(int));
+	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) != 0) return -1;
+	if (setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (const void*)&intTrue, sizeof(int)) != 0) return -1;
 #else
 	// Clearnet: bind to first non-loopback interface
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
