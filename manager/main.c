@@ -91,9 +91,9 @@ static int dropBounds(void) {
 static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
-	const cap_value_t capInherit[3] = {CAP_NET_BIND_SERVICE, CAP_IPC_LOCK, CAP_SETPCAP};
+	const cap_value_t capInherit[4] = {CAP_NET_BIND_SERVICE, CAP_NET_RAW, CAP_IPC_LOCK, CAP_SETPCAP};
 
-	const cap_value_t capMain[15] = {
+	const cap_value_t capMain[16] = {
 		CAP_CHOWN, // Allow chown on any file
 		CAP_DAC_OVERRIDE, // Bypass file permission checks
 		CAP_DAC_READ_SEARCH, // Bypass file permission checks
@@ -102,6 +102,7 @@ static int setCaps(void) {
 		CAP_KILL, // Kill any process
 		CAP_MKNOD, // Make special files
 		CAP_NET_BIND_SERVICE, // Bind to port #<1024
+		CAP_NET_RAW, // Bind to specific interfaces
 		CAP_SETGID, // Set group IDs
 		CAP_SETUID, // Set user ID
 		CAP_SETPCAP, // Allow capability/secbit changes
@@ -116,10 +117,10 @@ static int setCaps(void) {
 	return (
 	   cap_clear(caps) == 0
 
-	&& cap_set_flag(caps, CAP_INHERITABLE, 3, capInherit, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_INHERITABLE, 4, capInherit, CAP_SET) == 0
 
-	&& cap_set_flag(caps, CAP_PERMITTED, 15, capMain, CAP_SET) == 0
-	&& cap_set_flag(caps, CAP_EFFECTIVE, 15, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_PERMITTED, 16, capMain, CAP_SET) == 0
+	&& cap_set_flag(caps, CAP_EFFECTIVE, 16, capMain, CAP_SET) == 0
 
 	&& cap_set_proc(caps) == 0
 	&& cap_free(caps) == 0

@@ -542,7 +542,7 @@ int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 
 	if (
-	   setCaps(CAP_IPC_LOCK) != 0
+	   setCaps(CAP_IPC_LOCK, 0) != 0
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 

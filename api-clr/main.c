@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <locale.h> // for setlocale
+#include <net/if.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -99,7 +100,7 @@ static int pipeLoadKeys(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
-	if (setCaps(CAP_NET_BIND_SERVICE) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (setCaps(CAP_NET_BIND_SERVICE, CAP_NET_RAW) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}

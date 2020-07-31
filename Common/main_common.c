@@ -12,7 +12,6 @@ static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port = htons(AEM_PORT);
 
 	const int intTrue = 1;
@@ -20,12 +19,25 @@ static int initSocket(const int sock) {
 	setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int));
 
 #ifdef AEM_API_ONI
-	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3); // Tor: loopback only
+	// Tor: loopback only
+	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3);
 	setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (const void*)&intTrue, sizeof(int));
+#else
+	// Clearnet: bind to first non-loopback interface
+	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	struct if_nameindex * const ni = if_nameindex();
+	for (int i = 0;; i++) {
+		if (ni[i].if_index == 0) return -1;
+		if (strncmp(ni[i].if_name, "lo", 2) == 0) continue;
+		if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, ni[i].if_name, strlen(ni[i].if_name) + 1) != 0) return -1;
+		break;
+	}
+	if_freenameindex(ni);
 #endif
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
-	if (setCaps(0) != 0) return -1;
+	if (setCaps(0, 0) != 0) return -1;
 	return listen(sock, AEM_BACKLOG);
 }
 

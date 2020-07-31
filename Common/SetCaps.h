@@ -3,6 +3,6 @@
 
 #include <sys/capability.h>
 
-int setCaps(const cap_value_t cap);
+int setCaps(const cap_value_t cap1, const cap_value_t cap2);
 
 #endif

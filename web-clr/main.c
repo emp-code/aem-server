@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <locale.h> // for setlocale
+#include <net/if.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -58,7 +59,7 @@ static int pipeLoadHtml(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
-	if (setCaps(CAP_NET_BIND_SERVICE) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (setCaps(CAP_NET_BIND_SERVICE, CAP_NET_RAW) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	if (pipeLoadHtml(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading HTML"); return EXIT_FAILURE;}
