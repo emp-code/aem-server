@@ -491,7 +491,7 @@ void takeConnections(void) {
 
 					if (stindexNum < 0) {
 						// Stindex for account doesn't exist (new account, no messages received yet)
-						if (send(sock, "\0\0\0\0\0\0", 6, 0) != 6) syslog(LOG_ERR, "Failed send");
+						if (send(sock, "\0", 1, 0) != 1) syslog(LOG_ERR, "Failed send");
 						close(sock);
 						continue;
 					}
