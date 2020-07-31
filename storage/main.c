@@ -227,7 +227,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
-	const int fdMsg = open(path, O_CLOEXEC | O_CREAT | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDWR, S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDWR);
 	if (fdMsg < 0) return fdMsg;
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
