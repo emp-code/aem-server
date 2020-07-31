@@ -15,8 +15,9 @@ static int initSocket(const int sock) {
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port = htons(AEM_PORT);
 
-	const int optval = 1;
-	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (const void*)&optval, sizeof(int));
+	const int intTrue = 1;
+	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,   (const void*)&intTrue, sizeof(int));
+	setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int));
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	if (setCaps(0) != 0) return -1;
