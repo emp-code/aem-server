@@ -38,9 +38,7 @@ static int initSocket(const int * const sock) {
 	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
 
-	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
-	if (ret < 0) return ret;
-
+	if (bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	listen(*sock, AEM_BACKLOG);
 	return 0;
 }
