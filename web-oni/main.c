@@ -40,6 +40,7 @@ static int initSocket(const int sock) {
 
 	const int intTrue = 1;
 	setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int));
+	setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3); // Tor: loopback only
 
 	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
 	return listen(sock, AEM_BACKLOG);
