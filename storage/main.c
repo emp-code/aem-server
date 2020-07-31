@@ -111,6 +111,30 @@ static int saveStindex(void) {
 	return (ret == lenEncrypted) ? 0 : -1;
 }
 
+static bool storage_idMatch(const int fdMsg, const int stindexNum, const int sze, const int pos, const unsigned char * const id) {
+	unsigned char buf[16];
+	if (pread(fdMsg, buf, 16, pos) != 16) {
+		syslog(LOG_ERR, "Failed read");
+		return false;
+	}
+
+	unsigned char aesKey[32];
+	getStorageKey(aesKey, stindex[stindexNum].pubkey, sze);
+	struct AES_ctx aes;
+	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
+
+	AES_ECB_decrypt(&aes, buf);
+
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
+
+	for (int j = 0; j < 16; j++) {
+		if (id[j] != buf[j]) return false;
+	}
+
+	return true;
+}
+
 // Encrypts pubkey to obscure file-owner connection
 static void getMsgPath(char path[77], const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
 	unsigned char aesKey[32];
@@ -190,17 +214,56 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 }
 
 static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
-	int num = -1;
+	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
 		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
-			num = i;
+			stindexNum = i;
 			break;
 		}
 	}
 
-	if (num == -1) {syslog(LOG_NOTICE, "Invalid pubkey in delete request"); return -1;}
+	if (stindexNum == -1) {syslog(LOG_NOTICE, "Invalid pubkey in delete request"); return -1;}
 
-	// TODO
+	char path[77];
+	getMsgPath(path, stindex[stindexNum].pubkey);
+
+	const int fdMsg = open(path, O_CLOEXEC | O_CREAT | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDWR, S_IRUSR | S_IWUSR | S_ISVTX);
+	if (fdMsg < 0) return fdMsg;
+
+	off_t filePos = lseek(fdMsg, 0, SEEK_END);
+	const off_t fileSize = filePos;
+
+	for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
+		filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+
+		if (!storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, id)) continue;
+
+		// ID matches
+		if (i < stindex[stindexNum].msgCount - 1) {
+			// Messages to preserve after this one
+			const off_t readPos = filePos + (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+
+			const ssize_t readAmount = fileSize - readPos;
+			unsigned char * const buf = malloc(readAmount);
+			if (buf == NULL) {close(fdMsg); return -1;}
+
+			const ssize_t readBytes = pread(fdMsg, buf, readAmount, readPos);
+			if (readBytes != readAmount) {close(fdMsg); free(buf); return -1;}
+
+			pwrite(fdMsg, buf, readAmount, filePos);
+			free(buf);
+		}
+
+		ftruncate(fdMsg, fileSize - ((stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16));
+
+		if (i < stindex[stindexNum].msgCount - 1) {
+			memmove((unsigned char*)stindex[stindexNum].msg + 2 * i, (unsigned char*)stindex[stindexNum].msg + 2 * (i + 1), 2 * (stindex[stindexNum].msgCount - i - 1));
+		}
+
+		stindex[stindexNum].msgCount--;
+	}
+
+	close(fdMsg);
 	return 0;
 }
 
@@ -273,30 +336,6 @@ static bool peerOk(const int sock) {
 	unsigned int lenUc = sizeof(struct ucred);
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
 	return (peer.gid == getgid() && peer.uid == getuid());
-}
-
-static bool storage_idMatch(const int fdMsg, const int stindexNum, const int sze, const int pos, const unsigned char * const id) {
-	unsigned char buf[16];
-	if (pread(fdMsg, buf, 16, pos) != 16) {
-		syslog(LOG_ERR, "Failed read");
-		return false;
-	}
-
-	unsigned char aesKey[32];
-	getStorageKey(aesKey, stindex[stindexNum].pubkey, sze);
-	struct AES_ctx aes;
-	AES_init_ctx(&aes, aesKey);
-	sodium_memzero(aesKey, 32);
-
-	AES_ECB_decrypt(&aes, buf);
-
-	sodium_memzero(&aes, sizeof(struct AES_ctx));
-
-	for (int j = 0; j < 16; j++) {
-		if (id[j] != buf[j]) return false;
-	}
-
-	return true;
 }
 
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
