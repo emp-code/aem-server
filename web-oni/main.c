@@ -31,15 +31,15 @@ static void sigTerm(const int sig) {
 #include "../Common/main_all.c"
 #include "../Common/PipeLoad.c"
 
-static int initSocket(const int * const sock) {
+static int initSocket(const int sock) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
 
-	if (bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
-	return listen(*sock, AEM_BACKLOG);
+	if (bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) return -1;
+	return listen(sock, AEM_BACKLOG);
 }
 
 static void acceptClients(void) {
@@ -47,7 +47,7 @@ static void acceptClients(void) {
 
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {syslog(LOG_ERR, "Failed opening socket"); return;}
-	if (initSocket(&sock) < 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
+	if (initSocket(sock) < 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
 	listen(sock, AEM_BACKLOG);
 
 	syslog(LOG_INFO, "Ready");
