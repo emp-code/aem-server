@@ -1,7 +1,6 @@
 #include <arpa/inet.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -31,7 +30,7 @@ static void sigTerm(const int sig) {
 #include "../Common/main_all.c"
 #include "../Common/PipeLoad.c"
 
-static int initSocket(const int sock) {
+static int initSocket(void) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
@@ -39,21 +38,21 @@ static int initSocket(const int sock) {
 	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
 
 	const int intTrue = 1;
-	return (
-	   setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) == 0
+	const int sock = socket(AF_INET, SOCK_STREAM, 0);
+	return (sock > 0
+	&& setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
 	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
 	&& listen(sock, AEM_BACKLOG) == 0
-	) ? 0 : -1;
+	) ? sock : -1;
 }
 
 static void acceptClients(void) {
 	if (html == NULL || lenHtml < 1) return;
 
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {syslog(LOG_ERR, "Failed opening socket"); return;}
-	if (initSocket(sock) != 0) {syslog(LOG_ERR, "Failed binding socket"); return;}
+	const int sock = initSocket();
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 
 	syslog(LOG_INFO, "Ready");
 
