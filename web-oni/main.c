@@ -47,6 +47,7 @@ static int initSocket(void) {
 	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
 	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
+	&& setCaps(0, 0) == 0
 	&& listen(sock, AEM_BACKLOG) == 0
 	) ? sock : -1;
 }
