@@ -1,4 +1,5 @@
 #include <grp.h>
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -6,7 +7,9 @@
 #include <string.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/sysmacros.h>
+#include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -69,14 +72,14 @@ int createMount(const int type) {
 
 	int fsmode, nr_inodes;
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA:     fsmode = 1550; nr_inodes = 14; break;
+		case AEM_PROCESSTYPE_MTA:     fsmode = 1550; nr_inodes = 10; break;
 		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1550; nr_inodes = 13; break;
+		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1550; nr_inodes = 9; break;
 		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI: fsmode = 1550; nr_inodes = 14; break;
-		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 14; break;
-		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 15; break;
-		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1550; nr_inodes = 14; break;
+		case AEM_PROCESSTYPE_API_ONI: fsmode = 1550; nr_inodes = 10; break;
+		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 10; break;
+		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 11; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1550; nr_inodes = 10; break;
 		default: return -1;
 	}
 
@@ -88,35 +91,22 @@ int createMount(const int type) {
 
 	if (
 	   mkdir(AEM_MOUNTDIR"/dev", AEM_MODE_XO) != 0
-	|| mkdir(AEM_MOUNTDIR"/usr", AEM_MODE_XO) != 0
 	|| chown(AEM_MOUNTDIR"/dev", 0, aemGroup) != 0
-	|| chown(AEM_MOUNTDIR"/usr", 0, aemGroup) != 0
-	) return -1;
-
-	if (
-	   bindMount("/lib",       AEM_MOUNTDIR"/lib",       AEM_MOUNT_RDONLY) != 0
-	|| bindMount("/lib64",     AEM_MOUNTDIR"/lib64",     AEM_MOUNT_RDONLY) != 0
-	|| bindMount("/usr/lib",   AEM_MOUNTDIR"/usr/lib",   AEM_MOUNT_RDONLY) != 0
-	|| bindMount("/usr/lib64", AEM_MOUNTDIR"/usr/lib64", AEM_MOUNT_RDONLY) != 0
-	) return -1;
-
-	if ((type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) && (
-	   bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0
-	)) return -1;
-
-	if (bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
-
-	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
-	}
-
-	if (
-	   makeSpecial("null",    AEM_MODE_RW, 1, 3, aemGroup) != 0
+	|| makeSpecial("null",    AEM_MODE_RW, 1, 3, aemGroup) != 0
 	|| makeSpecial("zero",    AEM_MODE_RO, 1, 5, aemGroup) != 0
 	|| makeSpecial("full",    AEM_MODE_RW, 1, 7, aemGroup) != 0
 	|| makeSpecial("random",  AEM_MODE_RO, 1, 8, aemGroup) != 0
 	|| makeSpecial("urandom", AEM_MODE_RO, 1, 9, aemGroup) != 0
+	|| bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0
 	) return -1;
+
+	if (type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) {
+		if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
+	}
+
+	if (type == AEM_PROCESSTYPE_MTA) {
+		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
+	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
 		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
@@ -125,7 +115,17 @@ int createMount(const int type) {
 		if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", AEM_MOUNT_NOEXEC) != 0) return -1;
 	}
 
-	if (type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_STORAGE) return 0;
+	if (mkdir(AEM_MOUNTDIR"/old_root", 1000) != 0) return -1;
 
-	return mount(NULL, AEM_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts);
+	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
+		if (mount(NULL, AEM_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts) != 0) return -1;
+	}
+
+	if (syscall(SYS_pivot_root, AEM_MOUNTDIR, AEM_MOUNTDIR"/old_root") != 0) return -1;
+	if (chdir("/") != 0) return -1;
+
+	const int fdRoot = open("/", O_PATH | O_DIRECTORY | O_NOFOLLOW);
+	if (fdRoot != 0) {syslog(LOG_ERR, "fdRoot failed: fd=%d; %m", fdRoot); return -1;}
+
+	return (chroot("/old_root") == 0 && chdir("/") == 0) ? 0 : -1;
 }

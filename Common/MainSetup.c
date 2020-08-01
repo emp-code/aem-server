@@ -1,3 +1,11 @@
+	if ( // Exit and unmount the chroot
+	   fchdir(0) != 0 // 0 = fd to pivoted root
+	|| close(0) != 0
+	|| chroot(".") != 0 // Undo Manager's chroot
+	|| chdir("/") != 0
+	|| umount2("/old_root", MNT_DETACH) != 0
+	) {syslog(LOG_ERR, "Terminating: Failed unmount: %m"); return EXIT_FAILURE;}
+
 	setlocale(LC_ALL, "C");
 	openlog(AEM_LOGNAME, LOG_PID, LOG_MAIL);
 	setlogmask(LOG_UPTO(LOG_INFO));

@@ -677,26 +677,27 @@ static int setCaps(const int type) {
 	// Ambient capabilities
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 
-	cap_value_t cap[2];
+	cap_value_t cap[4];
+	cap[0] = CAP_SYS_ADMIN;
+	cap[1] = CAP_SYS_CHROOT;
 	int numCaps;
 
 	if (type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_ENQUIRY) {
-		cap[0] = CAP_IPC_LOCK;
-		numCaps = 1;
-	} else if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_MTA) {
-		cap[0] = CAP_NET_BIND_SERVICE;
-		cap[1] = CAP_NET_RAW;
-		numCaps = 2;
+		cap[2] = CAP_IPC_LOCK;
+		numCaps = 3;
+	} else if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_MTA) {
+		cap[2] = CAP_NET_BIND_SERVICE;
+		cap[3] = CAP_NET_RAW;
+		numCaps = 4;
 	} else {
-		cap[0] = CAP_NET_BIND_SERVICE;
-		numCaps = 1;
+		cap[2] = CAP_NET_BIND_SERVICE;
+		numCaps = 3;
 	}
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[0], 0, 0) != 0) return -1;
-
-	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_MTA) {
-		if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[1], 0, 0) != 0) {syslog(LOG_ERR, "Random 1"); return -1;}
-	}
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[1], 0, 0) != 0) return -1;
+	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[2], 0, 0) != 0) return -1;
+	if (numCaps > 3 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[3], 0, 0) != 0) return -1;
 
 	// Allow changing SecureBits for the next part
 	const cap_value_t capPcap = CAP_SETPCAP;
@@ -752,16 +753,10 @@ __attribute__((warn_unused_result))
 static int dropRoot(void) {
 	const struct passwd * const p = getpwnam("allears");
 
-	return (
-	   p != NULL
-
-	&& chroot(AEM_MOUNTDIR) == 0
-	&& chdir("/") == 0
-
+	return (p != NULL
 	&& setgroups(0, NULL) == 0
 	&& setgid(p->pw_gid) == 0
 	&& setuid(p->pw_uid) == 0
-
 	&& getgid() == p->pw_gid
 	&& getuid() == p->pw_uid
 	) ? 0 : -1;
@@ -782,10 +777,11 @@ static int process_new(void *params) {
 	}
 
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
-	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
-	if (createMount(type) != 0) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
-	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type]) != 0) {syslog(LOG_ERR, "Failed setpriority()"); exit(EXIT_FAILURE);}
+	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
+
+	if (createMount(type)) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
+	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
@@ -795,6 +791,7 @@ static int process_new(void *params) {
 	fexecve(binfd[type], newargv, emptyEnviron);
 
 	// Only runs if exec failed
+	close(1); // pivot dir fd
 	syslog(LOG_ERR, "Failed starting process");
 	exit(EXIT_FAILURE);
 }
@@ -1038,12 +1035,13 @@ static void setSocketTimeout(const int sock) {
 
 int receiveConnections(void) {
 	setAccessKeys();
-	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
-	process_spawn(AEM_PROCESSTYPE_STORAGE);
-	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
 
 	sockMain = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
+
+	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
+	process_spawn(AEM_PROCESSTYPE_STORAGE);
+	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
 
 	if (initSocket(&sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
 

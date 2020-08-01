@@ -3,6 +3,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/capability.h>
+#include <sys/mount.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -10,6 +12,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-WOn"
 #define AEM_BACKLOG 25
@@ -39,7 +42,7 @@ static int initSocket(void) {
 
 	const int intTrue = 1;
 	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	return (sock > 0
+	return (sock >= 0
 	&& setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
@@ -88,6 +91,7 @@ static int pipeLoadHtml(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+	if (setCaps(CAP_NET_BIND_SERVICE, CAP_NET_RAW) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (pipeLoadHtml(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading HTML"); return EXIT_FAILURE;}
 	close(argv[0][0]);

@@ -18,7 +18,7 @@ aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c web-clr/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
-	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c -lsodium
+	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c Common/SetCaps.c -lsodium -lcap
 
 aem-api-clr: api-clr/*.c
 	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
