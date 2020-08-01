@@ -79,15 +79,15 @@ int main(void) {
 	sodium_memzero(master_hex, lenHex);
 
 	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC, false);
-	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, true);
+	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, false);
 	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG, false);
-	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, true);
+	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, false);
 	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, false);
 
 	writeRandomEncrypted(AEM_PATH_DKI_ADM, AEM_LEN_KEY_DKI, true);
 	writeRandomEncrypted(AEM_PATH_DKI_USR, AEM_LEN_KEY_DKI, true);
 
-	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM, true);
+	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM, false);
 	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD, false);
 	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE, false);
 
