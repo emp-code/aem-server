@@ -617,6 +617,7 @@ static int loadExec(void) {
 		}
 
 		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+		if (binfd[i] == -1) {syslog(LOG_ERR, "Failed memfd_create: %m"); return -1;}
 
 		if (write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp) {
 			sodium_free(tmp);
