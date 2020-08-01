@@ -607,6 +607,7 @@ static int loadExec(void) {
 	const char * const path[] = AEM_PATH_EXE;
 
 	unsigned char * const tmp = sodium_malloc(524288);
+	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 	size_t lenTmp;
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
