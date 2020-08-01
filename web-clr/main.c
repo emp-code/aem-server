@@ -60,8 +60,6 @@ static int pipeLoadHtml(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
-	if (setCaps(CAP_NET_BIND_SERVICE, CAP_NET_RAW) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
-
 	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	if (pipeLoadHtml(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading HTML"); return EXIT_FAILURE;}
 	close(argv[0][0]);

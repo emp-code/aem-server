@@ -47,7 +47,7 @@ static int initSocket(void) {
 	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
 	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
-	&& setCaps(0, 0) == 0
+	&& setCaps(0) == 0
 	&& listen(sock, AEM_BACKLOG) == 0
 	) ? sock : -1;
 }
@@ -92,8 +92,6 @@ static int pipeLoadHtml(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
-	if (setCaps(CAP_NET_BIND_SERVICE, CAP_NET_RAW) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
-
 	if (pipeLoadHtml(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading HTML"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
