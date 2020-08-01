@@ -791,7 +791,7 @@ static int process_new(void *params) {
 	fexecve(binfd[type], newargv, emptyEnviron);
 
 	// Only runs if exec failed
-	close(1); // pivot dir fd
+	close(0); // pivot dir fd
 	syslog(LOG_ERR, "Failed starting process");
 	exit(EXIT_FAILURE);
 }
