@@ -23,13 +23,10 @@
 #define AEM_MOUNT_NOEXEC 2
 #define AEM_MOUNT_RDONLY 4
 
-static gid_t aemGroup;
-
-static int setAemGroup(void) {
+static gid_t getAemGroup(void) {
 	const struct passwd * const p = getpwnam("allears");
-	if (p == NULL) return -1;
-	aemGroup = p->pw_gid;
-	return 0;
+	if (p == NULL) return 0;
+	return p->pw_gid;
 }
 
 static int bindMount(const char * const source, const char * const target, const int flags) {
@@ -55,7 +52,7 @@ static int bindMount(const char * const source, const char * const target, const
 	return mount(NULL, target, NULL, mountFlags, NULL);
 }
 
-static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor) {
+static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor, const gid_t aemGroup) {
 	char path[32];
 	strcpy(path, AEM_MOUNTDIR"/dev/");
 	strcpy(path + strlen(path), name);
@@ -66,7 +63,8 @@ static int makeSpecial(const char * const name, const mode_t mode, const unsigne
 }
 
 int createMount(const int type) {
-	if (setAemGroup() != 0) return -1;
+	const gid_t aemGroup = getAemGroup();
+	if (aemGroup == 0) return -1;
 	umask(0);
 
 	int fsmode, nr_inodes;
@@ -113,11 +111,11 @@ int createMount(const int type) {
 	}
 
 	if (
-	   makeSpecial("null",    AEM_MODE_RW, 1, 3) != 0
-	|| makeSpecial("zero",    AEM_MODE_RO, 1, 5) != 0
-	|| makeSpecial("full",    AEM_MODE_RW, 1, 7) != 0
-	|| makeSpecial("random",  AEM_MODE_RO, 1, 8) != 0
-	|| makeSpecial("urandom", AEM_MODE_RO, 1, 9) != 0
+	   makeSpecial("null",    AEM_MODE_RW, 1, 3, aemGroup) != 0
+	|| makeSpecial("zero",    AEM_MODE_RO, 1, 5, aemGroup) != 0
+	|| makeSpecial("full",    AEM_MODE_RW, 1, 7, aemGroup) != 0
+	|| makeSpecial("random",  AEM_MODE_RO, 1, 8, aemGroup) != 0
+	|| makeSpecial("urandom", AEM_MODE_RO, 1, 9, aemGroup) != 0
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
