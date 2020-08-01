@@ -68,7 +68,7 @@ int createMount(const int type) {
 	if (setAemGroup() != 0) return -1;
 	umask(0);
 
-	int nr_inodes, fsmode;
+	int fsmode, nr_inodes;
 	switch (type) {
 		case AEM_PROCESSTYPE_MTA:     fsmode = 1550; nr_inodes = 14; break;
 		case AEM_PROCESSTYPE_WEB_CLR:
@@ -81,7 +81,7 @@ int createMount(const int type) {
 		default: return -1;
 	}
 
-	char tmpfs_opts[512];
+	char tmpfs_opts[64];
 	sprintf(tmpfs_opts, "size=1,uid=0,gid=%d,mode=%d,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 
 	if (mount("tmpfs", AEM_MOUNTDIR, "tmpfs", AEM_MOUNTDIR_FLAGS, tmpfs_opts) != 0) return -1;
