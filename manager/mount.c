@@ -56,8 +56,9 @@ static int bindMount(const char * const source, const char * const target, const
 }
 
 static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor) {
-	char path[512];
-	sprintf(path, AEM_MOUNTDIR"/dev/%s", name);
+	char path[32];
+	strcpy(path, AEM_MOUNTDIR"/dev/");
+	strcpy(path + strlen(path), name);
 	return (
 	   mknod(path, S_IFCHR | mode, makedev(major, minor)) == 0
 	&& chown(path, 0, aemGroup) == 0
