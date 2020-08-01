@@ -58,7 +58,13 @@ int main(void) {
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char sk[crypto_box_SECRETKEYBYTES];
-	crypto_box_keypair(pk, sk);
+	unsigned char mk[crypto_kdf_KEYBYTES];
+	unsigned char se[crypto_box_SEEDBYTES];
+	crypto_kdf_keygen(mk);
+	crypto_kdf_derive_from_key(se, crypto_box_SEEDBYTES, 1, "AEM-Usr0", mk);
+	crypto_box_seed_keypair(pk, sk, se);
+	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
+	sodium_memzero(se, crypto_box_SEEDBYTES);
 
 	struct aem_user admin;
 	bzero(&admin, sizeof(struct aem_user));
@@ -104,10 +110,10 @@ int main(void) {
 	free(encrypted);
 	close(fd);
 
-	const size_t lenHex = crypto_box_SECRETKEYBYTES * 2 + 1;
+	const size_t lenHex = crypto_kdf_KEYBYTES * 2 + 1;
 	char hex[lenHex];
-	sodium_bin2hex(hex, lenHex, sk, crypto_box_SECRETKEYBYTES);
-	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
+	sodium_bin2hex(hex, lenHex, mk, crypto_kdf_KEYBYTES);
+	sodium_memzero(mk, crypto_kdf_KEYBYTES);
 	puts("Created Account.aem with admin user");
 	printf("Secret Key (hex): %s\n", hex);
 	sodium_memzero(hex, crypto_box_SECRETKEYBYTES * 2);
