@@ -480,6 +480,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 
 			"block-all-mixed-content;"
 			"plugin-types application/pdf;"
+			"require-sri-for script style;"
 			"sandbox allow-scripts allow-same-origin;"
 		"\r\n"
 
