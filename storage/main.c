@@ -103,7 +103,7 @@ static int saveStindex(void) {
 	sodium_memzero(clear, lenClear);
 	free(clear);
 
-	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {free(encrypted); return -1;}
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	close(fd);
@@ -160,7 +160,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	char path[77];
 	getMsgPath(path, pubkey);
 
-	const int fdMsg = open(path, O_APPEND | O_CLOEXEC | O_CREAT | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY, S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
 	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening file %s", path); return -1;}
 
 	// Encrypt & Write
@@ -228,7 +228,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
-	const int fdMsg = open(path, O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDWR);
+	const int fdMsg = open(path, O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) return fdMsg;
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
@@ -271,7 +271,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 }
 
 int loadStindex() {
-	const int fd = open("Stindex.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return -1;
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
@@ -360,7 +360,7 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
-	const int fdMsg = open(path, O_CLOEXEC | O_CREAT | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_RDONLY, S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_RDONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
 	if (fdMsg < 0) return fdMsg;
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);

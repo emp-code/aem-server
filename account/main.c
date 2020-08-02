@@ -112,7 +112,7 @@ static int saveUser(void) {
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
 	sodium_free(padded);
 
-	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
 		free(encrypted);
 		syslog(LOG_ERR, "Failed opening Account.aem");
@@ -129,7 +129,7 @@ static int saveUser(void) {
 static int loadUser(void) {
 	if (userCount > 0) return -1;
 
-	const int fd = open("Account.aem", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("Account.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
 		return -1;
 	}

@@ -150,7 +150,7 @@ static int pipeWriteDirect(const int fd, const unsigned char * const data, const
 }
 
 static int getOnionId(void) {
-	const int fd = open("/var/lib/tor/aem_onion/hostname", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("/var/lib/tor/aem_onion/hostname", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0 || read(fd, onionId, 56) != 56) {
 		close(fd);
 		syslog(LOG_ERR, "Failed reading onionId");
@@ -214,7 +214,7 @@ static bool process_verify(const pid_t pid) {
 
 	char path[22];
 	sprintf(path, "/proc/%u/stat", pid);
-	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return false;
 
 	char buf[41];
@@ -571,7 +571,7 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 }
 
 static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
-	const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
