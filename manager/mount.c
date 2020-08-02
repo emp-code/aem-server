@@ -97,19 +97,25 @@ int createMount(const int type) {
 	|| bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE) != 0
 	) return -1;
 
-	if (type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) {
-		if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
-	}
+	switch (type) {
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_ENQUIRY:
+			if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
+		break;
 
-	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY) != 0) return -1;
-	}
+		case AEM_PROCESSTYPE_MTA:
+			if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY) != 0) return -1;
+		break;
 
-	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0) return -1;
-	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0) return -1;
-		if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", 0) != 0) return -1;
+		case AEM_PROCESSTYPE_ACCOUNT:
+			if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0) return -1;
+		break;
+
+		case AEM_PROCESSTYPE_STORAGE:
+			if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0) return -1;
+			if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", 0) != 0) return -1;
+		break;
 	}
 
 	if (mkdir(AEM_MOUNTDIR"/old_root", 1000) != 0) return -1;
