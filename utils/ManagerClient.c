@@ -69,7 +69,7 @@ static int loadKey(void) {
 	return ret;
 }
 
-static void cryptSend(const int sock, const unsigned char comChar, const unsigned char comType, const uint32_t comNum) {
+static int cryptSend(const int sock, const unsigned char comChar, const unsigned char comType, const uint32_t comNum) {
 	unsigned char decrypted[AEM_LEN_MSG];
 	decrypted[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
@@ -88,7 +88,7 @@ static void cryptSend(const int sock, const unsigned char comChar, const unsigne
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_LEN_MSG, encrypted, key_manager);
 
-	send(sock, encrypted, AEM_LEN_ENCRYPTED, 0);
+	return (send(sock, encrypted, AEM_LEN_ENCRYPTED, 0) == AEM_LEN_ENCRYPTED) ? 0 : -1;
 }
 
 static char numToChar(const unsigned char n) {
@@ -122,7 +122,11 @@ int main(int argc, char *argv[]) {
 		comNum = strtol(argv[2] + 2, NULL, 10);
 	}
 
-	cryptSend(sock, comChar, comType, comNum);
+	if (cryptSend(sock, comChar, comType, comNum) != 0) {
+		puts("Send fail");
+		close(sock);
+		return EXIT_FAILURE;
+	}
 
 	unsigned char encrypted[AEM_LEN_ENCRYPTED];
 	if (recv(sock, encrypted, AEM_LEN_ENCRYPTED, 0) != AEM_LEN_ENCRYPTED) {
