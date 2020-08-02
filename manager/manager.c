@@ -485,6 +485,8 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 
 		// FP
 		"Feature-Policy: "
+			"fullscreen"                      " 'self';"
+
 			"accelerometer"                   " 'none';"
 			"ambient-light-sensor"            " 'none';"
 			"autoplay"                        " 'none';"
@@ -496,7 +498,6 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 			"encrypted-media"                 " 'none';"
 			"execution-while-not-rendered"    " 'none';"
 			"execution-while-out-of-viewport" " 'none';"
-			"fullscreen"                      " 'none';"
 			"geolocation"                     " 'none';"
 			"gyroscope"                       " 'none';"
 			"layout-animations"               " 'none';"
