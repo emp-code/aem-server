@@ -442,8 +442,8 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 	unsigned char bodyHash[32];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {syslog(LOG_ERR, "Hash failed"); return -1;}
 
-	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
+	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL)];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL), bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
 
 	char conn[66];
 	if (onion)
