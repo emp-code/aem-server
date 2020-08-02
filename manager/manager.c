@@ -36,6 +36,7 @@
 #include <zopfli/zopfli.h>
 
 #include "../Common/Brotli.c"
+#include "../Common/SocketTimeout.h"
 #include "../Global.h"
 
 #include "mount.h"
@@ -1029,13 +1030,6 @@ static int initSocket(const int port) {
 	) ? sock : -1;
 }
 
-static void setSocketTimeout(const int sock) {
-	struct timeval tv;
-	tv.tv_sec = AEM_SOCKET_TIMEOUT;
-	tv.tv_usec = 0;
-	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval));
-}
-
 int receiveConnections(void) {
 	setAccessKeys();
 
@@ -1049,7 +1043,7 @@ int receiveConnections(void) {
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) break;
-		setSocketTimeout(sockClient);
+		setSocketTimeout(sockClient, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
 		respond_manager(sockClient);
 		close(sockClient);
 	}
