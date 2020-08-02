@@ -1014,18 +1014,17 @@ static void respond_manager(const int sock) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int * const sock, const int port) {
+static int initSocket(const int sock, const int port) {
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
 	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	servAddr.sin_port = htons(port);
 
-	const int ret = bind(*sock, (struct sockaddr*)&servAddr, sizeof(servAddr));
-	if (ret < 0) return ret;
-
-	listen(*sock, 3); // socket, backlog (# of connections to keep in queue)
-	return 0;
+	return (
+	   bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
+	&& listen(sock, 3) == 0
+	) ? 0 : -1;
 }
 
 static void setSocketTimeout(const int sock) {
@@ -1045,7 +1044,7 @@ int receiveConnections(void) {
 	process_spawn(AEM_PROCESSTYPE_STORAGE);
 	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
 
-	if (initSocket(&sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
+	if (initSocket(sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
