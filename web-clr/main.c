@@ -18,11 +18,10 @@
 #include "https.h"
 
 #include "../Global.h"
+#include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-Web"
-#define AEM_PORT AEM_PORT_WEB
-#define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
@@ -47,7 +46,6 @@ static void sigTerm(const int sig) {
 }
 
 #include "../Common/main_all.c"
-#include "../Common/main_common.c"
 #include "../Common/PipeLoad.c"
 
 __attribute__((warn_unused_result))
@@ -56,6 +54,23 @@ static int pipeLoadHtml(const int fd) {
 	const off_t readBytes = pipeReadDirect(fd, buf, AEM_MAXLEN_PIPEREAD);
 	if (readBytes < AEM_MINLEN_PIPEREAD) return -1;
 	return setHtml(buf, readBytes);
+}
+
+static void acceptClients(void) {
+	const int sock = createSocket(AEM_PORT_WEB, false, 10, 10);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (setCaps(0) != 0) return;
+
+	syslog(LOG_INFO, "Ready");
+
+	while (!terminate) {
+		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		respondClient(newSock);
+		close(newSock);
+	}
+
+	close(sock);
 }
 
 int main(int argc, char *argv[]) {

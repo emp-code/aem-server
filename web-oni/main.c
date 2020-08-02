@@ -12,10 +12,10 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-WOn"
-#define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
@@ -33,40 +33,20 @@ static void sigTerm(const int sig) {
 #include "../Common/main_all.c"
 #include "../Common/PipeLoad.c"
 
-static int initSocket(void) {
-	struct sockaddr_in servAddr;
-	bzero((char*)&servAddr, sizeof(servAddr));
-	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	servAddr.sin_port = htons(AEM_PORT_WEB_ONI);
-
-	const int intTrue = 1;
-	const int sock = socket(AF_INET, SOCK_STREAM, 0);
-	return (sock >= 0
-	&& setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, "lo", 3) == 0
-	&& setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,   (const void*)&intTrue, sizeof(int)) == 0
-	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) == 0
-	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
-	&& setCaps(0) == 0
-	&& listen(sock, AEM_BACKLOG) == 0
-	) ? sock : -1;
-}
-
 static void acceptClients(void) {
-	if (html == NULL || lenHtml < 1) return;
-
-	const int sock = initSocket();
+	const int sock = createSocket(AEM_PORT_WEB_ONI, true, 10, 10);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (setCaps(0) != 0) return;
 
 	syslog(LOG_INFO, "Ready");
 
 	while(1) {
-		const int sockClient = accept4(sock, NULL, NULL, SOCK_CLOEXEC | SOCK_NONBLOCK);
-		if (sockClient < 0) continue;
+		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
 
-		shutdown(sockClient, SHUT_RD);
-		write(sockClient, html, lenHtml);
-		close(sockClient);
+		shutdown(newSock, SHUT_RD);
+		write(newSock, html, lenHtml);
+		close(newSock);
 	}
 
 	close(sock);

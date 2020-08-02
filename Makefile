@@ -15,19 +15,19 @@ aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
-	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c Common/tls_common.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
-	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c Common/SetCaps.c -lsodium -lcap
+	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c Common/SetCaps.c Common/CreateSocket.c -lsodium -lcap
 
 aem-api-clr: api-clr/*.c
-	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-api-oni: api-oni/*.c
-	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Base64.c Common/Brotli.c Common/HtmlToText.c Common/QuotedPrintable.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
+	$(CC) $(CFLAGS) -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Base64.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/QuotedPrintable.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium

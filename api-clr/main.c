@@ -16,6 +16,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
 #include "https.h"
@@ -24,8 +25,6 @@
 
 #define AEM_API
 #define AEM_LOGNAME "AEM-API"
-#define AEM_PORT AEM_PORT_API
-#define AEM_BACKLOG 25
 
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
@@ -51,7 +50,6 @@ static void sigTerm(const int sig) {
 }
 
 #include "../Common/main_all.c"
-#include "../Common/main_common.c"
 #include "../Common/PipeLoad.c"
 
 __attribute__((warn_unused_result))
@@ -98,6 +96,24 @@ static int pipeLoadKeys(const int fd) {
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }
+
+static void acceptClients(void) {
+	const int sock = createSocket(AEM_PORT_API, false, 10, 10);
+	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	if (setCaps(0) != 0) return;
+
+	syslog(LOG_INFO, "Ready");
+
+	while (!terminate) {
+		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
+		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		respondClient(newSock);
+		close(newSock);
+	}
+
+	close(sock);
+}
+
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
