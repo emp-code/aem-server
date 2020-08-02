@@ -141,7 +141,7 @@ static int setLimits(void) {
 }
 
 static bool ptraceDisabled(void) {
-	const int fd = open("/proc/sys/kernel/yama/ptrace_scope", O_RDWR | O_NOCTTY | O_CLOEXEC);
+	const int fd = open("/proc/sys/kernel/yama/ptrace_scope", O_RDWR | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
 	if (fd < 1) return false;
 
 	char val;
