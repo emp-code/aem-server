@@ -37,17 +37,14 @@ static int bindMount(const char * const source, const char * const target, const
 		if (mkdir(target, 1000) != 0) return -1;
 	}
 
-	if (
-	   mount(source, target, NULL, MS_BIND,       NULL) != 0
-	|| mount(NULL,   target, NULL, MS_UNBINDABLE, NULL) != 0
-	) return -1;
-
 	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_SILENT;
+	if (flags & AEM_MOUNT_RDONLY) mountFlags |= MS_RDONLY;
 
-	if (flags & AEM_MOUNT_RDONLY)
-		mountFlags |= MS_RDONLY;
-
-	return mount(NULL, target, NULL, mountFlags, NULL);
+	return (
+	   mount(source, target, NULL, MS_BIND,       NULL) == 0
+	&& mount(NULL,   target, NULL, MS_UNBINDABLE, NULL) == 0
+	&& mount(NULL,   target, NULL, mountFlags,    NULL) == 0
+	) ? 0 : -1;
 }
 
 static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor, const gid_t aemGroup) {
