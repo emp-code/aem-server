@@ -27,8 +27,7 @@
 
 static gid_t getAemGroup(void) {
 	const struct passwd * const p = getpwnam("allears");
-	if (p == NULL) return 0;
-	return p->pw_gid;
+	return (p == NULL) ? 0 : p->pw_gid;
 }
 
 static int bindMount(const char * const source, const char * const target, const int flags) {
