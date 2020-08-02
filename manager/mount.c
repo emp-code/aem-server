@@ -81,8 +81,10 @@ int createMount(const int type) {
 	char tmpfs_opts[64];
 	sprintf(tmpfs_opts, "size=1,uid=0,gid=%d,mode=%d,nr_inodes=%d", aemGroup, fsmode, nr_inodes);
 
-	if (mount("tmpfs", AEM_MOUNTDIR, "tmpfs", AEM_MOUNTDIR_FLAGS, tmpfs_opts) != 0) return -1;
-	if (mount("", AEM_MOUNTDIR, "", MS_UNBINDABLE, "") != 0) return -1;
+	if (
+	   mount("tmpfs", AEM_MOUNTDIR, "tmpfs", AEM_MOUNTDIR_FLAGS, tmpfs_opts) != 0
+	|| mount(NULL,    AEM_MOUNTDIR, NULL,    MS_UNBINDABLE,      NULL)       != 0
+	) return -1;
 
 	if (
 	   mkdir(AEM_MOUNTDIR"/dev", AEM_MODE_XO | S_ISVTX) != 0
