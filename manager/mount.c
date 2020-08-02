@@ -38,8 +38,8 @@ static int bindMount(const char * const source, const char * const target, const
 	}
 
 	if (
-	   mount(source, target, NULL, MS_BIND, "") != 0
-	|| mount("",     target, "",   MS_UNBINDABLE, "") != 0
+	   mount(source, target, NULL, MS_BIND, NULL) != 0
+	|| mount(NULL,   target, NULL, MS_UNBINDABLE, NULL) != 0
 	) return -1;
 
 	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_SILENT;
