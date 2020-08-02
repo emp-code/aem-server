@@ -24,6 +24,8 @@ static char req[AEM_MAXLEN_REQ + 1];
 static unsigned char *html;
 static size_t lenHtml = 0;
 
+static char sts[377 + AEM_MAXLEN_DOMAIN];
+
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;
 
@@ -36,18 +38,8 @@ int setHtml(const unsigned char * const data, const size_t len) {
 	memcpy(html, data, len);
 	sodium_mprotect_readonly(html);
 	lenHtml = len;
-	return 0;
-}
 
-void freeHtml(void) {
-	if (lenHtml == 0) return;
-	sodium_free(html);
-	lenHtml = 0;
-}
-
-static void respond_mtasts(void) {
-	char data[377 + lenDomain];
-	sprintf(data,
+	sprintf(sts,
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
 		"Connection: close\r\n"
@@ -65,7 +57,13 @@ static void respond_mtasts(void) {
 		"max_age: 31557600"
 	, 51 + lenDomain, (int)lenDomain, domain);
 
-	sendData(&ssl, data, 376 + lenDomain);
+	return 0;
+}
+
+void freeHtml(void) {
+	if (lenHtml == 0) return;
+	sodium_free(html);
+	lenHtml = 0;
 }
 
 static void handleRequest(const size_t lenReq) {
@@ -78,7 +76,7 @@ static void handleRequest(const size_t lenReq) {
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return;
-	if (strncmp(host + 8, "mta-sts.", 8) == 0) return respond_mtasts();
+	if (strncmp(host + 8, "mta-sts.", 8) == 0) {sendData(&ssl, sts, 376 + lenDomain); return;}
 	if (strncmp(host + 8, domain, lenDomain) != 0) return;
 	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) != 0) return;
 
