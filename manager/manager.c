@@ -486,6 +486,8 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 		// FP
 		"Feature-Policy: "
 			"fullscreen"                      " 'self';"
+			"legacy-image-formats"            " 'self';"
+			"oversized-images"                " 'self';"
 
 			"accelerometer"                   " 'none';"
 			"ambient-light-sensor"            " 'none';"
@@ -501,12 +503,10 @@ static int genHtml(const unsigned char * const src, const size_t lenSrc, const b
 			"geolocation"                     " 'none';"
 			"gyroscope"                       " 'none';"
 			"layout-animations"               " 'none';"
-			"legacy-image-formats"            " 'none';"
 			"magnetometer"                    " 'none';"
 			"microphone"                      " 'none';"
 			"midi"                            " 'none';"
 			"navigation-override"             " 'none';"
-			"oversized-images"                " 'none';"
 			"payment"                         " 'none';"
 			"picture-in-picture"              " 'none';"
 			"publickey-credentials"           " 'none';"
