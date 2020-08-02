@@ -360,7 +360,7 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
-	const int fdMsg = open(path, O_RDONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) return fdMsg;
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
