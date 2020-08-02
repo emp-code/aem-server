@@ -23,8 +23,7 @@
 #define AEM_MODE_RX (S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP)
 
 #define AEM_MOUNT_ISFILE 1
-#define AEM_MOUNT_NOEXEC 2
-#define AEM_MOUNT_RDONLY 4
+#define AEM_MOUNT_RDONLY 2
 
 static gid_t getAemGroup(void) {
 	const struct passwd * const p = getpwnam("allears");
@@ -44,10 +43,7 @@ static int bindMount(const char * const source, const char * const target, const
 	|| mount("",     target, "",   MS_UNBINDABLE, "") != 0
 	) return -1;
 
-	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOSUID | MS_NODEV | MS_NOATIME | MS_SILENT;
-
-	if (flags & AEM_MOUNT_NOEXEC)
-		mountFlags |= MS_NOEXEC;
+	unsigned long mountFlags = MS_BIND | MS_REMOUNT | MS_NOSUID | MS_NODEV | MS_NOATIME | MS_SILENT | MS_NOEXEC;
 
 	if (flags & AEM_MOUNT_RDONLY)
 		mountFlags |= MS_RDONLY;
@@ -97,22 +93,22 @@ int createMount(const int type) {
 	|| makeSpecial("full",    AEM_MODE_RW, 1, 7, aemGroup) != 0
 	|| makeSpecial("random",  AEM_MODE_RO, 1, 8, aemGroup) != 0
 	|| makeSpecial("urandom", AEM_MODE_RO, 1, 9, aemGroup) != 0
-	|| bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0
+	|| bindMount("/dev/log", AEM_MOUNTDIR"/dev/log", AEM_MOUNT_ISFILE) != 0
 	) return -1;
 
 	if (type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_ENQUIRY) {
-		if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
+		if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_MTA) {
-		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY | AEM_MOUNT_NOEXEC) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/GeoLite2-Country.mmdb", AEM_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY) != 0) return -1;
 	}
 
 	if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Account.aem", AEM_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0) return -1;
 	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE | AEM_MOUNT_NOEXEC) != 0) return -1;
-		if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", AEM_MOUNT_NOEXEC) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/Stindex.aem", AEM_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0) return -1;
+		if (bindMount(AEM_HOMEDIR"/MessageData", AEM_MOUNTDIR"/MessageData", 0) != 0) return -1;
 	}
 
 	if (mkdir(AEM_MOUNTDIR"/old_root", 1000) != 0) return -1;
