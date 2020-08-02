@@ -125,7 +125,6 @@ int createMount(const int type) {
 	}
 
 	if (syscall(SYS_pivot_root, AEM_MOUNTDIR, AEM_MOUNTDIR"/old_root") != 0) return -1;
-	if (chdir("/") != 0) return -1;
 
 	const int fdRoot = open("/", O_PATH | O_DIRECTORY | O_NOFOLLOW);
 	if (fdRoot != 0) {syslog(LOG_ERR, "fdRoot failed: fd=%d; %m", fdRoot); return -1;}
