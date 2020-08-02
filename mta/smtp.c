@@ -16,10 +16,10 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 
-#include "Include/Brotli.h"
-#include "Include/QuotedPrintable.h"
-#include "Include/ToUtf8.h"
-#include "Include/Trim.h"
+#include "../Common/Brotli.h"
+#include "../Common/QuotedPrintable.h"
+#include "../Common/ToUtf8.h"
+#include "../Common/Trim.h"
 
 #include "delivery.h"
 #include "processing.h"

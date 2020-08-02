@@ -2,11 +2,11 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "Include/Base64.h"
-#include "Include/QuotedPrintable.h"
-#include "Include/HtmlToText.h"
-#include "Include/ToUtf8.h"
-#include "Include/Trim.h"
+#include "../Common/Base64.h"
+#include "../Common/QuotedPrintable.h"
+#include "../Common/HtmlToText.h"
+#include "../Common/ToUtf8.h"
+#include "../Common/Trim.h"
 
 #include "processing.h"
 

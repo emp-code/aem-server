@@ -12,7 +12,7 @@
 
 #include <sodium.h>
 
-#include "Include/Addr32.h"
+#include "../Common/Addr32.h"
 
 #include "delivery.h"
 
