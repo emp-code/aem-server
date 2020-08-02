@@ -36,7 +36,7 @@
 #include <zopfli/zopfli.h>
 
 #include "../Common/Brotli.c"
-#include "../Common/SocketTimeout.h"
+#include "../Common/CreateSocket.h"
 #include "../Global.h"
 
 #include "mount.h"
@@ -1014,27 +1014,10 @@ static void respond_manager(void) {
 	}
 }
 
-__attribute__((warn_unused_result))
-static int initSocket(const int port) {
-	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
-
-	struct sockaddr_in servAddr;
-	bzero((char*)&servAddr, sizeof(servAddr));
-	servAddr.sin_family = AF_INET;
-	servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servAddr.sin_port = htons(port);
-
-	return (
-	   setSocketTimeout(sock, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) == 0
-	&& bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
-	&& listen(sock, 3) == 0
-	) ? sock : -1;
-}
-
 int receiveConnections(void) {
 	setAccessKeys();
 
-	sockMain = initSocket(AEM_PORT_MANAGER);
+	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
