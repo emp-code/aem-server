@@ -38,7 +38,7 @@ static int bindMount(const char * const source, const char * const target, const
 	}
 
 	if (
-	   mount(source, target, NULL, MS_BIND, NULL) != 0
+	   mount(source, target, NULL, MS_BIND,       NULL) != 0
 	|| mount(NULL,   target, NULL, MS_UNBINDABLE, NULL) != 0
 	) return -1;
 
