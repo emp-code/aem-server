@@ -11,10 +11,15 @@
 	The encryption is mostly for authentication. There is no forward secrecy.
 */
 
+#ifndef SYS_clone3
+	#define SYS_clone3 __NR_clone3
+#endif
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <linux/securebits.h>
+#include <linux/sched.h>
 #include <pwd.h>
 #include <sched.h>
 #include <signal.h>
@@ -30,6 +35,7 @@
 #include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 
 #include <mbedtls/x509_crt.h>
 #include <sodium.h>
@@ -48,7 +54,6 @@
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-#define AEM_STACKSIZE 1048576 // 1 MiB
 
 #define AEM_PATH_CONF "/etc/allears"
 
@@ -115,19 +120,10 @@ static size_t lenDomain;
 
 const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
-struct aem_process {
-	pid_t pid;
-	unsigned char *stack;
-};
-
-static struct aem_process aemProc[5][AEM_MAXPROCESSES];
-
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
 static pid_t pid_enquiry = 0;
-static unsigned char *stack_account;
-static unsigned char *stack_storage;
-static unsigned char *stack_enquiry;
+static pid_t aemPid[5][AEM_MAXPROCESSES];
 
 static unsigned char encrypted[AEM_LEN_ENCRYPTED];
 static unsigned char decrypted[AEM_LEN_MSG];
@@ -244,27 +240,15 @@ static bool process_verify(const pid_t pid) {
 static void refreshPids(void) {
 	for (int type = 0; type < 5; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemProc[type][i].pid != 0 && !process_verify(aemProc[type][i].pid)) {
-				sodium_free(aemProc[type][i].stack);
-				aemProc[type][i].pid = 0;
+			if (aemPid[type][i] != 0 && !process_verify(aemPid[type][i])) {
+				aemPid[type][i] = 0;
 			}
 		}
 	}
 
-	if (pid_account != 0 && !process_verify(pid_account)) {
-		sodium_free(stack_account);
-		pid_account = 0;
-	}
-
-	if (pid_storage != 0 && !process_verify(pid_storage)) {
-		sodium_free(stack_storage);
-		pid_storage = 0;
-	}
-
-	if (pid_enquiry != 0 && !process_verify(pid_enquiry)) {
-		sodium_free(stack_enquiry);
-		pid_enquiry = 0;
-	}
+	if (pid_account != 0 && !process_verify(pid_account)) pid_account = 0;
+	if (pid_storage != 0 && !process_verify(pid_storage)) pid_storage = 0;
+	if (pid_enquiry != 0 && !process_verify(pid_enquiry)) pid_enquiry = 0;
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
@@ -276,7 +260,7 @@ void killAll(int sig) {
 
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, sig); // Request process to terminate
+			if (aemPid[type][i] > 0) kill(aemPid[type][i], sig); // Request process to terminate
 		}
 	}
 
@@ -295,7 +279,7 @@ void killAll(int sig) {
 	if (sig == SIGUSR1) {
 		for (int type = 0; type < 3; type++) {
 			for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-				if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, SIGUSR2);
+				if (aemPid[type][i] > 0) kill(aemPid[type][i], SIGUSR2);
 			}
 		}
 
@@ -309,7 +293,7 @@ void killAll(int sig) {
 
 	for (int type = 0; type < 3; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemProc[type][i].pid > 0) kill(aemProc[type][i].pid, SIGKILL);
+			if (aemPid[type][i] > 0) kill(aemPid[type][i], SIGKILL);
 		}
 	}
 
@@ -765,14 +749,10 @@ static int dropRoot(void) {
 	) ? 0 : -1;
 }
 
-static int process_new(void *params) {
+static int process_new(const int type, const int pipefd, const int closefd) {
 	wipeKeys();
 	close(sockMain);
 	close(sockClient);
-
-	const int type = ((uint8_t*)params)[0];
-	const int pipefd = ((uint8_t*)params)[1];
-	const int closefd = ((uint8_t*)params)[2];
 	close(closefd);
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
@@ -803,7 +783,7 @@ static void process_spawn(const int type) {
 	int freeSlot = -1;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemProc[type][i].pid == 0) {
+			if (aemPid[type][i] == 0) {
 				freeSlot = i;
 				break;
 			}
@@ -812,29 +792,17 @@ static void process_spawn(const int type) {
 		if (freeSlot < 0) return;
 	}
 
-	unsigned char * const stack = sodium_malloc(AEM_STACKSIZE);
-	if (stack == NULL) return;
-	bzero(stack, AEM_STACKSIZE);
-
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
-		aemProc[type][freeSlot].stack = stack;
-	} else if (type == AEM_PROCESSTYPE_ACCOUNT) {
-		stack_account = stack;
-	} else if (type == AEM_PROCESSTYPE_STORAGE) {
-		stack_storage = stack;
-	} else if (type == AEM_PROCESSTYPE_ENQUIRY) {
-		stack_enquiry = stack;
-	}
-
 	int fd[2];
-	if (pipe2(fd, O_DIRECT) < 0) {sodium_free(stack); return;}
+	if (pipe2(fd, O_DIRECT) < 0) return;
 
-	uint8_t params[] = {type, fd[0], fd[1]};
-	int flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED; // CLONE_CLEAR_SIGHAND (Linux>=5.5)
-	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	struct clone_args cloneArgs;
+	bzero(&cloneArgs, sizeof(struct clone_args));
+	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_CLEAR_SIGHAND;
+	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
-	pid_t pid = clone(process_new, stack + AEM_STACKSIZE, flags, params, NULL, NULL, NULL);
-	if (pid < 0) {sodium_free(stack); return;}
+	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
+	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return;}
+	if (pid == 0) exit(process_new(type, fd[0], fd[1]));
 
 	close(fd[0]);
 
@@ -939,7 +907,7 @@ static void process_spawn(const int type) {
 	close(fd[1]);
 
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
-		aemProc[type][freeSlot].pid = pid;
+		aemPid[type][freeSlot] = pid;
 	}
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
 	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
@@ -953,7 +921,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 
 	bool found = false;
 	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-		if (aemProc[type][i].pid == pid) {
+		if (aemPid[type][i] == pid) {
 			found = true;
 			break;
 		}
@@ -973,7 +941,7 @@ void cryptSend(void) {
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
-			memcpy(decrypted + start, &(aemProc[i][j].pid), 4);
+			memcpy(decrypted + start, &(aemPid[i][j]), 4);
 		}
 	}
 
