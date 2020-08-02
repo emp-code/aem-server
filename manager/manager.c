@@ -1042,7 +1042,7 @@ int receiveConnections(void) {
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
-		if (sockClient < 0) break;
+		if (sockClient < 0) continue;
 		if (setSocketTimeout(sockClient, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != 0) continue;
 		respond_manager(sockClient);
 		close(sockClient);
