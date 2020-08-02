@@ -35,7 +35,7 @@ static int bindMount(const char * const source, const char * const target, const
 	if (flags & AEM_MOUNT_ISFILE) {
 		if (mknod(target, S_IFREG, 0) != 0) return -1;
 	} else {
-		if (mkdir(target, 0) != 0) return -1;
+		if (mkdir(target, 1000) != 0) return -1;
 	}
 
 	if (
@@ -86,7 +86,7 @@ int createMount(const int type) {
 	if (mount("", AEM_MOUNTDIR, "", MS_UNBINDABLE, "") != 0) return -1;
 
 	if (
-	   mkdir(AEM_MOUNTDIR"/dev", AEM_MODE_XO) != 0
+	   mkdir(AEM_MOUNTDIR"/dev", AEM_MODE_XO | S_ISVTX) != 0
 	|| chown(AEM_MOUNTDIR"/dev", 0, aemGroup) != 0
 	|| makeSpecial("null",    AEM_MODE_RW, 1, 3, aemGroup) != 0
 	|| makeSpecial("zero",    AEM_MODE_RO, 1, 5, aemGroup) != 0
