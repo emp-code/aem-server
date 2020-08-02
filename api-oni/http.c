@@ -12,15 +12,15 @@
 
 #define AEM_MINLEN_POST 132 // POST /api/account/browse HTTP/1.1\r\nHost: gt2wj6tc4b9wr21q3sjvro2jfem1j7cf00626cz4t1bksflt8kjqgjf8.onion:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 540
-#define AEM_CLIENT_TIMEOUT 30
 
 //static char onionId[56];
 
 __attribute__((warn_unused_result))
 static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive, long * const clen) {
-	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 	if (lenReq < AEM_MINLEN_POST) return false;
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
+
+	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	// Host header
 //	const char * const host = strstr(req, "\r\nHost: ");
