@@ -965,7 +965,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	kill(pid, sig);
 }
 
-void cryptSend(const int sock) {
+void cryptSend(void) {
 	refreshPids();
 
 	bzero(decrypted, AEM_LEN_MSG);
@@ -978,11 +978,11 @@ void cryptSend(const int sock) {
 	}
 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_LEN_MSG, encrypted, key_mng);
-	send(sock, encrypted, AEM_LEN_ENCRYPTED, 0);
+	send(sockClient, encrypted, AEM_LEN_ENCRYPTED, 0);
 }
 
-static void respond_manager(const int sock) {
-	while (recv(sock, encrypted, AEM_LEN_ENCRYPTED, 0) == AEM_LEN_ENCRYPTED) {
+static void respond_manager(void) {
+	while (recv(sockClient, encrypted, AEM_LEN_ENCRYPTED, 0) == AEM_LEN_ENCRYPTED) {
 		if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_LEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) return;
 
 		switch(decrypted[0]) {
@@ -1010,7 +1010,7 @@ static void respond_manager(const int sock) {
 			default: return; // Invalid command
 		}
 
-		cryptSend(sock);
+		cryptSend();
 	}
 }
 
@@ -1044,7 +1044,7 @@ int receiveConnections(void) {
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) continue;
-		respond_manager(sockClient);
+		respond_manager();
 		close(sockClient);
 	}
 
