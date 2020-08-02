@@ -1014,7 +1014,9 @@ static void respond_manager(const int sock) {
 }
 
 __attribute__((warn_unused_result))
-static int initSocket(const int sock, const int port) {
+static int initSocket(const int port) {
+	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
@@ -1024,7 +1026,7 @@ static int initSocket(const int sock, const int port) {
 	return (
 	   bind(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) == 0
 	&& listen(sock, 3) == 0
-	) ? 0 : -1;
+	) ? sock : -1;
 }
 
 static void setSocketTimeout(const int sock) {
@@ -1037,14 +1039,12 @@ static void setSocketTimeout(const int sock) {
 int receiveConnections(void) {
 	setAccessKeys();
 
-	sockMain = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	sockMain = initSocket(AEM_PORT_MANAGER);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
 	process_spawn(AEM_PROCESSTYPE_STORAGE);
 	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
-
-	if (initSocket(sockMain, AEM_PORT_MANAGER) != 0) {wipeKeys(); return EXIT_FAILURE;}
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
