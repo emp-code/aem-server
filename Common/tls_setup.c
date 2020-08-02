@@ -96,7 +96,7 @@ int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const uns
 #endif
 
 	mbedtls_ssl_conf_ciphersuites(&conf, tls_ciphersuites);
-	mbedtls_ssl_conf_read_timeout(&conf, AEM_CLIENT_TIMEOUT);
+	mbedtls_ssl_conf_read_timeout(&conf, AEM_TLS_TIMEOUT);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);

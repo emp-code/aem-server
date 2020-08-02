@@ -30,9 +30,6 @@
 
 #define AEM_MTA
 
-#define AEM_CLIENT_TIMEOUT 30
-#define AEM_MAXLEN_DOMAIN 32
-
 #define AEM_SMTP_SIZE_CMD 512 // RFC5321: min. 512
 
 #define AEM_SMTP_MAX_ADDRSIZE 200

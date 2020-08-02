@@ -28,8 +28,6 @@
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
 
-#define AEM_SOCKET_TIMEOUT 30
-
 static bool terminate = false;
 
 static void sigTerm(const int sig) {

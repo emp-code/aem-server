@@ -18,7 +18,6 @@
 
 #define AEM_MINLEN_POST 74 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 480
-#define AEM_CLIENT_TIMEOUT 30
 
 static char domain[AEM_MAXLEN_DOMAIN];
 static size_t lenDomain;

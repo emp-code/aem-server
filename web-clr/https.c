@@ -17,7 +17,6 @@
 
 #define AEM_MINLEN_GET 30 // GET / HTTP/1.1\r\nHost: a.bc\r\n\r\n
 #define AEM_MAXLEN_REQ 800
-#define AEM_CLIENT_TIMEOUT 30
 
 static char req[AEM_MAXLEN_REQ + 1];
 

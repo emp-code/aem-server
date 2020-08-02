@@ -21,7 +21,6 @@
 #include "SendMail.h"
 
 #define AEM_API_SENDMAIL
-#define AEM_CLIENT_TIMEOUT 30
 
 static bool useTls;
 
