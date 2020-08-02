@@ -150,7 +150,7 @@ static int pipeWriteDirect(const int fd, const unsigned char * const data, const
 }
 
 static int getOnionId(void) {
-	const int fd = open("/var/lib/tor/hidden_service/hostname", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	const int fd = open("/var/lib/tor/aem_onion/hostname", O_RDONLY | O_NOCTTY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
 	if (fd < 0 || read(fd, onionId, 56) != 56) {
 		close(fd);
 		syslog(LOG_ERR, "Failed reading onionId");
