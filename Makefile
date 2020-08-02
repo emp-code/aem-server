@@ -15,7 +15,7 @@ aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
-	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c web-clr/Include/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-web-clr web-clr/*.c Common/tls_common.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -o aem-web-oni web-oni/main.c Common/SetCaps.c -lsodium -lcap
