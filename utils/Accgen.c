@@ -60,8 +60,10 @@ int main(void) {
 	unsigned char sk[crypto_box_SECRETKEYBYTES];
 	unsigned char mk[crypto_kdf_KEYBYTES];
 	unsigned char se[crypto_box_SEEDBYTES];
+	unsigned char pv[crypto_secretbox_KEYBYTES];
 	crypto_kdf_keygen(mk);
 	crypto_kdf_derive_from_key(se, crypto_box_SEEDBYTES, 1, "AEM-Usr0", mk);
+	crypto_kdf_derive_from_key(pv, crypto_secretbox_KEYBYTES, 5, "AEM-Usr0", mk);
 	crypto_box_seed_keypair(pk, sk, se);
 	sodium_memzero(sk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(se, crypto_box_SEEDBYTES);
@@ -71,10 +73,14 @@ int main(void) {
 	admin.info = 3;
 	memcpy(admin.pubkey, pk, crypto_box_PUBLICKEYBYTES);
 
-	const size_t lenZero = AEM_LEN_PRIVATE - crypto_box_SEALBYTES;
+	// Private data field, encrypted zeroes
+	const size_t lenZero = AEM_LEN_PRIVATE - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 	unsigned char zero[lenZero];
 	bzero(zero, lenZero);
-	crypto_box_seal(admin.private, zero, lenZero, admin.pubkey);
+
+	randombytes_buf(admin.private, crypto_secretbox_NONCEBYTES);
+	crypto_secretbox_easy(admin.private + crypto_secretbox_NONCEBYTES, zero, lenZero, admin.private, pv);
+	sodium_memzero(pv, crypto_secretbox_KEYBYTES);
 
 	// Pad
 	const uint32_t padAmount = sizeof(struct aem_user) * 1023;
