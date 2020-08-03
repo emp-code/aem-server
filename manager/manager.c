@@ -1,8 +1,8 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <grp.h>
-#include <linux/securebits.h>
 #include <linux/sched.h>
+#include <linux/securebits.h>
 #include <pwd.h>
 #include <sched.h>
 #include <signal.h>
@@ -15,10 +15,10 @@
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 
 #include <mbedtls/x509_crt.h>
 #include <sodium.h>
