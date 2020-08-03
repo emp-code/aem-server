@@ -89,7 +89,7 @@ static void acceptClients(void) {
 
 	while (!terminate) {
 		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		if (newSock < 0) continue;
 		respondClient(newSock, &clientAddr);
 		close(newSock);
 	}

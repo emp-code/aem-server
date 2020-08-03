@@ -103,7 +103,7 @@ static void acceptClients(void) {
 
 	while (!terminate) {
 		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
-		if (newSock < 0) {syslog(LOG_ERR, "Failed creating socket"); continue;}
+		if (newSock < 0) continue;
 		respondClient(newSock);
 		close(newSock);
 	}
