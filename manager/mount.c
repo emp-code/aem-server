@@ -120,7 +120,10 @@ int createMount(const int type) {
 	if (mkdir(AEM_MOUNTDIR"/old_root", 1000) != 0) return -1;
 
 	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
+		umask(0777);
 		if (mount(NULL, AEM_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts) != 0) return -1;
+	} else {
+		umask(0077);
 	}
 
 	if (syscall(SYS_pivot_root, AEM_MOUNTDIR, AEM_MOUNTDIR"/old_root") != 0) return -1;
