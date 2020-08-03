@@ -77,7 +77,7 @@ void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
 int aem_api_init(void) {
 	if (pid_account == 0 || pid_storage == 0 || pid_enquiry == 0) return -1;
 
-	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 1024); // enough for headers
+	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999); // enough for headers and account data
 	if (response == NULL) return -1;
 
 	decrypted = sodium_malloc(AEM_API_BOX_SIZE_MAX);
@@ -411,16 +411,39 @@ static void message_browse(void) {
 		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
 	else if (lenDecrypted != 1) return;
 
+	// Data to boxed
+	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999);
+	ssize_t lenClr = 0;
+
+	// User info, if requested
+	if (decrypted[0] & AEM_FLAG_UINFO) {
+		const int sock = accountSocket(AEM_API_INTERNAL_UINFO, upk, crypto_box_PUBLICKEYBYTES);
+		if (sock < 0) {sodium_free(clr); return;}
+
+		const ssize_t rbytes = recv(sock, clr, 9000, MSG_WAITALL);
+		close(sock);
+
+		if (rbytes < 5) {
+			syslog(LOG_ERR, "Failed receiving data from Account");
+			sodium_free(clr);
+			return;
+		}
+
+		lenClr += rbytes;
+	}
+
+	// Message data
 	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((lenDecrypted == 17) ? lenDecrypted : 0));
 	if (sock < 0) return;
 
-	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA);
-	const ssize_t lenClr = recv(sock, clr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
+	const ssize_t lenRcv = recv(sock, clr + lenClr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
-	if (lenClr < 1) {sodium_free(clr); return;}
+	if (lenRcv < 1) {sodium_free(clr); return;}
+	lenClr += lenRcv;
 
 	const char * const kaStr = keepAlive ? "Connection: Keep-Alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
+	// Preapre and send response
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"

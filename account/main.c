@@ -232,6 +232,25 @@ static int numAddresses(const int num, const bool shield) {
 	return counter;
 }
 
+static void api_internal_uinfo(const int sock, const int num) {
+	unsigned char response[283 + AEM_LEN_PRIVATE];
+	size_t lenResponse = 4;
+
+	response[0] = user[num].info;
+	memcpy(response + 1, limits[user[num].info & 3], 3);
+
+	for (int i = 0; i < (user[num].info >> 3); i++) {
+		memcpy(response + lenResponse, &(user[num].addrHash[i]), 8);
+		response[lenResponse + 8] = user[num].addrFlag[i];
+		lenResponse += 9;
+	}
+
+	memcpy(response + lenResponse, user[num].private, AEM_LEN_PRIVATE);
+	lenResponse += AEM_LEN_PRIVATE;
+
+	send(sock, response, lenResponse, 0);
+}
+
 static void api_account_browse(const int sock, const int num) {
 	const int addrCount = user[num].info >> 3;
 
@@ -590,6 +609,7 @@ static int takeConnections(void) {
 				// Internal functions
 				case AEM_API_INTERNAL_EXIST: send(sockClient, "\x01", 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
+				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
 
 				//default: // Invalid
 			}

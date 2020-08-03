@@ -56,6 +56,9 @@
 #define AEM_SOCKPATH_ENQUIRY "\0AEM_Enq"
 #define AEM_SOCKPATH_LEN 8
 
+#define AEM_FLAG_UINFO 2
+#define AEM_FLAG_NEWER 1
+
 #define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
 
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
@@ -95,7 +98,8 @@ enum aem_api_commands {
 	AEM_API_PRIVATE_UPDATE,
 	AEM_API_SETTING_LIMITS,
 	AEM_API_INTERNAL_EXIST,
-	AEM_API_INTERNAL_LEVEL
+	AEM_API_INTERNAL_LEVEL,
+	AEM_API_INTERNAL_UINFO
 };
 
 enum aem_process_types {

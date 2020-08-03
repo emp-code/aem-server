@@ -369,7 +369,7 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 	int stopIndex = -1;
 
 	if (matchId != NULL) {
-		if (matchId[0]) { // newer
+		if (matchId[0] & AEM_FLAG_NEWER) {
 			for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
 				filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 
