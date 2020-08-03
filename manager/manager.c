@@ -1,20 +1,3 @@
-/*
-	All-Ears Manager
-
-	Protocol:
-		All messages are AEM_LEN_MSG bytes in cleartext, and are encrypted with crypto_secretbox_easy
-
-		1. Client sends message containing instructions (if any)
-		2. Server processes instructions, if any (spawn/terminate/kill an All-Ears process)
-		3. Server responds with message containing information about All-Ears processes
-
-	The encryption is mostly for authentication. There is no forward secrecy.
-*/
-
-#ifndef SYS_clone3
-	#define SYS_clone3 __NR_clone3
-#endif
-
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -48,6 +31,10 @@
 #include "mount.h"
 
 #include "manager.h"
+
+#ifndef SYS_clone3
+	#define SYS_clone3 __NR_clone3
+#endif
 
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
@@ -932,6 +919,17 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 
 	kill(pid, sig);
 }
+
+/*
+	Manager Protocol:
+		All messages are AEM_LEN_MSG bytes in cleartext, and are encrypted with crypto_secretbox_easy
+
+		1. Client sends message containing instructions (if any)
+		2. Server processes instructions, if any (spawn/terminate/kill an All-Ears process)
+		3. Server responds with message containing information about All-Ears processes
+
+	The encryption is mostly for authentication. There is no forward secrecy.
+*/
 
 void cryptSend(void) {
 	refreshPids();
