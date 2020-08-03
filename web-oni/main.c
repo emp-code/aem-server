@@ -19,7 +19,6 @@
 
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
-#define AEM_WEB_ONI
 
 unsigned char *html;
 size_t lenHtml;

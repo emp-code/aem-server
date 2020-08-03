@@ -23,7 +23,6 @@
 #include "../api-common/post.h"
 #include "../api-common/SendMail.h"
 
-#define AEM_API
 #define AEM_LOGNAME "AEM-API"
 
 #define AEM_MAXLEN_PIPEREAD 8192

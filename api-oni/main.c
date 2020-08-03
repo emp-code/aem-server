@@ -22,8 +22,6 @@
 
 #include "http.h"
 
-#define AEM_API
-#define AEM_API_ONI
 #define AEM_LOGNAME "AEM-AOn"
 
 #define AEM_MAXLEN_PIPEREAD 8192
