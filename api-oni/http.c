@@ -52,11 +52,17 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Headers:")
 	) return false;
 
-	const char * const secDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
-	if (secDest != NULL && strncasecmp(secDest + 18, "empty\r\n", 7) != 0) return false;
+	const char *s = strcasestr(req, "\r\nAccept: ");
+	if (s != NULL && strncasecmp(s + 10, "\r\n", 2) != 0) return false;
 
-	const char * const secMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
-	if (secMode != NULL && strncasecmp(secMode + 18, "cors\r\n", 6) != 0) return false;
+	s = strcasestr(req, "\r\nAccept-Language: ");
+	if (s != NULL && strncasecmp(s + 19, "\r\n", 2) != 0) return false;
+
+	s = strcasestr(req, "\r\nSec-Fetch-Dest: ");
+	if (s != NULL && strncasecmp(s + 18, "empty\r\n", 7) != 0) return false;
+
+	s = strcasestr(req, "\r\nSec-Fetch-Mode: ");
+	if (s != NULL && strncasecmp(s + 18, "cors\r\n", 6) != 0) return false;
 
 	return true;
 }
