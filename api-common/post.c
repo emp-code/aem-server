@@ -424,8 +424,10 @@ static void message_browse(void) {
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
+#ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"

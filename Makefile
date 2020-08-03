@@ -24,7 +24,7 @@ aem-api-clr: api-clr/*.c
 	$(CC) $(CFLAGS) -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-api-oni: api-oni/*.c
-	$(CC) $(CFLAGS) -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Base64.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/QuotedPrintable.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
