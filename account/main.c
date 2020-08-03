@@ -312,15 +312,8 @@ static void api_account_create(const int sock, const int num) {
 	if (user2 == NULL) return;
 	user = user2;
 
+	bzero(&(user[userCount]), sizeof(struct aem_user));
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
-	user[userCount].info = 0;
-
-	bzero(user[userCount].addrHash, AEM_ADDRESSES_PER_USER);
-	bzero(user[userCount].addrFlag, AEM_ADDRESSES_PER_USER);
-
-	unsigned char empty[AEM_LEN_PRIVATE - crypto_box_SEALBYTES];
-	bzero(empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES);
-	crypto_box_seal(user[userCount].private, empty, AEM_LEN_PRIVATE - crypto_box_SEALBYTES, pubkey_new);
 
 	userCount++;
 	saveUser();
