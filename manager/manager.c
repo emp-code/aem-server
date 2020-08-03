@@ -4,7 +4,6 @@
 #include <linux/sched.h>
 #include <linux/securebits.h>
 #include <pwd.h>
-#include <sched.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
