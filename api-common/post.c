@@ -430,7 +430,6 @@ static void message_browse(void) {
 #endif
 		"Content-Length: %zd\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
 		"%s"
 		"\r\n"
 	, crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr, kaStr);
