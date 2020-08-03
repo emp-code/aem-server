@@ -61,10 +61,10 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	) return false;
 
 	const char *s = strcasestr(req, "\r\nAccept: ");
-	if (s != NULL && strncasecmp(s + 10, "\r\n", 2) != 0) return false;
+	if (s != NULL && strncmp(s + 10, "\r\n", 2) != 0) return false;
 
 	s = strcasestr(req, "\r\nAccept-Language: ");
-	if (s != NULL && strncasecmp(s + 19, "\r\n", 2) != 0) return false;
+	if (s != NULL && strncmp(s + 19, "\r\n", 2) != 0) return false;
 
 	s = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (s != NULL && strncasecmp(s + 18, "empty\r\n", 7) != 0) return false;
