@@ -51,8 +51,9 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (charsetEnd[2] != '?') break;
 
 		const size_t lenCs = charsetEnd - (ew + 2);
-		char cs[lenCs];
+		char cs[lenCs + 1];
 		memcpy(cs, (ew + 2), lenCs);
+		cs[lenCs] = '\0';
 
 		const char type = charsetEnd[1];
 		char *ewText = charsetEnd + 3;
@@ -88,7 +89,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else break;
 
 		int lenUtf8 = 0;
-		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs, lenCs);
+		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
 		const size_t lenDiff = lenEw - lenUtf8;
@@ -238,8 +239,12 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 			// TODO: Support detecting charset if missing?
 			if (charset != NULL && !isUtf8(charset, lenCs)) {
+				char cs8[lenCs + 1];
+				memcpy(cs8, charset, lenCs);
+				cs8[lenCs] = '\0';
+
 				int lenUtf8;
-				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset, lenCs);
+				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, cs8);
 				if (utf8 != NULL) {
 					free(new);
 					new = utf8;
@@ -337,9 +342,13 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 
 		// TODO: Support detecting charset if missing?
 		if (charset != NULL && !isUtf8(charset, lenCs)) {
+			char cs8[lenCs + 1];
+			memcpy(cs8, charset, lenCs);
+			cs8[lenCs] = '\0';
+
 			int lenUtf8;
 			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
-			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset, lenCs);
+			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, cs8);
 			if (utf8 != NULL) {
 				if (lenOld > lenUtf8) {
 					memcpy(headersEnd, utf8, lenUtf8);
