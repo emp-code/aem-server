@@ -2,7 +2,8 @@
 #include <string.h>
 #include <stdbool.h>
 
-#include "../Common/Base64.h"
+#include <sodium.h>
+
 #include "../Common/QuotedPrintable.h"
 #include "../Common/HtmlToText.h"
 #include "../Common/ToUtf8.h"
@@ -71,10 +72,10 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (type == 'Q' || type == 'q') {
 			decodeQuotedPrintable(ewText, &lenEwText);
 		} else if (type == 'B' || type == 'b') {
-			unsigned char * const dec = b64Decode((unsigned char*)ewText, lenEwText, &lenEwText);
-			if (dec == NULL) break;
-
-			memcpy(ewText, dec, lenEwText);
+			unsigned char * const dec = malloc(lenEwText);
+			size_t lenDec;
+			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, NULL, &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
+			memcpy(ewText, dec, lenDec); // shouldn't length be adjusted?
 			free(dec);
 		} else break;
 
@@ -204,8 +205,10 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 				decodeQuotedPrintable(new, &lenNew);
 			} else if (*cte == 'B') {
-				new = (char*)b64Decode((const unsigned char*)hend, lenNew, &lenNew);
-				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
+				unsigned char * const new = malloc(lenNew);
+				size_t lenNew2;
+				if (new == NULL || sodium_base642bin(new, lenNew, hend, lenNew, NULL, &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+				lenNew = lenNew2;
 			} else {
 				new = strndup(hend, lenNew);
 				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
@@ -296,17 +299,16 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 			decodeQuotedPrintable(headersEnd, &len);
 			const size_t lenDiff = lenOld - len;
 			*lenMsg -= lenDiff;
-		} else  {
+		} else {
 			cte = strcasestr(*msg, "\nContent-Transfer-Encoding: base64");
 			if (cte != NULL && cte < headersEnd) {
 				const size_t lenOld = *lenMsg - (headersEnd - *msg);
-				size_t len;
-				unsigned char * const e = b64Decode((unsigned char*)headersEnd, lenOld, &len);
-				if (e != NULL) {
-					memcpy(headersEnd, e, len);
-					const size_t lenDiff = lenOld - len;
-					*lenMsg -= lenDiff;
-					free(e);
+				size_t lenDec;
+				unsigned char * const dec = malloc(lenOld);
+				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, NULL, &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
+					memcpy(headersEnd, dec, lenDec);
+					*lenMsg -= lenOld - lenDec;
+					free(dec);
 				}
 			}
 		}
