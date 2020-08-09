@@ -169,6 +169,8 @@ static void bracketsInQuotes(char *text) {
 		bracketsInQuotes_double(br1, &br2);
 		bracketsInQuotes_single(br1, &br2);
 		bracketsInQuotes_double(br1, &br2);
+
+		if (br2 == NULL) break;
 		convertChar(br1, br2 - br1, '\'', '"');
 
 		br1 = strchr(br2 + 1, '<');
