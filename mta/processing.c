@@ -205,9 +205,9 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 				decodeQuotedPrintable(new, &lenNew);
 			} else if (*cte == 'B') {
-				unsigned char * const new = malloc(lenNew);
+				new = malloc(lenNew);
 				size_t lenNew2;
-				if (new == NULL || sodium_base642bin(new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+				if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
 				lenNew = lenNew2;
 			} else {
 				new = strndup(hend, lenNew);
