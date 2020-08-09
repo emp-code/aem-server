@@ -89,7 +89,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 			memmove(ew + lenUtf8, ewEnd + 2, (data + *lenData) - (ewEnd + 2));
 			*lenData -= (lenDiff + 2);
 		} else {
-			// TODO: UTF-8 version is longer
+			// TODO: UTF-8 version is longer or same
 			break;
 		}
 
