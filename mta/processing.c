@@ -123,17 +123,17 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 	*outLen = 0;
 
 	int boundCount = 0;
-	const char *b = strstr(msg, "Content-Type: multipart/");
+	const char *b = strcasestr(msg, "Content-Type: multipart/");
 	if (b == NULL) return NULL;
 
 	while (1) {
 		boundCount++;
-		b = strstr(b + 24, "Content-Type: multipart/");
+		b = strcasestr(b + 24, "Content-Type: multipart/");
 		if (b == NULL) break;
 	}
 
 	char *bound[boundCount];
-	b = strstr(msg, "Content-Type: multipart/");
+	b = strcasestr(msg, "Content-Type: multipart/");
 
 	for (int i = 0; i < boundCount; i++) {
 		b = strcasestr(b, "boundary=");
@@ -149,7 +149,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		}
 		memcpy(bound[i], "--", 2);
 
-		b = strstr(b + 24, "Content-Type: multipart/");
+		b = strcasestr(b + 24, "Content-Type: multipart/");
 		if (b == NULL) break;
 	}
 
@@ -189,8 +189,8 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 
 			char *charset = NULL;
 			size_t lenCs = 0;
-			const char *cs = strstr(ct + 15, "charset=");
-			if (cs == NULL) cs = strstr(ct + 15, "harset =");
+			const char *cs = strcasestr(ct + 15, "charset=");
+			if (cs == NULL) cs = strcasestr(ct + 15, "harset =");
 			if (cs != NULL && cs < hend) {
 				cs += 8;
 				if (*cs == ' ') cs++;
@@ -284,8 +284,8 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 	} else {
 		char *charset = NULL;
 		size_t lenCs = 0;
-		const char *cs = strstr(ct, "charset=");
-		if (cs == NULL) cs = strstr(ct, "harset =");
+		const char *cs = strcasestr(ct, "charset=");
+		if (cs == NULL) cs = strcasestr(ct, "harset =");
 		if (cs != NULL && cs < headersEnd) {
 			cs += 8;
 			if (*cs == ' ') cs++;
