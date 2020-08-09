@@ -176,6 +176,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		if (ct == NULL || ct > hend) break;
 
 		const char *boundEnd = strstr(hend + lenHend, bound[i]);
+		if (boundEnd == NULL) break;
 
 		if (strncasecmp(ct + 15, "text/", 5) == 0) {
 			const bool isHtml = (strncasecmp(ct + 20, "html", 4) == 0);
