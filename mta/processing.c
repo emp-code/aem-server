@@ -142,12 +142,16 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		if (*b == '"') b++;
 
 		const size_t len = strcspn(b, "\" \r\n");
-		bound[i] = strndup(b - 2, len);
+
+		bound[i] = malloc(len + 3);
 		if (bound[i] == NULL) {
 			for (int j = 0; j < i - 1; j++) free(bound[j]);
 			return NULL;
 		}
+
 		memcpy(bound[i], "--", 2);
+		memcpy(bound[i] + 2, b, len);
+		bound[i][len + 2] = '\0';
 
 		b = strcasestr(b + 24, "Content-Type: multipart/");
 		if (b == NULL) break;
