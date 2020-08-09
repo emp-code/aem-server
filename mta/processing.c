@@ -12,13 +12,19 @@
 #include "processing.h"
 
 void removeControlChars(unsigned char * const text, size_t * const len) {
+	unsigned char * const new = malloc(*len);
+	size_t lenNew = 0;
+
 	for (size_t i = 0; i < *len; i++) {
-		if (text[i] == 127 || (text[i] < 32 && text[i] != '\t' && text[i] != '\n')) { // 127=DEL
-			(*len)--;
-			memmove(text + i, text + i + 1, *len - i);
-			i--;
+		if ((text[i] > 31 && text[i] != 127) || text[i] == '\n') { // 127=DEL
+			new[lenNew] = text[i];
+			lenNew++;
 		}
 	}
+
+	memcpy(text, new, lenNew);
+	free(new);
+	*len = lenNew;
 }
 
 void tabsToSpaces(char * const text, const size_t len) {
