@@ -1,4 +1,5 @@
 #include <string.h>
+#include <ctype.h> // for isupper/tolower
 
 #include "Trim.h"
 
@@ -297,6 +298,26 @@ void removeStyle(char * const text, size_t * const len) {
 	*len -= diff;
 }
 
+void lowercaseHtmlTags(char * const text, const size_t len) {
+	char *c = memchr(text, '<', len);
+
+	while (c != NULL) {
+		const char * const d = memchr(c, '>', (text + len) - c);
+		if (d == NULL) break;
+
+		for (int i = 0; i < d - c; i++) {
+			if (isupper(c[i]))
+				c[i] = tolower(c[i]);
+			else if (c[i] == ' ' || c[i] == '\n')
+				break;
+		}
+
+		const ssize_t bytes = (text + len) - (d + 1);
+		if (bytes < 1) break;
+		c = memchr(d + 1, '<', bytes);
+	}
+}
+
 void htmlToText(char * const text, size_t * const len) {
 	lfToSpace(text, *len);
 	removeHtmlComments(text, len);
@@ -349,6 +370,7 @@ void htmlToText(char * const text, size_t * const len) {
 	placeLinebreak(text, *len, "</ul");
 
 	bracketsInQuotes(text);
+	lowercaseHtmlTags(text, *len);
 	processLinks(text, len);
 	processImages(text, len);
 	removeStyle(text, len);
