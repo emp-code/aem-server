@@ -183,7 +183,10 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 		} else cte = "X";
 
 		const char * const ct = strcasestr(begin, "\nContent-Type: ");
-		if (ct == NULL || ct > hend) break;
+		if (ct == NULL || ct > hend) {
+			searchBegin = begin;
+			continue;
+		}
 
 		const char *boundEnd = strstr(hend + lenHend, bound[i]);
 		if (boundEnd == NULL) break;
