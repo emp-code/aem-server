@@ -164,7 +164,7 @@ static void bracketsInQuotes(char *text) {
 
 	while (br1 != NULL) {
 		char *br2 = strchr(br1 + 1, '>');
-		if (br2 == NULL) return;
+		if (br2 == NULL) break;
 
 		bracketsInQuotes_double(br1, &br2);
 		bracketsInQuotes_single(br1, &br2);
