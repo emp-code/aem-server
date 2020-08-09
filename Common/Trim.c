@@ -4,6 +4,8 @@
 #include "Trim.h"
 
 static void convertText(char * const text, size_t * const len, const char * const bad, const size_t lenBad, const char good) {
+	if (text == NULL || len == NULL || *len < 1 || bad == NULL || lenBad < 1) return;
+
 	while(1) {
 		char * const c = memmem(text, *len, bad, lenBad);
 		if (c == NULL) break;
