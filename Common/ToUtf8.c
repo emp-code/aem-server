@@ -17,7 +17,10 @@ bool isUtf8(const char * const charset, const size_t lenCs) {
 
 char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut, const char * const charset, const size_t lenCs) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
-	if (isUtf8(charset, lenCs)) return strndup(input, lenInput);
+	if (isUtf8(charset, lenCs)) {
+		*lenOut = lenInput;
+		return strndup(input, lenInput);
+	}
 
 	const size_t maxLen = lenInput * 2;
 
