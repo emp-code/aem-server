@@ -75,7 +75,9 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 			unsigned char * const dec = malloc(lenEwText);
 			size_t lenDec;
 			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, "\n ", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
-			memcpy(ewText, dec, lenDec); // shouldn't length be adjusted?
+
+			memcpy(ewText, dec, lenDec);
+			lenEwText = lenDec;
 			free(dec);
 		} else break;
 
