@@ -96,6 +96,7 @@ static void bracketsInQuotes_single(const char * const br1, char ** const br2) {
 	while (qt1 != NULL && qt1 < *br2) {
 		const char * const qt2 = strchr(qt1 + 1, '\'');
 		if (qt2 == NULL) break;
+
 		while (*br2 < qt2) {
 			*br2 = strchr(qt2 + 1, '>');
 			if (*br2 == NULL) return;
@@ -284,6 +285,18 @@ static void removeHtml(char * const text, size_t * const len) {
 	}
 }
 
+void removeStyle(char * const text, size_t * const len) {
+	char * const begin = memmem(text, *len, "<style", 6);
+	if (begin == NULL) return;
+
+	const char * const end = memmem(begin + 6, *len - ((begin + 6) - text), "</style>", 8);
+	if (end == NULL) return;
+
+	const size_t diff = (end + 8) - begin;
+	memmove(begin, end + 8, (text + *len) - (end + 8));
+	*len -= diff;
+}
+
 void htmlToText(char * const text, size_t * const len) {
 	lfToSpace(text, *len);
 	removeHtmlComments(text, len);
@@ -338,6 +351,7 @@ void htmlToText(char * const text, size_t * const len) {
 	bracketsInQuotes(text);
 	processLinks(text, len);
 	processImages(text, len);
+	removeStyle(text, len);
 	removeHtml(text, len);
 
 	// Just some common ones for now. Some may be written in caps, and/or without the semicolon. WP: List_of_XML_and_HTML_character_entity_references
