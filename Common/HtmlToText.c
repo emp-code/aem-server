@@ -45,7 +45,7 @@ static void filterHr(char * const text, const size_t len) {
 		c[1] = '-';
 		c[2] = '-';
 		c[3] = AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK;
-		c[4] = '<';
+		c[4] = '<'; // '<>' remains, and gets removed
 	}
 }
 
