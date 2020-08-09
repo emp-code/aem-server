@@ -74,7 +74,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else if (type == 'B' || type == 'b') {
 			unsigned char * const dec = malloc(lenEwText);
 			size_t lenDec;
-			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, NULL, &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
+			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, "\n ", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
 			memcpy(ewText, dec, lenDec); // shouldn't length be adjusted?
 			free(dec);
 		} else break;
@@ -207,7 +207,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			} else if (*cte == 'B') {
 				unsigned char * const new = malloc(lenNew);
 				size_t lenNew2;
-				if (new == NULL || sodium_base642bin(new, lenNew, hend, lenNew, NULL, &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+				if (new == NULL || sodium_base642bin(new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
 				lenNew = lenNew2;
 			} else {
 				new = strndup(hend, lenNew);
@@ -305,7 +305,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 				const size_t lenOld = *lenMsg - (headersEnd - *msg);
 				size_t lenDec;
 				unsigned char * const dec = malloc(lenOld);
-				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, NULL, &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
+				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, "\n ", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
 					memcpy(headersEnd, dec, lenDec);
 					*lenMsg -= lenOld - lenDec;
 					free(dec);
