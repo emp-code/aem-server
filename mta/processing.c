@@ -156,8 +156,15 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 	const char *searchBegin = msg;
 	for (int i = 0; i < boundCount;) {
 		const char *begin = strstr(searchBegin, bound[i]);
-		if (begin == NULL) {i++; continue;}
+		if (begin == NULL) break;
+
 		begin += strlen(bound[i]);
+
+		if (strncmp(begin, "--\n", 3) == 0) {
+			searchBegin = msg;
+			i++;
+			continue;
+		}
 
 		const char *hend = strstr(begin, "\r\n\r\n");
 		const char * const hend2 = strstr(begin, "\n\n");
