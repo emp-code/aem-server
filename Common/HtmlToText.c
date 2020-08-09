@@ -181,6 +181,8 @@ static void processLinks(char *text, size_t *len) {
 	char *br1 = memmem(text, *len, "<a ", 3);
 	while (br1 != NULL) {
 		char *br2 = memchr(br1, '>', (text + *len) - br1);
+		if (br2 == NULL) break;
+
 		const char *url = memmem(br1, br2 - br1, "href=", 5);
 
 		if (url != NULL) {
@@ -225,6 +227,8 @@ static void processImages(char * const text, size_t * const len) {
 	char *br1 = memmem(text, *len, "<img ", 5);
 	while (br1 != NULL) {
 		char *br2 = memchr(br1, '>', (text + *len) - br1);
+		if (br2 == NULL) break;
+
 		const char *url = memmem(br1, br2 - br1, "src=", 4);
 
 		if (url != NULL) {
