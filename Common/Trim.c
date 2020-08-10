@@ -1,7 +1,30 @@
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "Trim.h"
+
+void removeControlChars(unsigned char * const text, size_t * const len) {
+	unsigned char * const new = malloc(*len);
+	size_t lenNew = 0;
+
+	for (size_t i = 0; i < *len; i++) {
+		if ((text[i] > 31 && text[i] != 127) || text[i] == '\n') { // 127=DEL
+			new[lenNew] = text[i];
+			lenNew++;
+		} else if (text[i] == '\t') {
+			new[lenNew] = ' ';
+			lenNew++;
+		} else if (text[i] == '\f' || (i < (*len - 1) && text[i] == '\r' &&  text[i + 1] != '\n')) {
+			new[lenNew] = '\n';
+			lenNew++;
+		}
+	}
+
+	memcpy(text, new, lenNew);
+	free(new);
+	*len = lenNew;
+}
 
 static void convertText(char * const text, size_t * const len, const char * const bad, const size_t lenBad, const char good) {
 	if (text == NULL || len == NULL || *len < 1 || bad == NULL || lenBad < 1) return;

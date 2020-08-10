@@ -11,28 +11,6 @@
 
 #include "processing.h"
 
-void removeControlChars(unsigned char * const text, size_t * const len) {
-	unsigned char * const new = malloc(*len);
-	size_t lenNew = 0;
-
-	for (size_t i = 0; i < *len; i++) {
-		if ((text[i] > 31 && text[i] != 127) || text[i] == '\n') { // 127=DEL
-			new[lenNew] = text[i];
-			lenNew++;
-		} else if (text[i] == '\t') {
-			new[lenNew] = ' ';
-			lenNew++;
-		} else if (text[i] == '\f' || (i < (*len - 1) && text[i] == '\r' &&  text[i + 1] != '\n')) { // form feed; CR not followed by LF
-			new[lenNew] = '\n';
-			lenNew++;
-		}
-	}
-
-	memcpy(text, new, lenNew);
-	free(new);
-	*len = lenNew;
-}
-
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
