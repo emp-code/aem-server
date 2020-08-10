@@ -36,7 +36,7 @@ void removeSpaceBegin(char * const text, size_t * const len) {
 	convertText(text, len, "\n ", 2, '\n');
 }
 
-// Compress over two linebreaks spaces to two
+// Compress over two linebreaks to two
 void trimLinebreaks(char * const text, size_t * const len) {
 	convertText(text, len, "\n\n\n", 3, '\n');
 }
