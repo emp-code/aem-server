@@ -22,7 +22,7 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 		} else if (text[i] == '\t') {
 			new[lenNew] = ' ';
 			lenNew++;
-		} else if (text[i] == '\f') { // form feed (page break)
+		} else if (text[i] == '\f' || (i < (*len - 1) && text[i] == '\r' &&  text[i + 1] != '\n')) { // form feed; CR not followed by LF
 			new[lenNew] = '\n';
 			lenNew++;
 		}
