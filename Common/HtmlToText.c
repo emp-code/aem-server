@@ -1,5 +1,6 @@
 #include <string.h>
 #include <ctype.h> // for isupper/tolower
+#include <sys/types.h> // for ssize_t
 
 #include "Trim.h"
 
