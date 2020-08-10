@@ -6,5 +6,6 @@ void removeSpaceEnd(char * const text, size_t * const len);
 void removeSpaceBegin(char * const text, size_t * const len);
 void trimSpace(char * const text, size_t * const len);
 void trimLinebreaks(char * const text, size_t * const len);
+void trimEnd(const char * const text, size_t * const len);
 
 #endif

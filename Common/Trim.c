@@ -40,3 +40,11 @@ void removeSpaceBegin(char * const text, size_t * const len) {
 void trimLinebreaks(char * const text, size_t * const len) {
 	convertText(text, len, "\n\n\n", 3, '\n');
 }
+
+void trimEnd(const char * const text, size_t * const len) {
+	for (int i = *len - 1; i >= 0; i--) {
+		if (text[i] != ' ' && text[i] != '\n') break;
+
+		(*len)--;
+	}
+}

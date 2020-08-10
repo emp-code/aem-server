@@ -454,6 +454,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			removeSpaceEnd(body, &lenBody);
 			trimLinebreaks(body, &lenBody);
 			removeSpaceBegin(body, &lenBody);
+			trimEnd(body, &lenBody);
 			brotliCompress((unsigned char**)&body, &lenBody);
 
 			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, &email);
