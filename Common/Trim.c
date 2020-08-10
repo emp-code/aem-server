@@ -39,6 +39,19 @@ static void convertText(char * const text, size_t * const len, const char * cons
 	}
 }
 
+void convertLineDots(char * const text, size_t * const len) {
+	char *c = memmem(text, *len, "\n..", 3);
+
+	while (c != NULL) {
+		const size_t offset = (c + 2) - text;
+
+		memmove(c + 1, c + 2, *len - offset);
+		(*len)--;
+
+		c = memmem(text + offset, *len - offset, "\n..", 3);
+	}
+}
+
 // Convert non-breaking space to normal space (UTF-8)
 void convertNbsp(char * const text, size_t * const len) {
 	convertText(text, len, "\xc2\xa0", 2, ' ');

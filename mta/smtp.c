@@ -447,6 +447,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) email.quitReceived = true;
 
 			removeControlChars((unsigned char*)body, &lenBody);
+			convertLineDots(body, &lenBody);
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
 			decodeMessage(&body, &lenBody);
