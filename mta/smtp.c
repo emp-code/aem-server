@@ -446,7 +446,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_SIZE_CMD);
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) email.quitReceived = true;
 
-			tabsToSpaces(body, lenBody);
 			removeControlChars((unsigned char*)body, &lenBody);
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);

@@ -19,18 +19,15 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 		if ((text[i] > 31 && text[i] != 127) || text[i] == '\n') { // 127=DEL
 			new[lenNew] = text[i];
 			lenNew++;
+		} else if (text[i] == '\t') {
+			new[lenNew] = ' ';
+			lenNew++;
 		}
 	}
 
 	memcpy(text, new, lenNew);
 	free(new);
 	*len = lenNew;
-}
-
-void tabsToSpaces(char * const text, const size_t len) {
-	for (size_t i = 0; i < len; i++) {
-		if (text[i] == '\t') text[i] = ' ';
-	}
 }
 
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
@@ -255,7 +252,6 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			if (charset != NULL) free(charset);
 
 			convertNbsp(new, &lenNew);
-			tabsToSpaces(new, lenNew);
 			removeControlChars((unsigned char*)new, &lenNew);
 
 			if (isHtml) htmlToText(new, &lenNew);
@@ -371,7 +367,6 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 
 		if (charset != NULL) free(charset);
 
-		tabsToSpaces(*msg, *lenMsg);
 		removeControlChars((unsigned char*)(*msg), lenMsg);
 		convertNbsp(*msg, lenMsg);
 
