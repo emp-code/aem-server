@@ -83,11 +83,10 @@ int main(void) {
 	sodium_memzero(pv, crypto_secretbox_KEYBYTES);
 
 	// Pad
-	const uint32_t padAmount = sizeof(struct aem_user) * 1023;
-
 	const size_t lenPadded = 4 + sizeof(struct aem_user) * 1024;
 	unsigned char * const padded = sodium_malloc(lenPadded);
 
+	const uint32_t padAmount = sizeof(struct aem_user) * 1023;
 	memcpy(padded, &padAmount, 4);
 	memcpy(padded + 4, (unsigned char*)&admin, sizeof(struct aem_user));
 	randombytes_buf_deterministic(padded + 4 + sizeof(struct aem_user), lenPadded - 4 - sizeof(struct aem_user), padded);
