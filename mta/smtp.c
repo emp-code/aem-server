@@ -151,7 +151,13 @@ static int smtp_addr_sender(const char * const buf, const size_t len) {
 	const int max = len - skipBytes - 1;
 	while (email.lenEnvFrom < max && buf[skipBytes + email.lenEnvFrom] != '>') (email.lenEnvFrom)++;
 
-	if (email.lenEnvFrom < 1) return -1;
+	// Empty addresses are used by notifications such as bounces
+	if (email.lenEnvFrom < 1) {
+		email.envFrom[0] = '@';
+		email.lenEnvFrom = 1;
+		return 0;
+	}
+
 	if (email.lenEnvFrom > 127) email.lenEnvFrom = 127;
 
 	memcpy(email.envFrom, buf + skipBytes, email.lenEnvFrom);
