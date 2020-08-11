@@ -75,7 +75,7 @@ int main(void) {
 		unsigned char *lf = memchr(s, '\n', (data + len) - s);
 		if (lf == NULL) break;
 		const size_t lenSrc = lf - s;
-		if (lenSrc > 15) {puts("Line too long"); break;}
+		if (lenSrc > 15) {printf("Line too long: %.*s\n", (int)lenSrc, s); break;}
 
 		unsigned char addr32[10];
 		addr32_store(addr32, (char*)s, lenSrc);
