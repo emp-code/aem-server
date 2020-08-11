@@ -133,8 +133,6 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 			ref[lenRef] = '\0';
 			lenRef++; // Count ampersand
 
-			printf(">%s<\n", (char*)ref);
-
 			codepoint1 = ref2codepoint(ref);
 			if (codepoint1 == 0) ref2codepoint2(ref, &codepoint1, &codepoint2);
 		}
