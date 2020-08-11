@@ -81,7 +81,7 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 	unsigned char *c = memchr(text, '&', *lenText);
 
 	while (c != NULL) {
-		// TODO: Verify location
+		if ((text + *lenText) - c < 3) break;
 
 		size_t lenRef;
 		unsigned int codepoint1 = 0;
