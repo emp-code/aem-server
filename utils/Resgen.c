@@ -74,8 +74,13 @@ int main(void) {
 	while(1) {
 		unsigned char *lf = memchr(s, '\n', (data + len) - s);
 		if (lf == NULL) break;
+
 		const size_t lenSrc = lf - s;
-		if (lenSrc > 15) {printf("Line too long: %.*s\n", (int)lenSrc, s); break;}
+		if (lenSrc > 15) {
+			printf("Rejected, too long: %.*s\n", (int)lenSrc, s);
+			s = lf + 1;
+			continue;
+		}
 
 		unsigned char addr32[10];
 		addr32_store(addr32, (char*)s, lenSrc);
