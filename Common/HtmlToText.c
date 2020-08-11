@@ -2,6 +2,7 @@
 #include <ctype.h> // for isupper/tolower
 #include <sys/types.h> // for ssize_t
 
+#include "HtmlRefs.h"
 #include "Trim.h"
 
 #include "HtmlToText.h"
@@ -400,4 +401,5 @@ void htmlToText(char * const text, size_t * const len) {
 	removeSpaceBegin(text, len);
 	removeSpaceEnd(text, len);
 	trimLinebreaks(text, len);
+	decodeHtmlRefs((unsigned char*)text, len);
 }
