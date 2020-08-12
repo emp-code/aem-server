@@ -183,7 +183,7 @@ static void bracketsInQuotes(char *text) {
 	}
 }
 
-// Needs bracketsInQuotes, linebreaks to space
+// Needs bracketsInQuotes() and lfToSpace()
 // Replaces <a href="example"> with example
 static void processLinks(char *text, size_t *len) {
 	char *br1 = memmem(text, *len, "<a ", 3);
@@ -228,7 +228,7 @@ static void processLinks(char *text, size_t *len) {
 	}
 }
 
-// Needs bracketsInQuotes, linebreaks to space
+// Needs bracketsInQuotes() and lfToSpace()
 // Replaces <img src="example"> with example
 // TODO: Preserve title/alt/size
 static void processImages(char * const text, size_t * const len) {
