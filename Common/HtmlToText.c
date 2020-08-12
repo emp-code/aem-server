@@ -379,6 +379,7 @@ void htmlToText(char * const text, size_t * const len) {
 	processImages(text, len);
 	removeStyle(text, len);
 	removeHtml(text, len);
+	decodeHtmlRefs((unsigned char*)text, len);
 
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK, '\n');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE, '\'');
@@ -388,5 +389,4 @@ void htmlToText(char * const text, size_t * const len) {
 	removeSpaceBegin(text, len);
 	removeSpaceEnd(text, len);
 	trimLinebreaks(text, len);
-	decodeHtmlRefs((unsigned char*)text, len);
 }
