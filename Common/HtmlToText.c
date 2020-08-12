@@ -378,23 +378,6 @@ void htmlToText(char * const text, size_t * const len) {
 	removeStyle(text, len);
 	removeHtml(text, len);
 
-	// Just some common ones for now. Some may be written in caps, and/or without the semicolon. WP: List_of_XML_and_HTML_character_entity_references
-	filterText(text, len, "&amp;", 5, '&');
-	filterText(text, len, "&amp", 4, '&');
-	filterText(text, len, "&apos;", 6, '\'');
-	filterText(text, len, "&nbsp;", 6, ' ');
-	filterText(text, len, "&quot;", 6, '"');
-	filterText(text, len, "&quot", 5, '"');
-
-	filterText(text, len, "&gt;", 4, '>');
-	filterText(text, len, "&GT;", 4, '>');
-	filterText(text, len, "&lt;", 4, '<');
-	filterText(text, len, "&LT;", 4, '<');
-	filterText(text, len, "&gt", 3, '>');
-	filterText(text, len, "&GT", 3, '>');
-	filterText(text, len, "&lt", 3, '<');
-	filterText(text, len, "&LT", 3, '<');
-
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK, '\n');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE, '\'');
 	trimSpace(text, len);
