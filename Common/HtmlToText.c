@@ -9,6 +9,8 @@
 
 #define AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK 0x01
 #define AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE 0x02
+#define AEM_HTMLTOTEXT_PLACEHOLDER_GT 0x03
+#define AEM_HTMLTOTEXT_PLACEHOLDER_LT 0x04
 
 static void filterText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
 	while(1) {
@@ -107,13 +109,13 @@ static void bracketsInQuotes_single(const char * const br1, char ** const br2) {
 
 		char *c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		while (c != NULL) {
-			*c = '['; // TODO: &lt;
+			*c = AEM_HTMLTOTEXT_PLACEHOLDER_LT;
 			c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		}
 
 		c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		while (c != NULL) {
-			*c = ']'; // TODO: &gt;
+			*c = AEM_HTMLTOTEXT_PLACEHOLDER_GT;
 			c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		}
 
@@ -141,13 +143,13 @@ static void bracketsInQuotes_double(const char * const br1, char ** const br2) {
 
 		c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		while (c != NULL) {
-			*c = '['; // TODO: &lt;
+			*c = AEM_HTMLTOTEXT_PLACEHOLDER_LT;
 			c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		}
 
 		c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		while (c != NULL) {
-			*c = ']'; // TODO: &gt;
+			*c = AEM_HTMLTOTEXT_PLACEHOLDER_GT;
 			c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		}
 
@@ -159,7 +161,7 @@ static void bracketsInQuotes_double(const char * const br1, char ** const br2) {
 
 // 1. Look for double quotes
 // 2. Locate single quotes within double quotes, change them into a placeholder character
-// 3. Locate angle brackets, change them into square brackets (TODO: &lt; and &gt;)
+// 3. Locate angle brackets, change them into placeholders
 // 4. Look for single quotes
 // 5. Repeat step 3
 // 6. Convert single quotes to double quotes (src='abc' -> src="abc")
@@ -380,6 +382,8 @@ void htmlToText(char * const text, size_t * const len) {
 
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK, '\n');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE, '\'');
+	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_GT, '>');
+	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LT, '<');
 	trimSpace(text, len);
 	removeSpaceBegin(text, len);
 	removeSpaceEnd(text, len);
