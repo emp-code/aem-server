@@ -373,13 +373,14 @@ static void address_update(void) {
 static void message_upload(void) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	unsigned char msg[5 + lenDecrypted];
+	unsigned char *msg = malloc(5 + lenDecrypted);
 	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
 	memcpy(msg + 1, &ts, 4);
 	memcpy(msg + 5, decrypted, lenDecrypted);
 
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(upk, msg, 5 + lenDecrypted, &lenEnc);
+	free(msg);
 	if (enc == NULL) return;
 
 	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
