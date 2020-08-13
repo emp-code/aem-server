@@ -34,6 +34,7 @@
 
 #define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
 #define AEM_MAXLEN_DOMAIN 32
+#define AEM_MAXNUM_ATTACHMENTS 31
 
 #define AEM_PORT_MTA 25
 #define AEM_PORT_WEB 443

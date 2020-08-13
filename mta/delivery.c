@@ -61,7 +61,7 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 	const uint16_t cs16 = (email->tls_ciphersuite > UINT16_MAX || email->tls_ciphersuite < 0) ? 1 : email->tls_ciphersuite;
 
 	uint8_t infoBytes[8];
-	infoBytes[0] = (email->tls_version << 5) | email->attachments;
+	infoBytes[0] = (email->tls_version << 5) | (email->attachCount & 31);
 	infoBytes[1] = isupper(email->countryCode[0]) ? email->countryCode[0] - 'A' : 31;
 	infoBytes[2] = isupper(email->countryCode[1]) ? email->countryCode[1] - 'A' : 31;
 	infoBytes[3] = 0;
@@ -101,8 +101,8 @@ unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBo
 void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo *email) {
 	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1) return;
 
-	if (email->attachments > 31) email->attachments = 31;
-	if (email->tls_version > 7) email->tls_version = 7;
+	if (email->attachCount > 31) email->attachCount = 31;
+	if (email->tls_version >  7) email->tls_version =  7;
 
 	if (email->lenGreeting > 127) email->lenGreeting = 127;
 	if (email->lenRdns     > 127) email->lenRdns     = 127;
@@ -127,9 +127,10 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 			continue;
 		}
 
-		unsigned char * const box = makeExtMsg(msgBody, &lenMsgBody, email);
-		if (box == NULL || lenMsgBody < 1 || lenMsgBody % 16 != 0) {
-			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenMsgBody);
+		unsigned char *enc = makeExtMsg(msgBody, &lenMsgBody, email);
+		size_t lenEnc = lenMsgBody;
+		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
+			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			if (nextTo == NULL) break;
 			toStart = nextTo + 1;
 			continue;
@@ -137,19 +138,65 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 
 		// Deliver
 		unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
-		const uint16_t u = (lenMsgBody / 16) - AEM_MSG_MINBLOCKS;
-		memcpy(sockMsg, &u, 2);
-		memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+		memcpy(sockMsg, upk, crypto_box_PUBLICKEYBYTES);
 
 		const int stoSock = storageSocket(AEM_MTA_INSERT, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
-			if (send(stoSock, box, lenMsgBody, 0) != (ssize_t)lenMsgBody) syslog(LOG_ERR, "Failed sending to Storage");
-		}
+			uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+			if (send(stoSock, &u, 2, 0) != 2) {
+				syslog(LOG_ERR, "Failed sending to Storage (1)");
+				close(stoSock);
+				continue;
+			}
 
-		free(box);
-		close(stoSock);
+			if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
+				syslog(LOG_ERR, "Failed sending to Storage (2)");
+				close(stoSock);
+				continue;
+			}
+
+			unsigned char msgId[16];
+			memcpy(msgId, enc, 16);
+			free(enc);
+
+			// Store attachments
+			for (int i = 0; i < email->attachCount; i++) {
+				if (email->attachment[i] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
+
+				unsigned char *att = malloc(5 + email->attachSize[i]);
+				att[0] = msg_getPadAmount(5 + email->attachSize[i]) | 32;
+				memcpy(att + 1, &(email->timestamp), 4);
+				memcpy(att + 5, email->attachment[i], email->attachSize[i]);
+				memcpy(att + 6, msgId, 16);
+
+				enc = msg_encrypt(upk, att, 5 + email->attachSize[i], &lenEnc);
+				free(att);
+
+				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
+					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+					if (send(stoSock, &u, 2, 0) != 2) {
+						syslog(LOG_ERR, "Failed sending to Storage (3)");
+						close(stoSock);
+						continue;
+					}
+
+					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
+				} else syslog(LOG_ERR, "Failed msg_encrypt()");
+
+				if (enc != NULL) free(enc);
+			}
+
+			u = 0;
+			send(stoSock, &u, 2, 0);
+			close(stoSock);
+		}
 
 		if (nextTo == NULL) break;
 		toStart = nextTo + 1;
+	}
+
+	for (int i = 0; i < email->attachCount; i++) {
+		if (email->attachment[i] == NULL) break;
+		free(email->attachment[i]);
 	}
 }

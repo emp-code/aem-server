@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <syslog.h>
 
 #include <sodium.h>
 
@@ -103,7 +104,7 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
-static char *decodeMp(const char * const msg, size_t *outLen) {
+static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo * const email) {
 	char *out = NULL;
 	*outLen = 0;
 
@@ -171,23 +172,24 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 			else cte = "X";
 		} else cte = "X";
 
-		const char * const ct = strcasestr(begin, "\nContent-Type: ");
-		if (ct == NULL || ct > hend) {
-			searchBegin = begin;
-			continue;
-		}
+		const char *ct = strcasestr(begin, "\nContent-Type: ");
+		if (ct > hend) ct = NULL;
+
+		const char *fn = strcasestr(begin, "name=");
+		if (fn > hend) fn = NULL;
 
 		const char *boundEnd = strstr(hend + lenHend, bound[i]);
 		if (boundEnd == NULL) break;
 
-		if (strncasecmp(ct + 15, "text/", 5) == 0) {
-			const bool isHtml = (strncasecmp(ct + 20, "html", 4) == 0);
+		hend += lenHend;
+		size_t lenNew = boundEnd - hend;
 
-			hend += lenHend;
-			size_t lenNew = boundEnd - hend;
+		const bool isText = (ct != NULL) && (strncasecmp(ct + 15, "text/", 5) == 0);
+		const bool isHtml = (ct != NULL) && (strncasecmp(ct + 15, "text/html", 9) == 0);
 
-			char *charset = NULL;
-			size_t lenCs = 0;
+		char *charset = NULL;
+		size_t lenCs = 0;
+		if (isText) {
 			const char *cs = strcasestr(ct + 15, "charset=");
 			if (cs == NULL) cs = strcasestr(ct + 15, "harset =");
 			if (cs != NULL && cs < hend) {
@@ -198,55 +200,93 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 				charset = strndup(cs, lenCs);
 				if (charset == NULL) break;
 			}
+		}
 
-			char *new = NULL;
+		char *new = NULL;
 
-			if (*cte == 'Q') {
-				new = strndup(hend, lenNew);
-				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
-				decodeQuotedPrintable(new, &lenNew);
-			} else if (*cte == 'B') {
-				new = malloc(lenNew);
-				size_t lenNew2;
-				if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
-				lenNew = lenNew2;
-			} else {
-				new = strndup(hend, lenNew);
-				if (new == NULL) {if (charset != NULL) {free(charset);} break;}
+		if (*cte == 'Q') {
+			new = strndup(hend, lenNew);
+			if (new == NULL) {if (charset != NULL) {free(charset);} break;}
+			decodeQuotedPrintable(new, &lenNew);
+		} else if (*cte == 'B') {
+			new = malloc(lenNew);
+			size_t lenNew2;
+			if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+			lenNew = lenNew2;
+		} else {
+			new = strndup(hend, lenNew);
+			if (new == NULL) {if (charset != NULL) {free(charset);} break;}
+		}
+
+		// TODO: Support detecting charset if missing?
+		if (charset != NULL && !isUtf8(charset, lenCs)) {
+			char cs8[lenCs + 1];
+			memcpy(cs8, charset, lenCs);
+			cs8[lenCs] = '\0';
+
+			int lenUtf8;
+			char * const utf8 = toUtf8(new, lenNew, &lenUtf8, cs8);
+			if (utf8 != NULL) {
+				free(new);
+				new = utf8;
+				lenNew = (size_t)lenUtf8;
 			}
+		}
 
-			// TODO: Support detecting charset if missing?
-			if (charset != NULL && !isUtf8(charset, lenCs)) {
-				char cs8[lenCs + 1];
-				memcpy(cs8, charset, lenCs);
-				cs8[lenCs] = '\0';
+		if (charset != NULL) free(charset);
 
-				int lenUtf8;
-				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, cs8);
-				if (utf8 != NULL) {
-					free(new);
-					new = utf8;
-					lenNew = (size_t)lenUtf8;
+		if (fn == NULL) {
+			convertNbsp(new, &lenNew);
+			removeControlChars((unsigned char*)new, &lenNew);
+			if (isHtml) htmlToText(new, &lenNew);
+		}
+
+		if (fn == NULL) {
+			char * const out2 = realloc(out, *outLen + lenNew);
+			if (out2 == NULL) break;
+			out = out2;
+
+			memcpy(out + *outLen, new, lenNew);
+			*outLen += lenNew;
+		} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
+			fn += 5; // name=
+
+			size_t lenFn = 0;
+			if (*fn == '"') {
+				fn++;
+				char *fnEnd = memchr(fn, '"', hend - fn);
+				if (fnEnd != NULL) lenFn = fnEnd - fn;
+			} else if (*fn == '\'') {
+				fn++;
+				char *fnEnd = memchr(fn, '\'', hend - fn);
+				if (fnEnd != NULL) lenFn = fnEnd - fn;
+			} else {
+				for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
+					if (*fnEnd == ' ' || *fnEnd == '\n' || *fnEnd == ';') {
+						lenFn = fnEnd - fn;
+						break;
+					}
 				}
 			}
 
-			if (charset != NULL) free(charset);
+			if (lenFn > 256) lenFn = 256;
 
-			convertNbsp(new, &lenNew);
-			removeControlChars((unsigned char*)new, &lenNew);
+			if (lenFn > 0 && (lenFn + lenNew) <= 1048576) { // 1 MiB, TODO more exact
+				email->attachment[email->attachCount] = malloc(17 + lenFn + lenNew);
 
-			if (isHtml) htmlToText(new, &lenNew);
+				if (email->attachment[email->attachCount] != NULL) {
+					email->attachment[email->attachCount][0] = (lenFn - 1);
+					// 16 bytes reserved for MsgId
+					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
+					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
 
-			char * const out2 = realloc(out, *outLen + lenNew);
-			if (out2 == NULL) break;
-
-			out = out2;
-			memcpy(out + *outLen, new, lenNew);
-			*outLen += lenNew;
-
-			free(new);
+					email->attachSize[email->attachCount] = 17 + lenFn + lenNew;
+					(email->attachCount)++;
+				} else syslog(LOG_ERR, "Failed allocation");
+			}
 		}
 
+		free(new);
 		searchBegin = boundEnd;
 	}
 
@@ -255,7 +295,7 @@ static char *decodeMp(const char * const msg, size_t *outLen) {
 	return out;
 }
 
-void decodeMessage(char ** const msg, size_t * const lenMsg) {
+void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 	if (headersEnd == NULL) return;
 	headersEnd += 2;
@@ -266,7 +306,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg) {
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
 		size_t lenNew;
-		char * const new = decodeMp(*msg, &lenNew);
+		char * const new = decodeMp(*msg, &lenNew, email);
 
 		if (new != NULL) {
 			const size_t lenHeaders = headersEnd - *msg;

@@ -510,18 +510,21 @@ void takeConnections(void) {
 		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
 			if (clr[0] == AEM_MTA_INSERT) {
 				uint16_t sze;
-				memcpy(&sze, clr + 1, 2);
+				while(1) {
+					if (recv(sock, &sze, 2, MSG_WAITALL) != 2) {syslog(LOG_ERR, "MTA unclean end"); break;}
+					if (sze == 0) break;
 
-				unsigned char * const data = malloc((sze + AEM_MSG_MINBLOCKS) * 16);
-				if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+					unsigned char * const data = malloc((sze + AEM_MSG_MINBLOCKS) * 16);
+					if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 
-				if (recv(sock, data, (sze + AEM_MSG_MINBLOCKS) * 16, MSG_WAITALL) == (sze + AEM_MSG_MINBLOCKS) * 16) {
-					storage_write(clr + 3, data, sze);
-					saveStindex();
-				} else syslog(LOG_ERR, "Failed receiving data from MTA");
+					if (recv(sock, data, (sze + AEM_MSG_MINBLOCKS) * 16, MSG_WAITALL) == (sze + AEM_MSG_MINBLOCKS) * 16) {
+						storage_write(clr + 1, data, sze);
+						saveStindex();
+					} else syslog(LOG_ERR, "Failed receiving data from MTA");
 
-				free(data);
-			} else  syslog(LOG_ERR, "Invalid MTA command");
+					free(data);
+				}
+			} else syslog(LOG_ERR, "Invalid MTA command");
 		}
 
 		close(sock);

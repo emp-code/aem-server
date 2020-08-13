@@ -453,7 +453,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			convertLineDots(body, &lenBody);
 			unfoldHeaders(body, &lenBody);
 			decodeEncodedWord(body, &lenBody);
-			decodeMessage(&body, &lenBody);
+			decodeMessage(&body, &lenBody, &email);
 			trimSpace(body, &lenBody);
 			removeSpaceEnd(body, &lenBody);
 			trimLinebreaks(body, &lenBody);
