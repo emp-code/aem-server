@@ -437,7 +437,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				lenBody += bytes;
 
 				if (lenBody >= AEM_SMTP_MAX_SIZE_BODY) {bytes = 0; break;}
-				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) break;
+				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) {
+					lenBody -= 5;
+					break;
+				}
 			}
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
