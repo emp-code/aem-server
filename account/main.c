@@ -609,9 +609,7 @@ static int takeConnections(void) {
 
 			close(sockClient);
 			continue;
-		}
-
-		if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
+		} else if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
 			switch(req[0]) {
 				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;
 				case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sockClient, req + 1, true);  break;
