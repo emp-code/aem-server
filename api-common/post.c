@@ -152,45 +152,39 @@ static void shortResponse(const unsigned char * const data, const int len) {
 static void account_browse(void) {
 	if (lenDecrypted != 1) return;
 
-	memcpy(response, keepAlive?
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131240\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store,      no-transform\r\n"
-		"Connection: Keep-Alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-		"\r\n"
-	:
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-		"Content-Length: 131240\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: close\r\n"
-		"Padding-Ignore: abcdefghijklmnop\r\n"
-		"\r\n"
-	, 286);
-
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char clr[131200];
-	const ssize_t rbytes = recv(sock, clr, 131200, MSG_WAITALL);
+	unsigned char *clr = malloc(1048576);
+	const ssize_t lenClr = recv(sock, clr, 1048576, MSG_WAITALL);
 	close(sock);
 
-	if (rbytes != 131200) {
-		syslog(LOG_WARNING, "Failed receiving data from Account");
-		return;
-	}
+	if (lenClr < 10) {free(clr); return;}
 
-	randombytes_buf(response + 286, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + 286 + crypto_box_NONCEBYTES, clr, 131200, response + 286, upk, ssk) == 0)
-		lenResponse = 286 + crypto_box_NONCEBYTES + crypto_box_MACBYTES + 131200;
+	sprintf(response,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+		"Content-Length: %zu\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"%s"
+		"\r\n",
+	lenClr + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
+		"Connection: Keep-Alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
+	:
+		"Connection: close\r\n"
+	);
+
+	const size_t lenHead = strlen(response);
+
+	randombytes_buf(response + lenHead, crypto_box_NONCEBYTES);
+	if (crypto_box_easy(response + lenHead + crypto_box_NONCEBYTES, clr, lenClr, response + lenHead, upk, ssk) == 0)
+		lenResponse = lenHead + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
+
+	free(clr);
 }
 
 static void account_create(void) {
