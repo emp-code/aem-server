@@ -359,7 +359,6 @@ static int getAddrDomain(char * const target, const unsigned char * const addr, 
 
 	return (lenDom >= 4) ? 0 : -1; // a.bc
 }
-
 unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const int userLevel,
 	const unsigned char * const replyId,  const size_t lenReplyId,
 	const unsigned char * const addrFrom, const size_t lenAddrFrom,
@@ -383,10 +382,10 @@ unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const
 	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
 
 	if (memmem(buf, len, "STARTTLS", 8) != NULL) {
-		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_STARTTLS;}
+		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_STLS;}
 
 		len = smtp_recv(sock, buf, 1024);
-		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STARTTLS;}
+		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STLS;}
 
 		char toDomain[lenAddrTo];
 		if (getAddrDomain(toDomain, addrTo, lenAddrTo) != 0) {close(sock); return AEM_SENDMAIL_ERR_MISC;}
