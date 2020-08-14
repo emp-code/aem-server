@@ -134,7 +134,7 @@ int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, 
 	if (mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/")) {syslog(LOG_ERR, "ssl-certs"); return -1;}
 	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) return -1;
 
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
 	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
@@ -202,27 +202,9 @@ static void genMsgId(char * const out, const uint32_t ts, const unsigned char * 
 	sodium_bin2base64(out, 65, hash, 48, sodium_base64_VARIANT_URLSAFE);
 }
 
-static char *createEmail(const unsigned char * const upk, const int userLevel, const unsigned char *replyId, const size_t lenReplyId, const unsigned char * const addrFrom, const size_t lenAddrFrom, const unsigned char * const addrTo, const size_t lenAddrTo, const unsigned char * const title, const size_t lenTitle, const unsigned char * const body, const size_t lenBody) {
-	unsigned char body2[lenBody + 2000];
-
-	size_t lenBody2 = 0;
-	for (size_t copied = 0; copied < lenBody; copied++) {
-		if (body[copied] == '\n' && (copied < 1 || body[copied - 1] != '\r')) {
-			body2[lenBody2] = '\r';
-			lenBody2++;
-		}
-
-		body2[lenBody2] = body[copied];
-		lenBody2++;
-		if (lenBody2 > lenBody + 1950) return NULL;
-	}
-
-	body2[lenBody2] = '\r';
-	body2[lenBody2 + 1] = '\n';
-	lenBody2 += 2;
-
+static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
 	unsigned char bodyHash[32];
-	if (crypto_hash_sha256(bodyHash, body2, lenBody2) != 0) return NULL;
+	if (crypto_hash_sha256(bodyHash, (unsigned char*)(email->body), strlen(email->body)) != 0) return NULL;
 
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
@@ -239,25 +221,25 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
-	char *email = sodium_malloc(2000 + lenTitle + lenBody2);
-	if (email == NULL) return NULL;
-	bzero(email, 2000 + lenTitle + lenBody2);
+	char *final = sodium_malloc(2000 + strlen(email->body));
+	if (final == NULL) return NULL;
+	bzero(final, 2000 + strlen(email->body));
 
 	char ref[1000];
-	if (replyId != NULL && lenReplyId > 5) { // a@b.cd
+	if (strlen(email->replyId) > 5) { // a@b.cd
 		sprintf(ref,
-			"References: <%.*s>\r\n"
-			"In-Reply-To: <%.*s>\r\n"
-		, (int)lenReplyId, replyId, (int)lenReplyId, replyId);
+			"References: <%s>\r\n"
+			"In-Reply-To: <%s>\r\n"
+		, email->replyId, email->replyId);
 	} else ref[0] = '\0';
 
-	sprintf(email,
+	sprintf(final,
 		"%s" // Reply headers
-		"From: %.*s@%.*s\r\n"
+		"From: %s@%.*s\r\n"
 		"Date: %s\r\n"
 		"Message-ID: <%s@%.*s>\r\n"
-		"Subject: %.*s\r\n"
-		"To: %.*s\r\n"
+		"Subject: %s\r\n"
+		"To: %s\r\n"
 		"DKIM-Signature:"
 			" v=1;"
 			" a=rsa-sha256;" //ed25519-sha256
@@ -272,11 +254,11 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 			" bh=%s;"
 			" b="
 	, ref
-	, (int)lenAddrFrom, addrFrom, (int)lenDomain, domain
+	, email->addrFrom, (int)lenDomain, domain
 	, rfctime
 	, msgId, (int)lenDomain, domain
-	, (int)lenTitle, title
-	, (int)lenAddrTo, addrTo
+	, email->subject
+	, email->addrTo
 	, (int)lenDomain, domain //d=
 	, (int)lenDomain, domain //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
@@ -286,11 +268,11 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	);
 
 	unsigned char headHash[32];
-	if (crypto_hash_sha256(headHash, (unsigned char*)email, strlen(email)) != 0) {sodium_free(email); return NULL;}
+	if (crypto_hash_sha256(headHash, (unsigned char*)final, strlen(final)) != 0) {sodium_free(final); return NULL;}
 
 // RSA
 	char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)];
-	if (rsa_sign_b64(headHash, sigB64, (userLevel == AEM_USERLEVEL_MAX)) != 0) {sodium_free(email); return NULL;}
+	if (rsa_sign_b64(headHash, sigB64, (userLevel == AEM_USERLEVEL_MAX)) != 0) {sodium_free(final); return NULL;}
 
 // EdDSA
 /*
@@ -301,16 +283,15 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL), sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
 */
 
-	strcpy(email + strlen(email), sigB64);
-	const size_t lenMsg = strlen(email) + 2;
-	memcpy(email + strlen(email), "\r\n", 2);
-	char *dkim = strstr(email, "\nDKIM-Signature:");
-	memmove(email + strlen(email), email, dkim - email); // Move headers after dkim-sig
-	memmove(email, dkim + 1, strlen(dkim + 1)); // Move everything back to the beginning
+	strcpy(final + strlen(final), sigB64);
+	const size_t lenMsg = strlen(final) + 2;
+	memcpy(final + strlen(final), "\r\n", 2);
+	char *dkim = strstr(final, "\nDKIM-Signature:");
+	memmove(final + strlen(final), final, dkim - final); // Move headers after dkim-sig
+	memmove(final, dkim + 1, strlen(dkim + 1)); // Move everything back to the beginning
 
-	sprintf(email + lenMsg, "\r\n%.*s\r\n.\r\n", (int)lenBody2, body2);
-
-	return email;
+	sprintf(final + lenMsg, "\r\n%s\r\n.\r\n", email->body);
+	return final;
 }
 
 static int smtp_recv(const int sock, char * const buf, const size_t len) {
@@ -346,28 +327,9 @@ static void closeTls(const int sock) {
 	close(sock);
 }
 
-static int getAddrDomain(char * const target, const unsigned char * const addr, const size_t lenAddr) {
-	if (target == NULL || addr == NULL || lenAddr < 6) return -1; // x@a.bc
-
-	const unsigned char *dom = memchr(addr + 1, '@', lenAddr - 1);
-	if (dom == NULL) return -1;
-	dom++;
-
-	const size_t lenDom = (addr + lenAddr) - dom;
-	memcpy(target, dom, lenDom);
-	target[lenDom] = '\0';
-
-	return (lenDom >= 4) ? 0 : -1; // a.bc
-}
-unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const int userLevel,
-	const unsigned char * const replyId,  const size_t lenReplyId,
-	const unsigned char * const addrFrom, const size_t lenAddrFrom,
-	const unsigned char * const addrTo,   const size_t lenAddrTo,
-	const unsigned char * const title,    const size_t lenTitle,
-	const unsigned char * const body,     const size_t lenBody
-) {
-	int sock = makeSocket(ip);
-	if (sock < 1) return AEM_SENDMAIL_ERR_MISC;
+unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
+	int sock = makeSocket(email->ip);
+	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_SENDMAIL_ERR_MISC;}
 	useTls = false;
 
 	char greeting[256];
@@ -387,23 +349,20 @@ unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const
 		len = smtp_recv(sock, buf, 1024);
 		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STLS;}
 
-		char toDomain[lenAddrTo];
-		if (getAddrDomain(toDomain, addrTo, lenAddrTo) != 0) {close(sock); return AEM_SENDMAIL_ERR_MISC;}
-		mbedtls_ssl_set_hostname(&ssl, toDomain);
-
+		mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
 		mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", ret);
+				syslog(LOG_WARNING, "SendMail: Handshake failed: %d", ret);
 				closeTls(sock);
 				return AEM_SENDMAIL_ERR_MISC;
 			}
 		}
 
 		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_SENDMAIL_ERR_MISC;}
+		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); /*closeTls(sock); return AEM_SENDMAIL_ERR_MISC;*/}
 
 		useTls = true;
 
@@ -418,13 +377,13 @@ unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const
 	}
 
 	// From
-	sprintf(buf, "MAIL FROM: <%.*s@%.*s>\r\n", (int)lenAddrFrom, addrFrom, (int)lenDomain, domain);
+	sprintf(buf, "MAIL FROM: <%s@%.*s>\r\n", email->addrFrom, (int)lenDomain, domain);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_MAIL;}
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_MAIL;} 
 
 	// To
-	sprintf(buf, "RCPT TO: <%.*s>\r\n", (int)lenAddrTo, addrTo);
+	sprintf(buf, "RCPT TO: <%s>\r\n", email->addrTo);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_RCPT;}
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_RCPT;} 
@@ -434,7 +393,7 @@ unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const
 	len = smtp_recv(sock, buf, 128);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
-	char *msg = createEmail(upk, userLevel, replyId, lenReplyId, addrFrom, lenAddrFrom, addrTo, lenAddrTo, title, lenTitle, body, lenBody);
+	char *msg = createEmail(upk, userLevel, email);
 	if (msg == NULL) {closeTls(sock); return AEM_SENDMAIL_ERR_MISC;}
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);

@@ -503,75 +503,77 @@ static int getAddr32(unsigned char target[10], const char * const src, const siz
 	return 0;
 }
 
+static const unsigned char *cpyEmail(const unsigned char * const src, const size_t lenSrc, char * const target, const size_t min) {
+	const unsigned char * const lf = memchr(src, '\n', lenSrc);
+	if (lf == NULL) return NULL;
+
+	size_t len = lf - src;
+	if (len < min || len > 255) return NULL;
+
+	memcpy(target, src, len);
+	target[len] = '\0';
+	return src + len + 1;
+}
+
+static bool addrOwned(const char * const addr) {
+	unsigned char addrFrom32[10];
+	bool fromShield = false;
+	if (getAddr32(addrFrom32, addr, strlen(addr), &fromShield) != 0) return false;
+	return addr32OwnedByPubkey(upk, addrFrom32, fromShield);
+}
+
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
 	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
 
+	struct outEmail email;
+
 	// Address From
-	unsigned char *sep = memchr(decrypted + 1, '\n', lenDecrypted - 1);
-	if (sep == NULL) return;
-	const unsigned char * const addrFrom = decrypted + 1;
-	const size_t lenAddrFrom = sep - addrFrom;
-	if (lenAddrFrom < 1) return;
-	unsigned char addrFrom32[10];
-	bool fromShield = false;
-	if (getAddr32(addrFrom32, (char*)addrFrom, lenAddrFrom, &fromShield) != 0) return;
-	if (!addr32OwnedByPubkey(upk, addrFrom32, fromShield)) return;
+	const unsigned char *p = decrypted + 1;
+	const unsigned char * const end = decrypted + lenDecrypted;
+	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL/* || !addrOwned(email.addrFrom)*/) return;
+	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return;
+	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
+	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
 
-	// Address To
-	const unsigned char * const addrTo = sep + 1;
-	sep = memchr(addrTo, '\n', (decrypted + lenDecrypted) - addrTo);
-	if (sep == NULL) return;
-	const size_t lenAddrTo = sep - addrTo;
-	if (lenAddrTo < 6) return; //a@b.cd
+	// MxDomain
+	char * const mxDomain = strchr(email.addrTo + 1, '@');
+	if (mxDomain == NULL || strlen(mxDomain) < 4) return; // a.bc
+	strcpy(email.mxDomain, mxDomain + 1);
 
-	// ReplyID
-	const unsigned char *replyId = sep + 1;
-	sep = memchr(replyId, '\n', (decrypted + lenDecrypted) - replyId);
-	if (sep == NULL) return;
-	size_t lenReplyId = sep - replyId;
-	if (lenReplyId < 6) {
-		lenReplyId = 0;
-		replyId = NULL;
-	}
-
-	// Title
-	const unsigned char * const title = sep + 1;
-	sep = memchr(title, '\n', (decrypted + lenDecrypted) - title);
-	if (sep == NULL) return;
-	const size_t lenTitle = sep - title;
-	if (lenTitle < 3) return;
-
-	// Body
-	const unsigned char * const body = sep + 1;
-	const size_t lenBody = (decrypted + lenDecrypted) - body;
-	if (lenBody < 1) return;
-
-	// ToDomain
-	const unsigned char *toDomain = memchr(addrTo + 1, '@', lenAddrTo - 1);
-	if (toDomain == NULL) return;
-	toDomain++;
-	const size_t lenToDomain = (addrTo + lenAddrTo) - toDomain;
-	if (lenToDomain < 4) return; // a.bc
-
-	const int sock = enquirySocket(AEM_DNS_LOOKUP, toDomain, lenToDomain);
+	const int sock = enquirySocket(AEM_DNS_LOOKUP, (unsigned char*)(email.mxDomain), strlen(email.mxDomain));
 	if (sock < 0) return;
 
-	uint32_t ip = 0;
-	recv(sock, &ip, 4, 0);
+	email.ip = 0;
+	recv(sock, &(email.ip), 4, 0);
 	close(sock);
-	if (ip == 0) {
-		syslog(LOG_ERR, "DNS lookup failed");
+	if (email.ip == 0) {
+		unsigned char x[32]; // Errcode + max 31 bytes
+		x[0] = UINT8_MAX;
+		shortResponse(x, 1);
 		return;
 	}
 
-	const unsigned char ret = sendMail(ip, upk, userLevel,
-		replyId,  lenReplyId,
-		addrFrom, lenAddrFrom,
-		addrTo,   lenAddrTo,
-		title,    lenTitle,
-		body,     lenBody
-	);
+	// Body
+	const size_t lenBody = end - p;
+	if (lenBody < 15) return;
+	email.body = malloc(lenBody + 1000);
+
+	size_t lenEb = 0;
+	for (size_t copied = 0; copied < lenBody; copied++) {
+		if (p[copied] == '\n' && (copied < 1 || p[copied - 1] != '\r')) {
+			email.body[lenEb] = '\r';
+			lenEb++;
+		}
+
+		email.body[lenEb] = p[copied];
+		lenEb++;
+		if (lenEb > lenBody + 950) {free(email.body); return;}
+	}
+	memcpy(email.body + lenEb, "\r\n\0", 3);
+
+	const unsigned char ret = sendMail(upk, userLevel, &email);
+	free(email.body);
 
 	if (ret == 0) {
 		shortResponse(NULL, AEM_API_NOCONTENT);

@@ -18,6 +18,16 @@ enum aem_sendmail_errors {
 	AEM_SENDMAIL_ERR_MISC
 };
 
+struct outEmail {
+	uint32_t ip;
+	char mxDomain[256];
+	char replyId[256];
+	char addrFrom[256];
+	char addrTo[256];
+	char subject[256];
+	char *body;
+};
+
 void setDkimAdm(const unsigned char * const seed);
 void setDkimUsr(const unsigned char * const seed);
 void setMsgIdKeys(const unsigned char * const src);
@@ -26,12 +36,6 @@ void sm_clearKeys();
 int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
 void tlsFree_sendmail(void);
 
-unsigned char sendMail(const uint32_t ip, const unsigned char * const upk, const int userLevel,
-	const unsigned char * const replyId,  const size_t lenReplyId,
-	const unsigned char * const addrFrom, const size_t lenAddrFrom,
-	const unsigned char * const addrTo,   const size_t lenAddrTo,
-	const unsigned char * const title,    const size_t lenTitle,
-	const unsigned char * const body,     const size_t lenBody
-);
+unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email);
 
 #endif
