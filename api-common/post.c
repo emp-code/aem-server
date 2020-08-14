@@ -163,7 +163,7 @@ static void account_browse(void) {
 
 	if (lenClr < 10) {free(clr); return;}
 
-	sprintf(response,
+	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
@@ -180,11 +180,11 @@ static void account_browse(void) {
 		"Connection: close\r\n"
 	);
 
-	const size_t lenHead = strlen(response);
+	const size_t lenHeaders = strlen((char*)response);
 
-	randombytes_buf(response + lenHead, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHead + crypto_box_NONCEBYTES, clr, lenClr, response + lenHead, upk, ssk) == 0)
-		lenResponse = lenHead + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
+	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) == 0)
+		lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
 
 	free(clr);
 }
@@ -451,7 +451,7 @@ static void message_browse(void) {
 		"%s"
 		"\r\n"
 	, crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr, kaStr);
-	const size_t lenHeaders = strlen(response);
+	const size_t lenHeaders = strlen((char*)response);
 
 	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
 	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) {sodium_free(clr); return;}
