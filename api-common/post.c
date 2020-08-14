@@ -156,6 +156,8 @@ static void account_browse(void) {
 	if (sock < 0) return;
 
 	unsigned char *clr = malloc(1048576);
+	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
+
 	const ssize_t lenClr = recv(sock, clr, 1048576, MSG_WAITALL);
 	close(sock);
 
