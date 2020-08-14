@@ -245,7 +245,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 			" a=rsa-sha256;" //ed25519-sha256
 			" c=simple/simple;"
 			" d=%.*s;"
-			" i=@%.*s;"
+			" i=%s@%.*s;"
 			" q=dns/txt;"
 			" s=%s;"
 			" t=%u;"
@@ -260,7 +260,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	, email->subject
 	, email->addrTo
 	, (int)lenDomain, domain //d=
-	, (int)lenDomain, domain //i=
+	, email->addrFrom, (int)lenDomain, domain //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
 	, ts // t=
 	, ts + 86400 // expire after a day
