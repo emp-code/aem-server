@@ -234,7 +234,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	} else ref[0] = '\0';
 
 	sprintf(final,
-		"%s" // Reply headers
+		"%s" // References + In-Reply-To
 		"From: %s@%.*s\r\n"
 		"Date: %s\r\n"
 		"Message-ID: <%s@%.*s>\r\n"
@@ -250,7 +250,21 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 			" s=%s;"
 			" t=%u;"
 			" x=%u;"
-			" h=References:In-Reply-To:From:Date:Message-ID:Subject:To:Cc:Reply-To:Sender:Mime-Version:Content-Type;"
+			" h="
+				// Headers in use
+				"References:"
+				"In-Reply-To:"
+				"From:"
+				"Date:"
+				"Message-ID:"
+				"Subject:"
+				"To:"
+				// Unused headers
+				"Cc:"
+				"Content-Type:"
+				"Mime-Version:"
+				"Reply-To:"
+				"Sender;"
 			" bh=%s;"
 			" b="
 	, ref
@@ -263,7 +277,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	, email->addrFrom, (int)lenDomain, domain //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
 	, ts // t=
-	, ts + 86400 // expire after a day
+	, ts + 86400 // x=; expire after a day
 	, bodyHashB64
 	);
 
