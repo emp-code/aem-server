@@ -30,7 +30,6 @@ struct outEmail {
 
 struct outInfo {
 	uint32_t timestamp;
-	uint16_t ms;
 	int tls_ciphersuite;
 	uint8_t tls_version;
 	uint8_t tls_info;
