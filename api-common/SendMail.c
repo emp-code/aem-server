@@ -341,14 +341,14 @@ static void closeTls(const int sock) {
 	close(sock);
 }
 
-unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
+unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
 	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_SENDMAIL_ERR_MISC;}
 	useTls = false;
 
-	char greeting[256];
-	const ssize_t lenGreeting = smtp_recv(sock, greeting, 256);
-	if (lenGreeting < 4 || memcmp(greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
+	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
+	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
+	info->greeting[lenGreeting - 2] = '\0'; // Remove \r\n
 
 	char buf[1024];
 	sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
@@ -374,6 +374,9 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 				return AEM_SENDMAIL_ERR_MISC;
 			}
 		}
+
+		info->tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(&ssl));
+		info->tls_version = getTlsVersion(&ssl);
 
 		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
 		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); /*closeTls(sock); return AEM_SENDMAIL_ERR_MISC;*/}

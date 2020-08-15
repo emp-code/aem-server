@@ -389,11 +389,7 @@ static void message_upload(void) {
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
 	close(sock);
-
-	if (sentBytes != (ssize_t)lenEnc) {
-		syslog(LOG_ERR, "Failed communicating with Storage");
-		return;
-	}
+	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
@@ -522,11 +518,73 @@ static bool addrOwned(const char * const addr) {
 	return addr32OwnedByPubkey(upk, addrFrom32, fromShield);
 }
 
+static void deliveryReport(const struct outEmail * const email, const struct outInfo * const info) {
+	const size_t lenSubject  = strlen(email->subject);
+	const size_t lenAddressT = strlen(email->addrTo);
+	const size_t lenAddressF = strlen(email->addrFrom);
+	const size_t lenMxDomain = strlen(email->mxDomain);
+	const size_t lenGreeting = strlen(info->greeting);
+	const size_t lenBody     = strlen(email->body);
+
+	const size_t lenContent = 18 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
+	unsigned char * const content = sodium_malloc(lenContent);
+
+	const uint16_t cs16 = (info->tls_ciphersuite > UINT16_MAX || info->tls_ciphersuite < 0) ? 1 : info->tls_ciphersuite;
+
+	content[0] = msg_getPadAmount(lenContent) | 48; // 48=OutMsg
+	memcpy(content + 1, &(info->timestamp), 4);
+	content[5] = lenSubject;
+
+	memcpy(content + 6, &(email->ip), 4);
+	memcpy(content + 10, &cs16, 2);
+	content[12] = ((info->tls_version & 7) << 5) | 0 /*attachments*/;
+	content[13] = info->tls_info;
+	content[14] = lenAddressT;
+	content[15] = lenAddressF;
+	content[16] = lenMxDomain;
+	content[17] = lenGreeting;
+
+	size_t offset = 18;
+	memcpy(content + offset, email->addrTo,   lenAddressT); offset += lenAddressT;
+	memcpy(content + offset, email->addrFrom, lenAddressF); offset += lenAddressF;
+	memcpy(content + offset, email->mxDomain, lenMxDomain); offset += lenMxDomain;
+	memcpy(content + offset, info->greeting,  lenGreeting); offset += lenGreeting;
+	memcpy(content + offset, email->subject,  lenSubject);  offset += lenSubject;
+	memcpy(content + offset, email->body,     lenBody);
+
+	size_t lenEnc;
+	unsigned char * const enc = msg_encrypt(upk, content, lenContent, &lenEnc);
+	sodium_free(content);
+	if (enc == NULL) {
+		syslog(LOG_ERR, "Failed creating encrypted message");
+		return;
+	}
+
+	// Deliver
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+
+	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) {free(enc); return;}
+
+	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	free(enc);
+	close(sock);
+	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
+}
+
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
 	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
 
 	struct outEmail email;
+	bzero(&email, sizeof(email));
+
+	struct outInfo info;
+	bzero(&info, sizeof(info));
+	info.timestamp = (uint32_t)time(NULL);
 
 	// Address From
 	const unsigned char *p = decrypted + 1;
@@ -572,8 +630,8 @@ static void message_create_ext(void) {
 	}
 	memcpy(email.body + lenEb, "\r\n\0", 3);
 
-	const unsigned char ret = sendMail(upk, userLevel, &email);
-	free(email.body);
+	const unsigned char ret = sendMail(upk, userLevel, &email, &info);
+	deliveryReport(&email, &info);
 
 	if (ret == 0) {
 		shortResponse(NULL, AEM_API_NOCONTENT);
@@ -582,6 +640,8 @@ static void message_create_ext(void) {
 		x[0] = ret;
 		shortResponse(x, 1);
 	}
+
+	free(email.body);
 }
 
 static void message_create_int(void) {
