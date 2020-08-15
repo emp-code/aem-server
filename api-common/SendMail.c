@@ -350,17 +350,19 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
 	info->greeting[lenGreeting - 2] = '\0'; // Remove \r\n
 
-	char buf[1024];
+	char buf[513];
+
 	sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
 
-	ssize_t len = smtp_recv(sock, buf, 1024);
+	bzero(buf, 513);
+	ssize_t len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
 
-	if (memmem(buf, len, "STARTTLS", 8) != NULL) {
+	if (strcasestr(buf, "STARTTLS") != NULL) {
 		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_STLS;}
 
-		len = smtp_recv(sock, buf, 1024);
+		len = smtp_recv(sock, buf, 512);
 		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STLS;}
 
 		mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
@@ -386,7 +388,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 		sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
 		if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
 
-		len = smtp_recv(sock, buf, 1024);
+		len = smtp_recv(sock, buf, 512);
 		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
 	} else {
 		closeTls(sock);
@@ -396,18 +398,18 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	// From
 	sprintf(buf, "MAIL FROM: <%s@%.*s>\r\n", email->addrFrom, (int)lenDomain, domain);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_MAIL;}
-	len = smtp_recv(sock, buf, 128);
+	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_MAIL;} 
 
 	// To
 	sprintf(buf, "RCPT TO: <%s>\r\n", email->addrTo);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_RCPT;}
-	len = smtp_recv(sock, buf, 128);
+	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_RCPT;} 
 
 	// Data
 	if (smtp_send(sock, "DATA\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_DATA;}
-	len = smtp_recv(sock, buf, 128);
+	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
 	char *msg = createEmail(upk, userLevel, email);
@@ -415,12 +417,12 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
 	sodium_free(msg);
 
-	len = smtp_recv(sock, buf, 128);
+	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_BODY;}
 
 	// Quit
 	if (smtp_send(sock, "QUIT\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_QUIT;}
-	len = smtp_recv(sock, buf, 128);
+	len = smtp_recv(sock, buf, 512);
 	closeTls(sock);
 
 	return (len > 3 || memcmp(buf, "221 ", 4) == 0) ? 0 : AEM_SENDMAIL_ERR_RECV_QUIT;
