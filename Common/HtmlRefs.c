@@ -125,7 +125,7 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 			lenRef++; // Include semicolon
 		} else { // Named reference
 			lenRef = strspn((char*)c + 1, "12345678ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz"); // All alphanumerics except '0' and '9' occur in names
-			if (lenRef < 2) break;
+			if (lenRef < 2) {c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + lenRef)); continue;} // Invalid
 			if (c[lenRef + 1] == ';') lenRef++;
 
 			unsigned char ref[lenRef + 1];
@@ -160,8 +160,8 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 				c = memchr(text + offset, '&', *lenText - offset);
 			} else {
 				// Not supported, UTF-8 is larger than encoded form. Only &nGt; and &nLt (much greater/lesser than with vertical line).
-				c = memchr(c + lenRef, '&', (text + *lenText) - (c + lenRef));
+				c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + lenRef));
 			}
-		} else c = memchr(c + 1, '&', (text + *lenText) - (c + 1));
+		} else c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + lenRef));
 	}
 }
