@@ -386,6 +386,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 						free(utf8);
 						*msg = new;
 					}
+					*lenMsg += (lenUtf8 - lenOld);
 				}
 
 				headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
