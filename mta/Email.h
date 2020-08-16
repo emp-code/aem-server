@@ -1,6 +1,9 @@
 #ifndef AEM_EMAIL_H
 #define AEM_EMAIL_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "../Global.h"
 
 struct emailInfo {
