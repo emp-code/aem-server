@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -60,7 +61,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else if (type == 'B' || type == 'b') {
 			unsigned char * const dec = malloc(lenEwText);
 			size_t lenDec;
-			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, "\n ", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
+			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
 
 			memcpy(ewText, dec, lenDec);
 			lenEwText = lenDec;
@@ -85,6 +86,21 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	}
 }
 
+int prepareHeaders(char * const data, size_t * const lenData) {
+	const char *headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
+	const char * const headersEnd2 = memmem(data, *lenData, "\n\n", 2);
+	if (headersEnd2 != NULL && headersEnd2 < headersEnd) headersEnd = headersEnd2 + 2; else headersEnd += 4;
+	if (headersEnd == NULL) return -1;
+
+	size_t lenHeaders = headersEnd - data;
+	const size_t lenHeaders_original = lenHeaders;
+	removeControlChars((unsigned char*)data, &lenHeaders);
+
+	memmove(data + lenHeaders, data + lenHeaders_original, (data + *lenData) - (data + lenHeaders_original));
+	*lenData -= (lenHeaders_original - lenHeaders);
+	return 0;
+}
+
 void unfoldHeaders(char * const data, size_t * const lenData) {
 	const char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
 	if (headersEnd == NULL) return;
@@ -104,53 +120,22 @@ void unfoldHeaders(char * const data, size_t * const lenData) {
 	}
 }
 
-static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo * const email) {
+static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo * const email, char * const firstBound) {
 	char *out = NULL;
 	*outLen = 0;
 
-	int boundCount = 0;
-	const char *b = strcasestr(msg, "Content-Type: multipart/");
-	if (b == NULL) return NULL;
-
-	while (1) {
-		boundCount++;
-		b = strcasestr(b + 24, "Content-Type: multipart/");
-		if (b == NULL) break;
-	}
-
-	char *bound[boundCount];
-	b = strcasestr(msg, "Content-Type: multipart/");
-
-	for (int i = 0; i < boundCount; i++) {
-		b = strcasestr(b, "boundary=");
-		if (b == NULL) {boundCount = i; break;}
-		b += 9;
-		if (*b == '"') b++;
-
-		const size_t len = strcspn(b, "\" \r\n");
-
-		bound[i] = malloc(len + 3);
-		if (bound[i] == NULL) {
-			for (int j = 0; j < i - 1; j++) free(bound[j]);
-			return NULL;
-		}
-
-		memcpy(bound[i], "--", 2);
-		memcpy(bound[i] + 2, b, len);
-		bound[i][len + 2] = '\0';
-
-		b = strcasestr(b + 24, "Content-Type: multipart/");
-		if (b == NULL) break;
-	}
+	int boundCount = 1;
+	char *bound[50];
+	bound[0] = firstBound;
 
 	const char *searchBegin = msg;
-	for (int i = 0; i < boundCount;) {
+	for (int i = 0; i < ((boundCount > 50) ? 50 : boundCount);) {
 		const char *begin = strstr(searchBegin, bound[i]);
 		if (begin == NULL) break;
 
 		begin += strlen(bound[i]);
 
-		if (strncmp(begin, "--\n", 3) == 0) {
+		if (begin[0] == '-' && begin[1] == '-' && (begin[2] == '\r' || begin[2] == '\n')) {
 			searchBegin = msg;
 			i++;
 			continue;
@@ -165,15 +150,23 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 		} else lenHend = 4;
 		if (hend == NULL) break;
 
-		const char *cte = strcasestr(begin, "\nContent-Transfer-Encoding: ");
+		const char *cte = strcasestr(begin, "\nContent-Transfer-Encoding:");
 		if (cte != NULL && cte < hend) {
-			if (strncasecmp(cte + 28, "quoted-printable", 16) == 0) cte = "Q";
-			else if (strncasecmp(cte + 28, "base64", 6) == 0) cte = "B";
+			while(1) {if (isspace(cte[27])) cte++; else break;}
+			if (cte[27] == '\0') break;
+
+			if (strncasecmp(cte + 27, "quoted-printable", 16) == 0) cte = "Q";
+			else if (strncasecmp(cte + 27, "base64", 6) == 0) cte = "B";
 			else cte = "X";
 		} else cte = "X";
 
-		const char *ct = strcasestr(begin, "\nContent-Type: ");
-		if (ct > hend) ct = NULL;
+		const char *ct = strcasestr(begin, "\nContent-Type:");
+		if (ct > hend) {
+			ct = NULL;
+		} else if (ct != NULL) {
+			while(1) {if (isspace(ct[14])) ct++; else break;}
+			if (ct[14] == '\0') break;
+		}
 
 		const char *fn = strcasestr(begin, "name=");
 		if (fn > hend) fn = NULL;
@@ -184,15 +177,43 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 		hend += lenHend;
 		size_t lenNew = boundEnd - hend;
 
-		const bool isText = (ct != NULL) && (strncasecmp(ct + 15, "text/", 5) == 0);
-		const bool isHtml = (ct != NULL) && (strncasecmp(ct + 15, "text/html", 9) == 0);
-		const bool ignore = (ct != NULL) && (strncasecmp(ct + 15, "multipart", 9) == 0);
+		const bool isText = (ct != NULL) && (strncasecmp(ct + 14, "text/", 5) == 0);
+		const bool isHtml = (ct != NULL) && (strncasecmp(ct + 14, "text/html", 9) == 0);
+		const bool ignore = (ct != NULL) && (strncasecmp(ct + 14, "multipart", 9) == 0);
+
+		if (ignore) {
+			char *newBegin = strcasestr(ct + 14, "boundary=");
+			if (newBegin != NULL && newBegin < hend) {
+				newBegin += 9;
+				const char *newEnd;
+
+				if (newBegin[0] == '"') {
+					newBegin++;
+					newEnd = strchr(newBegin, '"');
+				} else if (newBegin[0] == '\'') {
+					newBegin++;
+					newEnd = strchr(newBegin, '\'');
+				} else {
+					newEnd = strpbrk(newBegin, "; \t\v\f\r\n");
+				}
+
+				if (newEnd != NULL) {
+					bound[boundCount] = malloc(4 + (newEnd - newBegin));
+					memcpy(bound[boundCount] + 3, newBegin, newEnd - newBegin);
+					bound[boundCount][0] = '\n';
+					bound[boundCount][1] = '-';
+					bound[boundCount][2] = '-';
+					bound[boundCount][3 + (newEnd - newBegin)] = '\0';
+					boundCount++;
+				}
+			}
+		}
 
 		char *charset = NULL;
 		size_t lenCs = 0;
 		if (isText) {
-			const char *cs = strcasestr(ct + 15, "charset=");
-			if (cs == NULL) cs = strcasestr(ct + 15, "harset =");
+			const char *cs = strcasestr(ct + 14, "charset=");
+			if (cs == NULL) cs = strcasestr(ct + 14, "harset =");
 			if (cs != NULL && cs < hend) {
 				cs += 8;
 				if (*cs == ' ') cs++;
@@ -212,7 +233,8 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 		} else if (*cte == 'B') {
 			new = malloc(lenNew);
 			size_t lenNew2;
-			if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, "\n ", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+			if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, " \t\v\f\r\n", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
+			new[lenNew2] = '\0';
 			lenNew = lenNew2;
 		} else {
 			new = strndup(hend, lenNew);
@@ -233,18 +255,15 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				lenNew = (size_t)lenUtf8;
 			}
 		}
-
 		if (charset != NULL) free(charset);
 
-		if (fn == NULL) {
+		if (isText) {
 			convertNbsp(new, &lenNew);
 			removeControlChars((unsigned char*)new, &lenNew);
 			if (isHtml) htmlToText(new, &lenNew);
-		}
 
-		if (isText) {
 			char * const out2 = realloc(out, *outLen + lenNew);
-			if (out2 == NULL) break;
+			if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 			out = out2;
 
 			memcpy(out + *outLen, new, lenNew);
@@ -264,7 +283,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 					if (fnEnd != NULL) lenFn = fnEnd - fn;
 				} else {
 					for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
-						if (*fnEnd == ' ' || *fnEnd == '\n' || *fnEnd == ';') {
+						if (isspace(*fnEnd) || *fnEnd == ';') {
 							lenFn = fnEnd - fn;
 							break;
 						}
@@ -331,8 +350,33 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 	ct += 14;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
+		char *firstBoundBegin = strcasestr(ct + 10, "boundary=");
+		if (firstBoundBegin == NULL || firstBoundBegin > headersEnd) return;
+		firstBoundBegin += 9;
+		char *firstBound;
+		const char *firstBoundEnd;
+
+		if (firstBoundBegin[0] == '"') {
+			firstBoundBegin++;
+			firstBoundEnd = strchr(firstBoundBegin, '"');
+		} else if (firstBoundBegin[0] == '\'') {
+			firstBoundBegin++;
+			firstBoundEnd = strchr(firstBoundBegin, '\'');
+		} else {
+			firstBoundEnd = strpbrk(firstBoundBegin, "; \t\v\f\r\n");
+		}
+
+		if (firstBoundEnd == NULL) return;
+
+		firstBound = malloc(4 + (firstBoundEnd - firstBoundBegin));
+		memcpy(firstBound + 3, firstBoundBegin, firstBoundEnd - firstBoundBegin);
+		firstBound[0] = '\n';
+		firstBound[1] = '-';
+		firstBound[2] = '-';
+		firstBound[3 + (firstBoundEnd - firstBoundBegin)] = '\0';
+
 		size_t lenNew;
-		char * const new = decodeMp(*msg, &lenNew, email);
+		char * const new = decodeMp(*msg, &lenNew, email, firstBound);
 
 		if (new != NULL) {
 			const size_t lenHeaders = headersEnd - *msg;
@@ -354,12 +398,22 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 		size_t lenCs = 0;
 		const char *cs = strcasestr(ct, "charset=");
 		if (cs == NULL) cs = strcasestr(ct, "harset =");
+		if (cs == NULL) cs = strcasestr(ct, "harset\t=");
 		if (cs != NULL && cs < headersEnd) {
+			const char *csEnd;
 			cs += 8;
-			if (*cs == ' ') cs++;
-			if (*cs == '"') cs++;
-			lenCs = strcspn(cs, "\n \"'");
-			charset = strndup(cs, lenCs);
+
+			if (cs[0] == '"') {
+				cs++;
+				csEnd = strchr(cs, '"');
+			} else if (cs[0] == '\'') {
+				cs++;
+				csEnd = strchr(cs, '\'');
+			} else {
+				csEnd = strpbrk(cs, "; \t\v\f\r\n");
+			}
+
+			charset = strndup(cs, csEnd - cs);
 		}
 
 		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding:quoted-printable");
@@ -375,7 +429,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 				const size_t lenOld = *lenMsg - (headersEnd - *msg);
 				size_t lenDec;
 				unsigned char * const dec = malloc(lenOld);
-				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, "\n ", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
+				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
 					memcpy(headersEnd, dec, lenDec);
 					*lenMsg -= lenOld - lenDec;
 					free(dec);

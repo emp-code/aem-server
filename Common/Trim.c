@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
@@ -77,10 +78,21 @@ void trimLinebreaks(char * const text, size_t * const len) {
 	convertText(text, len, "\n\n\n", 3, '\n');
 }
 
+void trimBegin(char * const text, size_t * const len) {
+	size_t rem = 0;
+	for (int i = 0; i < *len; i++) {
+		if (!isspace(text[i])) break;
+		rem++;
+	}
+
+	if (rem < 1) return;
+	memmove(text, text + rem, *len - rem);
+	*len -= rem;
+}
+
 void trimEnd(const char * const text, size_t * const len) {
 	for (int i = *len - 1; i >= 0; i--) {
-		if (text[i] != ' ' && text[i] != '\n') break;
-
+		if (!isspace(text[i])) break;
 		(*len)--;
 	}
 }

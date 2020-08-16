@@ -9,6 +9,7 @@ void removeSpaceEnd(char * const text, size_t * const len);
 void trimLinebreaks(char * const text, size_t * const len);
 
 void decodeEncodedWord(char * const data, size_t * const lenData);
+int prepareHeaders(char * const data, size_t * const lenData);
 void unfoldHeaders(char * const data, size_t * const lenData);
 void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email);
 
