@@ -301,14 +301,34 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 	return out;
 }
 
+static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
+	char *c = memchr(msg, ':', *lenMsg - 1);
+	while (c != NULL) {
+		if (c[1] == ' ') {
+			memmove(c + 1, c + 2, (msg + *lenMsg) - (c + 2));
+			(*lenMsg)--;
+		}
+
+		c = memchr(c + 1, '\n', (msg + *lenMsg) - (c + 1) - 1);
+		if (c == NULL) break;
+		c = memchr(c + 1, ':', (msg + *lenMsg) - (c + 1) - 1);
+	}
+}
+
 void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 	if (headersEnd == NULL) return;
 	headersEnd += 2;
 
-	const char *ct = strcasestr(*msg, "\nContent-Type: ");
-	if (ct == NULL) return;
-	ct += 15;
+	removeHeaderSpace(*msg, lenMsg);
+
+	headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
+	if (headersEnd == NULL) return;
+	headersEnd += 2;
+
+	const char *ct = strcasestr(*msg, "\nContent-Type:");
+	if (ct == NULL || ct > headersEnd) return;
+	ct += 14;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
 		size_t lenNew;
@@ -342,7 +362,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 			charset = strndup(cs, lenCs);
 		}
 
-		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding: quoted-printable");
+		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding:quoted-printable");
 		if (cte != NULL && cte < headersEnd) {
 			size_t len = (*lenMsg) - (headersEnd - *msg);
 			const size_t lenOld = len;
@@ -350,7 +370,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 			const size_t lenDiff = lenOld - len;
 			*lenMsg -= lenDiff;
 		} else {
-			cte = strcasestr(*msg, "\nContent-Transfer-Encoding: base64");
+			cte = strcasestr(*msg, "\nContent-Transfer-Encoding:base64");
 			if (cte != NULL && cte < headersEnd) {
 				const size_t lenOld = *lenMsg - (headersEnd - *msg);
 				size_t lenDec;
@@ -398,8 +418,8 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 		removeControlChars((unsigned char*)(*msg), lenMsg);
 		convertNbsp(*msg, lenMsg);
 
-		ct = strcasestr(*msg, "\nContent-Type: ");
-		if (strncasecmp(ct + 15, "text/html", 9) == 0) {
+		ct = strcasestr(*msg, "\nContent-Type:");
+		if (strncasecmp(ct + 14, "text/html", 9) == 0) {
 			size_t lenHe = (*msg + *lenMsg) - headersEnd;
 			const size_t lenOld = lenHe;
 			htmlToText(headersEnd, &lenHe);
