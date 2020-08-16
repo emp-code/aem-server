@@ -335,6 +335,9 @@ void htmlToText(char * const text, size_t * const len) {
 		text[*len] = '\0';
 	}
 
+	bracketsInQuotes(text);
+	lowercaseHtmlTags(text, *len);
+
 	filterHr(text, *len);
 	filterText(text, len, "<br>", 4, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK);
 	filterText(text, len, "<br/>", 5, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK);
@@ -373,8 +376,6 @@ void htmlToText(char * const text, size_t * const len) {
 	placeLinebreak(text, *len, "<ul");
 	placeLinebreak(text, *len, "</ul");
 
-	bracketsInQuotes(text);
-	lowercaseHtmlTags(text, *len);
 	processLinks(text, len);
 	processImages(text, len);
 	removeStyle(text, len);
