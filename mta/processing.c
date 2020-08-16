@@ -186,6 +186,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 
 		const bool isText = (ct != NULL) && (strncasecmp(ct + 15, "text/", 5) == 0);
 		const bool isHtml = (ct != NULL) && (strncasecmp(ct + 15, "text/html", 9) == 0);
+		const bool ignore = (ct != NULL) && (strncasecmp(ct + 15, "multipart", 9) == 0);
 
 		char *charset = NULL;
 		size_t lenCs = 0;
@@ -241,32 +242,37 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			if (isHtml) htmlToText(new, &lenNew);
 		}
 
-		if (fn == NULL) {
+		if (isText) {
 			char * const out2 = realloc(out, *outLen + lenNew);
 			if (out2 == NULL) break;
 			out = out2;
 
 			memcpy(out + *outLen, new, lenNew);
 			*outLen += lenNew;
-		} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-			fn += 5; // name=
-
+		} else if (!ignore && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 			size_t lenFn = 0;
-			if (*fn == '"') {
-				fn++;
-				char *fnEnd = memchr(fn, '"', hend - fn);
-				if (fnEnd != NULL) lenFn = fnEnd - fn;
-			} else if (*fn == '\'') {
-				fn++;
-				char *fnEnd = memchr(fn, '\'', hend - fn);
-				if (fnEnd != NULL) lenFn = fnEnd - fn;
-			} else {
-				for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
-					if (*fnEnd == ' ' || *fnEnd == '\n' || *fnEnd == ';') {
-						lenFn = fnEnd - fn;
-						break;
+			if (fn != NULL) {
+				fn += 5; // name=
+
+				if (*fn == '"') {
+					fn++;
+					char *fnEnd = memchr(fn, '"', hend - fn);
+					if (fnEnd != NULL) lenFn = fnEnd - fn;
+				} else if (*fn == '\'') {
+					fn++;
+					char *fnEnd = memchr(fn, '\'', hend - fn);
+					if (fnEnd != NULL) lenFn = fnEnd - fn;
+				} else {
+					for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
+						if (*fnEnd == ' ' || *fnEnd == '\n' || *fnEnd == ';') {
+							lenFn = fnEnd - fn;
+							break;
+						}
 					}
 				}
+			} else {
+				fn = "AEM-NoName";
+				lenFn = 10;
 			}
 
 			if (lenFn > 256) lenFn = 256;
