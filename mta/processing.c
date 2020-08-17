@@ -13,6 +13,8 @@
 
 #include "processing.h"
 
+#define AEM_LIMIT_MULTIPARTS 50
+
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
@@ -125,11 +127,11 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 	*outLen = 0;
 
 	int boundCount = 1;
-	char *bound[50];
+	char *bound[AEM_LIMIT_MULTIPARTS];
 	bound[0] = firstBound;
 
 	const char *searchBegin = msg;
-	for (int i = 0; i < ((boundCount > 50) ? 50 : boundCount);) {
+	for (int i = 0; i < boundCount;) {
 		const char *begin = strstr(searchBegin, bound[i]);
 		if (begin == NULL) break;
 
@@ -205,6 +207,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 					bound[boundCount][2] = '-';
 					bound[boundCount][3 + (newEnd - newBegin)] = '\0';
 					boundCount++;
+					if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
 				}
 			}
 		}
