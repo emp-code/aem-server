@@ -4,6 +4,6 @@
 #include <stdbool.h>
 
 bool isUtf8(const char * const charset, const size_t len);
-char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut, const char * const charset);
+char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset);
 
 #endif

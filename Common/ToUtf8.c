@@ -15,7 +15,7 @@ bool isUtf8(const char * const charset, const size_t lenCs) {
 	));
 }
 
-char *toUtf8(const char * const input, const size_t lenInput, int * const lenOut, const char * const charset) {
+char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset, strlen(charset))) {

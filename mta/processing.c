@@ -70,7 +70,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 			free(dec);
 		} else break;
 
-		int lenUtf8 = 0;
+		size_t lenUtf8 = 0;
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
@@ -260,7 +260,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 
 		if (isText) {
 			if (charset != NULL && !isUtf8(charset, lenCs)) {
-				int lenUtf8;
+				size_t lenUtf8;
 				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
 				if (utf8 != NULL) {
 					free(new);
@@ -269,7 +269,6 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				}
 			}
 			if (charset != NULL) free(charset);
-
 
 			convertNbsp(new, &lenNew);
 			removeControlChars((unsigned char*)new, &lenNew);
@@ -466,7 +465,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 		}
 
 		if (charset != NULL && !isUtf8(charset, lenCs)) {
-			int lenUtf8;
+			size_t lenUtf8;
 			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
 			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
 			if (utf8 != NULL) {
