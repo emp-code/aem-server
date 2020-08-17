@@ -464,8 +464,6 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 					}
 					*lenMsg += (lenUtf8 - lenOld);
 				}
-
-				headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 			}
 		}
 
@@ -476,6 +474,10 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 
 		ct = strcasestr(*msg, "\nContent-Type:");
 		if (strncasecmp(ct + 14, "text/html", 9) == 0) {
+			headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
+			if (headersEnd == NULL) return;
+			headersEnd += 2;
+
 			size_t lenHe = (*msg + *lenMsg) - headersEnd;
 			const size_t lenOld = lenHe;
 			htmlToText(headersEnd, &lenHe);
