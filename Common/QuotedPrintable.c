@@ -1,52 +1,61 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "QuotedPrintable.h"
 
 __attribute__((warn_unused_result))
-static unsigned char hexToChar(const char * const src) {
-	char hex[3];
-	memcpy(hex, src, 2);
-	hex[2] = '\0';
+static unsigned long hexToChar(const char * const src) {
+	const char hex[3] = {src[0], src[1], '\0'};
 	return strtoul(hex, NULL, 16);
 }
 
 void decodeQuotedPrintable(char * const data, size_t * const lenData) {
-	while(1) {
-		char * c = memmem(data, *lenData, "=\r\n", 3);
-		if (c == NULL) break;
+	char * const new = malloc(*lenData);
+	if (new == NULL) return;
+	size_t lenNew = 0;
 
-		const char * const copyFrom = c + 3;
-		memmove(c, copyFrom, *lenData - (copyFrom - data));
-		*lenData -= 3;
+	for (size_t i = 0; i < *lenData; i++) {
+		if (data[i] != '=') {
+			const unsigned char h = data[i];
+
+			if (h >= 32 && h != 127) { // 127 = del
+				new[lenNew] = h;
+				lenNew++;
+			} else if (h == '\t') {
+				new[lenNew] = ' ';
+				lenNew++;
+			} else if (isspace(h)) {
+				new[lenNew] = '\n';
+				lenNew++;
+			}
+
+			continue;
+		}
+
+		i++; // Skip '='
+		if (i >= *lenData) break;
+		if (data[i] == '\n') continue;
+		if (i >= *lenData - 1) break;
+
+		const unsigned long h = hexToChar(data + i);
+
+		if (h >= 32 && h != 127) { // 127 = del
+			new[lenNew] = (char)h;
+			lenNew++;
+		} else if (h == '\t') {
+			new[lenNew] = ' ';
+			lenNew++;
+		} else if (isspace(h)) {
+			new[lenNew] = '\n';
+			lenNew++;
+		}
+
+		i++;
 	}
 
-	while(1) {
-		char * c = memmem(data, *lenData, "=\n", 2);
-		if (c == NULL) break;
-
-		const char * const copyFrom = c + 2;
-		memmove(c, copyFrom, *lenData - (copyFrom - data));
-		*lenData -= 2;
-	}
-
-	while(1) {
-		char * const enc = memchr(data, '=', *lenData - 1);
-		if (enc == NULL) break;
-
-		const ssize_t x = (data + *lenData) - (enc + 3);
-		if (x < 0) break;
-
-		*enc = hexToChar(enc + 1);
-		if (*enc == '=') *enc = '\x01';
-
-		memmove(enc + 1, enc + 3, x);
-		*lenData -= 2;
-	}
-
-	while(1) {
-		char * const equalsign = memchr(data, '\x01', *lenData);
-		if (equalsign == NULL) break;
-		*equalsign = '=';
-	}
+	memcpy(data, new, lenNew);
+	free(new);
+	*lenData = lenNew;
+	data[*lenData] = '\0';
 }
