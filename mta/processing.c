@@ -74,11 +74,11 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
-		while(1) {
-			char * const lf = strchr(utf8, '\n');
-			if (lf == NULL) break;
-			*lf = ' ';
+		for (int i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
+			if (utf8[i] < 32 || utf8[i] == 127) utf8[i] = ' '; // 127=DEL
 		}
+
+		trimSpace(utf8, &lenUtf8);
 
 		const size_t lenDiff = lenEw - lenUtf8;
 		if (lenDiff > 0) {
