@@ -391,8 +391,4 @@ void htmlToText(char * const text, size_t * const len) {
 	removeSpaceBegin(text, len);
 	removeSpaceEnd(text, len);
 	trimLinebreaks(text, len);
-
-	trimBegin(text, len);
-	trimEnd(text, len);
-	text[*len] = '\0';
 }

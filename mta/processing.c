@@ -275,6 +275,10 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			removeControlChars((unsigned char*)new, &lenNew);
 			if (isHtml) htmlToText(new, &lenNew);
 
+			trimBegin(new, &lenNew);
+			trimEnd(new, &lenNew);
+			new[lenNew] = '\0';
+
 			if (*outLen == 0) {
 				out = malloc(lenNew);
 				if (out == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
