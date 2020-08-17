@@ -353,7 +353,10 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 	headersEnd += 2;
 
 	const char *ct = strcasestr(*msg, "\nContent-Type:");
-	if (ct == NULL || ct > headersEnd) return;
+	if (ct == NULL || ct > headersEnd) {
+		removeControlChars((unsigned char*)(*msg), lenMsg);
+		return;
+	}
 	ct += 14;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
