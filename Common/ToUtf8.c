@@ -19,8 +19,10 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset, strlen(charset))) {
+		char * const new = malloc(lenInput);
+		memcpy(new, input, lenInput);
 		*lenOut = lenInput;
-		return strndup(input, lenInput);
+		return new;
 	}
 
 	const size_t maxLen = lenInput * 2;
