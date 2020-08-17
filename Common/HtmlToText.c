@@ -332,9 +332,9 @@ void htmlToText(char * const text, size_t * const len) {
 		const size_t rem = body - text;
 		*len -= rem;
 		memmove(text, body, *len);
-		text[*len] = '\0';
 	}
 
+	text[*len] = '\0';
 	bracketsInQuotes(text);
 	lowercaseHtmlTags(text, *len);
 
