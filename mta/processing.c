@@ -269,12 +269,20 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			removeControlChars((unsigned char*)new, &lenNew);
 			if (isHtml) htmlToText(new, &lenNew);
 
-			char * const out2 = realloc(out, *outLen + lenNew);
-			if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
-			out = out2;
+			if (*outLen == 0) {
+				out = malloc(lenNew);
+				if (out == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+				memcpy(out, new, lenNew);
+				*outLen += lenNew;
+			} else {
+				char * const out2 = realloc(out, *outLen + lenNew + 1);
+				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+				out = out2;
 
-			memcpy(out + *outLen, new, lenNew);
-			*outLen += lenNew;
+				out[*outLen] = '\x1f'; // Unit Seperator
+				memcpy(out + *outLen + 1, new, lenNew);
+				*outLen += lenNew + 1;
+			}
 		} else if (!ignore && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 			size_t lenFn = 0;
 			if (fn != NULL) {
