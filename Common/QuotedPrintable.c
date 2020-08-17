@@ -17,39 +17,20 @@ void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 
 	for (size_t i = 0; i < *lenData; i++) {
 		if (data[i] != '=') {
-			const unsigned char h = data[i];
-
-			if (h >= 32 && h != 127) { // 127 = del
-				new[lenNew] = h;
-				lenNew++;
-			} else if (h == '\t') {
-				new[lenNew] = ' ';
-				lenNew++;
-			} else if (isspace(h)) {
-				new[lenNew] = '\n';
-				lenNew++;
-			}
-
+			new[lenNew] = data[i];
+			lenNew++;
 			continue;
 		}
 
 		i++; // Skip '='
 		if (i >= *lenData) break;
-		if (data[i] == '\n') continue;
 		if (i >= *lenData - 1) break;
+		if (data[i] == '\r' && data[i + 1] == '\n') {i++; continue;}
+		// TODO if not hex
 
-		const unsigned long h = hexToChar(data + i);
-
-		if (h >= 32 && h != 127) { // 127 = del
-			new[lenNew] = (char)h;
-			lenNew++;
-		} else if (h == '\t') {
-			new[lenNew] = ' ';
-			lenNew++;
-		} else if (isspace(h)) {
-			new[lenNew] = '\n';
-			lenNew++;
-		}
+		const unsigned char h = hexToChar(data + i);
+		memcpy(new + lenNew, &h, 1);
+		lenNew++;
 
 		i++;
 	}
