@@ -265,7 +265,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				if (utf8 != NULL) {
 					free(new);
 					new = utf8;
-					lenNew = (size_t)lenUtf8;
+					lenNew = lenUtf8;
 				}
 			}
 			if (charset != NULL) free(charset);
