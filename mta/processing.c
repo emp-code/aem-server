@@ -218,12 +218,20 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			const char *cs = strcasestr(ct + 14, "charset=");
 			if (cs == NULL) cs = strcasestr(ct + 14, "harset =");
 			if (cs != NULL && cs < hend) {
+				const char *csEnd;
 				cs += 8;
-				if (*cs == ' ') cs++;
-				if (*cs == '"') cs++;
-				lenCs = strcspn(cs, "\n \"'");
-				charset = strndup(cs, lenCs);
-				if (charset == NULL) break;
+
+				if (cs[0] == '"') {
+					cs++;
+					csEnd = strchr(cs, '"');
+				} else if (cs[0] == '\'') {
+					cs++;
+					csEnd = strchr(cs, '\'');
+				} else {
+					csEnd = strpbrk(cs, "; \t\v\f\r\n");
+				}
+
+				if (csEnd != NULL) charset = strndup(cs, csEnd - cs);
 			}
 		}
 
@@ -244,23 +252,19 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			if (new == NULL) {if (charset != NULL) {free(charset);} break;}
 		}
 
-		// TODO: Support detecting charset if missing?
-		if (charset != NULL && !isUtf8(charset, lenCs)) {
-			char cs8[lenCs + 1];
-			memcpy(cs8, charset, lenCs);
-			cs8[lenCs] = '\0';
-
-			int lenUtf8;
-			char * const utf8 = toUtf8(new, lenNew, &lenUtf8, cs8);
-			if (utf8 != NULL) {
-				free(new);
-				new = utf8;
-				lenNew = (size_t)lenUtf8;
-			}
-		}
-		if (charset != NULL) free(charset);
-
 		if (isText) {
+			if (charset != NULL && !isUtf8(charset, lenCs)) {
+				int lenUtf8;
+				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
+				if (utf8 != NULL) {
+					free(new);
+					new = utf8;
+					lenNew = (size_t)lenUtf8;
+				}
+			}
+			if (charset != NULL) free(charset);
+
+
 			convertNbsp(new, &lenNew);
 			removeControlChars((unsigned char*)new, &lenNew);
 			if (isHtml) htmlToText(new, &lenNew);
@@ -416,7 +420,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 				csEnd = strpbrk(cs, "; \t\v\f\r\n");
 			}
 
-			charset = strndup(cs, csEnd - cs);
+			if (csEnd != NULL) charset = strndup(cs, csEnd - cs);
 		}
 
 		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding:quoted-printable");
@@ -440,15 +444,10 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 			}
 		}
 
-		// TODO: Support detecting charset if missing?
 		if (charset != NULL && !isUtf8(charset, lenCs)) {
-			char cs8[lenCs + 1];
-			memcpy(cs8, charset, lenCs);
-			cs8[lenCs] = '\0';
-
 			int lenUtf8;
 			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
-			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, cs8);
+			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
 			if (utf8 != NULL) {
 				if (lenOld > lenUtf8) {
 					memcpy(headersEnd, utf8, lenUtf8);
