@@ -74,6 +74,12 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
+		while(1) {
+			char * const lf = strchr(utf8, '\n');
+			if (lf == NULL) break;
+			*lf = ' ';
+		}
+
 		const size_t lenDiff = lenEw - lenUtf8;
 		if (lenDiff > 0) {
 			memcpy(ew, utf8, lenUtf8);
