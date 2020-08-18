@@ -80,7 +80,7 @@ void trimLinebreaks(char * const text, size_t * const len) {
 
 void trimBegin(char * const text, size_t * const len) {
 	size_t rem = 0;
-	for (int i = 0; i < *len; i++) {
+	for (size_t i = 0; i < *len; i++) {
 		if (!isspace(text[i])) break;
 		rem++;
 	}

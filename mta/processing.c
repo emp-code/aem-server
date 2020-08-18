@@ -74,7 +74,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
-		for (int i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
+		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
 			if (utf8[i] < 32 || utf8[i] == 127) utf8[i] = ' '; // 127=DEL
 		}
 
@@ -469,7 +469,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
 			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
 			if (utf8 != NULL) {
-				if (lenOld > lenUtf8) {
+				if (lenOld > (ssize_t)lenUtf8) {
 					memcpy(headersEnd, utf8, lenUtf8);
 					*lenMsg -= (lenOld - lenUtf8);
 				} else {
