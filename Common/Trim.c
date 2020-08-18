@@ -27,16 +27,16 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	*len = lenNew;
 }
 
-static void convertText(char * const text, size_t * const len, const char * const bad, const size_t lenBad, const char good) {
-	if (text == NULL || len == NULL || *len < 1 || bad == NULL || lenBad < 1) return;
+void convertText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
+	const size_t diff = lenBad - 1;
 
 	while(1) {
-		char * const c = memmem(text, *len, bad, lenBad);
+		char * const c = memmem(text, *lenText, bad, lenBad);
 		if (c == NULL) break;
 
-		memmove(c, c + 1, (text + *len) - (c + 1));
-		(*len)--;
+		memmove(c + 1, c + lenBad, (text + *lenText) - (c + lenBad));
 		*c = good;
+		*lenText -= diff;
 	}
 }
 
