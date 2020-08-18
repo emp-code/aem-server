@@ -94,11 +94,32 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	}
 }
 
+static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
+	char *c = memmem(msg, *lenMsg - 2, "\r\n", 2);
+	while (c != NULL) {
+		if (c[2] == '\r') break;
+
+		char *next = memmem(c + 2, (msg + *lenMsg) - (c + 2) - 2, "\r\n", 2);
+		if (next == NULL) break;
+
+		char *colon = memchr(c + 2, ':', (msg + *lenMsg) - (c + 2));
+		if (colon == NULL) break;
+
+		for (int i = colon - msg; i < next - msg; i++) {
+			if (isspace(msg[i])) msg[i] = 127; // del
+		}
+
+		c = next;
+	}
+}
+
 int prepareHeaders(char * const data, size_t * const lenData) {
 	const char *headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
 	const char * const headersEnd2 = memmem(data, *lenData, "\n\n", 2);
 	if (headersEnd2 != NULL && headersEnd2 < headersEnd) headersEnd = headersEnd2 + 2; else headersEnd += 4;
 	if (headersEnd == NULL) return -1;
+
+	removeHeaderSpace(data, lenData);
 
 	size_t lenHeaders = headersEnd - data;
 	const size_t lenHeaders_original = lenHeaders;
@@ -344,26 +365,10 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 	return out;
 }
 
-static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
-	char *c = memchr(msg, ':', *lenMsg - 1);
-	while (c != NULL) {
-		if (c[1] == ' ') {
-			memmove(c + 1, c + 2, (msg + *lenMsg) - (c + 2));
-			(*lenMsg)--;
-		}
-
-		c = memchr(c + 1, '\n', (msg + *lenMsg) - (c + 1) - 1);
-		if (c == NULL) break;
-		c = memchr(c + 1, ':', (msg + *lenMsg) - (c + 1) - 1);
-	}
-}
-
 void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email) {
 	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 	if (headersEnd == NULL) return;
 	headersEnd += 2;
-
-	removeHeaderSpace(*msg, lenMsg);
 
 	headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
 	if (headersEnd == NULL) return;
