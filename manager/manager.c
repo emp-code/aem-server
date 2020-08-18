@@ -577,12 +577,12 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 static int loadExec(void) {
 	const char * const path[] = AEM_PATH_EXE;
 
-	unsigned char * const tmp = sodium_malloc(524288);
+	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
 	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 	size_t lenTmp;
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		if (loadFile(path[i], tmp, &lenTmp, 0, 524288) != 0) {
+		if (loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0) {
 			sodium_free(tmp);
 			return -1;
 		}
