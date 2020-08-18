@@ -452,17 +452,17 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) email.quitReceived = true;
 
-			removeControlChars((unsigned char*)body, &lenBody);
-			convertLineDots(body, &lenBody);
-			unfoldHeaders(body, &lenBody);
-			decodeEncodedWord(body, &lenBody);
-			decodeMessage(&body, &lenBody, &email);
-			convertNbsp(body, &lenBody);
-			trimSpace(body, &lenBody);
-			removeSpaceEnd(body, &lenBody);
-			trimLinebreaks(body, &lenBody);
-			removeSpaceBegin(body, &lenBody);
-			trimEnd(body, &lenBody);
+			if (prepareHeaders(body, &lenBody) == 0) {
+				unfoldHeaders(body, &lenBody);
+				decodeEncodedWord(body, &lenBody);
+				decodeMessage(&body, &lenBody, &email);
+				convertNbsp(body, &lenBody);
+				trimSpace(body, &lenBody);
+				removeSpaceEnd(body, &lenBody);
+				trimLinebreaks(body, &lenBody);
+				removeSpaceBegin(body, &lenBody);
+				trimEnd(body, &lenBody);
+			}
 			brotliCompress((unsigned char**)&body, &lenBody);
 
 			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, &email);
