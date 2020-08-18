@@ -41,15 +41,16 @@ void convertText(char * const text, size_t * const lenText, const char * const b
 }
 
 void convertLineDots(char * const text, size_t * const len) {
-	char *c = memmem(text, *len, "\n..", 3);
+	char *c = memmem(text, *len, "\r\n..", 4);
 
 	while (c != NULL) {
-		const size_t offset = (c + 2) - text;
+		c += 2;
+		const size_t offset = (c + 1) - text;
 
-		memmove(c + 1, c + 2, *len - offset);
+		memmove(c, c + 1, *len - offset);
 		(*len)--;
 
-		c = memmem(text + offset, *len - offset, "\n..", 3);
+		c = memmem(text + offset, *len - offset, "\r\n..", 4);
 	}
 }
 
