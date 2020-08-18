@@ -19,8 +19,9 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset, strlen(charset))) {
-		char * const new = malloc(lenInput);
+		char * const new = malloc(lenInput + 1);
 		memcpy(new, input, lenInput);
+		new[lenInput] = '\0';
 		*lenOut = lenInput;
 		return new;
 	}
