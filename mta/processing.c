@@ -95,8 +95,11 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 }
 
 static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
-	char *c = memmem(msg, *lenMsg - 2, "\r\n", 2);
-	while (c != NULL) {
+	if (msg == NULL || *lenMsg < 5) return;
+
+	char *c = msg;
+
+	while(1) {
 		if (c[2] == '\r') break;
 
 		char *next = memmem(c + 2, (msg + *lenMsg) - (c + 2) - 2, "\r\n", 2);
@@ -104,9 +107,10 @@ static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
 
 		char *colon = memchr(c + 2, ':', (msg + *lenMsg) - (c + 2));
 		if (colon == NULL) break;
+		colon++;
 
 		for (int i = colon - msg; i < next - msg; i++) {
-			if (isspace(msg[i])) msg[i] = 127; // del
+			if (isspace(msg[i])) msg[i] = 127; else break; // 127=del
 		}
 
 		c = next;
