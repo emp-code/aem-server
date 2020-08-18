@@ -26,6 +26,7 @@ void decodeQuotedPrintable(char * const data, size_t * const lenData) {
 		if (i >= *lenData) break;
 		if (i >= *lenData - 1) break;
 		if (data[i] == '\r' && data[i + 1] == '\n') {i++; continue;}
+
 		if (isxdigit(data[i]) && isxdigit(data[i + 1])) {
 			const unsigned char h = hexToChar(data + i);
 			memcpy(new + lenNew, &h, 1);
