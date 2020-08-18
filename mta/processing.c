@@ -75,7 +75,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		if (utf8 == NULL) break;
 
 		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
-			if (utf8[i] < 32 || utf8[i] == 127) utf8[i] = ' '; // 127=DEL
+			if ((unsigned char)(utf8[i]) < 32 || (unsigned char)(utf8[i]) == 127) utf8[i] = ' '; // 127=DEL
 		}
 
 		trimSpace(utf8, &lenUtf8);
