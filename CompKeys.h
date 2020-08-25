@@ -1,4 +1,4 @@
-// XXX Replace this file with output of utils/CompKeys.c
+// XXX Replace this file with the output of utils/CompKeys
 #define AEM_KEY_ACCESS_ACCOUNT_API (const unsigned char[]) {'\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00'}
 #define AEM_KEY_ACCESS_ACCOUNT_MTA (const unsigned char[]) {'\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00'}
 #define AEM_KEY_ACCESS_STORAGE_API (const unsigned char[]) {'\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00','\x00'}
