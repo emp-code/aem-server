@@ -7,14 +7,15 @@ static void printKey(const char * const def, const size_t len) {
 	unsigned char buf[len];
 	randombytes_buf(buf, len);
 
-	printf("#define %s (const unsigned char * const)\"", def);
+	printf("#define %s (const unsigned char[]) {", def);
 
 	for (size_t i = 0; i < len; i++) {
-		printf("\\x%.2x", buf[i]);
+		printf("'\\x%.2x'", buf[i]);
+		if (i < (len - 1)) printf(",");
 	}
 
 	sodium_memzero(buf, len);
-	puts("\"");
+	puts("}");
 }
 
 int main(void) {
