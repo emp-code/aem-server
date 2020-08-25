@@ -4,8 +4,6 @@
 #include "../Global.h"
 #include "Email.h"
 
-void setAccessKey_account(const unsigned char * const newKey);
-void setAccessKey_storage(const unsigned char * const newKey);
 void setSignKey(const unsigned char * const seed);
 void setAccountPid(const pid_t pid);
 void setStoragePid(const pid_t pid);

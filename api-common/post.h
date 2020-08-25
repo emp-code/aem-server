@@ -6,10 +6,6 @@
 void setApiKey(const unsigned char * const seed);
 void setSigKey(const unsigned char * const seed);
 
-void setAccessKey_account(const unsigned char * const newKey);
-void setAccessKey_storage(const unsigned char * const newKey);
-void setAccessKey_enquiry(const unsigned char * const newKey);
-
 void setAccountPid(const pid_t pid);
 void setStoragePid(const pid_t pid);
 void setEnquiryPid(const pid_t pid);

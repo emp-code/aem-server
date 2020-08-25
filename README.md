@@ -8,7 +8,7 @@ The top-tier process, Manager, has full access to all data, but only has one pur
 
 The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through a local Unix socket requiring an Access Key.
 
-The bottom-tier processes, API and MTA, are publically accessible, but have no direct access to user data. They are given Access Keys by Manager, which enable them to request the middle-tier processes to perform specific functions needed for their operation.
+The bottom-tier processes, API and MTA, are publically accessible, but have no direct access to user data. They can only request the middle-tier processes to perform specific functions needed for their operation.
 
 Manager starts Account and Storage automatically. Web, API, and MTA processes need to be started manually (using ManagerClient), and multiple of them can be run simultaneously.
 

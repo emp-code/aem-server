@@ -42,9 +42,6 @@ static uint32_t lenDecrypted;
 
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
-static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_enquiry[AEM_LEN_ACCESSKEY];
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
@@ -63,10 +60,6 @@ void setSigKey(const unsigned char * const src) {
 
 	setMsgIdKeys(src);
 }
-
-void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
-void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
-void setAccessKey_enquiry(const unsigned char * const newKey) {memcpy(accessKey_enquiry, newKey, AEM_LEN_ACCESSKEY);}
 
 void setAccountPid(const pid_t pid) {pid_account = pid;}
 void setStoragePid(const pid_t pid) {pid_storage = pid;}

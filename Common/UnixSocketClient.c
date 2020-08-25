@@ -1,3 +1,5 @@
+#include "../CompKeys.h"
+
 static bool peerOk(const int sock, const pid_t pid) {
 	struct ucred peer;
 	socklen_t lenUc = sizeof(struct ucred);
@@ -34,10 +36,15 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	unsigned char encrypted[lenEncrypted];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 
-	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_account);
-	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_storage);
 #ifdef AEM_API
-	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, accessKey_enquiry);
+	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_API);
+	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_API);
+	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_ALL);
+#else
+#ifdef AEM_MTA
+	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_MTA);
+	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_MTA);
+#endif
 #endif
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {

@@ -66,12 +66,6 @@ static int pipeLoadKeys(const int fd) {
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
 	setSignKey_mta(buf);
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
-	setAccessKey_account(buf);
-
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_ACCESSKEY) return -1;
-	setAccessKey_storage(buf);
-
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;
 }

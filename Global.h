@@ -10,7 +10,6 @@
 
 #define AEM_DNS_LOOKUP 10
 
-#define AEM_LEN_ACCESSKEY crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 
 #define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES

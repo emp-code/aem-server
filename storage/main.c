@@ -16,6 +16,7 @@
 
 #include <sodium.h>
 
+#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 #include "../Common/aes.h"
@@ -23,9 +24,6 @@
 #define AEM_LOGNAME "AEM-Sto"
 #define AEM_STINDEX_PAD 1048576 // 1 MiB
 #define AEM_SOCK_QUEUE 50
-
-static unsigned char accessKey_api[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_mta[AEM_LEN_ACCESSKEY];
 
 static unsigned char stindexKey[AEM_LEN_KEY_STI];
 static unsigned char storageKey[AEM_LEN_KEY_STO];
@@ -454,7 +452,7 @@ void takeConnections(void) {
 		const size_t lenClr = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 
 		unsigned char clr[lenClr];
-		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_api) == 0) {
+		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_API) == 0) {
 			switch (clr[0]) {
 				case AEM_API_MESSAGE_DELETE: {
 					unsigned char ids[8192];
@@ -507,7 +505,7 @@ void takeConnections(void) {
 
 				default: syslog(LOG_ERR, "Invalid API command");
 			}
-		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, accessKey_mta) == 0) {
+		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_MTA) == 0) {
 			if (clr[0] == AEM_MTA_INSERT) {
 				uint16_t sze;
 				while(1) {
@@ -535,11 +533,7 @@ void takeConnections(void) {
 
 __attribute__((warn_unused_result))
 static int pipeLoad(const int fd) {
-	return (
-	   read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO
-	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-	) ? 0 : -1;
+	return (read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO) ? 0 : -1;
 }
 
 int main(int argc, char *argv[]) {

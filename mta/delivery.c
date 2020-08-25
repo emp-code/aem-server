@@ -20,16 +20,10 @@
 
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 
-static unsigned char accessKey_account[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_storage[AEM_LEN_ACCESSKEY];
-
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;
-
-void setAccessKey_account(const unsigned char * const newKey) {memcpy(accessKey_account, newKey, AEM_LEN_ACCESSKEY);}
-void setAccessKey_storage(const unsigned char * const newKey) {memcpy(accessKey_storage, newKey, AEM_LEN_ACCESSKEY);}
 
 void setSignKey(const unsigned char * const seed) {
 	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];

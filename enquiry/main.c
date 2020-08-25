@@ -16,6 +16,7 @@
 
 #include <sodium.h>
 
+#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 
@@ -26,8 +27,6 @@
 
 #define AEM_MAXLEN_ENQUIRY_ENC (32 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 #define AEM_MINLEN_ENQUIRY_ENC (4 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-
-static unsigned char accessKey[AEM_LEN_ACCESSKEY];
 
 static bool terminate = false;
 
@@ -85,7 +84,7 @@ void takeConnections(void) {
 
 		const size_t lenDec = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 		unsigned char dec[lenDec];
-		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, accessKey) == 0) {
+		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_ALL) == 0) {
 			const uint32_t ip = queryDns(dec + 1, lenDec - 1);
 			send(sock, &ip, 4, 0);
 		} else syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);
@@ -104,7 +103,7 @@ int main(int argc, char *argv[]) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	if (read(argv[0][0], accessKey, AEM_LEN_ACCESSKEY) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "Terminating: Failed loading AccessKey"); return EXIT_FAILURE;}
+//	if (read(argv[0][0], accessKey, AEM_LEN_ACCESSKEY) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "Terminating: Failed loading AccessKey"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
 	if (dns_setupTls() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up TLS for DNS"); return EXIT_FAILURE;}

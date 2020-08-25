@@ -67,12 +67,6 @@ static unsigned char master[AEM_LEN_KEY_MASTER];
 
 static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
 
-static unsigned char accessKey_account_api[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_account_mta[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_storage_api[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_storage_mta[AEM_LEN_ACCESSKEY];
-static unsigned char accessKey_enquiry_all[AEM_LEN_ACCESSKEY];
-
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
@@ -146,22 +140,8 @@ void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
 	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
 }
 
-void setAccessKeys(void) {
-	randombytes_buf(accessKey_account_api, AEM_LEN_ACCESSKEY);
-	randombytes_buf(accessKey_account_mta, AEM_LEN_ACCESSKEY);
-	randombytes_buf(accessKey_storage_api, AEM_LEN_ACCESSKEY);
-	randombytes_buf(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
-	randombytes_buf(accessKey_enquiry_all, AEM_LEN_ACCESSKEY);
-}
-
 void wipeKeys(void) {
 	sodium_memzero(master, AEM_LEN_KEY_MASTER);
-
-	sodium_memzero(accessKey_account_api, AEM_LEN_ACCESSKEY);
-	sodium_memzero(accessKey_account_mta, AEM_LEN_ACCESSKEY);
-	sodium_memzero(accessKey_storage_api, AEM_LEN_ACCESSKEY);
-	sodium_memzero(accessKey_storage_mta, AEM_LEN_ACCESSKEY);
-	sodium_memzero(accessKey_enquiry_all, AEM_LEN_ACCESSKEY);
 
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
@@ -801,9 +781,6 @@ static void process_spawn(const int type) {
 			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_SHLD) < 0
 			|| pipeWriteDirect(fd[1], slt_fke, AEM_LEN_SALT_FAKE) < 0
 
-			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
-
 			|| pipeWriteDirect(fd[1], adr_adm, len_adr_adm) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
@@ -811,26 +788,22 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
 			   pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 
-		case AEM_PROCESSTYPE_ENQUIRY:
+
+		// Nothing
+/*		case AEM_PROCESSTYPE_ENQUIRY:
 			if (
-			   pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
-
+*/
 		case AEM_PROCESSTYPE_MTA:
 			if (
 			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
 			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
 
 			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
-
-			|| pipeWriteDirect(fd[1], accessKey_account_mta, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_mta, AEM_LEN_ACCESSKEY) < 0
 
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
@@ -862,10 +835,6 @@ static void process_spawn(const int type) {
 			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
 			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
 
-			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
-
 			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
 			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
@@ -882,10 +851,6 @@ static void process_spawn(const int type) {
 
 			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
 			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
-
-			|| pipeWriteDirect(fd[1], accessKey_account_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_storage_api, AEM_LEN_ACCESSKEY) < 0
-			|| pipeWriteDirect(fd[1], accessKey_enquiry_all, AEM_LEN_ACCESSKEY) < 0
 			) syslog(LOG_ERR, "Failed writing to pipe: %m");
 		break;
 	}
@@ -980,8 +945,6 @@ static void respond_manager(void) {
 }
 
 int receiveConnections(void) {
-	setAccessKeys();
-
 	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
 	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 

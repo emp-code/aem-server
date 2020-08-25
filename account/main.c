@@ -15,6 +15,7 @@
 
 #include <sodium.h>
 
+#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 
@@ -53,9 +54,6 @@ struct aem_user {
 
 static struct aem_user *user = NULL;
 static int userCount = 0;
-
-static unsigned char accessKey_api[crypto_secretbox_KEYBYTES];
-static unsigned char accessKey_mta[crypto_secretbox_KEYBYTES];
 
 static unsigned char accountKey[crypto_secretbox_KEYBYTES];
 
@@ -577,7 +575,7 @@ static int takeConnections(void) {
 		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES);
 		unsigned char req[reqLen];
 
-		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, accessKey_api) == 0) {
+		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_API) == 0) {
 			const int num = userNumFromPubkey(req + 1);
 			if (num < 0) {close(sockClient); continue;}
 
@@ -605,7 +603,7 @@ static int takeConnections(void) {
 
 			close(sockClient);
 			continue;
-		} else if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, accessKey_mta) == 0) {
+		} else if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_MTA) == 0) {
 			switch(req[0]) {
 				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;
 				case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sockClient, req + 1, true);  break;
@@ -630,9 +628,6 @@ static int pipeLoad(const int fd) {
 	&& read(fd, salt_normal, AEM_LEN_SALT_NORM) == AEM_LEN_SALT_NORM
 	&& read(fd, salt_shield, AEM_LEN_SALT_SHLD) == AEM_LEN_SALT_SHLD
 	&& read(fd, salt_fake,   AEM_LEN_SALT_FAKE) == AEM_LEN_SALT_FAKE
-
-	&& read(fd, accessKey_api, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
-	&& read(fd, accessKey_mta, AEM_LEN_ACCESSKEY) == AEM_LEN_ACCESSKEY
 	) ? 0 : -1;
 }
 
