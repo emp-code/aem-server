@@ -51,11 +51,6 @@
 #define AEM_ADDR32_ADMIN  (unsigned char*)"\xa6\xd0\x35\x0e\x75\x85\x68\x18" // 'administrator' in Addr32
 #define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x00\x00\x00\x00\x00" // 'system' in Addr32
 
-#define AEM_SOCKPATH_ACCOUNT "\0AEM_Acc"
-#define AEM_SOCKPATH_STORAGE "\0AEM_Sto"
-#define AEM_SOCKPATH_ENQUIRY "\0AEM_Enq"
-#define AEM_SOCKPATH_LEN 8
-
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 

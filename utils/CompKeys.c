@@ -18,6 +18,21 @@ static void printKey(const char * const def, const size_t len) {
 	puts("}");
 }
 
+static void printAbstract(const char * const def) {
+	unsigned char buf[107];
+	randombytes_buf(buf, 107);
+
+	printf("#define %s (const char[]) {0, ", def);
+
+	for (size_t i = 0; i < 107; i++) {
+		printf("'\\x%.2x'", buf[i]);
+		if (i < 106) printf(",");
+	}
+
+	sodium_memzero(buf, 107);
+	puts("}");
+}
+
 int main(void) {
 	if (sodium_init() < 0) {
 		puts("Terminating: Failed initializing libsodium");
@@ -31,6 +46,13 @@ int main(void) {
 	printKey("AEM_KEY_ACCESS_STORAGE_API", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_STORAGE_MTA", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_ENQUIRY_ALL", crypto_box_SECRETKEYBYTES);
+
+	puts("");
+
+	puts("#define AEM_SOCKPATH_LEN 108");
+	printAbstract("AEM_SOCKPATH_ACCOUNT");
+	printAbstract("AEM_SOCKPATH_STORAGE");
+	printAbstract("AEM_SOCKPATH_ENQUIRY");
 
 	return 0;
 }
