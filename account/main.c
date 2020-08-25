@@ -302,6 +302,8 @@ static void api_account_create(const int sock, const int num) {
 	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
 
+	if (userNumFromPubkey(pubkey_new) >= 0) return;
+
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
 	if (user2 == NULL) return;
 	user = user2;
