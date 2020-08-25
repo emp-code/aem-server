@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <sys/un.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
@@ -16,6 +15,7 @@
 
 #include "../Global.h"
 #include "../Common/Addr32.h"
+#include "../Common/UnixSocketClient.h"
 
 #include "SendMail.h"
 
@@ -43,9 +43,6 @@ static uint32_t lenDecrypted;
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
-static pid_t pid_account = 0;
-static pid_t pid_storage = 0;
-static pid_t pid_enquiry = 0;
 
 void setApiKey(const unsigned char * const seed) {
 	crypto_box_seed_keypair(spk, ssk, seed);
@@ -61,13 +58,7 @@ void setSigKey(const unsigned char * const src) {
 	setMsgIdKeys(src);
 }
 
-void setAccountPid(const pid_t pid) {pid_account = pid;}
-void setStoragePid(const pid_t pid) {pid_storage = pid;}
-void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
-
 int aem_api_init(void) {
-	if (pid_account == 0 || pid_storage == 0 || pid_enquiry == 0) return -1;
-
 	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999); // enough for headers and account data
 	if (response == NULL) return -1;
 
@@ -93,7 +84,6 @@ static void clearDecrypted() {
 }
 
 #include "../Common/Message.c"
-#include "../Common/UnixSocketClient.c"
 
 static void userViolation(const int violation) {
 	syslog(LOG_WARNING, "Violation");

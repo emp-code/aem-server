@@ -1,18 +1,18 @@
-#include <arpa/inet.h>
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <syslog.h>
 #include <sys/socket.h>
-#include <sys/un.h>
+#include <sys/types.h>
+#include <syslog.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
+#include "../Common/UnixSocketClient.h"
 
 #include "delivery.h"
 
@@ -22,18 +22,11 @@ static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
-static pid_t pid_account = 0;
-static pid_t pid_storage = 0;
-
 void setSignKey(const unsigned char * const seed) {
 	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
 	crypto_sign_seed_keypair(tmp, sign_skey, seed);
 }
 
-void setAccountPid(const pid_t pid) {pid_account = pid;}
-void setStoragePid(const pid_t pid) {pid_storage = pid;}
-
-#include "../Common/UnixSocketClient.c"
 #include "../Common/Message.c"
 
 static int getPublicKey(const unsigned char * const addr32, const bool isShield) {

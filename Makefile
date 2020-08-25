@@ -21,13 +21,13 @@ aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -DAEM_WEB_ONI -DAEM_IS_ONION -o aem-web-oni web-oni/main.c Common/SetCaps.c Common/CreateSocket.c -lsodium -lcap
 
 aem-api-clr: api-clr/*.c
-	$(CC) $(CFLAGS) -DAEM_API_CLR -DAEM_API -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_API_CLR -DAEM_API -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-api-oni: api-oni/*.c
-	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/HtmlRefs.c Common/ref2codepoint.c Common/QuotedPrintable.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/HtmlRefs.c Common/ref2codepoint.c Common/QuotedPrintable.c Common/UnixSocketClient.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
@@ -52,4 +52,4 @@ utils/Resgen: utils/Resgen.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen
+	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/CompKeys utils/Keygen utils/ManagerClient utils/Resgen

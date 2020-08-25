@@ -1,4 +1,24 @@
+#include <stdbool.h>
+#include <syslog.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include <sodium.h>
+
+#include "../Global.h"
+
 #include "../CompKeys.h"
+
+static pid_t pid_account = 0;
+static pid_t pid_storage = 0;
+static pid_t pid_enquiry = 0;
+
+void setAccountPid(const pid_t pid) {pid_account = pid;}
+void setStoragePid(const pid_t pid) {pid_storage = pid;}
+void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
 
 static bool peerOk(const int sock, const pid_t pid) {
 	struct ucred peer;
@@ -8,6 +28,8 @@ static bool peerOk(const int sock, const pid_t pid) {
 }
 
 static int getUnixSocket(const char * const path, const pid_t pid, const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
+	if (pid == 0) return -1;
+
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_WARNING, "Failed creating Unix socket: %m"); return -1;}
 
@@ -56,16 +78,16 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	return sock;
 }
 
-static int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
+int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ACCOUNT, pid_account, command, msg, lenMsg);
 }
 
-static int storageSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
+int storageSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }
 
 #ifdef AEM_API
-static int enquirySocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
+int enquirySocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ENQUIRY, pid_enquiry, command, msg, lenMsg);
 }
 #endif

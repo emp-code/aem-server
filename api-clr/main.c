@@ -18,6 +18,7 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
+#include "../Common/UnixSocketClient.h"
 
 #include "https.h"
 #include "../api-common/post.h"

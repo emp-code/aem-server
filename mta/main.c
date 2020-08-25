@@ -21,6 +21,7 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
+#include "../Common/UnixSocketClient.h"
 
 #define AEM_LOGNAME "AEM-MTA"
 
