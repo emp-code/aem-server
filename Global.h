@@ -48,8 +48,8 @@
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
 #define AEM_INTMSG_HEADERS_LEN 83
 
-#define AEM_ADDR32_ADMIN  (unsigned char*)"\xa6\xd0\x35\x0e\x75\x85\x68\x18" // 'administrator' in Addr32
-#define AEM_ADDR32_SYSTEM (unsigned char*)"\x36\x7d\x9d\x3a\x80\x00\x00\x00\x00\x00" // 'system' in Addr32
+#define AEM_ADDR32_ADMIN  (const unsigned char[]) {'\xa6', '\xd0', '\x35', '\x0e', '\x75', '\x85', '\x68', '\x18'} // 'administrator' in Addr32
+#define AEM_ADDR32_SYSTEM (const unsigned char[]) {'\x36', '\x7d', '\x9d', '\x3a', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'system' in Addr32
 
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
