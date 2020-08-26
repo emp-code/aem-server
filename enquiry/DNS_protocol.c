@@ -129,7 +129,7 @@ int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOf
 
 				rr_getName(msg, lenMsg, p, name, lenName, false);
 				return offset + 2;
-			break;}
+			}
 			case 0: { // Normal
 				allowPointer = true;
 				if (msg[offset] == 0) return offset + 1; // Label end
@@ -144,7 +144,7 @@ int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOf
 				*lenName += msg[offset];
 				offset += msg[offset] + 1;
 				continue;
-			break;}
+			}
 			default: // 128, 64: reserved
 				syslog(LOG_ERR, "128/64");
 				return -1;
