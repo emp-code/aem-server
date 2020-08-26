@@ -244,7 +244,6 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 		}
 
 		char *charset = NULL;
-		size_t lenCs = 0;
 		if (isText) {
 			const char *cs = strcasestr(ct + 14, "charset=");
 			if (cs == NULL) cs = strcasestr(ct + 14, "harset =");
@@ -284,7 +283,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 		}
 
 		if (isText) {
-			if (charset != NULL && !isUtf8(charset, lenCs)) {
+			if (charset != NULL && !isUtf8(charset)) {
 				size_t lenUtf8;
 				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
 				if (utf8 != NULL) {
@@ -427,7 +426,6 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 		}
 	} else {
 		char *charset = NULL;
-		size_t lenCs = 0;
 		const char *cs = strcasestr(ct, "charset=");
 		if (cs == NULL) cs = strcasestr(ct, "harset =");
 		if (cs == NULL) cs = strcasestr(ct, "harset\t=");
@@ -469,7 +467,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 			}
 		}
 
-		if (charset != NULL && !isUtf8(charset, lenCs)) {
+		if (charset != NULL && !isUtf8(charset)) {
 			size_t lenUtf8;
 			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
 			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);

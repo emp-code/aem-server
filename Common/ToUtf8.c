@@ -6,19 +6,19 @@
 
 #include "ToUtf8.h"
 
-bool isUtf8(const char * const charset, const size_t lenCs) {
+bool isUtf8(const char * const charset) {
 	return (charset != NULL && (
-	   (lenCs >= 4 && strncasecmp(charset, "utf8", 4) == 0)
-	|| (lenCs >= 5 && strncasecmp(charset, "utf", 3) == 0 && charset[4] == '8')
-	|| (lenCs >= 5 && strncasecmp(charset, "ascii", 5) == 0)
-	|| (lenCs >= 8 && strncasecmp(charset, "us-ascii", 8) == 0)
+	(strncasecmp(charset, "utf", 3) == 0 && charset[4] == '8')
+	|| strcasecmp(charset, "utf8") == 0
+	|| strcasecmp(charset, "ascii") == 0
+	|| strcasecmp(charset, "us-ascii") == 0
 	));
 }
 
 char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
-	if (isUtf8(charset, strlen(charset))) {
+	if (isUtf8(charset)) {
 		char * const new = malloc(lenInput + 1);
 		memcpy(new, input, lenInput);
 		new[lenInput] = '\0';
