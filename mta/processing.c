@@ -374,10 +374,6 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 	if (headersEnd == NULL) return;
 	headersEnd += 2;
 
-	headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
-	if (headersEnd == NULL) return;
-	headersEnd += 2;
-
 	const char *ct = strcasestr(*msg, "\nContent-Type:");
 	if (ct == NULL || ct > headersEnd) {
 		removeControlChars((unsigned char*)(*msg), lenMsg);
