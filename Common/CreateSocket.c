@@ -43,9 +43,9 @@ int createSocket(const int port, const bool loopback, const time_t rcvTimeout, c
 		servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 		struct if_nameindex * const ni = if_nameindex();
 		for (int i = 0;; i++) {
-			if (ni[i].if_index == 0) return -1;
+			if (ni[i].if_index == 0) {if_freenameindex(ni); return -1;}
 			if (strncmp(ni[i].if_name, "lo", 2) == 0) continue;
-			if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, ni[i].if_name, strlen(ni[i].if_name) + 1) != 0) return -1;
+			if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, ni[i].if_name, strlen(ni[i].if_name) + 1) != 0) {if_freenameindex(ni); return -1;}
 			break;
 		}
 		if_freenameindex(ni);
