@@ -96,7 +96,7 @@ void respondClient(const int sock) {
 
 		// Request is valid
 		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
-		unsigned char *box = malloc(lenBox);
+		unsigned char * const box = malloc(lenBox);
 		if (box == NULL) {syslog(LOG_ERR, "Failed malloc()"); break;}
 
 		if (lenPost > AEM_API_SEALBOX_SIZE) {
