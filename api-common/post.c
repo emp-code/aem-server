@@ -76,6 +76,8 @@ void aem_api_free(void) {
 	sodium_free(decrypted);
 	sodium_free(response);
 	decrypted = NULL;
+
+	tlsFree_sendmail();
 }
 
 static void clearDecrypted(void) {

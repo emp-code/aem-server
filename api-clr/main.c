@@ -21,7 +21,6 @@
 
 #include "https.h"
 #include "../api-common/post.h"
-#include "../api-common/SendMail.h"
 
 #define AEM_LOGNAME "AEM-API"
 
@@ -40,7 +39,6 @@ static void sigTerm(const int sig) {
 	// SIGUSR2: Fast kill
 	aem_api_free();
 	tlsFree();
-	tlsFree_sendmail();
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -108,7 +106,6 @@ int main(int argc, char *argv[]) {
 
 	aem_api_free();
 	tlsFree();
-	tlsFree_sendmail();
 
 	return EXIT_SUCCESS;
 }
