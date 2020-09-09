@@ -330,15 +330,6 @@ static void api_account_delete(const int sock, const int num) {
 }
 
 static void api_account_update(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
-		return;
-	}
-
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	if (send(sock, &ok, 1, 0) != 1) return;
-
 	unsigned char buf[crypto_box_PUBLICKEYBYTES + 1];
 	if (recv(sock, buf, crypto_box_PUBLICKEYBYTES + 1, 0) != crypto_box_PUBLICKEYBYTES + 1) return;
 
@@ -347,10 +338,20 @@ static void api_account_update(const int sock, const int num) {
 	const int updateNum = userNumFromPubkey(buf + 1);
 	if (updateNum < 0) return;
 
+	// If not admin && (updating another user || new-level >= current-level)
+	if ((user[num].info & 3) != 3 && (updateNum != num || buf[0] >= (user[num].info & 3))) {
+		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		send(sock, &violation, 1, 0);
+		return;
+	}
+
 	user[updateNum].info &= 252;
 	user[updateNum].info |= buf[0] & 3;
 
 	saveUser();
+
+	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
+	send(sock, &ok, 1, 0);
 }
 
 static void api_address_create(const int sock, const int num) {
