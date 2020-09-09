@@ -91,7 +91,6 @@ static void acceptClients(void) {
 	close(sock);
 }
 
-
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
