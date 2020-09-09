@@ -17,9 +17,8 @@
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
-#include "../api-common/post.h"
-
 #include "http.h"
+#include "../api-common/post.h"
 
 #define AEM_LOGNAME "AEM-AOn"
 

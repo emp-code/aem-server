@@ -1,6 +1,5 @@
 #include <arpa/inet.h>
 #include <locale.h> // for setlocale
-#include <net/if.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
