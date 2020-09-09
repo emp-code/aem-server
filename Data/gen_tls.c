@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
 	|| (strlen(argv[2]) < 5 || strcmp(argv[2] + strlen(argv[2]) - 4, ".key") != 0)
 	) {printf("Usage: %s TLS.crt TLS.key\n", argv[0]); return 1;}
 
-	off_t crtSize;
-	off_t keySize;
+	off_t crtSize = 0;
+	off_t keySize = 0;
 	unsigned char crtData[AEM_MAXSIZE_FILE];
 	unsigned char keyData[AEM_MAXSIZE_FILE];
 
