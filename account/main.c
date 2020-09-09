@@ -305,20 +305,18 @@ static void api_account_create(const int sock, const int num) {
 }
 
 static void api_account_delete(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
-		return;
-	}
-
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	if (send(sock, &ok, 1, 0) != 1) return;
-
 	unsigned char pubkey_del[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_del, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
 
 	const int delNum = userNumFromPubkey(pubkey_del);
 	if (delNum < 0) return;
+
+	// Users can only delete themselves
+	if ((user[num].info & 3) != 3 && delNum != num) {
+		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		send(sock, &violation, 1, 0);
+		return;
+	}
 
 	if (delNum < (userCount - 1)) {
 		const size_t s = sizeof(struct aem_user);
@@ -327,6 +325,9 @@ static void api_account_delete(const int sock, const int num) {
 
 	userCount--;
 	saveUser();
+
+	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
+	if (send(sock, &ok, 1, 0) != 1) return;
 }
 
 static void api_account_update(const int sock, const int num) {

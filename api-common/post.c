@@ -209,27 +209,23 @@ static void account_delete(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {
-		close(sock);
-		return;
-	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-		userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
-		close(sock);
-		return;
-	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
-		close(sock);
-		return;
-	}
-
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
 		return;
 	}
 
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) == 1) {
+		if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+			userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
+//			shortResponse((unsigned char*)"Violation", 9);
+		} else if (resp == AEM_ACCOUNT_RESPONSE_OK) {
+			shortResponse(NULL, AEM_API_NOCONTENT);
+		}
+	}
+
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void account_update(void) {
