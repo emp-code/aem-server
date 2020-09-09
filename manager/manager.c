@@ -19,7 +19,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/x509_crt.h>
 #include <sodium.h>
 
 #include "../Common/CreateSocket.h"
