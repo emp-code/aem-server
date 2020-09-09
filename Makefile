@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
-all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509
@@ -32,12 +32,6 @@ aem-mta: mta/*.c
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
-utils/CertCrypt: utils/CertCrypt.c
-	$(CC) $(CFLAGS) -o utils/CertCrypt utils/CertCrypt.c utils/GetKey.c Common/ToggleEcho.c -lsodium
-
-utils/FileCrypt: utils/FileCrypt.c
-	$(CC) $(CFLAGS) -o utils/FileCrypt utils/FileCrypt.c utils/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc
-
 utils/Keygen: utils/Keygen.c
 	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
 
@@ -61,4 +55,4 @@ Data/gen_tls: Data/gen_tls.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/Keygen utils/ManagerClient utils/Resgen Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
