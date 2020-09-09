@@ -23,8 +23,7 @@
 
 #define AEM_LOGNAME "AEM-AOn"
 
-#define AEM_MAXLEN_PIPEREAD 8192
-#define AEM_MINLEN_PIPEREAD 128
+#define AEM_MAXLEN_PIPEREAD 64
 
 static bool terminate = false;
 
