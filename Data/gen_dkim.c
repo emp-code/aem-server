@@ -47,8 +47,8 @@ static void printKey(const char * const def, unsigned char * const buf, const si
 int main(int argc, char *argv[]) {
 	if (argc < 3) {printf("Usage: %s Admin.dkim Users.dkim\n", argv[0]); return 1;}
 
-	off_t admSize;
-	off_t usrSize;
+	off_t admSize = 0;
+	off_t usrSize = 0;
 	unsigned char admData[AEM_MAXSIZE_FILE];
 	unsigned char usrData[AEM_MAXSIZE_FILE];
 
