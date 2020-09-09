@@ -48,7 +48,7 @@ static int bindMount(const char * const source, const char * const target, const
 }
 
 static int makeSpecial(const char * const name, const mode_t mode, const unsigned int major, const unsigned int minor, const gid_t aemGroup) {
-	char path[32];
+	char path[64];
 	strcpy(path, AEM_MOUNTDIR"/dev/");
 	strcpy(path + strlen(path), name);
 	return (
