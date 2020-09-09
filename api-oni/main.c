@@ -46,7 +46,6 @@ static void sigTerm(const int sig) {
 }
 
 #include "../Common/main_all.c"
-#include "../Common/PipeLoad.c"
 
 __attribute__((warn_unused_result))
 static int pipeLoadPids(const int fd) {
@@ -73,12 +72,6 @@ static int pipeLoadKeys(const int fd) {
 
 	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
 	setSigKey(buf);
-
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_DKI) return -1;
-	setDkimAdm(buf);
-
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_DKI) return -1;
-	setDkimUsr(buf);
 
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
 	return 0;

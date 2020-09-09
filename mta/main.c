@@ -45,7 +45,6 @@ static void sigTerm(const int sig) {
 }
 
 #include "../Common/main_all.c"
-#include "../Common/PipeLoad.c"
 
 __attribute__((warn_unused_result))
 static int pipeLoadPids(const int fd) {
@@ -96,9 +95,9 @@ int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
-	if (pipeLoadTls(argv[0][0])  < 0) {syslog(LOG_ERR, "Terminating: Failed loading TLS cert/key"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
+	tlsSetup();
 	acceptClients();
 
 	tlsFree();

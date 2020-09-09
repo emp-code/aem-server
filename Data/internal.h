@@ -1,8 +1,7 @@
-#ifndef AEM_COMPKEYS_H
-#define AEM_COMPKEYS_H
+#ifndef AEM_DATA_INTERNAL_H
+#define AEM_DATA_INTERNAL_H
 
-// Replace the following with the output of utils/CompKeys
-#warning CompKeys not replaced, internal communication insecure
+#warning internal.h not configured: internal communication insecure
 
 #define AEM_KEY_ACCESS_ACCOUNT_API (const unsigned char[]) {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_ACCESS_ACCOUNT_MTA (const unsigned char[]) {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}

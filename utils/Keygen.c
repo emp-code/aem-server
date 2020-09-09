@@ -9,22 +9,22 @@
 
 #include "../Global.h"
 
-#define AEM_PATH_KEY_ACC "Account.key"
-#define AEM_PATH_KEY_API "API.key"
-#define AEM_PATH_KEY_MNG "Manager.key"
-#define AEM_PATH_KEY_SIG "Signing.key"
-#define AEM_PATH_KEY_STO "Storage.key"
+#define AEK_PATH_KEY_ACC "Account.key"
+#define AEK_PATH_KEY_API "API.key"
+#define AEK_PATH_KEY_MNG "Manager.key"
+#define AEK_PATH_KEY_SIG "Signing.key"
+#define AEK_PATH_KEY_STO "Storage.key"
 
-#define AEM_PATH_DKI_ADM "Admin.dkim"
-#define AEM_PATH_DKI_USR "Users.dkim"
+#define AEK_PATH_DKI_ADM "Admin.dkim"
+#define AEK_PATH_DKI_USR "Users.dkim"
 
-#define AEM_PATH_SLT_NRM "Normal.slt"
-#define AEM_PATH_SLT_SHD "Shield.slt"
-#define AEM_PATH_SLT_FKE "Fake.slt"
+#define AEK_PATH_SLT_NRM "Normal.slt"
+#define AEK_PATH_SLT_SHD "Shield.slt"
+#define AEK_PATH_SLT_FKE "Fake.slt"
 
 unsigned char master[crypto_secretbox_KEYBYTES];
 
-static int writeRandomEncrypted(const char * const path, const size_t len, const bool print) {
+static int writeRandomEncrypted(const char * const path, const size_t len) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {
 		printf("Failed creating %s\n", path);
@@ -33,12 +33,6 @@ static int writeRandomEncrypted(const char * const path, const size_t len, const
 
 	unsigned char buf[len];
 	randombytes_buf(buf, len);
-
-	if (print) {
-		char hex[(len * 2) + 1];
-		sodium_bin2hex(hex, (len * 2) + 1, buf, len);
-		printf("%s: %s\n", path, hex);
-	}
 
 	const size_t lenEncrypted = len + crypto_secretbox_MACBYTES;
 	unsigned char encrypted[lenEncrypted];
@@ -78,18 +72,12 @@ int main(void) {
 	printf("Master Key (hex): %s\n", master_hex);
 	sodium_memzero(master_hex, lenHex);
 
-	writeRandomEncrypted(AEM_PATH_KEY_ACC, AEM_LEN_KEY_ACC, false);
-	writeRandomEncrypted(AEM_PATH_KEY_API, AEM_LEN_KEY_API, false);
-	writeRandomEncrypted(AEM_PATH_KEY_MNG, AEM_LEN_KEY_MNG, false);
-	writeRandomEncrypted(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, false);
-	writeRandomEncrypted(AEM_PATH_KEY_STO, AEM_LEN_KEY_STO, false);
-
-	writeRandomEncrypted(AEM_PATH_DKI_ADM, AEM_LEN_KEY_DKI, true);
-	writeRandomEncrypted(AEM_PATH_DKI_USR, AEM_LEN_KEY_DKI, true);
-
-	writeRandomEncrypted(AEM_PATH_SLT_NRM, AEM_LEN_SALT_NORM, false);
-	writeRandomEncrypted(AEM_PATH_SLT_SHD, AEM_LEN_SALT_SHLD, false);
-	writeRandomEncrypted(AEM_PATH_SLT_FKE, AEM_LEN_SALT_FAKE, false);
+	writeRandomEncrypted(AEK_PATH_KEY_ACC, AEM_LEN_KEY_ACC);
+	writeRandomEncrypted(AEK_PATH_KEY_API, AEM_LEN_KEY_API);
+	writeRandomEncrypted(AEK_PATH_KEY_MNG, AEM_LEN_KEY_MNG);
+	writeRandomEncrypted(AEK_PATH_KEY_SIG, AEM_LEN_KEY_SIG);
+	writeRandomEncrypted(AEK_PATH_KEY_STO, AEM_LEN_KEY_STO);
+	writeRandomEncrypted(AEK_PATH_SLT_SHD, AEM_LEN_SLT_SHD);
 
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;

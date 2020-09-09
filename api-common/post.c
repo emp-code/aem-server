@@ -59,6 +59,8 @@ void setSigKey(const unsigned char * const src) {
 }
 
 int aem_api_init(void) {
+	if (tlsSetup_sendmail() != 0) return -1;
+
 	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999); // enough for headers and account data
 	if (response == NULL) return -1;
 

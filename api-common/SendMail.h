@@ -42,7 +42,7 @@ void setDkimUsr(const unsigned char * const seed);
 void setMsgIdKeys(const unsigned char * const src);
 void sm_clearKeys();
 
-int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
+int tlsSetup_sendmail(void);
 void tlsFree_sendmail(void);
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info);

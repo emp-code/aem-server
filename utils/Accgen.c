@@ -15,8 +15,6 @@
 
 #include "GetKey.h"
 
-#define AEM_PATH_KEY_ACC "/etc/allears/Account.key"
-
 struct aem_user {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	unsigned char info; // & 3 = level; & 4 = unused; >> 3 = addresscount

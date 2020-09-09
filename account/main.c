@@ -15,15 +15,13 @@
 
 #include <sodium.h>
 
-#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../Data/internal.h"
+#include "../Data/address.h"
 
 #define AEM_ACCOUNT
 #define AEM_LOGNAME "AEM-Acc"
-
-#define AEM_MAXLEN_PIPEREAD 65533 // 5041 hashes max
-#define AEM_MINLEN_PIPEREAD 8
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8 unused
@@ -55,15 +53,8 @@ struct aem_user {
 static struct aem_user *user = NULL;
 static int userCount = 0;
 
-static unsigned char accountKey[crypto_secretbox_KEYBYTES];
-
-static unsigned char salt_normal[AEM_LEN_SALT_NORM];
-static unsigned char salt_shield[AEM_LEN_SALT_SHLD];
-static unsigned char salt_fake[crypto_generichash_KEYBYTES];
-
-static uint64_t hash_system;
-static uint64_t *hash_admin;
-static int hash_admin_count = 0;
+static unsigned char accountKey[AEM_LEN_KEY_ACC];
+static unsigned char saltShield[AEM_LEN_SLT_SHD];
 
 static bool terminate = false;
 
@@ -74,12 +65,10 @@ static void sigTerm(const int sig) {
 		return;
 	}
 
-	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
-	sodium_memzero(salt_normal, AEM_LEN_SALT_NORM);
-	sodium_memzero(salt_shield, AEM_LEN_SALT_SHLD);
+	sodium_memzero(accountKey, AEM_LEN_KEY_ACC);
+	sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
 
 	free(user);
-	sodium_free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -198,12 +187,12 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 
 	if (shield) {
 		uint64_t hash;
-		crypto_shorthash((unsigned char*)&hash, addr32, 10, salt_shield);
+		crypto_shorthash((unsigned char*)&hash, addr32, 10, saltShield);
 		return hash;
 	}
 
 	uint64_t halves[2];
-	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, salt_normal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
+	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, AEM_SLT_NRM, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
 		syslog(LOG_ERR, "Failed hashing address");
 		return 0;
 	}
@@ -381,12 +370,12 @@ static void api_address_create(const int sock, const int num) {
 		hash = addressToHash(addr32, true);
 		if (hash == 0) return;
 	} else if (len == 8) {
-		if (hash == hash_system) return; // Forbid 'system' address
+		if (hash == AEM_HASH_SYSTEM) return;
 
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
-			for (int i = 0; i < hash_admin_count; i++) {
-				if (hash == hash_admin[i]) return;
+			for (unsigned int i = 0; i < AEM_HASH_ADMIN_COUNT; i++) {
+				if (hash == AEM_HASH_ADMIN[i]) return;
 			}
 		}
 	} else {
@@ -447,24 +436,7 @@ static void api_address_delete(const int sock, const int num) {
 }
 
 static void api_address_lookup(const int sock) {
-	unsigned char addr[11];
-	if (recv(sock, addr, 11, 0) != 11) return;
-	const bool isShield = addr[0] == 'S';
-
-	const uint64_t hash = addressToHash(addr + 1, isShield);
-	if (hash == 0) return;
-
-	unsigned char addrFlags;
-	const int userNum = hashToUserNum(hash, isShield, &addrFlags);
-	if (userNum >= 0 && addrFlags & AEM_ADDR_FLAG_ACCINT) {
-		send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-		return;
-	}
-
-	// Address doesn't exist, or blocks internal messages - respond with a deterministic fake
-	unsigned char fake[crypto_box_PUBLICKEYBYTES];
-	crypto_generichash(fake, sizeof(fake), (const unsigned char*)&hash, 8, salt_fake, crypto_generichash_KEYBYTES);
-	send(sock, fake, crypto_box_PUBLICKEYBYTES, 0);
+	// TODO
 }
 
 static void api_address_update(const int sock, const int num) {
@@ -622,19 +594,6 @@ static int takeConnections(void) {
 	return 0;
 }
 
-__attribute__((warn_unused_result))
-static int pipeLoad(const int fd) {
-	return (
-	   read(fd, accountKey, AEM_LEN_KEY_ACC) == AEM_LEN_KEY_ACC
-
-	&& read(fd, salt_normal, AEM_LEN_SALT_NORM) == AEM_LEN_SALT_NORM
-	&& read(fd, salt_shield, AEM_LEN_SALT_SHLD) == AEM_LEN_SALT_SHLD
-	&& read(fd, salt_fake,   AEM_LEN_SALT_FAKE) == AEM_LEN_SALT_FAKE
-	) ? 0 : -1;
-}
-
-#include "../Common/PipeLoad.c"
-
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 
@@ -643,26 +602,24 @@ int main(int argc, char *argv[]) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	unsigned char *hash_admin_u8;
-	size_t hash_admin_size = 1;
-	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
-	if (pipeRead(argv[0][0], &hash_admin_u8, &hash_admin_size) < 0) {syslog(LOG_ERR, "Terminating: Failed loading admin hashes"); return EXIT_FAILURE;}
+	if (
+	   read(argv[0][0], accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+	|| read(argv[0][0], saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+	) {
+		close(argv[0][0]);
+		syslog(LOG_ERR, "Terminating: Failed reading pipe");
+		return EXIT_FAILURE;
+	}
+
 	close(argv[0][0]);
-
-	if (hash_admin_size % 8 != 0) {syslog(LOG_ERR, "Terminating: Admin hashes: wrong size"); return EXIT_FAILURE;}
-	hash_admin_count = hash_admin_size / 8;
-	hash_admin = (uint64_t*)hash_admin_u8;
-
-	hash_system = addressToHash(AEM_ADDR32_SYSTEM, false);
-	if (hash_system == 0) {syslog(LOG_ERR, "Terminating: Failed hashing system address"); return EXIT_FAILURE;}
 
 	if (loadUser() != 0) {syslog(LOG_ERR, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_INFO, "Ready");
 
 	takeConnections();
+
 	free(user);
-	sodium_free(hash_admin);
 
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;

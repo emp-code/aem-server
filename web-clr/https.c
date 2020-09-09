@@ -12,6 +12,7 @@
 
 #include "../Global.h"
 #include "../Common/tls_common.h"
+#include "../Data/html.h"
 
 #include "https.h"
 
@@ -20,50 +21,7 @@
 
 static char req[AEM_MAXLEN_REQ + 1];
 
-static unsigned char *html;
-static size_t lenHtml = 0;
-
-static char sts[377 + AEM_MAXLEN_DOMAIN];
-
-static char domain[AEM_MAXLEN_DOMAIN];
-static size_t lenDomain;
-
 #include "../Common/tls_setup.c"
-
-int setHtml(const unsigned char * const data, const size_t len) {
-	html = sodium_malloc(len);
-	if (html == NULL) return -1;
-
-	memcpy(html, data, len);
-	sodium_mprotect_readonly(html);
-	lenHtml = len;
-
-	sprintf(sts,
-		"HTTP/1.1 200 aem\r\n"
-		"Cache-Control: public, max-age=9999999, immutable\r\n"
-		"Connection: close\r\n"
-		"Content-Length: %zu\r\n"
-		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Tk: N\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
-		"X-Robots-Tag: noindex\r\n"
-		"\r\n"
-		"version: STSv1\n"
-		"mode: enforce\n"
-		"mx: %.*s\n"
-		"max_age: 31557600"
-	, 51 + lenDomain, (int)lenDomain, domain);
-
-	return 0;
-}
-
-void freeHtml(void) {
-	if (lenHtml == 0) return;
-	sodium_free(html);
-	lenHtml = 0;
-}
 
 static void handleRequest(const size_t lenReq) {
 	if (memcmp(req, "GET /", 5) != 0) return;
@@ -75,8 +33,8 @@ static void handleRequest(const size_t lenReq) {
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return;
-	if (strncmp(host + 8, "mta-sts.", 8) == 0) {sendData(&ssl, sts, 376 + lenDomain); return;}
-	if (strncmp(host + 8, domain, lenDomain) != 0) return;
+	if (strncmp(host + 8, "mta-sts.", 8) == 0) {sendData(&ssl, AEM_MTASTS_DATA, AEM_MTASTS_SIZE); return;}
+	if (strncmp(host + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return;
 	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) != 0) return;
 
 	// Forbidden request headers
@@ -97,7 +55,7 @@ static void handleRequest(const size_t lenReq) {
 	const char * const fetchDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (fetchDest != NULL && strncasecmp(fetchDest + 18, "document\r\n", 10) != 0) return;
 
-	sendData(&ssl, html, lenHtml);
+	sendData(&ssl, AEM_HTML_CLR_DATA, AEM_HTML_CLR_SIZE);
 }
 
 void respondClient(int sock) {

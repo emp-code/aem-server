@@ -17,15 +17,15 @@
 
 #include "../Global.h"
 #include "../Common/aes.h"
+#include "../Data/dkim.h"
+#include "../Data/domain.h"
+#include "../Data/tls.h"
 
 #include "SendMail.h"
 
 #define AEM_API_SENDMAIL
 
 static bool useTls;
-
-static char domain[AEM_MAXLEN_DOMAIN];
-static size_t lenDomain;
 
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;
@@ -36,13 +36,6 @@ static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt cacert;
 
-static unsigned char dkim_adm_skey[AEM_LEN_KEY_DKI];
-static unsigned char dkim_usr_skey[AEM_LEN_KEY_DKI];
-
-// EdDSA
-//	unsigned char tmp[crypto_sign_SECRETKEYBYTES];
-//	crypto_sign_seed_keypair(tmp, dkim_adm_skey, seed);
-
 unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
 unsigned char msgId_aesKey[32];
 
@@ -51,42 +44,9 @@ void setMsgIdKeys(const unsigned char * const src) {
 	crypto_kdf_derive_from_key(msgId_aesKey, 32, 2, "AEM-MsId", src);
 }
 
-void setDkimAdm(const unsigned char * const new) {
-	memcpy(dkim_adm_skey, new, AEM_LEN_KEY_DKI);
-}
-
-void setDkimUsr(const unsigned char * const new) {
-	memcpy(dkim_usr_skey, new, AEM_LEN_KEY_DKI);
-}
-
 void sm_clearKeys() {
-	sodium_memzero(dkim_adm_skey, AEM_LEN_KEY_DKI);
-	sodium_memzero(dkim_usr_skey, AEM_LEN_KEY_DKI);
 	sodium_memzero(msgId_hashKey, crypto_generichash_KEYBYTES);
 	sodium_memzero(msgId_aesKey, 32);
-}
-
-__attribute__((warn_unused_result))
-static int getDomainFromCert(void) {
-	char certInfo[1024];
-	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
-
-	const char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return -1;
-	c += 17;
-
-	const char * const end = strchr(c, '\n');
-
-	c = strstr(c, ": CN=");
-	if (c == NULL || c > end) return -1;
-	c += 5;
-
-	const int len = end - c;
-	if (len > AEM_MAXLEN_DOMAIN) return -1;
-
-	memcpy(domain, c, len);
-	lenDomain = len;
-	return 0;
 }
 
 __attribute__((warn_unused_result))
@@ -114,16 +74,14 @@ void tlsFree_sendmail(void) {
 	mbedtls_x509_crt_free(&cacert);
 }
 
-int tlsSetup_sendmail(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen) {
+int tlsSetup_sendmail(void) {
 	mbedtls_x509_crt_init(&tlsCrt);
-	int ret = mbedtls_x509_crt_parse(&tlsCrt, crtData, crtLen);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", -ret); return -1;}
+	int ret = mbedtls_x509_crt_parse(&tlsCrt, AEM_TLS_CRT_DATA, AEM_TLS_CRT_SIZE);
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
-	ret = mbedtls_pk_parse_key(&tlsKey, keyData, keyLen, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", -ret); return -1;}
-
-	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
+	ret = mbedtls_pk_parse_key(&tlsKey, AEM_TLS_KEY_DATA, AEM_TLS_KEY_SIZE, NULL, 0);
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", ret); return -1;}
 
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_x509_crt_init(&cacert);
@@ -170,7 +128,7 @@ static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
 
-	int ret = mbedtls_pk_parse_key(&pk, isAdmin? dkim_adm_skey : dkim_usr_skey, 1 + strlen((char*)(isAdmin? dkim_adm_skey : dkim_usr_skey)), NULL, 0);
+	int ret = mbedtls_pk_parse_key(&pk, isAdmin? AEM_DKIM_ADM_DATA : AEM_DKIM_USR_DATA, isAdmin? AEM_DKIM_ADM_SIZE : AEM_DKIM_USR_SIZE, NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %d", ret); mbedtls_pk_free(&pk); return -1;}
 
 	// Calculate the signature of the hash
@@ -235,17 +193,17 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 
 	sprintf(final,
 		"%s" // References + In-Reply-To
-		"From: %s@%.*s\r\n"
+		"From: %s@"AEM_DOMAIN"\r\n"
 		"Date: %s\r\n"
-		"Message-ID: <%s@%.*s>\r\n"
+		"Message-ID: <%s@"AEM_DOMAIN">\r\n"
 		"Subject: %s\r\n"
 		"To: %s\r\n"
 		"DKIM-Signature:"
 			" v=1;"
 			" a=rsa-sha256;" //ed25519-sha256
 			" c=simple/simple;"
-			" d=%.*s;"
-			" i=%s@%.*s;"
+			" d="AEM_DOMAIN";"
+			" i=%s@"AEM_DOMAIN";"
 			" q=dns/txt;"
 			" s=%s;"
 			" t=%u;"
@@ -268,13 +226,12 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 			" bh=%s;"
 			" b="
 	, ref
-	, email->addrFrom, (int)lenDomain, domain
+	, email->addrFrom
 	, rfctime
-	, msgId, (int)lenDomain, domain
+	, msgId
 	, email->subject
 	, email->addrTo
-	, (int)lenDomain, domain //d=
-	, email->addrFrom, (int)lenDomain, domain //i=
+	, email->addrFrom //i=
 	, (userLevel == AEM_USERLEVEL_MAX) ? "admin" : "users"
 	, ts // t=
 	, ts + 86400 // x=; expire after a day
@@ -350,11 +307,9 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
 	info->greeting[lenGreeting - 2] = '\0'; // Remove \r\n
 
+	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
+
 	char buf[513];
-
-	sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
-	if (smtp_send(sock, buf, strlen(buf)) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
-
 	bzero(buf, 513);
 	ssize_t len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
@@ -385,8 +340,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 
 		useTls = true;
 
-		sprintf(buf, "EHLO %.*s\r\n", (int)lenDomain, domain);
-		if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
+		if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
 
 		len = smtp_recv(sock, buf, 512);
 		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
@@ -396,7 +350,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	}
 
 	// From
-	sprintf(buf, "MAIL FROM: <%s@%.*s>\r\n", email->addrFrom, (int)lenDomain, domain);
+	sprintf(buf, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
 	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_MAIL;}
 	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_MAIL;} 

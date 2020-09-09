@@ -1,7 +1,7 @@
 #ifndef AEM_SMTP_H
 #define AEM_SMTP_H
 
-int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen);
+int tlsSetup(void);
 void tlsFree(void);
 void setSignKey_mta(const unsigned char * const seed);
 

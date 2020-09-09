@@ -12,13 +12,22 @@
 
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 
-#define AEM_LEN_KEY_ACC crypto_box_SECRETKEYBYTES
+#define AEM_LEN_KEY_ACC crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
 #define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_SIG crypto_sign_SEEDBYTES
 #define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
 #define AEM_LEN_KEY_STO 32 // AES-256
-#define AEM_LEN_KEY_DKI 2048 //crypto_sign_SEEDBYTES // RSA/EdDSA
+
+#define AEM_PATH_CONF "/etc/allears"
+
+#define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
+#define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
+#define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
+#define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
+#define AEM_PATH_KEY_SIG AEM_PATH_CONF"/Signing.key"
+#define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
+#define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
 
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
@@ -26,9 +35,9 @@
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 #define AEM_MINLEVEL_SENDEMAIL 2
 
-#define AEM_LEN_SALT_NORM crypto_pwhash_SALTBYTES
-#define AEM_LEN_SALT_SHLD crypto_shorthash_KEYBYTES
-#define AEM_LEN_SALT_FAKE crypto_generichash_KEYBYTES
+#define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
+#define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
+#define AEM_LEN_SLT_FKE crypto_generichash_KEYBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters

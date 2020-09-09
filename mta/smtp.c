@@ -32,26 +32,20 @@
 #define AEM_SMTP_MAX_SIZE_TO 4096 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_MAX_SIZE_BODY 1048576 // 1 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 
-#define AEM_EHLO_RESPONSE_LEN 62
+#define AEM_EHLO_RESPONSE_LEN 60
 #define AEM_EHLO_RESPONSE \
 "\r\n250-SIZE 1048576" \
 "\r\n250-STARTTLS" \
 "\r\n250-8BITMIME" \
-"\r\n250 SMTPUTF8" \
-"\r\n"
+"\r\n250 SMTPUTF8"
 
-#define AEM_SHLO_RESPONSE_LEN 48
+#define AEM_SHLO_RESPONSE_LEN 46
 #define AEM_SHLO_RESPONSE \
 "\r\n250-SIZE 1048576" \
 "\r\n250-8BITMIME" \
-"\r\n250 SMTPUTF8" \
-"\r\n"
+"\r\n250 SMTPUTF8"
 
 struct emailInfo email;
-
-// Set by getDomainFromCert() in tls_setup.c
-static size_t lenDomain;
-static char domain[AEM_MAXLEN_DOMAIN];
 
 #include "../Common/tls_setup.c"
 
@@ -185,7 +179,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 			addr[addrChars] = tolower(buf[skipBytes + i]);
 			addrChars++;
 		} else if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != (int)lenDomain || strncasecmp(buf + skipBytes + i + 1, domain, lenDomain) != 0) return 0;
+			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return 0;
 			break;
 		}
 	}
@@ -195,44 +189,22 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 
 __attribute__((warn_unused_result))
 static bool smtp_greet(const int sock) {
-	const int lenGreet = 6 + lenDomain;
-	char ourGreeting[lenGreet];
-	memcpy(ourGreeting, "220 ", 4);
-	memcpy(ourGreeting + 4, domain, lenDomain);
-	memcpy(ourGreeting + 4 + lenDomain, "\r\n", 2);
-	return (send(sock, ourGreeting, lenGreet, 0) == lenGreet);
+	return send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
 }
 
 __attribute__((warn_unused_result))
 static bool smtp_shlo(mbedtls_ssl_context * const tls) {
-	if (tls == NULL) return false;
-
-	const ssize_t lenShlo = 4 + lenDomain + AEM_SHLO_RESPONSE_LEN;
-	char shlo[lenShlo];
-	memcpy(shlo, "250-", 4);
-	memcpy(shlo + 4, domain, lenDomain);
-	memcpy(shlo + 4 + lenDomain, AEM_SHLO_RESPONSE, AEM_SHLO_RESPONSE_LEN);
-	return send_aem(0, tls, shlo, lenShlo);
+	return send_aem(0, tls, "250-"AEM_DOMAIN""AEM_SHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_SHLO_RESPONSE_LEN);
 }
 
 __attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const char * const buf, const ssize_t bytes) {
 	if (buf == NULL || bytes < 4) return false;
 
-	if (strncasecmp(buf, "EHLO", 4) == 0) {
-		const ssize_t lenHelo = 4 + lenDomain + AEM_EHLO_RESPONSE_LEN;
-		char helo[lenHelo];
-		memcpy(helo, "250-", 4);
-		memcpy(helo + 4, domain, lenDomain);
-		memcpy(helo + 4 + lenDomain, AEM_EHLO_RESPONSE, AEM_EHLO_RESPONSE_LEN);
-		return (send(sock, helo, lenHelo, 0) == lenHelo);
-	} else if (strncasecmp(buf, "HELO", 4) == 0) {
-		const ssize_t lenHelo = 6 + lenDomain;
-		char helo[lenHelo];
-		memcpy(helo, "250 ", 4);
-		memcpy(helo + 4, domain, lenDomain);
-		memcpy(helo + 4 + lenDomain, "\r\n", 2);
-		return (send(sock, helo, lenHelo, 0) == lenHelo);
+	if (strncasecmp(buf, "HELO", 4) == 0) {
+		return send_aem(sock, NULL, "250 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
+	} else if (strncasecmp(buf, "EHLO", 4) == 0) {
+		return send_aem(sock, NULL, "250-"AEM_DOMAIN""AEM_EHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_EHLO_RESPONSE_LEN);
 	}
 
 	return false;
@@ -250,7 +222,7 @@ static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const
 }
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
-	if (sock < 0 || lenDomain < 1 || clientAddr == NULL) return;
+	if (sock < 0 || clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
 	getCountryCode((struct sockaddr*)clientAddr);
 	email.timestamp = (uint32_t)time(NULL);

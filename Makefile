@@ -1,9 +1,9 @@
 CC=gcc
 CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
-all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/CompKeys utils/Keygen utils/ManagerClient utils/Resgen
+all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509 -lbrotlienc -lzopfli
+	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c -lsodium -lcap -lmbedcrypto -lmbedx509
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
@@ -38,18 +38,27 @@ utils/CertCrypt: utils/CertCrypt.c
 utils/FileCrypt: utils/FileCrypt.c
 	$(CC) $(CFLAGS) -o utils/FileCrypt utils/FileCrypt.c utils/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc
 
-utils/CompKeys: utils/CompKeys.c
-	$(CC) $(CFLAGS) -o utils/CompKeys utils/CompKeys.c -lsodium
-
 utils/Keygen: utils/Keygen.c
 	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
 
 utils/ManagerClient: utils/ManagerClient.c
 	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c utils/GetKey.c Common/ToggleEcho.c -lsodium
 
-utils/Resgen: utils/Resgen.c
-	$(CC) $(CFLAGS) -o utils/Resgen utils/Resgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium
+Data/gen_address: Data/gen_address.c
+	$(CC) $(CFLAGS) -o Data/gen_address Data/gen_address.c -lsodium
+
+Data/gen_html: Data/gen_html.c
+	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c utils/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
+
+Data/gen_internal: Data/gen_internal.c
+	$(CC) $(CFLAGS) -o Data/gen_internal Data/gen_internal.c -lsodium
+
+Data/gen_dkim: Data/gen_dkim.c
+	$(CC) $(CFLAGS) -o Data/gen_dkim Data/gen_dkim.c
+
+Data/gen_tls: Data/gen_tls.c
+	$(CC) $(CFLAGS) -o Data/gen_tls Data/gen_tls.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/CompKeys utils/Keygen utils/ManagerClient utils/Resgen
+	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/CertCrypt utils/FileCrypt utils/Keygen utils/ManagerClient utils/Resgen Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls

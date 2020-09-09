@@ -16,9 +16,9 @@
 
 #include <sodium.h>
 
-#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../Data/internal.h"
 
 #include "DNS.h"
 

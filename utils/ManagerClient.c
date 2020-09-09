@@ -22,7 +22,6 @@
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 5 * 4
 #define AEM_LEN_ENCRYPTED (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + AEM_LEN_MSG)
-#define AEM_PATH_KEY_MNG "/etc/allears/Manager.key"
 
 unsigned char key_manager[crypto_secretbox_KEYBYTES];
 

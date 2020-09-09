@@ -9,8 +9,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
-
-#include "../CompKeys.h"
+#include "../Data/internal.h"
 
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;

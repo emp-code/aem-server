@@ -1,3 +1,6 @@
+#include "../Data/domain.h"
+#include "../Data/tls.h"
+
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;
 
@@ -14,29 +17,6 @@ static const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_HIGH};
 static const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
 static const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
 #endif
-
-__attribute__((warn_unused_result))
-static int getDomainFromCert(void) {
-	char certInfo[1024];
-	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &tlsCrt);
-
-	const char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return -1;
-	c += 17;
-
-	const char * const end = strchr(c, '\n');
-
-	c = strstr(c, ": CN=");
-	if (c == NULL || c > end) return -1;
-	c += 5;
-
-	const int len = end - c;
-	if (len > AEM_MAXLEN_DOMAIN) return -1;
-
-	memcpy(domain, c, len);
-	lenDomain = len;
-	return 0;
-}
 
 #ifdef AEM_MTA
 __attribute__((warn_unused_result))
@@ -61,22 +41,20 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 	if (len == 0) return 0;
 
 	return (hostname != NULL && (
-	(len == lenDomain && memcmp(hostname, domain, lenDomain) == 0) ||
-	(len == lenDomain + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, domain, lenDomain) == 0)
+	(len == AEM_DOMAIN_LEN && memcmp(hostname, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) ||
+	(len == AEM_DOMAIN_LEN + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
 	)) ? 0 : -1;
 }
 #endif
 
-int tlsSetup(const unsigned char * const crtData, const size_t crtLen, const unsigned char * const keyData, const size_t keyLen) {
+int tlsSetup(void) {
 	mbedtls_x509_crt_init(&tlsCrt);
-	int ret = mbedtls_x509_crt_parse(&tlsCrt, crtData, crtLen);
+	int ret = mbedtls_x509_crt_parse(&tlsCrt, AEM_TLS_CRT_DATA, AEM_TLS_CRT_SIZE);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
-	ret = mbedtls_pk_parse_key(&tlsKey, keyData, keyLen, NULL, 0);
+	ret = mbedtls_pk_parse_key(&tlsKey, AEM_TLS_KEY_DATA, AEM_TLS_KEY_SIZE, NULL, 0);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", ret); return -1;}
-
-	if (getDomainFromCert() != 0) {syslog(LOG_ERR, "Failed getting domain from certificate"); return -1;}
 
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);

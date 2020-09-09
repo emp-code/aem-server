@@ -13,14 +13,12 @@
 #include "../Global.h"
 #include "../api-common/post.h"
 #include "../Common/tls_common.h"
+#include "../Data/domain.h"
 
 #include "https.h"
 
 #define AEM_MINLEN_POST 74 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 500
-
-static char domain[AEM_MAXLEN_DOMAIN];
-static size_t lenDomain;
 
 #include "../Common/tls_setup.c"
 
@@ -33,8 +31,8 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return false;
-	if (strncmp(host + 8, domain, lenDomain) != 0) return false;
-	if (strncmp(host + 8 + lenDomain, ":302\r\n", 6) != 0) return false;
+	if (strncmp(host + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return false;
+	if (strncmp(host + 8 + AEM_DOMAIN_LEN, ":302\r\n", 6) != 0) return false;
 
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
 	if (clenStr == NULL) return false;

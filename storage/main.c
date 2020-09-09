@@ -16,10 +16,10 @@
 
 #include <sodium.h>
 
-#include "../CompKeys.h"
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 #include "../Common/aes.h"
+#include "../Data/internal.h"
 
 #define AEM_LOGNAME "AEM-Sto"
 #define AEM_STINDEX_PAD 1048576 // 1 MiB

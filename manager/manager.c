@@ -21,9 +21,7 @@
 
 #include <mbedtls/x509_crt.h>
 #include <sodium.h>
-#include <zopfli/zopfli.h>
 
-#include "../Common/Brotli.c"
 #include "../Common/CreateSocket.h"
 #include "../Global.h"
 
@@ -39,63 +37,18 @@
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
-#define AEM_PATH_CONF "/etc/allears"
-
-#define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
-#define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
-#define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
-#define AEM_PATH_KEY_SIG AEM_PATH_CONF"/Signing.key"
-#define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
-
-#define AEM_PATH_DKI_ADM AEM_PATH_CONF"/Admin.dkim"
-#define AEM_PATH_DKI_USR AEM_PATH_CONF"/Users.dkim"
-
-#define AEM_PATH_SLT_NRM AEM_PATH_CONF"/Normal.slt"
-#define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
-#define AEM_PATH_SLT_FKE AEM_PATH_CONF"/Fake.slt"
-
-#define AEM_PATH_TLS_CRT AEM_PATH_CONF"/TLS.crt"
-#define AEM_PATH_TLS_KEY AEM_PATH_CONF"/TLS.key"
-
-#define AEM_PATH_ADR_ADM AEM_PATH_CONF"/Admin.adr"
-#define AEM_PATH_HTML AEM_PATH_CONF"/index.html"
-
 #define AEM_LEN_FILE_MAX 8192
-#define AEM_LEN_FIL2_MAX 65536
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
-
-static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
-
+static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
 static unsigned char key_api[AEM_LEN_KEY_API];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_sig[AEM_LEN_KEY_SIG];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
+static unsigned char slt_shd[AEM_LEN_SLT_SHD];
 
-static unsigned char dki_adm[AEM_LEN_KEY_DKI];
-static unsigned char dki_usr[AEM_LEN_KEY_DKI];
-
-static unsigned char slt_nrm[AEM_LEN_SALT_NORM];
-static unsigned char slt_shd[AEM_LEN_SALT_SHLD];
-static unsigned char slt_fke[AEM_LEN_SALT_FAKE];
-
-static unsigned char tls_crt[AEM_LEN_FILE_MAX];
-static unsigned char tls_key[AEM_LEN_FILE_MAX];
-static size_t len_tls_crt;
-static size_t len_tls_key;
-
-static unsigned char adr_adm[AEM_LEN_FIL2_MAX];
-static unsigned char html[AEM_LEN_FILE_MAX];
-static unsigned char html_oni[AEM_LEN_FILE_MAX];
-static size_t len_adr_adm;
-static size_t len_html;
-static size_t len_html_oni;
-
-static char onionId[56];
-static char domain[AEM_MAXLEN_DOMAIN];
-static size_t lenDomain;
-
+static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
 const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
 static pid_t pid_account = 0;
@@ -111,60 +64,19 @@ static int sockClient = -1;
 
 static bool terminate = false;
 
-// For handling large writes on O_DIRECT pipes
-static int pipeWriteDirect(const int fd, const unsigned char * const data, const size_t len) {
-	size_t written = 0;
-
-	while (len - written > PIPE_BUF) {
-		const ssize_t ret = write(fd, data + written, len - written);
-		if (ret < 1) return -1;
-		written += len;
-	}
-
-	return write(fd, data + written, len - written);
-}
-
-static int getOnionId(void) {
-	const int fd = open("/var/lib/tor/aem_onion/hostname", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0 || read(fd, onionId, 56) != 56) {
-		close(fd);
-		syslog(LOG_ERR, "Failed reading onionId");
-		return -1;
-	}
-
-	close(fd);
-	return 0;
-}
-
 void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
 	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
 }
 
 void wipeKeys(void) {
 	sodium_memzero(master, AEM_LEN_KEY_MASTER);
-
+	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
 	sodium_memzero(key_api, AEM_LEN_KEY_API);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
 	sodium_memzero(key_sig, AEM_LEN_KEY_SIG);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
-
-	sodium_memzero(slt_nrm, AEM_LEN_SALT_NORM);
-	sodium_memzero(slt_shd, AEM_LEN_SALT_SHLD);
-	sodium_memzero(slt_fke, AEM_LEN_SALT_FAKE);
-
-	sodium_memzero(tls_crt, len_tls_crt);
-	sodium_memzero(tls_key, len_tls_key);
-
-	sodium_memzero(adr_adm, len_adr_adm);
-	sodium_memzero(html, len_html);
-	sodium_memzero(html_oni, len_html_oni);
-
-	len_tls_crt = 0;
-	len_tls_key = 0;
-	len_adr_adm = 0;
-	len_html = 0;
-	len_html_oni = 0;
+	sodium_memzero(slt_shd, AEM_LEN_SLT_SHD);
 
 	sodium_memzero(encrypted, AEM_LEN_ENCRYPTED);
 	sodium_memzero(decrypted, AEM_LEN_MSG);
@@ -276,251 +188,6 @@ void killAll(int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-__attribute__((warn_unused_result))
-static int getDomainFromCert(void) {
-	mbedtls_x509_crt crt;
-	mbedtls_x509_crt_init(&crt);
-	int ret = mbedtls_x509_crt_parse(&crt, tls_crt, len_tls_crt);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
-
-	char certInfo[1024];
-	mbedtls_x509_crt_info(certInfo, 1024, "AEM_", &crt);
-
-	const char *c = strstr(certInfo, "\nAEM_subject name");
-	if (c == NULL) return -1;
-	c += 17;
-
-	const char * const end = strchr(c, '\n');
-
-	c = strstr(c, ": CN=");
-	if (c == NULL || c > end) return -1;
-	c += 5;
-
-	const int len = end - c;
-	if (len > AEM_MAXLEN_DOMAIN) return -1;
-
-	memcpy(domain, c, len);
-	lenDomain = len;
-	return 0;
-}
-
-static int modHtml(unsigned char * const src, const size_t lenSrc) {
-	unsigned char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {syslog(LOG_ERR, "API-Placeholder not found"); return -1;}
-	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
-	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
-	char api_hex[65];
-	crypto_box_seed_keypair(api_pub, api_tmp, key_api);
-	sodium_memzero(api_tmp, crypto_box_SECRETKEYBYTES);
-	sodium_bin2hex(api_hex, 65, api_pub, crypto_box_PUBLICKEYBYTES);
-	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
-
-	placeholder = memmem(src, lenSrc, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {syslog(LOG_ERR, "Sig-Placeholder not found"); return -1;}
-	unsigned char sig_tmp[crypto_sign_SECRETKEYBYTES];
-	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
-	char sig_hex[65];
-	crypto_sign_seed_keypair(sig_pub, sig_tmp, key_sig);
-	sodium_memzero(sig_tmp, crypto_sign_SECRETKEYBYTES);
-	sodium_bin2hex(sig_hex, 65, sig_pub, crypto_sign_PUBLICKEYBYTES);
-	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
-
-	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
-	if (placeholder == NULL) {syslog(LOG_ERR, "Slt-Placeholder not found"); return -1;}
-	char slt_hex[33];
-	sodium_bin2hex(slt_hex, 33, slt_nrm, AEM_LEN_SALT_NORM);
-	memcpy(placeholder, slt_hex, AEM_LEN_SALT_NORM * 2);
-
-	return 0;
-}
-
-// Add email domain (onion service)
-static int emlHtml(unsigned char * const src, size_t * const lenSrc) {
-	unsigned char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
-	if (placeholder == NULL) {syslog(LOG_ERR, "Eml-Placeholder not found"); return -1;}
-	memcpy(placeholder, domain, lenDomain);
-	memmove(placeholder + lenDomain, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
-	*lenSrc -= (32 - lenDomain);
-
-	return 0;
-}
-
-// Remove email domain (clearnet)
-static int emrHtml(unsigned char * const src, size_t * const lenSrc) {
-	unsigned char * const placeholder = memmem(src, *lenSrc, "aeemldom=\"", 10);
-	if (placeholder == NULL) {syslog(LOG_ERR, "Emr-Placeholder not found"); return -1;}
-	memmove(placeholder + 10, placeholder + 10 + lenDomain, (src + *lenSrc) - (placeholder + 10 + lenDomain));
-	*lenSrc -= (lenDomain);
-
-	return 0;
-}
-
-static int genHtml(const unsigned char * const src, const size_t lenSrc, const bool onion) {
-	unsigned char *data;
-	size_t lenData;
-	// Compression
-	if (onion) { // Zopfli (deflate)
-		ZopfliOptions zopOpt;
-		ZopfliInitOptions(&zopOpt);
-
-		lenData = 0;
-		data = 0;
-
-		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, src, lenSrc, &data, &lenData);
-		if (data == 0 || lenData < 1) {
-			syslog(LOG_ERR, "Failed zopfli compression");
-			return -1;
-		}
-	} else { // Brotli, HTTPS-only
-		data = malloc(lenSrc);
-		if (data == NULL) {
-			syslog(LOG_ERR, "Failed allocation");
-			return -1;
-		}
-
-		memcpy(data, src, lenSrc);
-		lenData = lenSrc;
-
-		if (brotliCompress(&data, &lenData) != 0) {
-			free(data);
-			syslog(LOG_ERR, "Failed brotli compression");
-			return -1;
-		}
-	}
-
-	unsigned char bodyHash[32];
-	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {syslog(LOG_ERR, "Hash failed"); return -1;}
-
-	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL)];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL), bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
-
-	char conn[66];
-	if (onion)
-		sprintf(conn, "://%.56s.onion", onionId);
-	else
-		sprintf(conn, "s://%.*s", (int)lenDomain, domain);
-
-	char onionLoc[89];
-	if (onion)
-		onionLoc[0] = '\0';
-	else
-		sprintf(onionLoc, "Onion-Location: http://%.56s.onion/\r\n", onionId);
-
-	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
-
-	// Headers
-	char headers[2500];
-	sprintf(headers,
-		"HTTP/1.1 200 aem\r\n"
-
-		// General headers
-		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
-		"Connection: close\r\n"
-		"Content-Encoding: %s\r\n"
-		"Content-Length: %zu\r\n"
-		"Content-Type: text/html; charset=utf-8\r\n"
-		"Link: <https://%.*s>; rel=\"canonical\"\r\n"
-		"%s"
-		"Server: All-Ears Mail\r\n"
-		"Tk: N\r\n"
-
-		// CSP
-		"Content-Security-Policy: "
-			"connect-src"     " http%s:302/api data:;"
-			"img-src"         " blob: data:;"
-			"media-src"       " blob:;"
-			"frame-src"       " blob:;" // PDF (Chrome)
-			"object-src"      " blob:;" // PDF
-			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
-			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
-
-			"base-uri"        " 'none';"
-			"child-src"       " 'none';"
-			"default-src"     " 'none';"
-			"font-src"        " 'none';"
-			"form-action"     " 'none';"
-			"frame-ancestors" " 'none';"
-			"manifest-src"    " 'none';"
-			"prefetch-src"    " 'none';"
-			"worker-src"      " 'none';"
-
-			"block-all-mixed-content;"
-			"plugin-types application/pdf;"
-			"require-sri-for script style;"
-			"sandbox allow-scripts allow-same-origin;"
-		"\r\n"
-
-		// FP
-		"Feature-Policy: "
-			"fullscreen"                      " 'self';"
-			"legacy-image-formats"            " 'self';"
-			"oversized-images"                " 'self';"
-
-			"accelerometer"                   " 'none';"
-			"ambient-light-sensor"            " 'none';"
-			"autoplay"                        " 'none';"
-			"battery"                         " 'none';"
-			"camera"                          " 'none';"
-			"display-capture"                 " 'none';"
-			"document-domain"                 " 'none';"
-			"document-write"                  " 'none';"
-			"encrypted-media"                 " 'none';"
-			"execution-while-not-rendered"    " 'none';"
-			"execution-while-out-of-viewport" " 'none';"
-			"geolocation"                     " 'none';"
-			"gyroscope"                       " 'none';"
-			"layout-animations"               " 'none';"
-			"magnetometer"                    " 'none';"
-			"microphone"                      " 'none';"
-			"midi"                            " 'none';"
-			"navigation-override"             " 'none';"
-			"payment"                         " 'none';"
-			"picture-in-picture"              " 'none';"
-			"publickey-credentials"           " 'none';"
-			"speaker"                         " 'none';"
-			"sync-xhr"                        " 'none';"
-			"usb"                             " 'none';"
-			"vibrate"                         " 'none';"
-			"vr"                              " 'none';"
-			"wake-lock"                       " 'none';"
-			"xr-spatial-tracking"             " 'none';"
-		"\r\n"
-
-		// Security headers
-		"%s"
-		"Cross-Origin-Embedder-Policy: require-corp\r\n"
-		"Cross-Origin-Opener-Policy: same-origin\r\n"
-		"Digest: sha-256=%s\r\n"
-		"Referrer-Policy: no-referrer\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
-		"X-DNS-Prefetch-Control: off\r\n"
-		"X-Frame-Options: deny\r\n"
-		"X-XSS-Protection: 1; mode=block\r\n"
-		"\r\n"
-	, onion? "deflate" : "br", // Content-Encoding
-	lenData, // Content-Length
-	(int)lenDomain, domain, // Canonical
-	onionLoc,
-	conn, // CSP connect
-	tlsHeaders,
-	bodyHashB64); // Digest
-
-	const size_t lenHeaders = strlen(headers);
-
-	if (onion) {
-		memcpy(html_oni, headers, lenHeaders);
-		memcpy(html_oni + lenHeaders, data, lenData);
-		len_html_oni = lenHeaders + lenData;
-	} else {
-		memcpy(html, headers, lenHeaders);
-		memcpy(html + lenHeaders, data, lenData);
-		len_html = lenHeaders + lenData;
-	}
-
-	free(data);
-	return 0;
-}
-
 static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
 	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
@@ -550,11 +217,10 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 		return -1;
 	}
 
-	if (target == tls_crt) return getDomainFromCert();
 	return 0;
 }
 
-static int loadExec(void) {
+int loadExec(void) {
 	const char * const path[] = AEM_PATH_EXE;
 
 	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
@@ -583,45 +249,16 @@ static int loadExec(void) {
 }
 
 int loadFiles(void) {
-	if (getOnionId() != 0) return -1;
-	if (loadExec() != 0) return -1;
+	if (
+	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) != 0
+	|| loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) != 0
+	|| loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) != 0
+	|| loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) != 0
+	|| loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) != 0
+	|| loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SLT_SHD, AEM_LEN_FILE_MAX) != 0
+	) return -1;
 
-	int ret = (
-	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
-
-	&& loadFile(AEM_PATH_DKI_ADM, dki_adm, NULL, AEM_LEN_KEY_DKI, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_DKI_USR, dki_usr, NULL, AEM_LEN_KEY_DKI, AEM_LEN_FILE_MAX) == 0
-
-	&& loadFile(AEM_PATH_SLT_NRM, slt_nrm, NULL, AEM_LEN_SALT_NORM, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SALT_SHLD, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_SLT_FKE, slt_fke, NULL, AEM_LEN_SALT_FAKE, AEM_LEN_FILE_MAX) == 0
-
-	&& loadFile(AEM_PATH_TLS_CRT, tls_crt, &len_tls_crt, 0, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_TLS_KEY, tls_key, &len_tls_key, 0, AEM_LEN_FILE_MAX) == 0
-
-	&& loadFile(AEM_PATH_ADR_ADM, adr_adm, &len_adr_adm, 0, AEM_LEN_FIL2_MAX) == 0
-	) ? 0 : -1;
-	if (ret != 0) return -1;
-
-	unsigned char * const tmp = malloc(102400);
-	if (tmp == NULL) return -1;
-	size_t lenTmp = 0;
-	if (loadFile(AEM_PATH_HTML, tmp, &lenTmp, 0, 102400) != 0) {free(tmp); return -1;}
-
-	ret = (
-	   modHtml(tmp, lenTmp) == 0
-	&& emlHtml(tmp, &lenTmp) == 0 // Add email-domain
-	&& genHtml(tmp, lenTmp, true) == 0 // Generate onion HTML
-	&& emrHtml(tmp, &lenTmp) == 0 // Remove email-domain
-	&& genHtml(tmp, lenTmp, false) == 0 // Generate clearnet HTML
-	) ? 0 : -1;
-
-	free(tmp);
-	return ret;
+	return loadExec();
 }
 
 static int setCaps(const int type) {
@@ -769,89 +406,52 @@ static void process_spawn(const int type) {
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
 	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return;}
 	if (pid == 0) exit(process_new(type, fd[0], fd[1]));
-
 	close(fd[0]);
 
 	switch(type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
-			if (
-			   pipeWriteDirect(fd[1], key_acc, AEM_LEN_KEY_ACC) < 0
-
-			|| pipeWriteDirect(fd[1], slt_nrm, AEM_LEN_SALT_NORM) < 0
-			|| pipeWriteDirect(fd[1], slt_shd, AEM_LEN_SALT_SHLD) < 0
-			|| pipeWriteDirect(fd[1], slt_fke, AEM_LEN_SALT_FAKE) < 0
-
-			|| pipeWriteDirect(fd[1], adr_adm, len_adr_adm) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
+		if (
+		   write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+		|| write(fd[1], slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+		) {
+			syslog(LOG_ERR, "Failed writing to pipe: %m");
+		}
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-			if (
-			   pipeWriteDirect(fd[1], key_sto, AEM_LEN_KEY_STO) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
+		if (write(fd[1], key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
+			syslog(LOG_ERR, "Failed writing to pipe: %m");
+		}
 		break;
-
 
 		// Nothing
-/*		case AEM_PROCESSTYPE_ENQUIRY:
-			if (
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
-		break;
-*/
+		/*
+		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_WEB_CLR:
+		case AEM_PROCESSTYPE_WEB_ONI:
+		*/
+
 		case AEM_PROCESSTYPE_MTA:
 			if (
-			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
-
-			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
-
-			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
-			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
-		break;
-
-		case AEM_PROCESSTYPE_WEB_CLR:
-			if (
-			   pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
-			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			|| pipeWriteDirect(fd[1], html, len_html) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
-		break;
-
-		case AEM_PROCESSTYPE_WEB_ONI:
-			if (pipeWriteDirect(fd[1], html_oni, len_html_oni) < 0)
+			   write(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			) {
 				syslog(LOG_ERR, "Failed writing to pipe: %m");
+			}
 		break;
 
 		case AEM_PROCESSTYPE_API_CLR:
-			if (
-			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
-
-			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
-			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
-
-			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
-			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
-
-			|| pipeWriteDirect(fd[1], tls_crt, len_tls_crt) < 0
-			|| pipeWriteDirect(fd[1], tls_key, len_tls_key) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
-		break;
-
 		case AEM_PROCESSTYPE_API_ONI:
 			if (
-			   pipeWriteDirect(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) < 0
-			|| pipeWriteDirect(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) < 0
-
-			|| pipeWriteDirect(fd[1], key_api, AEM_LEN_KEY_API) < 0
-			|| pipeWriteDirect(fd[1], key_sig, AEM_LEN_KEY_SIG) < 0
-
-			|| pipeWriteDirect(fd[1], dki_adm, AEM_LEN_KEY_DKI) < 0
-			|| pipeWriteDirect(fd[1], dki_usr, AEM_LEN_KEY_DKI) < 0
-			) syslog(LOG_ERR, "Failed writing to pipe: %m");
+			   write(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
+			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			) {
+				syslog(LOG_ERR, "Failed writing to pipe: %m");
+			}
 		break;
 	}
 
@@ -863,7 +463,6 @@ static void process_spawn(const int type) {
 	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
 	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
 	else if (type == AEM_PROCESSTYPE_ENQUIRY) pid_enquiry = pid;
-
 }
 
 static void process_kill(const int type, const pid_t pid, const int sig) {
