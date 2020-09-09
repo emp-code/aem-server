@@ -23,7 +23,7 @@
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 5 * 4
 #define AEM_LEN_ENCRYPTED (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + AEM_LEN_MSG)
 
-unsigned char key_manager[crypto_secretbox_KEYBYTES];
+static unsigned char key_manager[crypto_secretbox_KEYBYTES];
 
 static int makeSocket(const char * const host) {
 	struct addrinfo hints;

@@ -22,7 +22,7 @@
 #define AEK_PATH_SLT_SHD "Shield.slt"
 #define AEK_PATH_SLT_FKE "Fake.slt"
 
-unsigned char master[crypto_secretbox_KEYBYTES];
+static unsigned char master[crypto_secretbox_KEYBYTES];
 
 static int writeRandomEncrypted(const char * const path, const size_t len) {
 	const int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
