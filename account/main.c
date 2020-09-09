@@ -34,7 +34,7 @@
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
 
-unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
+static unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
 //	 MiB  Nrm Shd | MiB = value + 1; 1-256 MiB
 	{31,  0,  5},
 	{63,  3,  10},
