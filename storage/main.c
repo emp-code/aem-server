@@ -144,14 +144,11 @@ static void getMsgPath(char path[77], const unsigned char pubkey[crypto_box_PUBL
 
 	unsigned char pkEnc[32];
 	memcpy(pkEnc, pubkey, 32);
-
 	AES_ECB_encrypt(&aes, pkEnc);
 	AES_ECB_encrypt(&aes, pkEnc + 16);
 
-	char hex[65];
-	sodium_bin2hex(hex, 65, pkEnc, 32);
-
-	sprintf(path, "MessageData/%s", hex);
+	memcpy(path, "MessageData/", 12);
+	sodium_bin2hex(path + 12, 65, pkEnc, 32);
 }
 
 static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const uint16_t sze) {
