@@ -16,7 +16,6 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
-#include "../Common/UnixSocketClient.h"
 
 #include "../api-common/post.h"
 #include "../api-common/SendMail.h"
