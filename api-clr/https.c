@@ -88,7 +88,12 @@ void respondClient(int sock) {
 
 	unsigned char buf[AEM_MAXLEN_REQ];
 	unsigned char * const box = sodium_malloc(AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES);
-	if (box == NULL) {syslog(LOG_ERR, "Failed sodium_malloc()"); return;}
+	if (box == NULL) {
+		syslog(LOG_ERR, "Failed sodium_malloc()");
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+		return;
+	}
 
 	while(1) {
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
