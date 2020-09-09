@@ -103,7 +103,7 @@ static void shortResponse(const unsigned char * const data, const int len) {
 		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"Connection: Keep-Alive\r\n"
+		"Connection: keep-alive\r\n"
 		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
 	:
@@ -159,7 +159,7 @@ static void account_browse(void) {
 		"%s"
 		"\r\n",
 	lenClr + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
-		"Connection: Keep-Alive\r\n"
+		"Connection: keep-alive\r\n"
 		"Keep-Alive: timeout=30\r\n"
 	:
 		"Connection: close\r\n"
@@ -409,7 +409,7 @@ static void message_browse(void) {
 	if (lenRcv < 1) {sodium_free(clr); return;}
 	lenClr += lenRcv;
 
-	const char * const kaStr = keepAlive ? "Connection: Keep-Alive\r\nKeep-Alive: timeout=30\r\n" : "";
+	const char * const kaStr = keepAlive ? "Connection: keep-alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
 	// Preapre and send response
 	sprintf((char*)response,
