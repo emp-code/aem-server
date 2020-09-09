@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <syslog.h>
 
+#include "../Data/domain.h"
 #include "../Global.h"
 #include "../api-common/post.h"
 
@@ -23,10 +24,10 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	// Host header
-//	const char * const host = strstr(req, "\r\nHost: ");
-//	if (host == NULL) return false;
-//	if (strncmp(host + 8, onionId, 56) != 0) return false;
-//	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
+	const char * const host = strstr(req, "\r\nHost: ");
+	if (host == NULL) return false;
+	if (strncmp(host + 8, AEM_ONIONID, 56) != 0) return false;
+	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
 
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
 	if (clenStr == NULL) return false;
