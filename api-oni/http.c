@@ -70,13 +70,15 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 
 void respondClient(const int sock) {
 	unsigned char buf[AEM_MAXLEN_REQ];
+	unsigned char * const box = sodium_malloc(AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES);
+	if (box == NULL) {syslog(LOG_ERR, "Failed sodium_malloc()"); return;}
 
 	while(1) {
 		int ret = recv(sock, buf, AEM_MAXLEN_REQ, 0);
-		if (ret < 1) return;
+		if (ret < 1) break;
 
 		unsigned char * const postBegin = memmem(buf, ret, "\r\n\r\n", 4);
-		if (postBegin == NULL) return;
+		if (postBegin == NULL) break;
 		postBegin[3] = '\0';
 
 		long clen = 0;
@@ -91,14 +93,12 @@ void respondClient(const int sock) {
 			ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
 			lenPost += ret;
 		}
-		if (lenPost < AEM_API_SEALBOX_SIZE) return;
+		if (lenPost < AEM_API_SEALBOX_SIZE) break;
 
-		if (aem_api_prepare(buf, keepAlive) != 0) return;
+		if (aem_api_prepare(buf, keepAlive) != 0) break;
 
 		// Request is valid
 		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
-		unsigned char * const box = malloc(lenBox);
-		if (box == NULL) {syslog(LOG_ERR, "Failed malloc()"); break;}
 
 		if (lenPost > AEM_API_SEALBOX_SIZE) {
 			memcpy(box, buf + AEM_API_SEALBOX_SIZE, lenPost - AEM_API_SEALBOX_SIZE);
@@ -107,21 +107,22 @@ void respondClient(const int sock) {
 
 		while (lenPost < lenBox) {
 			ret = recv(sock, box + lenPost, lenBox - lenPost, 0);
-			if (ret < 1) {free(box); return;}
+			if (ret < 1) break;
 			lenPost += ret;
 		}
 
 		unsigned char *resp;
 		const int lenResp = aem_api_process(box, lenBox, &resp);
 
-		sodium_memzero(buf, AEM_API_SEALBOX_SIZE);
+		sodium_memzero(buf, AEM_MAXLEN_REQ);
 		sodium_memzero(box, lenBox);
-		free(box);
 
 		if (lenResp < 0) break;
 		send(sock, resp, lenResp, 0);
 		sodium_memzero(resp, lenResp);
 
-		if (!keepAlive) return;
+		if (!keepAlive) break;
 	}
+
+	sodium_free(box);
 }

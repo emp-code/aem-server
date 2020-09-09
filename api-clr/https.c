@@ -87,6 +87,8 @@ void respondClient(int sock) {
 	}
 
 	unsigned char buf[AEM_MAXLEN_REQ];
+	unsigned char * const box = sodium_malloc(AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES);
+	if (box == NULL) {syslog(LOG_ERR, "Failed sodium_malloc()"); return;}
 
 	while(1) {
 		do {ret = mbedtls_ssl_read(&ssl, buf, AEM_MAXLEN_REQ);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
@@ -114,8 +116,6 @@ void respondClient(int sock) {
 
 		// Request is valid
 		const size_t lenBox = clen - AEM_API_SEALBOX_SIZE;
-		unsigned char * const box = malloc(lenBox);
-		if (box == NULL) {syslog(LOG_ERR, "Failed malloc()"); break;}
 
 		if (lenPost > AEM_API_SEALBOX_SIZE) {
 			memcpy(box, buf + AEM_API_SEALBOX_SIZE, lenPost - AEM_API_SEALBOX_SIZE);
@@ -128,14 +128,13 @@ void respondClient(int sock) {
 			lenPost += ret;
 		}
 
-		if (ret < 1) {free(box); break;}
+		if (ret < 1) break;
 
 		unsigned char *resp;
 		const int lenResp = aem_api_process(box, lenBox, &resp);
 
 		sodium_memzero(buf, AEM_MAXLEN_REQ);
 		sodium_memzero(box, lenBox);
-		free(box);
 
 		if (lenResp < 0) break;
 		sendData(&ssl, resp, lenResp);
@@ -144,6 +143,7 @@ void respondClient(int sock) {
 		if (!keepAlive) break;
 	}
 
+	sodium_free(box);
 	mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);
 }
