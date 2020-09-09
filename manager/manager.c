@@ -49,7 +49,7 @@ static unsigned char key_sto[AEM_LEN_KEY_STO];
 static unsigned char slt_shd[AEM_LEN_SLT_SHD];
 
 static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
-const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
+static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
 static pid_t pid_account = 0;
 static pid_t pid_storage = 0;

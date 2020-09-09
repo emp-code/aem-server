@@ -45,7 +45,7 @@
 "\r\n250-8BITMIME" \
 "\r\n250 SMTPUTF8"
 
-struct emailInfo email;
+static struct emailInfo email;
 
 #include "../Common/tls_setup.c"
 

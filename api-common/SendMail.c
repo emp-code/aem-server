@@ -36,8 +36,8 @@ static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt cacert;
 
-unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
-unsigned char msgId_aesKey[32];
+static unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
+static unsigned char msgId_aesKey[32];
 
 void setMsgIdKeys(const unsigned char * const src) {
 	crypto_kdf_derive_from_key(msgId_hashKey, crypto_generichash_KEYBYTES, 1, "AEM-MsId", src);
