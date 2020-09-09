@@ -17,7 +17,7 @@
 
 #include "https.h"
 
-#define AEM_MINLEN_POST 74 // POST /api/account/browse HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 123\r\n\r\n
+#define AEM_MINLEN_POST 59 // POST /api HTTP/1.1\r\nHost: a.bc:302\r\nContent-Length: 123\r\n\r\n
 #define AEM_MAXLEN_REQ 500
 
 #include "../Common/tls_setup.c"
