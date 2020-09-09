@@ -96,11 +96,19 @@ static void userViolation(const int violation) {
 static void shortResponse(const unsigned char * const data, const int len) {
 	if (len != AEM_API_ERROR && (len < 0 || len > 32)) return;
 
+#ifndef AEM_IS_ONION
+	#define AEM_LEN_SHORTRESPONSE 277
+#else
+	#define AEM_LEN_SHORTRESPONSE 166
+#endif
+
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
+#ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
 		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
@@ -110,17 +118,19 @@ static void shortResponse(const unsigned char * const data, const int len) {
 	:
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
+#ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
 		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
 		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
-	, 277);
+	, AEM_LEN_SHORTRESPONSE);
 
-	randombytes_buf(response + 277, crypto_box_NONCEBYTES);
+	randombytes_buf(response + AEM_LEN_SHORTRESPONSE, crypto_box_NONCEBYTES);
 
 	unsigned char clr[33];
 	if (len == AEM_API_ERROR) {
@@ -131,8 +141,8 @@ static void shortResponse(const unsigned char * const data, const int len) {
 		if (data != NULL && len > 0) memcpy(clr + 1, data, len);
 	}
 
-	const int ret = crypto_box_easy(response + 277 + crypto_box_NONCEBYTES, clr, 33, response + 277, upk, ssk);
-	if (ret == 0) lenResponse = 350;
+	const int ret = crypto_box_easy(response + AEM_LEN_SHORTRESPONSE + crypto_box_NONCEBYTES, clr, 33, response + AEM_LEN_SHORTRESPONSE, upk, ssk);
+	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE + 73;
 }
 
 static void account_browse(void) {
@@ -152,8 +162,10 @@ static void account_browse(void) {
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
+#ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
 		"Content-Length: %zu\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
