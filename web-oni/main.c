@@ -1,7 +1,7 @@
 #include <arpa/inet.h>
-#include <stdbool.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
@@ -17,7 +17,7 @@
 
 #define AEM_LOGNAME "AEM-WOn"
 
-bool terminate = false;
+static bool terminate = false;
 
 static void sigTerm() {
 	terminate = true;
