@@ -6,4 +6,7 @@
 #define AEM_DOMAIN_LEN 11
 #define AEM_DOMAIN "aem.example"
 
+// 56-character v3 onion address
+#define AEM_ONIONID "00000000000000000000000000000000000000000000000000000000"
+
 #endif
