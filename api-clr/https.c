@@ -1,7 +1,7 @@
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 #include <ctype.h> // for islower
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 
 #include <mbedtls/ctr_drbg.h>
@@ -96,10 +96,10 @@ void respondClient(int sock) {
 		if (postBegin == NULL) break;
 		postBegin[3] = '\0';
 
-		long clen = -1;
+		long clen = 0;
 		bool keepAlive = true;
 		if (!isRequestValid((char*)buf, ret, &keepAlive, &clen)) break;
-		if (clen > AEM_API_SEALBOX_SIZE + AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES) break;
+		if (clen <= (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES) || clen > (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES + AEM_API_BOX_SIZE_MAX)) break;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
