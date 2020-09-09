@@ -40,7 +40,7 @@ struct outInfo {
 void setDkimAdm(const unsigned char * const seed);
 void setDkimUsr(const unsigned char * const seed);
 void setMsgIdKeys(const unsigned char * const src);
-void sm_clearKeys();
+void sm_clearKeys(void);
 
 int tlsSetup_sendmail(void);
 void tlsFree_sendmail(void);

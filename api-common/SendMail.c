@@ -44,7 +44,7 @@ void setMsgIdKeys(const unsigned char * const src) {
 	crypto_kdf_derive_from_key(msgId_aesKey, 32, 2, "AEM-MsId", src);
 }
 
-void sm_clearKeys() {
+void sm_clearKeys(void) {
 	sodium_memzero(msgId_hashKey, crypto_generichash_KEYBYTES);
 	sodium_memzero(msgId_aesKey, 32);
 }

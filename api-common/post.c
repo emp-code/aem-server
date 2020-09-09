@@ -78,7 +78,7 @@ void aem_api_free(void) {
 	decrypted = NULL;
 }
 
-static void clearDecrypted() {
+static void clearDecrypted(void) {
 	sodium_mprotect_readwrite(decrypted);
 	sodium_memzero(decrypted, AEM_API_BOX_SIZE_MAX);
 	sodium_mprotect_noaccess(decrypted);

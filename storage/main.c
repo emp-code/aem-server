@@ -265,7 +265,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	return 0;
 }
 
-int loadStindex() {
+int loadStindex(void) {
 	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return -1;
 

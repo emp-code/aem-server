@@ -64,7 +64,7 @@ int dns_setupTls(void) {
 	return 0;
 }
 
-static int makeSocket() {
+static int makeSocket(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
 
@@ -85,7 +85,7 @@ static int makeSocket() {
 
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	// Connect
-	int sock = makeSocket(AEM_DNS_SERVER_HOST);
+	int sock = makeSocket();
 	if (sock < 0) return 0;
 
 	mbedtls_ssl_context ssl;
