@@ -10,7 +10,7 @@
 	openlog(AEM_LOGNAME, LOG_PID, LOG_MAIL);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-#ifndef AEM_WEB_ONI
+#ifndef AEM_WEB
 	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
 #endif
 	if (argc != 1 || argv == NULL) {syslog(LOG_ERR, "Terminating: Invalid arguments"); return EXIT_FAILURE;}

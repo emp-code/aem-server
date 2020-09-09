@@ -9,8 +9,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <sodium.h>
-
 #include "https.h"
 
 #include "../Global.h"
