@@ -265,7 +265,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	return 0;
 }
 
-int loadStindex(void) {
+static int loadStindex(void) {
 	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return -1;
 
@@ -312,7 +312,7 @@ int loadStindex(void) {
 	return 0;
 }
 
-void freeStindex(void) {
+static void freeStindex(void) {
 	for (int i = 0; i < stindexCount; i++) {
 		sodium_memzero(stindex[i].msg, stindex[i].msgCount * 2);
 		free(stindex[i].msg);
@@ -348,7 +348,7 @@ static void browse_infoBytes(unsigned char * const target, const int stindexNum)
 	memcpy(target + 2, &blocks, 4);
 }
 
-int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const matchId) {
+static int storage_read(unsigned char * const msgData, const int stindexNum, const unsigned char * const matchId) {
 	bzero(msgData, AEM_MAXLEN_MSGDATA);
 	browse_infoBytes(msgData, stindexNum);
 
@@ -426,7 +426,7 @@ int storage_read(unsigned char * const msgData, const int stindexNum, const unsi
 	return offset;
 }
 
-void takeConnections(void) {
+static void takeConnections(void) {
 	umask(0077);
 
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
