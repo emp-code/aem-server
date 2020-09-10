@@ -124,8 +124,7 @@ static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char
 }
 
 static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const char code1, const char code2, const char code3) {
-	const char resp[9] = {code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'};
-	return send_aem(sock, tls, resp, 9);
+	return send_aem(sock, tls, (const char[]){code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'}, 9);
 }
 
 __attribute__((warn_unused_result))
