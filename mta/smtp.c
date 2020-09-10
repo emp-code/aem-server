@@ -187,11 +187,6 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_greet(const int sock) {
-	return send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
-}
-
-__attribute__((warn_unused_result))
 static bool smtp_shlo(mbedtls_ssl_context * const tls) {
 	return send_aem(0, tls, "250-"AEM_DOMAIN""AEM_SHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_SHLO_RESPONSE_LEN);
 }
@@ -227,7 +222,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
 
-	if (!smtp_greet(sock)) return smtp_fail(NULL, clientAddr, 0);
+	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(NULL, clientAddr, 0);
 
 	char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
