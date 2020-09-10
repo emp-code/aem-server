@@ -39,7 +39,7 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo * const email) {
+static unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo * const email) {
 	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
 
 	const size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
