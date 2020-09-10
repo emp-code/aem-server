@@ -187,11 +187,6 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_shlo(mbedtls_ssl_context * const tls) {
-	return send_aem(0, tls, "250-"AEM_DOMAIN""AEM_SHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_SHLO_RESPONSE_LEN);
-}
-
-__attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const char * const buf, const ssize_t bytes) {
 	if (buf == NULL || bytes < 4) return false;
 
@@ -271,7 +266,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
-		if (!smtp_shlo(tls)) {
+		if (!send_aem(0, tls, "250-"AEM_DOMAIN""AEM_SHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_SHLO_RESPONSE_LEN)) {
 			syslog(LOG_NOTICE, "Terminating: Failed sending greeting following StartTLS");
 			tlsClose(tls);
 			return;
