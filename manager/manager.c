@@ -67,7 +67,7 @@ void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
 	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
 }
 
-void wipeKeys(void) {
+static void wipeKeys(void) {
 	sodium_memzero(master, AEM_LEN_KEY_MASTER);
 	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
 	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
@@ -219,7 +219,7 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 	return 0;
 }
 
-int loadExec(void) {
+static int loadExec(void) {
 	const char * const path[] = AEM_PATH_EXE;
 
 	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
@@ -493,7 +493,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	The encryption is mostly for authentication. There is no forward secrecy.
 */
 
-void cryptSend(void) {
+static void cryptSend(void) {
 	refreshPids();
 
 	bzero(decrypted, AEM_LEN_MSG);
