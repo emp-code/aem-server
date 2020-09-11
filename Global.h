@@ -66,11 +66,11 @@
 #define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
 
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
-// Base: 64 (sig) + 40 (box) = 104
-// ExtMsg: 29/133; 44B .. 1M + 59B
-// IntMsg: 78/182; N/A
+// Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117B
+// ExtMsg: 29/146; 31B .. 1M + 46B
+// IntMsg: 78/195; N/A
 // OutMsg: ??/???: ?
-// UplMsg: 46/150; 27B .. 1M + 42B
+// UplMsg: 46/163; 14B .. 1M + 29B
 // 12 * 16 = 192 (-15 --> 177 min)
 #define AEM_MSG_MINBLOCKS 12
 
