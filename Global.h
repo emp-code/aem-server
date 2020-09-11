@@ -68,7 +68,8 @@
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
 // Base: 64 (sig) + 40 (box) = 104
 // ExtMsg: 29/133; 44B .. 1M + 59B
-// IntMsg: 53/157; 20B .. 1M + 35B
+// IntMsg: 78/182; N/A
+// OutMsg: ??/???: ?
 // UplMsg: 46/150; 27B .. 1M + 42B
 // 12 * 16 = 192 (-15 --> 177 min)
 #define AEM_MSG_MINBLOCKS 12
@@ -105,7 +106,8 @@ enum aem_api_commands {
 	AEM_API_SETTING_LIMITS,
 	AEM_API_INTERNAL_EXIST,
 	AEM_API_INTERNAL_LEVEL,
-	AEM_API_INTERNAL_UINFO
+	AEM_API_INTERNAL_UINFO,
+	AEM_API_INTERNAL_PBKEY
 };
 
 enum aem_process_types {

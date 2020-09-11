@@ -315,29 +315,7 @@ static void address_delete(void) {
 }
 
 static void address_lookup(void) {
-	if (lenDecrypted > 99) return;
-
-	if (memchr(decrypted, '@', lenDecrypted) != NULL) {
-		// TODO: Email lookup
-		unsigned char zeroes[32];
-		bzero(zeroes, 32);
-		shortResponse(zeroes, 32);
-		return;
-	}
-
-	unsigned char addr[16];
-	addr[0] = (lenDecrypted == 16) ? 'S' : 'N';
-	addr32_store(addr + 1, (const char * const)decrypted, lenDecrypted);
-
-	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
-
-	unsigned char addr_pk[32];
-	if (send(sock, addr, 16, 0) != 16) {close(sock); return;}
-	if (recv(sock, addr_pk, 32, 0) != 32) {close(sock); return;}
-	close(sock);
-
-	shortResponse(addr_pk, 32);
+	// TODO
 }
 
 static void address_update(void) {
@@ -635,62 +613,79 @@ static void message_create_ext(void) {
 }
 
 static void message_create_int(void) {
-	const unsigned char * const fromAddr32 = decrypted;
-	const unsigned char * const toAddr32   = decrypted + 10;
-	const unsigned char * const toPubkey   = decrypted + 20;
-	const unsigned char * const nonce      = decrypted + 20 + crypto_box_PUBLICKEYBYTES;
-	const unsigned char * const body       = decrypted + 20 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES;
-	const size_t lenBody = lenDecrypted - 20 - crypto_box_PUBLICKEYBYTES - crypto_box_NONCEBYTES;
-
-	if (!addr32OwnedByPubkey(upk,    fromAddr32, false)) return;
-	if (!addr32OwnedByPubkey(toPubkey, toAddr32, false)) return;
-
-	const int lenContent = AEM_INTMSG_HEADERS_LEN + lenBody;
-	unsigned char content[lenContent];
-
-	const uint16_t padAmount16 = (msg_getPadAmount(lenContent) << 6) | 16; // IntMsg: 32=0/16=1; 8/4/2/1=unused
 	const uint32_t ts = (uint32_t)time(NULL);
-	const unsigned char infoByte = getUserLevel(upk) & 3;
 
-	memcpy(content + 0, &padAmount16, 2);
-	memcpy(content + 2, &ts, 4);
-	memcpy(content + 6, &infoByte,  1);
-	memcpy(content + 7, upk, 32); // Sender's public key
-	memcpy(content + 7 + crypto_box_PUBLICKEYBYTES, fromAddr32, 10);
-	memcpy(content + 17 + crypto_box_PUBLICKEYBYTES, toAddr32, 10);
-	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES, nonce, crypto_box_NONCEBYTES);
-	memcpy(content + AEM_INTMSG_HEADERS_LEN, body, lenBody);
+	const unsigned char * const fromAddr32 = decrypted +  2;
+	const unsigned char * const toAddr32   = decrypted + 12;
+	const unsigned char * const bodyNonce  = decrypted + 22;
+	const unsigned char * const body       = decrypted + 22 + crypto_box_NONCEBYTES;
+	const size_t lenBody = lenDecrypted - 22 - crypto_box_NONCEBYTES;
 
-	size_t lenEncrypted;
-	unsigned char * const encrypted = msg_encrypt(toPubkey, content, lenContent, &lenEncrypted);
-	sodium_memzero(content, lenContent);
-	if (encrypted == NULL) {
-		syslog(LOG_ERR, "Failed creating encrypted message");
+	const bool fromShield = (decrypted[1] & 8) > 0;
+	const bool toShield   = (decrypted[1] & 4) > 0;
+
+//	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
+
+	// Get receiver's pubkey
+	int sock = accountSocket(AEM_API_INTERNAL_PBKEY, upk, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return;
+
+	unsigned char buf[11];
+	buf[0] = toShield? 'S' : 'N';
+	memcpy(buf + 1, toAddr32, 10);
+	if (send(sock, buf, 11, 0) != 11) {
+		syslog(LOG_ERR, "Failed communicating with Account");
+		close(sock);
 		return;
 	}
 
-	// Store
-	const int sock = storageSocket(lenEncrypted / 1024, toPubkey, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) {
-		free(encrypted);
+	unsigned char toPubKey[crypto_box_PUBLICKEYBYTES];
+	if (recv(sock, toPubKey, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) {
+		syslog(LOG_ERR, "Failed communicating with Account");
+		close(sock);
 		return;
 	}
 
-	const ssize_t sentBytes = send(sock, encrypted, lenEncrypted, 0);
-	free(encrypted);
 	close(sock);
 
-	if (sentBytes != (ssize_t)(lenEncrypted)) {
-		syslog(LOG_ERR, "Failed communicating with Storage");
-		return;
-	}
+	// Create message
+	const int lenContent = 27 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + lenBody;
+	unsigned char content[lenContent];
+
+	content[0] = msg_getPadAmount(lenContent) | 16;
+	memcpy(content + 1, &ts, 4);
+	content[5] = decrypted[0] & 127;
+	content[6] = (decrypted[1] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
+	memcpy(content +  7, fromAddr32, 10);
+	memcpy(content + 17, toAddr32,   10);
+	memcpy(content + 27, upk, crypto_box_PUBLICKEYBYTES);
+	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES, bodyNonce, crypto_box_NONCEBYTES);
+	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES, body, lenBody);
+
+	size_t lenEnc;
+	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
+	sodium_memzero(content, lenContent);
+	if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); return;}
+
+	// Store message
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, toPubKey, crypto_box_PUBLICKEYBYTES);
+
+	sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) {free(enc); return;}
+
+	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	free(enc);
+	close(sock);
+	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void message_create(void) {
-	// 'x' is 01111000 in ASCII. Addr32 understands this as a length of 16, which is higher than the maximum 15.
-	return (decrypted[0] == 'x') ? message_create_ext() : message_create_int();
+	return ((decrypted[0]) > 127) ? message_create_ext() : message_create_int();
 }
 
 static void message_delete(void) {

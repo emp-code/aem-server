@@ -495,6 +495,21 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
+static void api_internal_pbkey(const int sock) {
+	unsigned char buf[11];
+	if (recv(sock, buf, 11, 0) != 11) return;
+	const bool isShield = buf[0] == 'S';
+
+	const uint64_t hash = addressToHash(buf + 1, isShield);
+	if (hash == 0) return;
+
+	unsigned char flags;
+	const int userNum = hashToUserNum(hash, isShield, &flags);
+	if (userNum < 0 /*|| (flags & AEM_ADDR_FLAG_ACCINT) == 0*/) return;
+
+	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+}
+
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	const uint64_t hash = addressToHash(addr32, isShield);
 	if (hash == 0) return;
@@ -573,6 +588,7 @@ static int takeConnections(void) {
 				case AEM_API_INTERNAL_EXIST: send(sockClient, "\x01", 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
+				case AEM_API_INTERNAL_PBKEY: api_internal_pbkey(sockClient); break;
 
 				//default: // Invalid
 			}
