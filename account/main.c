@@ -449,7 +449,7 @@ static void api_address_update(const int sock, const int num) {
 	const int addrCount = user[num].info >> 3;
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if ((uint64_t)(buf + (i * 9)) == user[num].addrHash[j]) {
+			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
 				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				break;
 			}
