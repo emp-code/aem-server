@@ -447,7 +447,6 @@ static void api_address_update(const int sock, const int num) {
 	if (len < 1 || len % 9 != 0) return;
 
 	const int addrCount = user[num].info >> 3;
-
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if ((uint64_t)(buf + (i * 9)) == user[num].addrHash[j]) {
@@ -505,7 +504,7 @@ static void api_internal_pbkey(const int sock) {
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 /*|| (flags & AEM_ADDR_FLAG_ACCINT) == 0*/) return;
+	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCINT) == 0) return;
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
