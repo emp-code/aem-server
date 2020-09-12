@@ -437,10 +437,6 @@ static void api_address_delete(const int sock, const int num) {
 	saveUser();
 }
 
-static void api_address_lookup(const int sock) {
-	// TODO
-}
-
 static void api_address_update(const int sock, const int num) {
 	unsigned char buf[8192];
 	const ssize_t len = recv(sock, buf, 8192, 0);
@@ -577,7 +573,6 @@ static int takeConnections(void) {
 
 				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 				case AEM_API_ADDRESS_DELETE: api_address_delete(sockClient, num); break;
-				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient); break;
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
