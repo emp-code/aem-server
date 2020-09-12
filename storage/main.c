@@ -170,8 +170,8 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
+	const off_t oldFilesize = lseek(fdMsg, 0, SEEK_END);
 	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "Failed writing file %s", path); return -1;}
-	close(fdMsg);
 
 	// Stindex
 	int num = -1;
@@ -186,7 +186,9 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		stindexCount++;
 		struct aem_stindex *stindex2 = realloc(stindex, sizeof(struct aem_stindex) * stindexCount);
 		if (stindex2 == NULL) {
-			// TODO
+			ftruncate(fdMsg, oldFilesize);
+			close(fdMsg);
+			syslog(LOG_ERR, "Failed allocation");
 			return -1;
 		}
 		stindex = stindex2;
@@ -195,15 +197,24 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		memcpy(stindex[num].pubkey, pubkey, crypto_box_PUBLICKEYBYTES);
 		stindex[num].msgCount = 0;
 		stindex[num].msg = malloc(2);
+		if (stindex[num].msg == NULL) {
+			ftruncate(fdMsg, oldFilesize);
+			close(fdMsg);
+			syslog(LOG_ERR, "Failed allocation");
+			return -1;
+		}
 	} else {
 		uint16_t * const newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 2);
 		if (newMsg == NULL) {
-			// TODO
+			ftruncate(fdMsg, oldFilesize);
+			close(fdMsg);
+			syslog(LOG_ERR, "Failed allocation");
 			return -1;
 		}
 		stindex[num].msg = newMsg;
 	}
 
+	close(fdMsg);
 	stindex[num].msg[stindex[num].msgCount] = sze;
 	stindex[num].msgCount++;
 	return 0;
