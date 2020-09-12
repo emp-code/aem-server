@@ -117,9 +117,7 @@ static int loadUser(void) {
 	if (userCount > 0) return -1;
 
 	const int fd = open("Account.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) {
-		return -1;
-	}
+	if (fd < 0) return -1;
 
 	const size_t lenBlock = sizeof(struct aem_user) * 1024;
 	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
