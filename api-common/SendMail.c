@@ -180,7 +180,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
 	char *final = sodium_malloc(2000 + strlen(email->body));
-	if (final == NULL) return NULL;
+	if (final == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 	bzero(final, 2000 + strlen(email->body));
 
 	char ref[1000];
