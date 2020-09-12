@@ -156,10 +156,10 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 	getMsgPath(path, pubkey);
 
 	const int fdMsg = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
-	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening file %s", path); return -1;}
+	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return -1;}
 
 	const off_t oldFilesize = lseek(fdMsg, 0, SEEK_END);
-	if (oldFilesize < 0) {syslog(LOG_ERR, "Failed lseek: %m"); return -1;}
+	if (oldFilesize < 0) {syslog(LOG_ERR, "storage_write(): Failed lseek: %m"); return -1;}
 
 	// Encrypt & Write
 	unsigned char aesKey[32];
@@ -173,7 +173,7 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
-	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "Failed writing file %s", path); return -1;}
+	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return -1;}
 
 	// Stindex
 	int num = -1;
