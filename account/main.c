@@ -212,7 +212,7 @@ static int numAddresses(const int num, const bool shield) {
 	int counter = 0;
 
 	for (int i = 0; i < user[num].info >> 3; i++) {
-		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAG_SHIELD) == AEM_ADDR_FLAG_SHIELD;
+		const bool isShield = (user[num].addrFlag[i] & AEM_ADDR_FLAG_SHIELD) > 0;
 		if (isShield == shield) counter++;
 	}
 
