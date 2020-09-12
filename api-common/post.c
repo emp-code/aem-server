@@ -338,6 +338,8 @@ static void message_upload(void) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	unsigned char *msg = malloc(5 + lenDecrypted);
+	if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
 	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
 	memcpy(msg + 1, &ts, 4);
 	memcpy(msg + 5, decrypted, lenDecrypted);
@@ -372,6 +374,8 @@ static void message_browse(void) {
 
 	// Data to boxed
 	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999);
+	if (clr == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
 	ssize_t lenClr = 0;
 
 	// User info, if requested
@@ -496,6 +500,7 @@ static void deliveryReport(const struct outEmail * const email, const struct out
 
 	const size_t lenContent = 18 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
 	unsigned char * const content = sodium_malloc(lenContent);
+	if (content == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	const uint16_t cs16 = (info->tls_ciphersuite > UINT16_MAX || info->tls_ciphersuite < 0) ? 1 : info->tls_ciphersuite;
 
@@ -584,6 +589,7 @@ static void message_create_ext(void) {
 	const size_t lenBody = end - p;
 	if (lenBody < 15) return;
 	email.body = malloc(lenBody + 1000);
+	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	size_t lenEb = 0;
 	for (size_t copied = 0; copied < lenBody; copied++) {
