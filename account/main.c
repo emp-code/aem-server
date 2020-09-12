@@ -515,7 +515,7 @@ static void mta_getPubKey(const int sock, const unsigned char * const addr32, co
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {syslog(LOG_DEBUG, "Hash not found"); return;}
+	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) return;
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
