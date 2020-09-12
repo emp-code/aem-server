@@ -151,7 +151,7 @@ static void account_browse(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char *clr = malloc(1048576);
+	unsigned char * const clr = malloc(1048576);
 	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
 
 	const ssize_t lenClr = recv(sock, clr, 1048576, MSG_WAITALL);
@@ -337,7 +337,7 @@ static void address_update(void) {
 static void message_upload(void) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	unsigned char *msg = malloc(5 + lenDecrypted);
+	unsigned char * const msg = malloc(5 + lenDecrypted);
 	if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
