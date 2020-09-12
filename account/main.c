@@ -240,6 +240,7 @@ static void api_account_browse(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) return;
 
 	unsigned char * const response = malloc(userCount * 35);
+	if (response == NULL) return;
 
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
