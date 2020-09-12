@@ -232,6 +232,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 
 				if (newEnd != NULL) {
 					bound[boundCount] = malloc(4 + (newEnd - newBegin));
+					if (bound[boundCount] == NULL) {syslog(LOG_ERR, "Failed allocation"); out = NULL; break;}
 					memcpy(bound[boundCount] + 3, newBegin, newEnd - newBegin);
 					bound[boundCount][0] = '\n';
 					bound[boundCount][1] = '-';
