@@ -22,7 +22,7 @@
 #include "../Data/internal.h"
 
 #define AEM_LOGNAME "AEM-Sto"
-#define AEM_STINDEX_PAD 1048576 // 1 MiB
+#define AEM_STINDEX_PAD 90000 // 36B * 2500
 #define AEM_SOCK_QUEUE 50
 
 static unsigned char stindexKey[AEM_LEN_KEY_STI];
