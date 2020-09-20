@@ -394,7 +394,8 @@ static int storage_read(unsigned char * const msgData, const int stindexNum, con
 			if (stopIndex == -1) {close(fdMsg); return -1;} // matchId not found
 			filePos = lseek(fdMsg, 0, SEEK_END);
 		} else { // older
-			filePos = lseek(fdMsg, 0, SEEK_SET); // TODO: check for error
+			filePos = lseek(fdMsg, 0, SEEK_SET);
+			if (filePos != 0) {close(fdMsg); return -1;}
 
 			for (int i = 0; i < stindex[stindexNum].msgCount - 1; i++) {
 				if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
