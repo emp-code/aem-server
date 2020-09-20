@@ -191,9 +191,9 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		stindexCount++;
 		struct aem_stindex *stindex2 = realloc(stindex, sizeof(struct aem_stindex) * stindexCount);
 		if (stindex2 == NULL) {
-			ftruncate(fdMsg, oldFilesize);
-			close(fdMsg);
 			syslog(LOG_ERR, "Failed allocation");
+			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
+			close(fdMsg);
 			return -1;
 		}
 		stindex = stindex2;
@@ -203,17 +203,17 @@ static int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], 
 		stindex[num].msgCount = 0;
 		stindex[num].msg = malloc(2);
 		if (stindex[num].msg == NULL) {
-			ftruncate(fdMsg, oldFilesize);
-			close(fdMsg);
 			syslog(LOG_ERR, "Failed allocation");
+			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
+			close(fdMsg);
 			return -1;
 		}
 	} else {
 		uint16_t * const newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 2);
 		if (newMsg == NULL) {
-			ftruncate(fdMsg, oldFilesize);
-			close(fdMsg);
 			syslog(LOG_ERR, "Failed allocation");
+			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
+			close(fdMsg);
 			return -1;
 		}
 		stindex[num].msg = newMsg;
