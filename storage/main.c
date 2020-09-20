@@ -314,7 +314,11 @@ static int loadStindex(void) {
 		skip += 2;
 
 		stindex[i].msg = malloc(stindex[i].msgCount * 2);
-		if (stindex[i].msg == NULL) return -1; // TODO: Free stindex
+		if (stindex[i].msg == NULL) {
+			for (int j = 0; j < i; j++) free(stindex[j].msg);
+			free(stindex);
+			return -1;
+		}
 
 		for (int j = 0; j < stindex[i].msgCount; j++) {
 			memcpy((unsigned char*)stindex[i].msg + (j * 2), data + skip, 2);
