@@ -257,10 +257,20 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 			if (buf == NULL) {close(fdMsg); return -1;}
 
 			const ssize_t readBytes = pread(fdMsg, buf, readAmount, readPos);
-			if (readBytes != readAmount) {close(fdMsg); free(buf); return -1;}
+			if (readBytes != readAmount) {
+				close(fdMsg);
+				free(buf);
+				syslog(LOG_ERR, "storage_delete: Failed read()");
+				return -1;
+			}
 
-			pwrite(fdMsg, buf, readAmount, filePos);
+			const ssize_t writtenBytes = pwrite(fdMsg, buf, readAmount, filePos);
 			free(buf);
+			if (writtenBytes != readAmount) {
+				close(fdMsg);
+				syslog(LOG_ERR, "storage_delete: Failed write()");
+				return -1;
+			}
 		}
 
 		ftruncate(fdMsg, fileSize - ((stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16));
