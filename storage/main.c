@@ -141,11 +141,14 @@ static void getMsgPath(char path[77], const unsigned char pubkey[crypto_box_PUBL
 
 	crypto_kdf_derive_from_key(aesKey, 32, 1, "AEM-Stp0", storageKey);
 	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
 
 	unsigned char pkEnc[32];
 	memcpy(pkEnc, pubkey, 32);
 	AES_ECB_encrypt(&aes, pkEnc);
 	AES_ECB_encrypt(&aes, pkEnc + 16);
+
+	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
 	memcpy(path, "MessageData/", 12);
 	sodium_bin2hex(path + 12, 65, pkEnc, 32);
