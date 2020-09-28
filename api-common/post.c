@@ -398,7 +398,7 @@ static void message_browse(void) {
 
 	// Message data
 	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((lenDecrypted == 17) ? lenDecrypted : 0));
-	if (sock < 0) return;
+	if (sock < 0) {sodium_free(clr); return;}
 
 	const ssize_t lenRcv = recv(sock, clr + lenClr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
