@@ -358,11 +358,11 @@ static void message_upload(void) {
 	if (sock < 0) {free(enc); return;}
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
-	free(enc);
 	close(sock);
-	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
+	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); return;}
 
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(enc, 16);
+	free(enc);
 }
 
 static void message_browse(void) {
