@@ -355,7 +355,7 @@ static void message_upload(void) {
 	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
 
 	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) {free(enc); return;}
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
 	free(enc);
