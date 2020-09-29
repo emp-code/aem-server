@@ -200,18 +200,18 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
-	if (readBytes != crypto_secretbox_NONCEBYTES) {syslog(LOG_ERR, "Failed reading nonce for file: %s", path); close(fd); return -1;}
+	if (readBytes != crypto_secretbox_NONCEBYTES) {syslog(LOG_ERR, "Failed reading %s", path); close(fd); return -1;}
 	bytes -= crypto_secretbox_NONCEBYTES;
 
 	unsigned char enc[bytes];
 	readBytes = read(fd, enc, bytes);
 	close(fd);
-	if (readBytes != bytes) {syslog(LOG_ERR, "Failed reading file: %s", path); return -1;}
+	if (readBytes != bytes) {syslog(LOG_ERR, "Failed reading %s", path); return -1;}
 
 	if (len != NULL) *len = bytes - crypto_secretbox_MACBYTES;
 
 	if (crypto_secretbox_open_easy(target, enc, bytes, nonce, master) != 0) {
-		syslog(LOG_ERR, "Failed decrypting file: %s", path);
+		syslog(LOG_ERR, "Failed decrypting %s", path);
 		return -1;
 	}
 
