@@ -7,7 +7,7 @@
 #include "../Global.h"
 
 struct emailInfo {
-	unsigned char toAddr32[15];
+	unsigned char toAddr32[10];
 	unsigned char countryCode[2];
 	uint32_t timestamp;
 	uint32_t ip;
