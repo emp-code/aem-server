@@ -23,9 +23,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
-	if (host == NULL) return false;
-	if (strncmp(host + 8, AEM_ONIONID, 56) != 0) return false;
-	if (strncmp(host + 64, ".onion:302\r\n", 12) != 0) return false;
+	if (host == NULL || strncmp(host + 8, AEM_ONIONID".onion:302\r\n", 68) != 0) return false;
 
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
 	if (clenStr == NULL) return false;
