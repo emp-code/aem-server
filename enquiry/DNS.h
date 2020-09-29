@@ -1,5 +1,5 @@
-#ifndef AEM_DNS
-#define AEM_DNS
+#ifndef AEM_DNS_H
+#define AEM_DNS_H
 
 void dns_freeTls(void);
 int dns_setupTls(void);

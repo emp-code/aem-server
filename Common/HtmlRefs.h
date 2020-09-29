@@ -1,5 +1,5 @@
-#ifndef AEM_HTMLREFS
-#define AEM_HTMLREFS
+#ifndef AEM_HTMLREFS_H
+#define AEM_HTMLREFS_H
 
 void decodeHtmlRefs(unsigned char * const text, size_t * const len);
 

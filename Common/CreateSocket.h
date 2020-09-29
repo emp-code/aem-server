@@ -1,5 +1,5 @@
-#ifndef AEM_CREATESOCKET
-#define AEM_CREATESOCKET
+#ifndef AEM_CREATESOCKET_H
+#define AEM_CREATESOCKET_H
 
 #include <stdbool.h>
 
