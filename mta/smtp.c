@@ -206,7 +206,6 @@ static void tlsClose(mbedtls_ssl_context * const tls) {
 }
 
 static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const clientAddr, const int code) {
-	tlsClose(tls);
 	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %s)", code, inet_ntoa(clientAddr->sin_addr));
 }
 
@@ -292,7 +291,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
-			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) return smtp_fail(tls, clientAddr, 100);
+			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {
+				smtp_fail(tls, clientAddr, 100);
+				break;
+			}
 		}
 
 		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
@@ -300,8 +302,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					tlsClose(tls);
-					return smtp_fail(tls, clientAddr, 101);
+					smtp_fail(tls, clientAddr, 101);
+					break;
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -313,7 +315,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (lenNewTo < 1) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					return smtp_fail(tls, clientAddr, 103);
+					smtp_fail(tls, clientAddr, 103);
+					break;
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -322,7 +325,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_SIZE_TO) {
 				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
-					return smtp_fail(tls, clientAddr, 104);
+					smtp_fail(tls, clientAddr, 104);
+					break;
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -349,7 +353,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			email.rareCommands = true;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				return smtp_fail(tls, clientAddr, 105);
+				smtp_fail(tls, clientAddr, 105);
+				break;
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -366,7 +371,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					return smtp_fail(tls, clientAddr, 106);
+					smtp_fail(tls, clientAddr, 106);
+					break;
 				}
 
 				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -374,14 +380,16 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				return smtp_fail(tls, clientAddr, 107);
+				smtp_fail(tls, clientAddr, 107);
+				break;
 			}
 
 			body = malloc(AEM_SMTP_MAX_SIZE_BODY + email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
-				return smtp_fail(tls, clientAddr, 999);
+				smtp_fail(tls, clientAddr, 999);
+				break;
 			}
 
 			lenBody = 0;
@@ -407,7 +415,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				sodium_memzero(body, lenBody);
 				free(body);
-				return smtp_fail(tls, clientAddr, 150);
+				smtp_fail(tls, clientAddr, 150);
+				break;
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -451,7 +460,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				return smtp_fail(tls, clientAddr, 108);
+				smtp_fail(tls, clientAddr, 108);
+				break;
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -459,7 +469,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			return smtp_fail(tls, clientAddr, 150);
+			smtp_fail(tls, clientAddr, 150);
+			break;
 		}
 
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
