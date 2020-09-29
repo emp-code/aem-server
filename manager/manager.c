@@ -239,7 +239,10 @@ static int loadExec(void) {
 			return -1;
 		}
 
-		fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE);
+		if (fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
+			sodium_free(tmp);
+			return -1;
+		}
 	}
 
 	sodium_free(tmp);
