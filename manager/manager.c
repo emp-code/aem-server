@@ -192,12 +192,11 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
-	if (bytes < 1 || bytes > maxLen - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
-		syslog(LOG_ERR, "Invalid length for file: %s", path);
+	if (bytes < 1 || lseek(fd, 0, SEEK_SET) != 0 || bytes > maxLen - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
+		syslog(LOG_ERR, "Failed lseek or invalid length on %s", path);
 		close(fd);
 		return -1;
 	}
-	lseek(fd, 0, SEEK_SET);
 
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
