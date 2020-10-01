@@ -491,7 +491,21 @@ static bool addrOwned(const char * const addr) {
 	return addr32OwnedByPubkey(upk, addrFrom32, fromShield);
 }
 
-static void deliveryReport(const struct outEmail * const email, const struct outInfo * const info) {
+static void deliveryReport_store(const unsigned char * const enc, const size_t lenEnc) {
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+
+	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return;
+
+	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	close(sock);
+	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
+}
+
+static void deliveryReport_ext(const struct outEmail * const email, const struct outInfo * const info) {
 	const size_t lenSubject  = strlen(email->subject);
 	const size_t lenAddressT = strlen(email->addrTo);
 	const size_t lenAddressF = strlen(email->addrFrom);
@@ -534,19 +548,38 @@ static void deliveryReport(const struct outEmail * const email, const struct out
 		return;
 	}
 
-	// Deliver
-	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
-	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-	memcpy(sockMsg, &u, 2);
-	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
-
-	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) {free(enc); return;}
-
-	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	deliveryReport_store(enc, lenEnc);
 	free(enc);
-	close(sock);
-	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
+}
+
+static void deliveryReport_int(const uint32_t ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const body, const size_t lenBody, const size_t lenSubj, const bool isEncrypted, const bool fromShield, const bool toShield) {
+	const size_t lenContent = 27 + lenBody;
+	unsigned char * const content = sodium_malloc(lenContent);
+	if (content == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
+	content[0] = msg_getPadAmount(lenContent) | 48; // 48=OutMsg (DeliveryReport)
+	memcpy(content + 1, &ts, 4);
+	content[5] = lenSubj | 128; // 128 = IntMsg
+
+	content[6] = 0;
+	if (isEncrypted) content[6] |= 16;
+	if (fromShield)  content[6] |=  8;
+	if (toShield)    content[6] |=  4;
+
+	memcpy(content + 7, fromAddr32, 10);
+	memcpy(content + 17, toAddr32, 10);
+	memcpy(content + 27, body, lenBody);
+
+	size_t lenEnc;
+	unsigned char * const enc = msg_encrypt(upk, content, lenContent, &lenEnc);
+	sodium_free(content);
+	if (enc == NULL) {
+		syslog(LOG_ERR, "Failed creating encrypted message");
+		return;
+	}
+
+	deliveryReport_store(enc, lenEnc);
+	free(enc);
 }
 
 static void message_create_ext(void) {
@@ -606,7 +639,7 @@ static void message_create_ext(void) {
 	memcpy(email.body + lenEb, "\r\n\0", 3);
 
 	const unsigned char ret = sendMail(upk, userLevel, &email, &info);
-	deliveryReport(&email, &info);
+	deliveryReport_ext(&email, &info);
 
 	if (ret == 0) {
 		shortResponse(NULL, AEM_API_NOCONTENT);
@@ -628,8 +661,9 @@ static void message_create_int(void) {
 	const unsigned char * const body       = decrypted + 22 + crypto_box_NONCEBYTES;
 	const size_t lenBody = lenDecrypted - 22 - crypto_box_NONCEBYTES;
 
-	const bool fromShield = (decrypted[1] & 8) > 0;
-	const bool toShield   = (decrypted[1] & 4) > 0;
+	const bool isEncrypted = (decrypted[1] & 16) > 0;
+	const bool fromShield  = (decrypted[1] &  8) > 0;
+	const bool toShield    = (decrypted[1] &  4) > 0;
 
 //	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
 
@@ -659,7 +693,7 @@ static void message_create_int(void) {
 	const int lenContent = 27 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + lenBody;
 	unsigned char content[lenContent];
 
-	content[0] = msg_getPadAmount(lenContent) | 16;
+	content[0] = msg_getPadAmount(lenContent) | 16; // 16=IntMsg
 	memcpy(content + 1, &ts, 4);
 	content[5] = decrypted[0] & 127;
 	content[6] = (decrypted[1] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
@@ -687,6 +721,8 @@ static void message_create_int(void) {
 	free(enc);
 	close(sock);
 	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
+
+	deliveryReport_int(ts, fromAddr32, toAddr32, body, lenBody, decrypted[0], isEncrypted, fromShield, toShield);
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
