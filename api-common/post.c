@@ -1,4 +1,5 @@
-#include <ctype.h> // for islower
+#include <ctype.h> // for islower()
+#include <math.h> // for abs()
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -547,23 +548,26 @@ static void deliveryReport_ext(const struct outEmail * const email, const struct
 	free(enc);
 }
 
-static void deliveryReport_int(const uint32_t ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const body, const size_t lenBody, const size_t lenSubj, const bool isEncrypted, const bool fromShield, const bool toShield) {
-	const size_t lenContent = 27 + lenBody;
+static void deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte) {
+	const size_t lenContent = (isEncrypted? (27 + crypto_kx_PUBLICKEYBYTES) : 27) + lenSubj + lenBody;
 	unsigned char * const content = sodium_malloc(lenContent);
 	if (content == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	content[0] = msg_getPadAmount(lenContent) | 48; // 48=OutMsg (DeliveryReport)
-	memcpy(content + 1, &ts, 4);
+	memcpy(content + 1, ts, 4);
 	content[5] = lenSubj | 128; // 128 = IntMsg
-
-	content[6] = 0;
-	if (isEncrypted) content[6] |= 16;
-	if (fromShield)  content[6] |=  8;
-	if (toShield)    content[6] |=  4;
-
+	content[6] = infoByte;
 	memcpy(content + 7, fromAddr32, 10);
 	memcpy(content + 17, toAddr32, 10);
-	memcpy(content + 27, body, lenBody);
+
+	if (isEncrypted) {
+		memcpy(content + 27, recvPubKey, crypto_kx_PUBLICKEYBYTES);
+		memcpy(content + 27 + crypto_kx_PUBLICKEYBYTES, subj, lenSubj);
+		memcpy(content + 27 + crypto_kx_PUBLICKEYBYTES + lenSubj, body, lenBody);
+	} else {
+		memcpy(content + 27, subj, lenSubj);
+		memcpy(content + 27 + lenSubj, body, lenBody);
+	}
 
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(upk, content, lenContent, &lenEnc);
@@ -647,18 +651,40 @@ static void message_create_ext(void) {
 	free(email.body);
 }
 
+static bool ts_valid(const unsigned char * const ts_sender) {
+	const int ts_our = (int)time(NULL);
+
+	uint32_t ts_sender_u;
+	memcpy(&ts_sender_u, ts_sender, 4);
+
+	return abs((int)ts_sender_u - ts_our) < 10;
+}
+
 static void message_create_int(void) {
-	const uint32_t ts = (uint32_t)time(NULL);
+	const unsigned char infoByte = (decrypted[crypto_kx_PUBLICKEYBYTES + 4] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
+	const bool isEncrypted = (infoByte & 16) > 0;
+	const bool fromShield  = (infoByte &  8) > 0;
+	const bool toShield    = (infoByte &  4) > 0;
 
-	const unsigned char * const fromAddr32 = decrypted +  2;
-	const unsigned char * const toAddr32   = decrypted + 12;
-	const unsigned char * const bodyNonce  = decrypted + 22;
-	const unsigned char * const body       = decrypted + 22 + crypto_box_NONCEBYTES;
-	const size_t lenBody = lenDecrypted - 22 - crypto_box_NONCEBYTES;
+	if (lenDecrypted < (isEncrypted? 96 : 128)) return; // Minimum message size based on AEM_MSG_MINBLOCKS
 
-	const bool isEncrypted = (decrypted[1] & 16) > 0;
-	const bool fromShield  = (decrypted[1] &  8) > 0;
-	const bool toShield    = (decrypted[1] &  4) > 0;
+	unsigned char ts_sender[4];
+	if (isEncrypted) {
+		memcpy(ts_sender, decrypted + crypto_kx_PUBLICKEYBYTES, 4);
+		if (!ts_valid(ts_sender)) return;
+	} else {
+		const uint32_t ts = (uint32_t)time(NULL);
+		memcpy(ts_sender, &ts, 4);
+	}
+
+	unsigned char * const msgData = decrypted + crypto_kx_PUBLICKEYBYTES + 5;
+	const size_t lenData = lenDecrypted - crypto_kx_PUBLICKEYBYTES - 5;
+
+	const unsigned char lenSubj = msgData[20 + crypto_kx_PUBLICKEYBYTES];
+	if (lenSubj > 127) return;
+
+	const unsigned char * const fromAddr32 = msgData;
+	const unsigned char * const toAddr32   = msgData + 10;
 
 //	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
 
@@ -685,18 +711,12 @@ static void message_create_int(void) {
 	close(sock);
 
 	// Create message
-	const int lenContent = 27 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + lenBody;
+	const size_t lenContent = 6 + lenData;
 	unsigned char content[lenContent];
-
 	content[0] = msg_getPadAmount(lenContent) | 16; // 16=IntMsg
-	memcpy(content + 1, &ts, 4);
-	content[5] = decrypted[0] & 127;
-	content[6] = (decrypted[1] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
-	memcpy(content +  7, fromAddr32, 10);
-	memcpy(content + 17, toAddr32,   10);
-	memcpy(content + 27, upk, crypto_box_PUBLICKEYBYTES);
-	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES, bodyNonce, crypto_box_NONCEBYTES);
-	memcpy(content + 27 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES, body, lenBody);
+	memcpy(content + 1, ts_sender, 4);
+	content[5] = infoByte;
+	memcpy(content + 6, msgData, lenData);
 
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
@@ -717,7 +737,7 @@ static void message_create_int(void) {
 	close(sock);
 	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 
-	deliveryReport_int(ts, fromAddr32, toAddr32, body, lenBody, decrypted[0], isEncrypted, fromShield, toShield);
+	deliveryReport_int(decrypted, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
