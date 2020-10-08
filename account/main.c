@@ -436,6 +436,18 @@ static void api_address_delete(const int sock, const int num) {
 	saveUser();
 }
 
+static void api_address_lookup(const int sock, const int num) {
+	unsigned char buf[11];
+	if (recv(sock, buf, 11, 0) != 11) return;
+
+	const bool isShield = (buf[0] == 'S');
+	const unsigned char * const addr32 = buf + 1;
+
+	const uint64_t hash = addressToHash(addr32, isShield);
+	const int userNum = hashToUserNum(hash, isShield, NULL);
+	if (num == userNum) send(sock, "\x01", 1, 0);
+}
+
 static void api_address_update(const int sock, const int num) {
 	unsigned char buf[8192];
 	const ssize_t len = recv(sock, buf, 8192, 0);
@@ -572,6 +584,7 @@ static int takeConnections(void) {
 
 				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 				case AEM_API_ADDRESS_DELETE: api_address_delete(sockClient, num); break;
+				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient, num); break;
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;

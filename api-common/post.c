@@ -433,12 +433,12 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return false;
 
-	unsigned char pk[32];
+	unsigned char answer;
 	if (send(sock, addrData, 11, 0) != 11) {close(sock); return false;}
-	if (recv(sock, pk, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) {close(sock); return false;}
+	if (recv(sock, &answer, 1, 0) != 1) {close(sock); return false;}
 	close(sock);
 
-	return memcmp(ver_pk, pk, crypto_box_PUBLICKEYBYTES) == 0;
+	return (answer == 0x01);
 }
 
 static unsigned char getUserLevel(const unsigned char * const pubkey) {
@@ -595,7 +595,7 @@ static void message_create_ext(void) {
 	// Address From
 	const unsigned char *p = decrypted + 1;
 	const unsigned char * const end = decrypted + lenDecrypted;
-	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL/* || !addrOwned(email.addrFrom)*/) return;
+	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL || !addrOwned(email.addrFrom)) return;
 	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
@@ -686,7 +686,7 @@ static void message_create_int(void) {
 	const unsigned char * const fromAddr32 = msgData;
 	const unsigned char * const toAddr32   = msgData + 10;
 
-//	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
+	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
 
 	// Get receiver's pubkey
 	int sock = accountSocket(AEM_API_INTERNAL_PBKEY, upk, crypto_box_PUBLICKEYBYTES);
