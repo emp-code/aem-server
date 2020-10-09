@@ -37,7 +37,6 @@
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
-#define AEM_LEN_SLT_FKE crypto_generichash_KEYBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
@@ -55,7 +54,6 @@
 
 #define AEM_EXTMSG_HEADERS_LEN 29
 #define AEM_EXTMSG_BODY_MAXLEN ((128 * 1024) - AEM_EXTMSG_HEADERS_LEN - crypto_sign_BYTES - crypto_box_SEALBYTES)
-#define AEM_INTMSG_HEADERS_LEN 83
 
 #define AEM_ADDR32_ADMIN  (const unsigned char[]) {'\xa6', '\xd0', '\x35', '\x0e', '\x75', '\x85', '\x68', '\x18'} // 'administrator' in Addr32
 #define AEM_ADDR32_SYSTEM (const unsigned char[]) {'\x36', '\x7d', '\x9d', '\x3a', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'system' in Addr32
