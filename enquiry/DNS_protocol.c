@@ -209,8 +209,9 @@ uint32_t dnsResponse_GetIp(const unsigned char * const res, const int resLen) {
 	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
 	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
 	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
-// +8: NSCount
-// +10: ARCount
+// 6,7:   ANCOUNT (Answer)
+// 8,9:   NSCOUNT (Name Server / Authority Record)
+// 10,11: ARCOUNT (Additional Record)
 	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
 
 	uint16_t answerCount;
@@ -225,8 +226,9 @@ int dnsResponse_GetMx(const unsigned char * const res, const int resLen, unsigne
 	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
 	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
 	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
-// +8: NSCount
-// +10: ARCount
+// 6,7:   ANCOUNT (Answer)
+// 8,9:   NSCOUNT (Name Server / Authority Record)
+// 10,11: ARCOUNT (Additional Record)
 	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
 
 	uint16_t answerCount;
