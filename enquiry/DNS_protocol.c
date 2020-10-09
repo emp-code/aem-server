@@ -39,7 +39,7 @@ static uint32_t validIp(const uint32_t ip) {
 int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const bool isMx) {
 	lenQuestion = 0;
 
-	// Bytes 1-2: Transaction ID.
+	// Transaction ID
 	randombytes_buf(id, 2);
 	memcpy(rq + 2, id, 2);
 
