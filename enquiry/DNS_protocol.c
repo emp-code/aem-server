@@ -36,7 +36,7 @@ static uint32_t validIp(const uint32_t ip) {
 	) ? 0 : ip;
 }
 
-int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const bool typeMx) {
+int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const bool isMx) {
 	lenQuestion = 0;
 
 	// Bytes 1-2: Transaction ID.
@@ -86,11 +86,7 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 		if (final) break;
 	}
 
-	if (typeMx)
-		memcpy(question + lenQuestion, "\x00\x00\x0F\x00\x01", 5); // 00: end of question; 000F: MX record; 0001: Internet question class
-	else
-		memcpy(question + lenQuestion, "\x00\x00\x01\x00\x01", 5); // 00: end of question; 0001: A record;  0001: Internet question class
-
+	memcpy(question + lenQuestion, isMx? "\x00\x00\x0F\x00\x01" : "\x00\x00\x01\x00\x01", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
 	lenQuestion += 5;
 
 	memcpy(rq + 14, question, lenQuestion);
