@@ -205,7 +205,7 @@ static void tlsClose(mbedtls_ssl_context * const tls) {
 	mbedtls_ssl_session_reset(tls);
 }
 
-static void smtp_fail(mbedtls_ssl_context *tls, const struct sockaddr_in * const clientAddr, const int code) {
+static void smtp_fail(const struct sockaddr_in * const clientAddr, const int code) {
 	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %s)", code, inet_ntoa(clientAddr->sin_addr));
 }
 
@@ -216,13 +216,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
 
-	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(NULL, clientAddr, 0);
+	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(clientAddr, 0);
 
 	char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
-	if (bytes < 7) return smtp_fail(NULL, clientAddr, 1); // HELO \r\n
+	if (bytes < 7) return smtp_fail(clientAddr, 1); // HELO \r\n
 
-	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(NULL, clientAddr, 2);
+	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(clientAddr, 2);
 
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
@@ -235,7 +235,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	mbedtls_ssl_context *tls = NULL;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
-		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(tls, clientAddr, 110);
+		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
 
 		tls = &ssl;
 		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -292,7 +292,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
 			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {
-				smtp_fail(tls, clientAddr, 100);
+				smtp_fail(clientAddr, 100);
 				break;
 			}
 		}
@@ -302,7 +302,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(tls, clientAddr, 101);
+					smtp_fail(clientAddr, 101);
 					break;
 				}
 
@@ -315,7 +315,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (lenNewTo < 1) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					smtp_fail(tls, clientAddr, 103);
+					smtp_fail(clientAddr, 103);
 					break;
 				}
 
@@ -325,7 +325,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_SIZE_TO) {
 				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
-					smtp_fail(tls, clientAddr, 104);
+					smtp_fail(clientAddr, 104);
 					break;
 				}
 
@@ -353,7 +353,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			email.rareCommands = true;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				smtp_fail(tls, clientAddr, 105);
+				smtp_fail(clientAddr, 105);
 				break;
 			}
 
@@ -371,7 +371,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(tls, clientAddr, 106);
+					smtp_fail(clientAddr, 106);
 					break;
 				}
 
@@ -380,7 +380,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				smtp_fail(tls, clientAddr, 107);
+				smtp_fail(clientAddr, 107);
 				break;
 			}
 
@@ -388,7 +388,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
-				smtp_fail(tls, clientAddr, 999);
+				smtp_fail(clientAddr, 999);
 				break;
 			}
 
@@ -415,7 +415,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				sodium_memzero(body, lenBody);
 				free(body);
-				smtp_fail(tls, clientAddr, 150);
+				smtp_fail(clientAddr, 150);
 				break;
 			}
 
@@ -460,7 +460,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				smtp_fail(tls, clientAddr, 108);
+				smtp_fail(clientAddr, 108);
 				break;
 			}
 
@@ -469,7 +469,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			smtp_fail(tls, clientAddr, 150);
+			smtp_fail(clientAddr, 150);
 			break;
 		}
 
