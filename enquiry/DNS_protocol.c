@@ -89,7 +89,7 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 	memcpy(rq + 14, question, lenQuestion);
 	memcpy(rq + 14 + lenQuestion, isMx? "\x00\x00\x0F\x00\x01" : "\x00\x00\x01\x00\x01", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
 
-	// TCP DNS messages start with a 16 bit integer containing the length of the message (not counting the integer itself)
+	// TCP DNS messages start with a uint16_t indicating the length of the message (excluding the uint16_t itself)
 	rq[0] = 0;
 	rq[1] = 22 + lenQuestion;
 
