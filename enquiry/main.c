@@ -85,8 +85,15 @@ void takeConnections(void) {
 		const size_t lenDec = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 		unsigned char dec[lenDec];
 		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_ALL) == 0) {
-			const uint32_t ip = queryDns(dec + 1, lenDec - 1);
-			send(sock, &ip, 4, 0);
+			switch (dec[0]) {
+				case AEM_DNS_LOOKUP:{
+					const uint32_t ip = queryDns(dec + 1, lenDec - 1);
+					send(sock, &ip, 4, 0);
+				break;}
+
+				default:
+					syslog(LOG_ERR, "Invalid command: %u", dec[0]);
+			}
 		} else syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);
 
 		close(sock);
