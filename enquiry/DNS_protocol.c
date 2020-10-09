@@ -44,7 +44,7 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 	memcpy(rq + 2, id, 2);
 
 	// 16-bit flags field, entry counts
-	memcpy(rq + 4, "\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00", 10);
+	memcpy(rq + 4, "\1\0\0\1\0\0\0\0\0\0", 10);
 	/*	00000001
 		[1] QR (Query/Response). 0 = Query, 1 = Response.
 		[4] OPCODE (kind of query). 0000 = Standard query.
@@ -87,7 +87,7 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 	}
 
 	memcpy(rq + 14, question, lenQuestion);
-	memcpy(rq + 14 + lenQuestion, isMx? "\x00\x00\x0F\x00\x01" : "\x00\x00\x01\x00\x01", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
+	memcpy(rq + 14 + lenQuestion, isMx? "\0\0\x0F\0\1" : "\0\0\x01\0\1", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
 
 	// TCP DNS messages start with a uint16_t indicating the length of the message (excluding the uint16_t itself)
 	rq[0] = 0;
