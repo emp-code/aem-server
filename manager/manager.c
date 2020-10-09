@@ -28,10 +28,6 @@
 
 #include "manager.h"
 
-#ifndef SYS_clone3
-	#define SYS_clone3 __NR_clone3
-#endif
-
 #define AEM_MAXPROCESSES 25
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
