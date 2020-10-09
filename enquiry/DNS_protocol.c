@@ -45,38 +45,25 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 	randombytes_buf(id, 2);
 	memcpy(rq + 2, id, 2);
 
-	setBit(rq + 4, 1, 0); // Byte 3, Bit 1: QR (Query/Response). 0 = Query, 1 = Response.
+	// 16-bit flags field, entry counts
+	memcpy(rq + 4, "\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00", 10);
+	/*	00000001
+		[1] QR (Query/Response). 0 = Query, 1 = Response.
+		[4] OPCODE (kind of query). 0000 = Standard query.
+		[1] Authoritative answer. N/A.
+		[1] Truncated message. No.
+		[1] Recursion desired. Yes.
 
-	// Byte 3, Bits 2-5 (4 bits): OPCODE (kind of query). 0000 = Standard query.
-	setBit(rq + 4, 2, 0);
-	setBit(rq + 4, 3, 0);
-	setBit(rq + 4, 4, 0);
-	setBit(rq + 4, 5, 0);
+		00000000
+		[1] Recursion available. N/A.
+		[3] Reserved. Always zero.
+		[4] Response code. N/A.
 
-	// Byte 3: Bits 6-8; Byte 4, Bits 1-4
-	setBit(rq + 4, 6, 0); // Byte 3, Bit 6: Authoritative answer. N/A.
-	setBit(rq + 4, 7, 0); // Byte 3, Bit 7: Truncated message.
-	setBit(rq + 4, 8, 1); // Byte 3, Bit 8: Recursion desired.
-	setBit(rq + 5, 1, 0); // Byte 4, Bit 1: Recursion available. N/A.
-	setBit(rq + 5, 2, 0); // Byte 4. Bit 2: Reserved. Must be 0.
-	setBit(rq + 5, 3, 0); // Byte 4. Bit 3: Reserved. Must be 0.
-	setBit(rq + 5, 4, 0); // Byte 4. Bit 4: Reserved. Must be 0.
-
-	// Response code. N/A.
-	setBit(rq + 5, 5, 0); // Byte 4. Bit 5.
-	setBit(rq + 5, 6, 0); // Byte 4. Bit 6.
-	setBit(rq + 5, 7, 0); // Byte 4. Bit 7.
-	setBit(rq + 5, 8, 0); // Byte 4. Bit 8.
-
-	// Bytes 5-6: QDCOUNT: Number of entries in the question section.
-	rq[6] = 0;
-	rq[7] = 1;
-
-	memset(rq +  8, 0, 2); // Bytes 7-8: ANCOUNT: Number of resource records in the answer section. N/A.
-	memset(rq + 10, 0, 2); // Bytes 9-10: NSCOUNT: Number of name server resource records in the authority records section. N/A.
-	memset(rq + 12, 0, 2); // Bytes 11-12: ARCOUNT: Number of resource records in the additional records section. N/A.
-
-	// Bytes 13+: Question section
+		[16] QDCOUNT: One question entry (00000000 00000001).
+		[16] ANCOUNT: Zero.
+		[16] NSCOUNT: Zero.
+		[16] ARCOUNT: Zero.
+	*/
 
 	// Convert domain name to question format
 	const unsigned char *dom = domain;
