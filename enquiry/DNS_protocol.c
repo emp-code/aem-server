@@ -86,16 +86,14 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 		if (final) break;
 	}
 
-	memcpy(question + lenQuestion, isMx? "\x00\x00\x0F\x00\x01" : "\x00\x00\x01\x00\x01", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
-	lenQuestion += 5;
-
 	memcpy(rq + 14, question, lenQuestion);
+	memcpy(rq + 14 + lenQuestion, isMx? "\x00\x00\x0F\x00\x01" : "\x00\x00\x01\x00\x01", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
 
 	// TCP DNS messages start with a 16 bit integer containing the length of the message (not counting the integer itself)
 	rq[0] = 0;
-	rq[1] = 17 + lenQuestion;
+	rq[1] = 22 + lenQuestion;
 
-	return 19 + lenQuestion;
+	return 24 + lenQuestion;
 }
 
 int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
