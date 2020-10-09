@@ -7,8 +7,6 @@
 
 #include <sodium.h>
 
-#include "bit.h"
-
 static unsigned char id[2];
 static unsigned char question[256];
 static size_t lenQuestion;
