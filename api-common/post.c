@@ -11,7 +11,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <mbedtls/ssl.h>
 #include <sodium.h>
 
 #include "../Global.h"
