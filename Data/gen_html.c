@@ -282,9 +282,9 @@ static void printSts(void) {
 		"\r\n"
 		"version: STSv1\n"
 		"mode: enforce\n"
-		"mx: %s\n"
+		"mx: "AEM_DOMAIN"\n"
 		"max_age: 31557600"
-	, 51 + AEM_DOMAIN_LEN, AEM_DOMAIN);
+	, 51 + AEM_DOMAIN_LEN);
 
 	const size_t len = strlen(tmp);
 
