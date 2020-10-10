@@ -1,4 +1,4 @@
-#include <ctype.h> // for islower()
+#include <ctype.h> // for isalnum()
 #include <math.h> // for abs()
 #include <stdbool.h>
 #include <stdint.h>
