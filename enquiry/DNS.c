@@ -115,13 +115,11 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
 	// First two bytes in TCP DNS messages store length 	// TODO: Check length
-	memmove(res, res + 2, ret - 2);
-	ret -= 2;
 
 	unsigned char mxDomain[256];
 	int lenMxDomain = 0;
 	uint32_t ip = 0;
-	if (dnsResponse_GetMx(res, ret, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
+	if (dnsResponse_GetMx(res + 2, ret - 2, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
 		syslog(LOG_INFO, "mx=%.*s;", lenMxDomain, mxDomain);
 
 		bzero(req, 100);
@@ -132,10 +130,8 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 		do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
 		// First two bytes in TCP DNS messages store length 	// TODO: Check length
-		memmove(res, res + 2, ret - 2);
-		ret -= 2;
 
-		ip = dnsResponse_GetIp(res, ret);
+		ip = dnsResponse_GetIp(res + 2, ret - 2);
 	}
 
 	mbedtls_ssl_close_notify(&ssl);
