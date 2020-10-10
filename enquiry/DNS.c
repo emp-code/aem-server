@@ -117,9 +117,9 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	ret -= 2;
 
 	unsigned char mxDomain[256];
-	int lenMxDomain;
+	int lenMxDomain = 0;
 	uint32_t ip = 0;
-	if (dnsResponse_GetMx(res, ret, mxDomain, &lenMxDomain) == 0) {
+	if (dnsResponse_GetMx(res, ret, mxDomain, &lenMxDomain) == 0 && lenMxDomain < 4) { // a.bc
 		syslog(LOG_INFO, "mx=%.*s;", lenMxDomain, mxDomain);
 
 		bzero(req, 100);
