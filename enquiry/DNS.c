@@ -36,8 +36,10 @@ static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt cacert;
+static mbedtls_ssl_context ssl;
 
 void dns_freeTls(void) {
+	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);
@@ -62,6 +64,10 @@ int dns_setupTls(void) {
 	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
+
+	mbedtls_ssl_init(&ssl);
+	if (mbedtls_ssl_setup(&ssl, &conf) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); return -1;}
+	if (mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST) != 0) {syslog(LOG_ERR, "Failed setting hostname"); return -1;}
 	return 0;
 }
 
@@ -90,20 +96,25 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	// Connect
 	int sock = makeSocket();
 	if (sock < 0) return 0;
-
-	mbedtls_ssl_context ssl;
-	mbedtls_ssl_init(&ssl);
-	if (mbedtls_ssl_setup(&ssl, &conf) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); return 0;}
-	if (mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST) != 0) {syslog(LOG_ERR, "Failed setting hostname"); return 0;}
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {syslog(LOG_ERR, "Failed TLS handshake: %x", -ret); return 0;}
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			syslog(LOG_ERR, "Failed TLS handshake: %x", -ret);
+			mbedtls_ssl_close_notify(&ssl);
+			mbedtls_ssl_session_reset(&ssl);
+			return 0;
+		}
 	}
 
 	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-	if (flags != 0) {syslog(LOG_ERR, "Failed verifying cert"); return 0;}
+	if (flags != 0) {
+		syslog(LOG_ERR, "Failed verifying cert");
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+		return 0;
+	}
 
 	// DNS request (MX)
 	size_t lenQuestion = 0;
@@ -146,8 +157,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	}
 
 	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_free(&ssl);
+	mbedtls_ssl_session_reset(&ssl);
 	close(sock);
-
 	return ip;
 }
