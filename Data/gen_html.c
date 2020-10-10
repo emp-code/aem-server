@@ -187,7 +187,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"block-all-mixed-content;"
 			"plugin-types application/pdf;"
 			"require-sri-for script style;"
-			"sandbox allow-scripts allow-same-origin;"
 		"\r\n"
 
 		// FP
