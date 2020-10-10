@@ -30,9 +30,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
-	if (host == NULL) return false;
-	if (strncmp(host + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return false;
-	if (strncmp(host + 8 + AEM_DOMAIN_LEN, ":302\r\n", 6) != 0) return false;
+	if (host == NULL || strncmp(host + 8, AEM_DOMAIN":302\r\n", AEM_DOMAIN_LEN + 6) != 0) return false;
 
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
 	if (clenStr == NULL) return false;
