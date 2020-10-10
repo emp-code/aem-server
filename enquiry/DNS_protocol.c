@@ -201,24 +201,8 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 	return 0;
 }
 
-uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
-	if (memcmp(res, &reqId, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
-	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
-	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
-// 6,7:   ANCOUNT (Answer)
-// 8,9:   NSCOUNT (Name Server / Authority Record)
-// 10,11: ARCOUNT (Additional Record)
-	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
-
-	uint16_t answerCount;
-	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
-	memcpy((unsigned char*)&answerCount + 1, res + 6, 1);
-	if (answerCount < 1) return 0;
-
-	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
-}
-
-int dnsResponse_GetMx(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const mxDomain, int * const lenMxDomain) {
+static int getAnswerCount(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
+	if (lenRes < 12 + (int)lenQuestion) {syslog(LOG_ERR, "DNS answer too short"); return 0;}
 	if (memcmp(res, &reqId, 2) != 0) {syslog(LOG_ERR, "ID mismatch"); return 0;}
 
 	// 2: 128=QR: Answer (1); 64+32+16+8=120 OPCODE: Standard query (0000); 4=AA: Authorative Answer; 2=TC: Truncated; 1=RD: Recursion Desired
@@ -235,7 +219,19 @@ int dnsResponse_GetMx(const uint16_t reqId, const unsigned char * const res, con
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
 	memcpy((unsigned char*)&answerCount + 1, res + 6, 1);
-	if (answerCount < 1) return 0;
+	return answerCount;
+}
+
+uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
+	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
+	if (answerCount <= 0) return 0;
+
+	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
+}
+
+int dnsResponse_GetMx(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const mxDomain, int * const lenMxDomain) {
+	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
+	if (answerCount <= 0) return 0;
 
 	return getMx(res, lenRes, 12 + lenQuestion, answerCount, mxDomain, lenMxDomain);
 }
