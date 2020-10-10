@@ -28,6 +28,7 @@
 
 #define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net
 #define AEM_DNS_SERVER_HOST "dns.quad9.net"
+
 #define AEM_DNS_SERVER_PORT "853" // DNS over TLS
 #define AEM_DNS_BUFLEN 512
 
@@ -105,9 +106,16 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	if (flags != 0) {syslog(LOG_ERR, "Failed verifying cert"); return 0;}
 
 	// DNS request (MX)
+	size_t lenQuestion = 0;
+	unsigned char question[256];
+
+	uint16_t reqId;
+	randombytes_buf(&reqId, 2);
+
 	unsigned char req[100];
 	bzero(req, 100);
-	int reqLen = dnsCreateRequest(req, domain, lenDomain, true);
+
+	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, domain, lenDomain, true);
 
 	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
@@ -119,11 +127,14 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	unsigned char mxDomain[256];
 	int lenMxDomain = 0;
 	uint32_t ip = 0;
-	if (dnsResponse_GetMx(res + 2, ret - 2, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
+	if (dnsResponse_GetMx(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
 		syslog(LOG_INFO, "mx=%.*s;", lenMxDomain, mxDomain);
 
+		randombytes_buf(&reqId, 2);
 		bzero(req, 100);
-		reqLen = dnsCreateRequest(req, mxDomain, lenMxDomain, false);
+		bzero(question, 256);
+		lenQuestion = 0;
+		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, lenMxDomain, false);
 
 		do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
@@ -131,7 +142,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 
 		// First two bytes in TCP DNS messages store length 	// TODO: Check length
 
-		ip = dnsResponse_GetIp(res + 2, ret - 2);
+		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, question, lenQuestion);
 	}
 
 	mbedtls_ssl_close_notify(&ssl);

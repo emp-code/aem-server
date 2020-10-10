@@ -7,10 +7,6 @@
 
 #include <sodium.h>
 
-static unsigned char id[2];
-static unsigned char question[256];
-static size_t lenQuestion;
-
 static uint32_t validIp(const uint32_t ip) {
 	const uint8_t b1 = ip & 0xFF;
 	const uint8_t b2 = (ip >>  8) & 0xFF;
@@ -36,12 +32,8 @@ static uint32_t validIp(const uint32_t ip) {
 	) ? 0 : ip;
 }
 
-int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const bool isMx) {
-	lenQuestion = 0;
-
-	// Transaction ID
-	randombytes_buf(id, 2);
-	memcpy(rq + 2, id, 2);
+int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const bool isMx) {
+	memcpy(rq + 2, &id, 2);
 
 	// 16-bit flags field, entry counts
 	memcpy(rq + 4, "\1\0\0\1\0\0\0\0\0\0", 10);
@@ -77,24 +69,25 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 
 		const size_t sz = dot - dom;
 
-		question[lenQuestion] = sz;
-		memcpy(question + lenQuestion + 1, dom, sz);
+		question[*lenQuestion] = sz;
+		memcpy(question + *lenQuestion + 1, dom, sz);
 
-		lenQuestion += sz + 1;
+		(*lenQuestion) += sz + 1;
 		dom += sz + 1;
 
 		if (final) break;
 	}
 
-	memcpy(rq + 14, question, lenQuestion);
-	memcpy(rq + 14 + lenQuestion, isMx? "\0\0\x0F\0\1" : "\0\0\x01\0\1", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
-	lenQuestion += 5;
+	memcpy(question + *lenQuestion, isMx? "\0\0\x0F\0\1" : "\0\0\x01\0\1", 5); // 00: end of name; 000F/0001: MX/A record; 0001: Internet question class
+	(*lenQuestion) += 5;
+
+	memcpy(rq + 14, question, *lenQuestion);
 
 	// TCP DNS messages start with a uint16_t indicating the length of the message (excluding the uint16_t itself)
 	rq[0] = 0;
-	rq[1] = 14 + lenQuestion;
+	rq[1] = 14 + *lenQuestion;
 
-	return 16 + lenQuestion;
+	return 16 + *lenQuestion;
 }
 
 int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
@@ -208,14 +201,14 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 	return 0;
 }
 
-uint32_t dnsResponse_GetIp(const unsigned char * const res, const int lenRes) {
-	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
+uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
+	if (memcmp(res, &reqId, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
 	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
 	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
 // 6,7:   ANCOUNT (Answer)
 // 8,9:   NSCOUNT (Name Server / Authority Record)
 // 10,11: ARCOUNT (Additional Record)
-//	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
+	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
 
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
@@ -225,8 +218,8 @@ uint32_t dnsResponse_GetIp(const unsigned char * const res, const int lenRes) {
 	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
 }
 
-int dnsResponse_GetMx(const unsigned char * const res, const int lenRes, unsigned char * const mxDomain, int * const lenMxDomain) {
-	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "ID mismatch"); return 0;}
+int dnsResponse_GetMx(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const mxDomain, int * const lenMxDomain) {
+	if (memcmp(res, &reqId, 2) != 0) {syslog(LOG_ERR, "ID mismatch"); return 0;}
 
 	// 2: 128=QR: Answer (1); 64+32+16+8=120 OPCODE: Standard query (0000); 4=AA: Authorative Answer; 2=TC: Truncated; 1=RD: Recursion Desired
 	// 3: 128=RA: Recursion Available; 64=Z: Zero (Reserved); 32=AD: Authentic Data; 16=CD: Checking Disabled; 15=RCODE: No Error (0000)
@@ -237,7 +230,7 @@ int dnsResponse_GetMx(const unsigned char * const res, const int lenRes, unsigne
 	// 6,7 ANCOUNT
 	if (memcmp(res +  8, "\0\0", 2) != 0) {syslog(LOG_ERR, "NSCOUNT mismatch"); return 0;}
 	if (memcmp(res + 10, "\0\0", 2) != 0) {syslog(LOG_ERR, "ARCOUNT mismatch"); return 0;}
-//	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
+	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
 
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
