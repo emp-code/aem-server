@@ -75,7 +75,7 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 			final = true;
 		}
 
-		size_t sz = dot - dom;
+		const size_t sz = dot - dom;
 
 		question[lenQuestion] = sz;
 		memcpy(question + lenQuestion + 1, dom, sz);
@@ -88,12 +88,13 @@ int dnsCreateRequest(unsigned char * const rq, const unsigned char * const domai
 
 	memcpy(rq + 14, question, lenQuestion);
 	memcpy(rq + 14 + lenQuestion, isMx? "\0\0\x0F\0\1" : "\0\0\x01\0\1", 5); // 00: end of question; 000F/0001: MX/A record; 0001: Internet question class
+	lenQuestion += 5;
 
 	// TCP DNS messages start with a uint16_t indicating the length of the message (excluding the uint16_t itself)
 	rq[0] = 0;
-	rq[1] = 22 + lenQuestion;
+	rq[1] = 14 + lenQuestion;
 
-	return 24 + lenQuestion;
+	return 16 + lenQuestion;
 }
 
 int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
@@ -122,6 +123,7 @@ int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOf
 				memcpy(name + *lenName, msg + offset + 1, msg[offset]);
 				*lenName += msg[offset];
 				offset += msg[offset] + 1;
+
 				continue;
 			}
 			default: // 128, 64: reserved
@@ -145,8 +147,8 @@ static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset
 		if (offset < 1) {syslog(LOG_ERR, "os=%d", offset); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (memcmp(msg + offset + 0, "\x00\x0F", 2) != 0) {syslog(LOG_ERR, "Non_MX"); return -1;} // Non-MX record
-		if (memcmp(msg + offset + 2, "\x00\x01", 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
+		if (memcmp(msg + offset + 0, "\0\x0F", 2) != 0) {syslog(LOG_ERR, "Non_MX: %.2x", msg[offset + 1]); return -1;} // Non-MX record
+		if (memcmp(msg + offset + 2, "\0\x01", 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
 		// +4 TTL (32 bits) ignored
 
 		uint16_t mxLen;
@@ -160,7 +162,8 @@ static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset
 
 		if (newPrio < prio) {
 			*lenMxDomain = 0;
-			rr_getName(msg, lenMsg, offset + 12, mxDomain, lenMxDomain, true);
+			const int o2 = rr_getName(msg, lenMsg, offset + 12, mxDomain, lenMxDomain, true);
+			if (o2 < 1) return -1;
 			prio = newPrio;
 		}
 
@@ -205,36 +208,41 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 	return 0;
 }
 
-uint32_t dnsResponse_GetIp(const unsigned char * const res, const int resLen) {
+uint32_t dnsResponse_GetIp(const unsigned char * const res, const int lenRes) {
 	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
 	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
 	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
 // 6,7:   ANCOUNT (Answer)
 // 8,9:   NSCOUNT (Name Server / Authority Record)
 // 10,11: ARCOUNT (Additional Record)
-	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
+//	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
 
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
 	memcpy((unsigned char*)&answerCount + 1, res + 6, 1);
 	if (answerCount < 1) return 0;
 
-	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, resLen - 12 - lenQuestion));
+	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
 }
 
-int dnsResponse_GetMx(const unsigned char * const res, const int resLen, unsigned char * const mxDomain, int * const lenMxDomain) {
-	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "Invalid ID"); return 0;}
-	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "Err=%u", res[3] & 15); return 0;}
-	if (memcmp(res + 4, "\0\1", 2) != 0) {syslog(LOG_ERR, "Question count mismatch"); return 0;}
-// 6,7:   ANCOUNT (Answer)
-// 8,9:   NSCOUNT (Name Server / Authority Record)
-// 10,11: ARCOUNT (Additional Record)
-	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question section mismatch"); return 0;}
+int dnsResponse_GetMx(const unsigned char * const res, const int lenRes, unsigned char * const mxDomain, int * const lenMxDomain) {
+	if (memcmp(res, id, 2) != 0) {syslog(LOG_ERR, "ID mismatch"); return 0;}
+
+	// 2: 128=QR: Answer (1); 64+32+16+8=120 OPCODE: Standard query (0000); 4=AA: Authorative Answer; 2=TC: Truncated; 1=RD: Recursion Desired
+	// 3: 128=RA: Recursion Available; 64=Z: Zero (Reserved); 32=AD: Authentic Data; 16=CD: Checking Disabled; 15=RCODE: No Error (0000)
+	if (res[2] != 129 || (res[3] & 192) != 128) {syslog(LOG_ERR, "Invalid DNS answer"); return 0;}
+	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "DNS Error: %u", res[3] & 15); return 0;}
+
+	if (memcmp(res +  4, "\0\1", 2) != 0) {syslog(LOG_ERR, "QDCOUNT mismatch"); return 0;}
+	// 6,7 ANCOUNT
+	if (memcmp(res +  8, "\0\0", 2) != 0) {syslog(LOG_ERR, "NSCOUNT mismatch"); return 0;}
+	if (memcmp(res + 10, "\0\0", 2) != 0) {syslog(LOG_ERR, "ARCOUNT mismatch"); return 0;}
+//	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
 
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
 	memcpy((unsigned char*)&answerCount + 1, res + 6, 1);
 	if (answerCount < 1) return 0;
 
-	return getMx(res, resLen, 12 + lenQuestion, answerCount, mxDomain, lenMxDomain);
+	return getMx(res, lenRes, 12 + lenQuestion, answerCount, mxDomain, lenMxDomain);
 }
