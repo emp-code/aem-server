@@ -84,6 +84,8 @@ static int makeSocket(void) {
 }
 
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
+	if (domain == NULL || domain[0] == '\0' || lenDomain < 4) return 0; // a.bc
+
 	// Connect
 	int sock = makeSocket();
 	if (sock < 0) return 0;
