@@ -24,9 +24,9 @@
 
 __attribute__((warn_unused_result))
 static bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive, long * const clen) {
-	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 	if (lenReq < AEM_MINLEN_POST) return false;
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
+	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
