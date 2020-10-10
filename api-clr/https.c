@@ -28,7 +28,6 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
-	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL || strncmp(host + 8, AEM_DOMAIN":302\r\n", AEM_DOMAIN_LEN + 6) != 0) return false;
 
