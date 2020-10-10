@@ -90,7 +90,7 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 	return 16 + *lenQuestion;
 }
 
-int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
+static int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
 	int offset = rrOffset;
 
 	while (offset < lenMsg) {
