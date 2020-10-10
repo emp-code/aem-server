@@ -305,7 +305,8 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 
 	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
 	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
-	info->greeting[lenGreeting - 2] = '\0'; // Remove \r\n
+	memmove(info->greeting, info->greeting + 4, lenGreeting - 6); // Between '220 ' and '\r\n'
+	info->greeting[lenGreeting - 6] = '\0';
 
 	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
 
