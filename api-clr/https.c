@@ -34,7 +34,7 @@ static bool isRequestValid(const char * const req, const size_t lenReq, bool * c
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
 	if (clenStr == NULL) return false;
 	*clen = strtol(clenStr + 18, NULL, 10);
-	if (*clen < 1) return false;
+	if (*clen <= (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES) || *clen > (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES + AEM_API_BOX_SIZE_MAX)) return false;
 
 	// Forbidden request headers
 	if (
@@ -103,7 +103,6 @@ void respondClient(int sock) {
 		long clen = 0;
 		bool keepAlive = true;
 		if (!isRequestValid((char*)buf, ret, &keepAlive, &clen)) break;
-		if (clen <= (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES) || clen > (AEM_API_SEALBOX_SIZE + crypto_box_MACBYTES + AEM_API_BOX_SIZE_MAX)) break;
 
 		size_t lenPost = ret - ((postBegin + 4) - buf);
 		if (lenPost > 0) memmove(buf, postBegin + 4, lenPost);
