@@ -32,7 +32,7 @@
 #define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
 #define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
-#define AEM_LEN_FILE_MAX 8192
+#define AEM_LEN_FILE_MAX 128
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
