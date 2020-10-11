@@ -525,7 +525,7 @@ static void takeConnections(void) {
 						continue;
 					}
 
-					unsigned char *msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
+					unsigned char * const msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
 					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 17) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
 					if (sz > 0 && send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
 					sodium_free(msgData);

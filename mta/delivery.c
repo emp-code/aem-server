@@ -150,7 +150,7 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 			for (int i = 0; i < email->attachCount; i++) {
 				if (email->attachment[i] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
-				unsigned char *att = malloc(5 + email->attachSize[i]);
+				unsigned char * const att = malloc(5 + email->attachSize[i]);
 				att[0] = msg_getPadAmount(5 + email->attachSize[i]) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
 				memcpy(att + 5, email->attachment[i], email->attachSize[i]);

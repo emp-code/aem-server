@@ -324,11 +324,11 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 
 				if (*fn == '"') {
 					fn++;
-					char *fnEnd = memchr(fn, '"', hend - fn);
+					const char * const fnEnd = memchr(fn, '"', hend - fn);
 					if (fnEnd != NULL) lenFn = fnEnd - fn;
 				} else if (*fn == '\'') {
 					fn++;
-					char *fnEnd = memchr(fn, '\'', hend - fn);
+					const char * const fnEnd = memchr(fn, '\'', hend - fn);
 					if (fnEnd != NULL) lenFn = fnEnd - fn;
 				} else {
 					for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
@@ -382,7 +382,7 @@ void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * 
 	ct += 14;
 
 	if (strncasecmp(ct, "multipart/", 10) == 0) {
-		char *firstBoundBegin = strcasestr(ct + 10, "boundary=");
+		const char *firstBoundBegin = strcasestr(ct + 10, "boundary=");
 		if (firstBoundBegin == NULL || firstBoundBegin > headersEnd) return;
 		firstBoundBegin += 9;
 		char *firstBound;

@@ -145,7 +145,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 
 	const char * const conn = onion? "://"AEM_ONIONID".onion" : "s://"AEM_DOMAIN;
 	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion/\r\n";
-
 	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
 
 	// Headers
@@ -318,7 +317,7 @@ int main(int argc, char *argv[]) {
 	const off_t lenHtml = lseek(fd, 0, SEEK_END);
 	if (lenHtml < 1) return EXIT_FAILURE;
 	char html[lenHtml];
-	ssize_t rd = pread(fd, html, lenHtml, 0);
+	const ssize_t rd = pread(fd, html, lenHtml, 0);
 	close(fd);
 	if (rd != lenHtml) return EXIT_FAILURE;
 
