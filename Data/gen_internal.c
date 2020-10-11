@@ -32,10 +32,7 @@ static void printAbstract(const char * const def) {
 }
 
 int main(void) {
-	if (sodium_init() < 0) {
-		puts("Terminating: Failed sodium_init()");
-		return EXIT_FAILURE;
-	}
+	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_INTERNAL_H");
 	puts("#define AEM_DATA_INTERNAL_H");

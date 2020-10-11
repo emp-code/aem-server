@@ -297,14 +297,9 @@ static void printSts(void) {
 }
 
 int main(int argc, char *argv[]) {
-	if (sodium_init() < 0) {
-		puts("Terminating: Failed sodium_init()");
-		return EXIT_FAILURE;
-	}
-
 	if (argc != 2) {printf("Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
-
-	getKey(master);
+	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
+	if (getKey(master) != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_HTML_H");
 	puts("#define AEM_DATA_HTML_H");

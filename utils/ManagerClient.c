@@ -60,7 +60,7 @@ static int loadKey(void) {
 	if (readBytes != crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES) return -1;
 
 	unsigned char master[crypto_secretbox_KEYBYTES];
-	getKey(master);
+	if (getKey(master) != 0) {puts("Failed reading key"); return -1;}
 
 	// Open Manager Key box
 	const int ret = crypto_secretbox_open_easy(key_manager, encrypted, crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES, nonce, master);
