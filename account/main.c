@@ -386,6 +386,7 @@ static void api_address_create(const int sock, const int num) {
 	if (hashToUserNum(hash, isShield, NULL) >= 0) return; // Address in use
 
 	user[num].addrHash[addrCount] = hash;
+	user[num].addrFlag[addrCount] = isShield? (AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD) : AEM_ADDR_FLAGS_DEFAULT;
 	addrCount++;
 	user[num].info = (user[num].info & 3) + (addrCount << 3);
 
@@ -397,13 +398,9 @@ static void api_address_create(const int sock, const int num) {
 		memcpy(data + 8, addr32, 10);
 
 		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
-
-		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD;
 	} else {
 		const unsigned char ok = 1;
 		send(sock, &ok, 1, 0);
-
-		user[num].addrFlag[addrCount - 1] = AEM_ADDR_FLAGS_DEFAULT;
 	}
 }
 
