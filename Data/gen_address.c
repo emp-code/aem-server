@@ -40,6 +40,8 @@ int main(void) {
 	}
 	puts("}\n");
 
+	sodium_memzero(salt_normal, AEM_LEN_SLT_NRM);
+
 	printf("#define AEM_HASH_SYSTEM %lullu\n\n", addressToHash(AEM_ADDR32_SYSTEM));
 
 	const int fdTxt = open("Admin.adr.txt", O_RDONLY);
