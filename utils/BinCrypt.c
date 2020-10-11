@@ -16,7 +16,7 @@ static unsigned char master[crypto_secretbox_KEYBYTES];
 int main(int argc, char *argv[]) {
 	puts("BinCrypt: Encrypt All-Ears Mail binaries");
 
-	if (sodium_init() < 0) {puts("Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 	if (getKey(master) != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	int fd = open(argv[1], O_RDONLY);

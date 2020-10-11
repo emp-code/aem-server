@@ -33,7 +33,7 @@ static void printAbstract(const char * const def) {
 
 int main(void) {
 	if (sodium_init() < 0) {
-		puts("Terminating: Failed initializing libsodium");
+		puts("Terminating: Failed sodium_init()");
 		return EXIT_FAILURE;
 	}
 

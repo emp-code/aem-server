@@ -24,7 +24,7 @@ static uint64_t addressToHash(const unsigned char * const addr32) {
 }
 
 int main(void) {
-	if (sodium_init() < 0) {puts("Terminating: Failed initializing libsodium"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_ADDRESS_H");
 	puts("#define AEM_DATA_ADDRESS_H");

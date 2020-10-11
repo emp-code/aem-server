@@ -298,7 +298,7 @@ static void printSts(void) {
 
 int main(int argc, char *argv[]) {
 	if (sodium_init() < 0) {
-		puts("Terminating: Failed initializing libsodium");
+		puts("Terminating: Failed sodium_init()");
 		return EXIT_FAILURE;
 	}
 
