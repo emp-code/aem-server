@@ -111,13 +111,10 @@ static int makeSocket(const uint32_t ip) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
 
-	struct in_addr ipAddr;
-	ipAddr.s_addr = ip;
-
 	struct sockaddr_in mxAddr;
 	mxAddr.sin_family = AF_INET;
 	mxAddr.sin_port = htons(25);
-	mxAddr.sin_addr = ipAddr;
+	mxAddr.sin_addr.s_addr = ip;
 
 	if (connect(sock, (struct sockaddr*)&mxAddr, sizeof(struct sockaddr_in)) != 0) {syslog(LOG_ERR, "Failed connect(): %m"); close(sock); return -1;}
 
