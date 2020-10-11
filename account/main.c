@@ -399,7 +399,7 @@ static void api_address_create(const int sock, const int num) {
 
 		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
 	} else {
-		const unsigned char ok = 1;
+		const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
 		if (send(sock, &ok, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
 	}
 }

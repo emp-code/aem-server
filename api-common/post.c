@@ -277,7 +277,7 @@ static void address_create(void) {
 		unsigned char ret;
 		recv(sock, &ret, 1, 0);
 		close(sock);
-		if (ret == 1) shortResponse(NULL, AEM_API_NOCONTENT);
+		if (ret == AEM_ACCOUNT_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
 		return;
 	}
 
