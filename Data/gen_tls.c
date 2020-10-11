@@ -30,7 +30,7 @@ static void printKey(const char * const def, unsigned char * const buf, const si
 }
 
 int main(int argc, char *argv[]) {
-	if (argc < 3
+	if (argc != 3
 	|| (strlen(argv[1]) < 5 || strcmp(argv[1] + strlen(argv[1]) - 4, ".crt") != 0)
 	|| (strlen(argv[2]) < 5 || strcmp(argv[2] + strlen(argv[2]) - 4, ".key") != 0)
 	) {printf("Usage: %s TLS.crt TLS.key\n", argv[0]); return 1;}
