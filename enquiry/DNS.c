@@ -73,14 +73,16 @@ int dns_setupTls(void) {
 
 static int makeSocket(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (sock < 0) return -1;
+	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
 
 	struct sockaddr_in myaddr;
 	myaddr.sin_family = AF_INET;
 	myaddr.sin_port = htons(853);
 	inet_aton(AEM_DNS_SERVER_ADDR, &myaddr.sin_addr);
 
-	return (connect(sock, &myaddr, sizeof(struct sockaddr_in)) == 0) ? sock : -1;
+	if (connect(sock, &myaddr, sizeof(struct sockaddr_in)) != 0) {syslog(LOG_ERR, "Failed connect(): %m"); close(sock); return -1;}
+
+	return sock;
 }
 
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
@@ -88,7 +90,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 
 	// Connect
 	int sock = makeSocket();
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket: %m"); return 0;}
+	if (sock < 0) return 0;
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;
