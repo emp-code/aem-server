@@ -24,8 +24,7 @@
 #define AEM_LOGNAME "AEM-Acc"
 
 #define AEM_ADDR_FLAG_SHIELD 128
-// 64/32/16/8 unused
-#define AEM_ADDR_FLAG_USE_GK 4
+// 64/32/16/8/4 unused
 #define AEM_ADDR_FLAG_ACCINT 2
 #define AEM_ADDR_FLAG_ACCEXT 1
 #define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
@@ -457,7 +456,7 @@ static void api_address_update(const int sock, const int num) {
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
-				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT | AEM_ADDR_FLAG_USE_GK)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				break;
 			}
 		}
