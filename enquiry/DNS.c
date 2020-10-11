@@ -85,6 +85,13 @@ static int makeSocket(void) {
 	return sock;
 }
 
+static bool checkDnsLength(const unsigned char * const src, const int len) {
+	uint16_t u;
+	memcpy((unsigned char*)&u + 0, src + 1, 1);
+	memcpy((unsigned char*)&u + 1, src + 0, 1);
+	return (len == (int)u + 2);
+}
+
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4) return 0; // a.bc
 
@@ -128,7 +135,13 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	unsigned char res[AEM_DNS_BUFLEN];
 	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
-	// First two bytes in TCP DNS messages store length 	// TODO: Check length
+	if (!checkDnsLength(res, ret)) {
+		syslog(LOG_INFO, "DNS length mismatch");
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+		close(sock);
+		return 0;
+	}
 
 	unsigned char mxDomain[256];
 	int lenMxDomain = 0;
@@ -146,7 +159,13 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 
 		do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
-		// First two bytes in TCP DNS messages store length 	// TODO: Check length
+		if (!checkDnsLength(res, ret)) {
+			syslog(LOG_INFO, "DNS length mismatch");
+			mbedtls_ssl_close_notify(&ssl);
+			mbedtls_ssl_session_reset(&ssl);
+			close(sock);
+			return 0;
+		}
 
 		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, question, lenQuestion);
 	}
