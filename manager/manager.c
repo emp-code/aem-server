@@ -351,12 +351,12 @@ static int dropRoot(void) {
 
 static int cgroupMove(void) {
 	const int fdProcs = open("/sys/fs/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdProcs < 0) {printf("Failed opening limited/cgroup.procs: %m\n"); return -1;}
+	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
 
 	const pid_t pid_num = getpid();
 	char pid_txt[32];
 	sprintf(pid_txt, "%d", pid_num);
-	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdProcs); return -1;}
+	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to cgroup.procs: %m"); close(fdProcs); return -1;}
 
 	close(fdProcs);
 	return 0;
