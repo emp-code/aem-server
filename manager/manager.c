@@ -356,7 +356,7 @@ static int cgroupMove(void) {
 	const pid_t pid_num = getpid();
 	char pid_txt[32];
 	sprintf(pid_txt, "%d", pid_num);
-	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to cgroup.procs: %m"); close(fdProcs); return -1;}
+	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to limited/cgroup.procs: %m"); close(fdProcs); return -1;}
 
 	close(fdProcs);
 	return 0;
