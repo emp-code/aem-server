@@ -190,6 +190,8 @@ static int setCgroup(void) {
 		if (mkdirat(fdDir, "_aem", 0755) != 0) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
 	}
 
+	if (mkdirat(fdDir, "_aem/limited", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
+
 	const int fdAem = openat(fdDir, "_aem", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
 	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
 

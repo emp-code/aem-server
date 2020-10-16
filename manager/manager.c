@@ -349,6 +349,19 @@ static int dropRoot(void) {
 	) ? 0 : -1;
 }
 
+static int cgroupMove(void) {
+	const int fdProcs = open("/sys/fs/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	if (fdProcs < 0) {printf("Failed opening limited/cgroup.procs: %m\n"); return -1;}
+
+	const pid_t pid_num = getpid();
+	char pid_txt[32];
+	sprintf(pid_txt, "%d", pid_num);
+	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdProcs); return -1;}
+
+	close(fdProcs);
+	return 0;
+}
+
 static int process_new(const int type, const int pipefd, const int closefd) {
 	wipeKeys();
 	close(sockMain);
@@ -363,6 +376,7 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type]) != 0) {syslog(LOG_ERR, "Failed setpriority()"); exit(EXIT_FAILURE);}
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
 
+	if (cgroupMove()) exit(EXIT_FAILURE);
 	if (createMount(type)) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
 	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
 	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
