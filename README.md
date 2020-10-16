@@ -40,7 +40,7 @@ aem-manager is the main server program. It sets up the environment for All-Ears 
 
 At startup, Manager asks for the Master Key, used to decrypt files stored in `/etc/allears`. After this, no further interaction on the console is needed. Manager ignores `SIGHUP`, allowing closing the terminal and disconnecting SSH.
 
-Manager creates a secure environment for each process to run in. Processes are isolated through a variety of methods, including pivot_root, namespaces, resource limits, and running with minimal privileges. Manager sends each process the data it needs through a temporary one-way pipe, which is closed immediately afterwards.
+Manager creates a secure environment for each process to run in. Processes are isolated through a variety of methods, including pivot_root, namespaces, cgroups, resource limits, and running with minimal privileges. Manager sends each process the data it needs through a temporary one-way pipe, which is closed immediately afterwards.
 
 Manager runs as root, while all other programs are started as the `allears` user. The service port binding capability is kept if needed, and dropped once the port is bound.
 
