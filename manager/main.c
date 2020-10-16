@@ -179,8 +179,8 @@ static int setSignals(void) {
 }
 
 static int setCgroup(void) {
-	int fdDir = open("/sys/fs/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
-	if (fdDir < 0) {syslog(LOG_ERR, "Failed opening /sys/fs/cgroup"); return -1;}
+	const int fdDir = open("/sys/fs/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
+	if (fdDir < 0) {printf("Failed opening /sys/fs/cgroup: %m\n"); return -1;}
 
 	struct stat statAem;
 	const int aemStatResult = fstatat(fdDir, "_aem", &statAem, AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW);
@@ -195,17 +195,16 @@ static int setCgroup(void) {
 
 	// Put Manager into the root of the _aem group
 	const int fdProcs = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening cgroup.procs: %m"); return -1;}
+	if (fdProcs < 0) {printf("Failed opening cgroup.procs: %m\n"); close(fdDir); close(fdAem); return -1;}
 
 	const pid_t pid_num = getpid();
 	char pid_txt[32];
 	sprintf(pid_txt, "%d", pid_num);
+	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdDir); close(fdAem); close(fdProcs); return -1;}
 
-	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to cgroup.procs: %m"); return -1;}
-	close(fdProcs);
-
-	close(fdAem);
 	close(fdDir);
+	close(fdAem);
+	close(fdProcs);
 	return 0;
 }
 
