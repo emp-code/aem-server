@@ -1,4 +1,5 @@
 #include <ctype.h> // for isxdigit
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/securebits.h>
 #include <locale.h> // for setlocale
@@ -12,6 +13,8 @@
 #include <sys/mman.h> // for mlockall
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -175,6 +178,37 @@ static int setSignals(void) {
 	) ? 0 : -1;
 }
 
+static int setCgroup(void) {
+	int fdDir = open("/sys/fs/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
+	if (fdDir < 0) {syslog(LOG_ERR, "Failed opening /sys/fs/cgroup"); return -1;}
+
+	struct stat statAem;
+	const int aemStatResult = fstatat(fdDir, "_aem", &statAem, AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW);
+
+	if (aemStatResult == -1) {
+		if (errno != ENOENT) {syslog(LOG_ERR, "Failed stat'ing _aem: %m"); return -1;}
+		if (mkdirat(fdDir, "_aem", 0755) != 0) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
+	}
+
+	const int fdAem = openat(fdDir, "_aem", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
+	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
+
+	// Put Manager into the root of the _aem group
+	const int fdProcs = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening cgroup.procs: %m"); return -1;}
+
+	const pid_t pid_num = getpid();
+	char pid_txt[32];
+	sprintf(pid_txt, "%d", pid_num);
+
+	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to cgroup.procs: %m"); return -1;}
+	close(fdProcs);
+
+	close(fdAem);
+	close(fdDir);
+	return 0;
+}
+
 int main(void) {
 	setlocale(LC_ALL, "C");
 	openlog("AEM-Man", LOG_PID, LOG_MAIL);
@@ -198,10 +232,11 @@ int main(void) {
 	if (setpriority(PRIO_PROCESS, 0, -20) != 0) {return 26;}
 	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 20;
 	if (sodium_init() < 0) return 21;
-	if (setSignals() != 0) return 22;
-	if (setLimits()  != 0) return 23;
-	if (setCaps()    != 0) return 24;
-	if (dropBounds() != 0) return 25;
+	if (setCgroup()  != 0) return 22;
+	if (setSignals() != 0) return 23;
+	if (setLimits()  != 0) return 24;
+	if (setCaps()    != 0) return 25;
+	if (dropBounds() != 0) return 26;
 
 	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
