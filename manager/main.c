@@ -190,10 +190,10 @@ static int setCgroup(void) {
 		if (mkdirat(fdDir, "_aem", 0755) != 0) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
 	}
 
-	if (mkdirat(fdDir, "_aem/limited", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
-
 	const int fdAem = openat(fdDir, "_aem", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
 	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
+
+	if (mkdirat(fdAem, "limited", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem/limited: %m"); return -1;}
 
 	// Put Manager into the root of the _aem group
 	const int fdProcs = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
