@@ -244,14 +244,15 @@ int main(void) {
 		| CLONE_SYSVSEM // Unused
 	) != 0) return 13;
 
-	if (setpriority(PRIO_PROCESS, 0, -20) != 0) {return 26;}
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 20;
-	if (sodium_init() < 0) return 21;
-	if (setCgroup()  != 0) return 22;
-	if (setSignals() != 0) return 23;
-	if (setLimits()  != 0) return 24;
-	if (setCaps()    != 0) return 25;
-	if (dropBounds() != 0) return 26;
+	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 14;
+	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 15;
+
+	if (sodium_init() < 0) return 20;
+	if (setCgroup()  != 0) return 21;
+	if (setSignals() != 0) return 22;
+	if (setLimits()  != 0) return 23;
+	if (setCaps()    != 0) return 24;
+	if (dropBounds() != 0) return 25;
 
 	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
