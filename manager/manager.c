@@ -350,7 +350,7 @@ static int dropRoot(void) {
 }
 
 static int cgroupMove(void) {
-	const int fdProcs = open("/sys/fs/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	const int fdProcs = open(AEM_HOMEDIR"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
 
 	const pid_t pid_num = getpid();
@@ -411,7 +411,7 @@ static void process_spawn(const int type) {
 
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
-	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_NEWCGROUP | CLONE_CLEAR_SIGHAND;
+	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_CLEAR_SIGHAND;
 	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
