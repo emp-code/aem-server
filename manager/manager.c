@@ -179,7 +179,7 @@ void killAll(int sig) {
 	if (pid_storage > 0) kill(pid_storage, SIGKILL);
 	if (pid_enquiry > 0) kill(pid_enquiry, SIGKILL);
 
-	umount2(AEM_MOUNTDIR, MNT_DETACH);
+	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
 	exit(EXIT_SUCCESS);
 }
 
@@ -350,7 +350,7 @@ static int dropRoot(void) {
 }
 
 static int cgroupMove(void) {
-	const int fdProcs = open(AEM_HOMEDIR"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	const int fdProcs = open(AEM_PATH_HOME"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
 
 	const pid_t pid_num = getpid();

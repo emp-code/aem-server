@@ -180,10 +180,10 @@ static int setSignals(void) {
 }
 
 static int setCgroup(void) {
-	if (umount2(AEM_HOMEDIR"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return -1;}
-	if (mount(NULL, AEM_HOMEDIR"/cgroup", "cgroup2", MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_NOSUID, "") != 0) {printf("Failed cgroup2 mount: %m\n"); return -1;}
+	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return -1;}
+	if (mount(NULL, AEM_PATH_HOME"/cgroup", "cgroup2", MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_NOSUID, "") != 0) {printf("Failed cgroup2 mount: %m\n"); return -1;}
 
-	const int fdDir = open(AEM_HOMEDIR"/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
+	const int fdDir = open(AEM_PATH_HOME"/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
 	if (fdDir < 0) {printf("Failed opening /sys/fs/cgroup: %m\n"); return -1;}
 
 	if (mkdirat(fdDir, "_aem", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
@@ -268,6 +268,6 @@ int main(void) {
 	close(STDERR_FILENO);
 
 	receiveConnections();
-	if (umount2(AEM_HOMEDIR"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return -1;}
+	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return -1;}
 	return 0;
 }
