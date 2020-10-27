@@ -1,6 +1,8 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "ValidDomain.h"
+
 #include "ValidEmail.h"
 
 bool isValidEmail(const char * const email) {
@@ -17,17 +19,7 @@ bool isValidEmail(const char * const email) {
 		return false;
 	}
 
-	if (lenEmail < (lenLocal + 5) || email[lenLocal] != '@') return false;
+	if (email[lenLocal] != '@') return false;
 
-	// Domain part
-	int lastDot = 0;
-
-	for (int i = lenLocal + 1; i < lenEmail; i++) {
-		if (email[i] == '.') lastDot = i;
-
-		if (islower(email[i]) || isdigit(email[i]) || ((email[i] == '.' || email[i] == '-') && isalnum(email[i - 1] ))) continue;
-		return false;
-	}
-
-	return (lastDot > (lenLocal + 1) && lastDot < (lenEmail - 2));
+	return (isValidDomain(email + lenLocal + 1, lenEmail - lenLocal - 1));
 }
