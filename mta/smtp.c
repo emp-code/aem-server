@@ -31,6 +31,7 @@
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
 #define AEM_SMTP_MAX_SIZE_TO 4096 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_MAX_SIZE_BODY 1048576 // 1 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
+#define AEM_SMTP_MAX_ROUNDS 500
 
 #define AEM_EHLO_RESPONSE_LEN 60
 #define AEM_EHLO_RESPONSE \
@@ -283,7 +284,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	char *body = NULL;
 	size_t lenBody = 0;
 
-	while(1) {
+	for (int roundsDone = 0;; roundsDone++) {
+		if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
+			smtp_respond(sock, tls, '4', '2', '1');
+			smtp_fail(clientAddr, 200);
+			break;
+		}
+
 		if (bytes < 4) {
 			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
