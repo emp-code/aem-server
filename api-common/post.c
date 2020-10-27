@@ -16,6 +16,7 @@
 #include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/UnixSocketClient.h"
+#include "../Common/ValidEmail.h"
 
 #include "SendMail.h"
 
@@ -598,6 +599,8 @@ static void message_create_ext(void) {
 	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
+
+	if (!isValidEmail(email.addrTo)) return;
 
 	// MxDomain
 	char * const mxDomain = strchr(email.addrTo + 1, '@');
