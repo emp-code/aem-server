@@ -384,7 +384,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			body = malloc(email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom + AEM_SMTP_MAX_SIZE_BODY);
+			const size_t maxBodySize = email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom + AEM_SMTP_MAX_SIZE_BODY;
+			body = malloc(maxBodySize);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
@@ -400,12 +401,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			// Receive body
 			while(1) {
-				bytes = recv_aem(sock, tls, body + lenBody, AEM_SMTP_MAX_SIZE_BODY - lenBody);
+				bytes = recv_aem(sock, tls, body + lenBody, maxBodySize - lenBody);
 				if (bytes < 1) break;
 
 				lenBody += bytes;
 
-				if (lenBody >= AEM_SMTP_MAX_SIZE_BODY) {bytes = 0; break;}
+				if (lenBody >= maxBodySize) {bytes = 0; break;}
 				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) {
 					lenBody -= 5;
 					break;
