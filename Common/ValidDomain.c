@@ -15,7 +15,7 @@ bool isValidDomain(const char * const domain, const int lenDomain) {
 			(i > 0 && (
 				   (domain[i] == '.' &&  isalnum(domain[i - 1]))
 				|| (domain[i] == '-' && (isalnum(domain[i - 1]) || domain[i - 1] == '-'))
-		   ))
+			))
 		) continue;
 		return false;
 	}
