@@ -384,7 +384,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			body = malloc(AEM_SMTP_MAX_SIZE_BODY + email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom);
+			body = malloc(email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom + AEM_SMTP_MAX_SIZE_BODY);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
