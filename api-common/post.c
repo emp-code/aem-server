@@ -691,7 +691,7 @@ static bool ts_valid(const unsigned char * const ts_sender) {
 }
 
 static void message_create_int(void) {
-	const unsigned char infoByte = (decrypted[crypto_kx_PUBLICKEYBYTES + 4] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
+	const unsigned char infoByte = (decrypted[0] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
 	const bool isEncrypted = (infoByte & 16) > 0;
 	const bool fromShield  = (infoByte &  8) > 0;
 	const bool toShield    = (infoByte &  4) > 0;
@@ -700,7 +700,7 @@ static void message_create_int(void) {
 
 	unsigned char ts_sender[4];
 	if (isEncrypted) {
-		memcpy(ts_sender, decrypted + crypto_kx_PUBLICKEYBYTES, 4);
+		memcpy(ts_sender, decrypted + 1 + crypto_kx_PUBLICKEYBYTES, 4);
 		if (!ts_valid(ts_sender)) return;
 	} else {
 		const uint32_t ts = (uint32_t)time(NULL);
@@ -767,7 +767,7 @@ static void message_create_int(void) {
 	close(sock);
 	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 
-	deliveryReport_int(decrypted, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
+	deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
 
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
