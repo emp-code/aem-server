@@ -17,6 +17,7 @@
 #include "../Common/Addr32.h"
 #include "../Common/UnixSocketClient.h"
 #include "../Common/ValidEmail.h"
+#include "../Common/ValidUtf8.h"
 
 #include "SendMail.h"
 
@@ -624,6 +625,8 @@ static void message_create_ext(void) {
 		if (lenEb > lenBody + 950) {free(email.body); return;}
 	}
 	memcpy(email.body + lenEb, "\r\n\0", 3);
+
+	if (!isValidUtf8((unsigned char*)email.body, lenEb)) {free(email.body); return;}
 
 	// MxDomain
 	char * const mxDomain = strchr(email.addrTo + 1, '@');
