@@ -586,6 +586,22 @@ static void deliveryReport_int(const unsigned char * const recvPubKey, const uns
 	free(enc);
 }
 
+static bool isValidFrom(const char * const src) { // Only allow sending from valid, reasonably normal looking addresses
+	const size_t len = strlen(src);
+	for (size_t i = 0; i < len; i++) {
+		if (isalnum(src[i])
+		|| src[i] == '+'
+		|| src[i] == '-'
+		|| src[i] == '='
+		|| src[i] == '_'
+		) continue;
+
+		if (i == 0 || i == len - 1 || src[i] != '.' || src[i - 1] == '.') return false; // dots allowed, but not at start or end, and not after each other
+	}
+
+	return true;
+}
+
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
 	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
@@ -605,6 +621,7 @@ static void message_create_ext(void) {
 	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
 
+	if (!isValidFrom(email.addrFrom) return;
 	if (!isValidEmail(email.addrTo)) return;
 
 	// Body
