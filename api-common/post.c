@@ -623,6 +623,7 @@ static void message_create_ext(void) {
 	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
 	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
 
+	if (strchr(email.replyId, ' ') != NULL) return;
 	if (!isValidFrom(email.addrFrom) return;
 	if (!isValidEmail(email.addrTo)) return;
 
