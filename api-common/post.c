@@ -475,7 +475,11 @@ static const unsigned char *cpyEmail(const unsigned char * const src, const size
 	size_t len = lf - src;
 	if (len < min || len > 255) return NULL;
 
-	memcpy(target, src, len);
+	for (size_t i = 0; i < len; i++) {
+		if (src[i] < 32 || src[i] == 127) return NULL;
+		target[i] = src[i];
+	}
+
 	target[len] = '\0';
 	return src + len + 1;
 }
