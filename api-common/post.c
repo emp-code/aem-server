@@ -602,24 +602,6 @@ static void message_create_ext(void) {
 
 	if (!isValidEmail(email.addrTo)) return;
 
-	// MxDomain
-	char * const mxDomain = strchr(email.addrTo + 1, '@');
-	if (mxDomain == NULL || strlen(mxDomain) < 4) return; // a.bc
-	strcpy(email.mxDomain, mxDomain + 1);
-
-	const int sock = enquirySocket(AEM_DNS_LOOKUP, (unsigned char*)(email.mxDomain), strlen(email.mxDomain));
-	if (sock < 0) return;
-
-	email.ip = 0;
-	recv(sock, &(email.ip), 4, 0);
-	close(sock);
-	if (email.ip == 0) {
-		unsigned char x[32]; // Errcode + max 31 bytes
-		x[0] = UINT8_MAX;
-		shortResponse(x, 1);
-		return;
-	}
-
 	// Body
 	const size_t lenBody = end - p;
 	if (lenBody < 15) return;
@@ -639,6 +621,25 @@ static void message_create_ext(void) {
 	}
 	memcpy(email.body + lenEb, "\r\n\0", 3);
 
+	// MxDomain
+	char * const mxDomain = strchr(email.addrTo + 1, '@');
+	if (mxDomain == NULL || strlen(mxDomain) < 4) return; // a.bc
+	strcpy(email.mxDomain, mxDomain + 1);
+
+	const int sock = enquirySocket(AEM_DNS_LOOKUP, (unsigned char*)(email.mxDomain), strlen(email.mxDomain));
+	if (sock < 0) return;
+
+	email.ip = 0;
+	recv(sock, &(email.ip), 4, 0);
+	close(sock);
+	if (email.ip == 0) {
+		unsigned char x[32]; // Errcode + max 31 bytes
+		x[0] = UINT8_MAX;
+		shortResponse(x, 1);
+		return;
+	}
+
+	// Deliver
 	const unsigned char ret = sendMail(upk, userLevel, &email, &info);
 	deliveryReport_ext(&email, &info);
 
