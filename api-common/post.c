@@ -614,10 +614,10 @@ static void message_create_ext(void) {
 
 	size_t lenEb = 0;
 	for (size_t copied = 0; copied < lenBody; copied++) {
-		if (p[copied] == '\n' && (copied < 1 || p[copied - 1] != '\r')) {
+		if (p[copied] == '\n') {
 			email.body[lenEb] = '\r';
 			lenEb++;
-		}
+		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) {free(email.body); return;}
 
 		email.body[lenEb] = p[copied];
 		lenEb++;
