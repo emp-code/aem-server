@@ -470,6 +470,8 @@ static int getAddr32(unsigned char target[10], const char * const src, const siz
 }
 
 static const unsigned char *cpyEmail(const unsigned char * const src, const size_t lenSrc, char * const target, const size_t min) {
+	target[0] = '\0';
+
 	const unsigned char * const lf = memchr(src, '\n', lenSrc);
 	if (lf == NULL) return NULL;
 
