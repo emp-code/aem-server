@@ -6,6 +6,7 @@ bool isValidUtf8(const unsigned char * const src, const size_t len) {
 			continue;
 		} else if ((src[i] & 248) == 240) { // 4-byte
 			if (i + 3 > len
+			|| (src[i] & 7) != 0 // Forbid code points above 0x3FFFF (unassigned, Private Use)
 			|| (src[i + 1] & 192) != 128
 			|| (src[i + 2] & 192) != 128
 			|| (src[i + 3] & 192) != 128
