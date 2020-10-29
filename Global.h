@@ -68,7 +68,7 @@
 // ExtMsg: 29/146; 31B .. 1M + 46B
 // UplMsg: 46/163; 14B .. 1M + 29B
 // IntMsg: 54/171: 6B ..
-// OutMsg: 22/139: 38B .. (IntMsg, without CS encryption)
+// OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
 // 12 * 16 = 192 (-15 --> 177 min)
 #define AEM_MSG_MINBLOCKS 12
 
