@@ -109,6 +109,7 @@ void respondClient(int sock) {
 
 		if (lenPost < AEM_API_SEALBOX_SIZE) {
 			do {ret = mbedtls_ssl_read(&ssl, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+			if (ret < 1) break;
 			lenPost += ret;
 		}
 		if (lenPost < AEM_API_SEALBOX_SIZE) break;

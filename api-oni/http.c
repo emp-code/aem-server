@@ -84,6 +84,7 @@ void respondClient(const int sock) {
 
 		if (lenPost < AEM_API_SEALBOX_SIZE) {
 			ret = recv(sock, buf + lenPost, AEM_API_SEALBOX_SIZE - lenPost, 0);
+			if (ret < 1) break;
 			lenPost += ret;
 		}
 		if (lenPost < AEM_API_SEALBOX_SIZE) break;
