@@ -170,7 +170,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"media-src"       " blob:;"
 			"frame-src"       " blob:;" // PDF (Chrome)
 			"object-src"      " blob:;" // PDF
-			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.6/dist/browsers/sodium.js 'unsafe-eval';"
+			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.8/dist/browsers/sodium.js 'unsafe-eval';"
 			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/;"
 
 			"base-uri"        " 'none';"
