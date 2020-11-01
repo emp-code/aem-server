@@ -635,13 +635,21 @@ static void message_create_ext(void) {
 
 	size_t lenEb = 0;
 	for (size_t copied = 0; copied < lenBody; copied++) {
-		if (p[copied] == '\n') {
-			email.body[lenEb] = '\r';
+		if (p[copied] == '\n') { // Linebreak
+			memcpy(email.body + lenEb, "\r\n", 2);
+			lenEb += 2;
+		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) { // Control characters
+			free(email.body);
+			return;
+		} else if (p[copied] > 127) { // UTF-8
+			// TODO - Forbid for now
+			free(email.body);
+			return;
+		} else { // ASCII
+			email.body[lenEb] = p[copied];
 			lenEb++;
-		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) {free(email.body); return;}
+		}
 
-		email.body[lenEb] = p[copied];
-		lenEb++;
 		if (lenEb > lenBody + 950) {free(email.body); return;}
 	}
 	memcpy(email.body + lenEb, "\r\n\0", 3);
