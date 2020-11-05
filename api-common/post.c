@@ -209,6 +209,11 @@ static void account_create(void) {
 		return;
 	}
 
+	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_ACCOUNT_RESPONSE_OK) {
+		close(sock);
+		return;
+	}
+
 	close(sock);
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }

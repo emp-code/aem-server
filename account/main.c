@@ -299,6 +299,7 @@ static void api_account_create(const int sock, const int num) {
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
 
 	userCount++;
+	send(sock, &ok, 1, 0);
 	saveUser();
 }
 
