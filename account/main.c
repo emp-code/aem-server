@@ -292,7 +292,7 @@ static void api_account_create(const int sock, const int num) {
 	if (userNumFromPubkey(pubkey_new) >= 0) return;
 
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
-	if (user2 == NULL) return;
+	if (user2 == NULL) {syslog(LOG_ERR, "Failed allocaction"); return;}
 	user = user2;
 
 	bzero(&(user[userCount]), sizeof(struct aem_user));
