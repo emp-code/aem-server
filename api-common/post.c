@@ -206,13 +206,11 @@ static void account_create(void) {
 		return;
 	}
 
-	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_ACCOUNT_RESPONSE_OK) {
-		close(sock);
-		return;
+	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_ACCOUNT_RESPONSE_OK) {
+		shortResponse(NULL, AEM_API_NOCONTENT);
 	}
 
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void account_delete(void) {
