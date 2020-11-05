@@ -191,14 +191,11 @@ static void account_create(void) {
 	if (sock < 0) return;
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {
+	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_CREATE);
-		close(sock);
-		return;
-	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
