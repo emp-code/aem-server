@@ -431,6 +431,7 @@ static void api_address_delete(const int sock, const int num) {
 	user[num].info = (user[num].info & 3) | (addrCount << 3);
 
 	saveUser();
+	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
 }
 
 static void api_address_lookup(const int sock, const int num) {
