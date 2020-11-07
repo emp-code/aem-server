@@ -283,8 +283,7 @@ static void api_account_create(const int sock, const int num) {
 		return;
 	}
 
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	if (send(sock, &ok, 1, 0) != 1) return;
+	if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) return;
 
 	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
@@ -299,7 +298,7 @@ static void api_account_create(const int sock, const int num) {
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
 
 	userCount++;
-	send(sock, &ok, 1, 0);
+	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
 	saveUser();
 }
 
@@ -325,8 +324,7 @@ static void api_account_delete(const int sock, const int num) {
 	userCount--;
 	saveUser();
 
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	if (send(sock, &ok, 1, 0) != 1) return;
+	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
 }
 
 static void api_account_update(const int sock, const int num) {
@@ -350,8 +348,7 @@ static void api_account_update(const int sock, const int num) {
 
 	saveUser();
 
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	send(sock, &ok, 1, 0);
+	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
 }
 
 static void api_address_create(const int sock, const int num) {
@@ -400,8 +397,7 @@ static void api_address_create(const int sock, const int num) {
 
 		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
 	} else {
-		const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-		if (send(sock, &ok, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
+		if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
 	}
 }
 
@@ -483,8 +479,7 @@ static void api_setting_limits(const int sock, const int num) {
 		return;
 	}
 
-	const unsigned char ok = AEM_ACCOUNT_RESPONSE_OK;
-	if (send(sock, &ok, 1, 0) != 1) return;
+	if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) return;
 
 	unsigned char buf[12];
 	if (recv(sock, buf, 12, 0) != 12) return;
