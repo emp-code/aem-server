@@ -555,6 +555,8 @@ static void takeConnections(void) {
 					} else syslog(LOG_ERR, "Failed receiving data from API");
 
 					free(data);
+
+					send(sock, (unsigned char[]){'\x01'}, 1, 0);
 				break;}
 
 				default: syslog(LOG_ERR, "Invalid API command");
