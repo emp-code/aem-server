@@ -235,6 +235,20 @@ static void api_internal_uinfo(const int sock, const int num) {
 	send(sock, response, lenResponse, 0);
 }
 
+static void api_internal_pubks(const int sock, const int num) {
+	if ((user[num].info & 3) != 3) return;
+
+	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
+
+	unsigned char * const response = malloc(userCount * crypto_box_PUBLICKEYBYTES);
+	for (int i = 0; i < userCount; i++) {
+		memcpy(response + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+	}
+
+	send(sock, response, userCount * crypto_box_PUBLICKEYBYTES, 0);
+	free(response);
+}
+
 static void api_account_browse(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) return;
 
@@ -497,7 +511,7 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
-static void api_internal_pbkey(const int sock) {
+static void api_internal_adrpk(const int sock) {
 	unsigned char buf[11];
 	if (recv(sock, buf, 11, 0) != 11) return;
 	const bool isShield = buf[0] == 'S';
@@ -587,10 +601,11 @@ static int takeConnections(void) {
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 
 				// Internal functions
+				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient); break;
 				case AEM_API_INTERNAL_EXIST: send(sockClient, "\x01", 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
-				case AEM_API_INTERNAL_PBKEY: api_internal_pbkey(sockClient); break;
+				case AEM_API_INTERNAL_PUBKS: api_internal_pubks(sockClient, num); break;
 
 				//default: // Invalid
 			}

@@ -149,7 +149,7 @@ static void account_browse(void) {
 	if (sock < 0) return;
 
 	int userCount;
-	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(userCount)) {close(sock); return;}
+	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return;}
 	if (userCount < 1 || userCount > 65535) {close(sock); return;}
 
 	unsigned char * const clr = malloc(userCount * 35);
@@ -746,7 +746,7 @@ static void message_create_int(void) {
 	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
 
 	// Get receiver's pubkey
-	int sock = accountSocket(AEM_API_INTERNAL_PBKEY, upk, crypto_box_PUBLICKEYBYTES);
+	int sock = accountSocket(AEM_API_INTERNAL_ADRPK, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	unsigned char buf[11];
@@ -816,6 +816,70 @@ static void message_delete(void) {
 	}
 
 	close(sock);
+	shortResponse(NULL, AEM_API_NOCONTENT);
+}
+
+static void message_public(void) {
+	if (lenDecrypted < 59) return; // 59=177-117-1
+
+	const int userLevel = getUserLevel(upk);
+	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
+
+	int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return;
+
+	int userCount;
+	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return;}
+	if (userCount < 1 || userCount > 65535) {syslog(LOG_WARNING, "Invalid usercount"); close(sock); return;}
+
+	unsigned char * const pubKeys = malloc(userCount * 32);
+	if (pubKeys == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
+
+	if (recv(sock, pubKeys, userCount * crypto_box_PUBLICKEYBYTES, MSG_WAITALL) != userCount * crypto_box_PUBLICKEYBYTES) {
+		syslog(LOG_ERR, "Failed communicating with Account");
+		close(sock);
+		free(pubKeys);
+		return;
+	}
+
+	close(sock);
+
+	// Create message
+	const uint32_t ts = (uint32_t)time(NULL);
+
+	const size_t lenContent = 6 + lenDecrypted;
+	unsigned char content[lenContent];
+	content[0] = msg_getPadAmount(lenContent) | 16; // 16=IntMsg
+	memcpy(content + 1, &ts, 4);
+	content[5] = 32; // InfoByte: Public
+	memcpy(content + 6, decrypted, lenDecrypted);
+
+	for (int i = 0; i < userCount; i++) {
+		const unsigned char * const toPubKey = pubKeys + (i * crypto_box_PUBLICKEYBYTES);
+		size_t lenEnc;
+		unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
+		const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+		if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); sodium_memzero(content, lenContent); free(pubKeys); return;}
+
+		// Store message
+		unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+		memcpy(sockMsg, &u, 2);
+		memcpy(sockMsg + 2, toPubKey, crypto_box_PUBLICKEYBYTES);
+
+		sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+		if (sock < 0) {free(enc); sodium_memzero(content, lenContent); free(pubKeys); return;}
+
+		const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+		free(enc);
+
+		unsigned char resp;
+		recv(sock, &resp, 1, 0);
+		close(sock);
+		if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); return;}
+	}
+
+	free(pubKeys);
+	sodium_memzero(content, lenContent);
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
@@ -912,6 +976,7 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 		case AEM_API_MESSAGE_BROWSE: message_browse(); break;
 		case AEM_API_MESSAGE_CREATE: message_create(); break;
 		case AEM_API_MESSAGE_DELETE: message_delete(); break;
+		case AEM_API_MESSAGE_PUBLIC: message_public(); break;
 		case AEM_API_MESSAGE_UPLOAD: message_upload(); break;
 
 		case AEM_API_PRIVATE_UPDATE: private_update(); break;
