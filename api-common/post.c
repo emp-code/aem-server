@@ -150,6 +150,7 @@ static void account_browse(void) {
 
 	int userCount;
 	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(userCount)) {close(sock); return;}
+	if (userCount < 1 || userCount > 65535) {close(sock); return;}
 
 	unsigned char * const clr = malloc(userCount * 35);
 	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
