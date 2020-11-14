@@ -482,6 +482,32 @@ static void takeConnections(void) {
 		unsigned char clr[lenClr];
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_API) == 0) {
 			switch (clr[0]) {
+				case AEM_API_INTERNAL_ERASE: {
+					if (lenClr != crypto_box_PUBLICKEYBYTES + 1) break;
+
+					char path[77];
+					getMsgPath(path, clr + 1);
+					unlink(path);
+
+					int delNum = -1;
+					for (int i = 0; i < stindexCount; i++) {
+						if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
+							delNum = i;
+							break;
+						}
+					}
+
+					if (delNum != -1) {
+						if (delNum < (stindexCount - 1)) {
+							const size_t s = sizeof(struct aem_stindex);
+							memmove((unsigned char*)stindex + s * delNum, (unsigned char*)stindex + s * (delNum + 1), s * (stindexCount - delNum - 1));
+						}
+
+						stindexCount--;
+						saveStindex();
+					}
+				break;}
+
 				case AEM_API_MESSAGE_BROWSE: {
 					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 17) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
 

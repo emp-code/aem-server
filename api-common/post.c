@@ -216,7 +216,7 @@ static void account_create(void) {
 static void account_delete(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
 
-	const int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
+	int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
@@ -226,15 +226,26 @@ static void account_delete(void) {
 	}
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) == 1) {
-		if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
-			userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
-//			shortResponse((unsigned char*)"Violation", 9);
-		} else if (resp == AEM_ACCOUNT_RESPONSE_OK) {
-			shortResponse(NULL, AEM_API_NOCONTENT);
-		}
+	if (recv(sock, &resp, 1, 0) != 1) {
+		close(sock);
+		return;
 	}
 
+	if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+		close(sock);
+		userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
+//		shortResponse((unsigned char*)"Violation", 9);
+		return;
+	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
+		close(sock);
+		return;
+	}
+
+	close(sock);
+	shortResponse(NULL, AEM_API_NOCONTENT);
+
+	sock = storageSocket(AEM_API_INTERNAL_ERASE, decrypted, lenDecrypted);
+	if (sock < 0) return;
 	close(sock);
 }
 
