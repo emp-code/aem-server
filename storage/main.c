@@ -482,6 +482,30 @@ static void takeConnections(void) {
 		unsigned char clr[lenClr];
 		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_API) == 0) {
 			switch (clr[0]) {
+				case AEM_API_MESSAGE_BROWSE: {
+					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 17) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
+
+					int stindexNum = -1;
+					for (int i = 0; i < stindexCount; i++) {
+						if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
+							stindexNum = i;
+							break;
+						}
+					}
+
+					if (stindexNum < 0) {
+						// Stindex for account doesn't exist (new account, no messages received yet)
+						if (send(sock, "\0", 1, 0) != 1) syslog(LOG_ERR, "Failed send");
+						close(sock);
+						continue;
+					}
+
+					unsigned char * const msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
+					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 17) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
+					if (sz > 0 && send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
+					sodium_free(msgData);
+				break;}
+
 				case AEM_API_MESSAGE_DELETE: {
 					unsigned char ids[8192];
 					const ssize_t lenIds = recv(sock, ids, 8192, 0);
@@ -505,30 +529,6 @@ static void takeConnections(void) {
 					} else syslog(LOG_ERR, "Failed receiving data from API");
 
 					free(data);
-				break;}
-
-				case AEM_API_MESSAGE_BROWSE: {
-					if (lenClr != 1 + crypto_box_PUBLICKEYBYTES && lenClr != 1 + crypto_box_PUBLICKEYBYTES + 17) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenClr); break;}
-
-					int stindexNum = -1;
-					for (int i = 0; i < stindexCount; i++) {
-						if (memcmp(stindex[i].pubkey, clr + 1, crypto_box_PUBLICKEYBYTES) == 0) {
-							stindexNum = i;
-							break;
-						}
-					}
-
-					if (stindexNum < 0) {
-						// Stindex for account doesn't exist (new account, no messages received yet)
-						if (send(sock, "\0", 1, 0) != 1) syslog(LOG_ERR, "Failed send");
-						close(sock);
-						continue;
-					}
-
-					unsigned char * const msgData = sodium_malloc(AEM_MAXLEN_MSGDATA);
-					const int sz = storage_read(msgData, stindexNum, (lenClr == 1 + crypto_box_PUBLICKEYBYTES + 17) ? clr + 1 + crypto_box_PUBLICKEYBYTES : NULL);
-					if (sz > 0 && send(sock, msgData, sz, 0) != sz) syslog(LOG_ERR, "Failed send");
-					sodium_free(msgData);
 				break;}
 
 				default: syslog(LOG_ERR, "Invalid API command");
