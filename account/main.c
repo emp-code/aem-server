@@ -276,6 +276,7 @@ static void api_account_browse(const int sock, const int num) {
 	}
 
 	send(sock, response, len, 0);
+	free(response);
 }
 
 static void api_account_create(const int sock, const int num) {
