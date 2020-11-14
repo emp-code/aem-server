@@ -238,6 +238,8 @@ static void api_internal_uinfo(const int sock, const int num) {
 static void api_account_browse(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) return;
 
+	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
+
 	unsigned char * const response = malloc(userCount * 35);
 	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 

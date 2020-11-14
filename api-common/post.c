@@ -148,10 +148,13 @@ static void account_browse(void) {
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
 
-	unsigned char * const clr = malloc(1048576);
+	int userCount;
+	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(userCount)) {close(sock); return;}
+
+	unsigned char * const clr = malloc(userCount * 35);
 	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
 
-	const ssize_t lenClr = recv(sock, clr, 1048576, MSG_WAITALL);
+	const ssize_t lenClr = recv(sock, clr, userCount * 35, MSG_WAITALL);
 	close(sock);
 
 	if (lenClr < 10) {free(clr); return;}
