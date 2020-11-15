@@ -373,8 +373,7 @@ static void message_upload(void) {
 	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) {free(enc); return;}
 
-	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
-	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
+	if (send(sock, enc, lenEnc, 0) != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
 
 	unsigned char resp;
 	if (recv(sock, &resp, 1, 0) != 1 || resp != 0x01) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); close(sock); return;}
