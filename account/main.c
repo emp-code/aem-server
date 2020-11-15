@@ -602,7 +602,7 @@ static int takeConnections(void) {
 
 				// Internal functions
 				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient); break;
-				case AEM_API_INTERNAL_EXIST: send(sockClient, "\x01", 1, 0); break; // existence verified by userNumFromPubkey()
+				case AEM_API_INTERNAL_EXIST: send(sockClient, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
 				case AEM_API_INTERNAL_PUBKS: api_internal_pubks(sockClient, num); break;
