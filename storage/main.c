@@ -549,7 +549,7 @@ static void takeConnections(void) {
 						if (storage_delete(clr + 1, ids + i * 16) == 0) isOk = true;
 					}
 
-					send(sock, isOk? (unsigned char[]){'\x01'} : (unsigned char[]){'\0'}, 1, 0);
+					send(sock, (unsigned char[]){isOk? '\x01' : '\0'}, 1, 0);
 				break;}
 
 				case AEM_API_MESSAGE_UPLOAD: {
