@@ -1,5 +1,17 @@
 # All-Ears Mail #
 
+## Status ##
+
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/emp-code/aem-server.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/emp-code/aem-server/alerts/)
+
+[![CodeFactor](https://www.codefactor.io/repository/github/emp-code/aem-server/badge)](https://www.codefactor.io/repository/github/emp-code/aem-server)
+
+[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6ImVtcC1jb2RlIiwicmVwbzEiOiJhZW0tc2VydmVyIiwiaW5jbHVkZUxpbnQiOmZhbHNlLCJhdXRob3JJZCI6MjIxMjgsImlhdCI6MTYwNTQzMTc0OX0.IzzqPqRCaaqDEojFAL7D6Wh-DGkrXl3dOMnwuq3SAvU)](https://www.deepcode.ai/app/gh/emp-code/aem-server/_/dashboard?utm_content=gh%2Femp-code%2Faem-server)
+
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/947b9c1a3d85412ea957564d6ba26bc7)](https://www.codacy.com/manual/empcode/aem-server/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emp-code/aem-server&amp;utm_campaign=Badge_Grade)
+
+## Introduction ##
+
 All-Ears Mail is a private email solution. It was designed from the ground up to know the least amount of information about its users, and to keep that information private to the maximum extent. The other design goals are simplicity, reliability, and efficiency.
 
 All-Ears consists of a number of processes, which are divided into three tiers, creating a barrier between the public-facing processes and sensitive data.
