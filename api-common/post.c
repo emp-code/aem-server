@@ -815,8 +815,15 @@ static void message_delete(void) {
 		return;
 	}
 
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {
+		syslog(LOG_ERR, "Failed communicating with Storage");
+		close(sock);
+		return;
+	}
+
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	if (resp == '\x01') shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void message_public(void) {

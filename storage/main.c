@@ -244,11 +244,13 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 
 	off_t filePos = lseek(fdMsg, 0, SEEK_END);
 	const off_t fileSize = filePos;
+	bool doneDelete = false;
 
 	for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
 		filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 
 		if (!storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, id)) continue;
+		doneDelete = true;
 
 		// ID matches
 		if (i < stindex[stindexNum].msgCount - 1) {
@@ -288,7 +290,7 @@ static int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES],
 	}
 
 	close(fdMsg);
-	return 0;
+	return doneDelete ? 0 : -100;
 }
 
 static int loadStindex(void) {
@@ -534,12 +536,20 @@ static void takeConnections(void) {
 
 				case AEM_API_MESSAGE_DELETE: {
 					unsigned char ids[8192];
+
 					const ssize_t lenIds = recv(sock, ids, 8192, 0);
-					if (lenIds % 16 == 0) {
-						for (int i = 0; i < lenIds / 16; i++) {
-							storage_delete(clr + 1, ids + i * 16);
-						}
-					} else syslog(LOG_ERR, "Invalid data received");
+					if (lenIds % 16 != 0) {
+						syslog(LOG_ERR, "Message/Delete: Invalid data received");
+						send(sock, (unsigned char[]){'\0'}, 1, 0);
+						break;
+					}
+
+					bool isOk = false;
+					for (int i = 0; i < lenIds / 16; i++) {
+						if (storage_delete(clr + 1, ids + i * 16) == 0) isOk = true;
+					}
+
+					send(sock, isOk? (unsigned char[]){'\x01'} : (unsigned char[]){'\0'}, 1, 0);
 				break;}
 
 				case AEM_API_MESSAGE_UPLOAD: {
