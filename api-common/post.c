@@ -880,11 +880,11 @@ static void message_public(void) {
 
 		const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
 		free(enc);
+		if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); close(sock); return;}
 
 		unsigned char resp;
-		recv(sock, &resp, 1, 0);
+		if (recv(sock, &resp, 1, 0) != 1 || resp != 0x01) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); close(sock); return;}
 		close(sock);
-		if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); return;}
 	}
 
 	free(pubKeys);
