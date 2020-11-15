@@ -374,8 +374,12 @@ static void message_upload(void) {
 	if (sock < 0) {free(enc); return;}
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
+
+	unsigned char resp;
+	recv(sock, &resp, 1, 0);
 	close(sock);
-	if (sentBytes != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); return;}
+	if (resp != 0x01) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); return;}
 
 	shortResponse(enc, 16);
 	free(enc);
