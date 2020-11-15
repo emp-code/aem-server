@@ -952,8 +952,9 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	if (sock < 0) return -1;
 
 	unsigned char resp;
-	recv(sock, &resp, 1, 0);
+	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return -1;}
 	close(sock);
+
 	return (resp == '\x01') ? 0 : -1;
 }
 
