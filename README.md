@@ -6,9 +6,11 @@
 
 [![CodeFactor](https://www.codefactor.io/repository/github/emp-code/aem-server/badge)](https://www.codefactor.io/repository/github/emp-code/aem-server)
 
-[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6ImVtcC1jb2RlIiwicmVwbzEiOiJhZW0tc2VydmVyIiwiaW5jbHVkZUxpbnQiOmZhbHNlLCJhdXRob3JJZCI6MjIxMjgsImlhdCI6MTYwNTQzMTc0OX0.IzzqPqRCaaqDEojFAL7D6Wh-DGkrXl3dOMnwuq3SAvU)](https://www.deepcode.ai/app/gh/emp-code/aem-server/_/dashboard?utm_content=gh%2Femp-code%2Faem-server)
-
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/947b9c1a3d85412ea957564d6ba26bc7)](https://www.codacy.com/manual/empcode/aem-server/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emp-code/aem-server&amp;utm_campaign=Badge_Grade)
+
+[![Code Inspector](https://www.code-inspector.com/project/5719/score/svg)](https://frontend.code-inspector.com/public/project/5719/aem/dashboard)
+
+[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6ImVtcC1jb2RlIiwicmVwbzEiOiJhZW0tc2VydmVyIiwiaW5jbHVkZUxpbnQiOmZhbHNlLCJhdXRob3JJZCI6MjIxMjgsImlhdCI6MTYwNTQzMTc0OX0.IzzqPqRCaaqDEojFAL7D6Wh-DGkrXl3dOMnwuq3SAvU)](https://www.deepcode.ai/app/gh/emp-code/aem-server/_/dashboard?utm_content=gh%2Femp-code%2Faem-server)
 
 ## Introduction ##
 
