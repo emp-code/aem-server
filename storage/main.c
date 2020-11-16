@@ -544,12 +544,12 @@ static void takeConnections(void) {
 						break;
 					}
 
-					bool isOk = false;
+					unsigned char resp = AEM_INTERNAL_RESPONSE_ERR;
 					for (int i = 0; i < lenIds / 16; i++) {
-						if (storage_delete(clr + 1, ids + i * 16) == 0) isOk = true;
+						if (storage_delete(clr + 1, ids + i * 16) == 0) resp = AEM_INTERNAL_RESPONSE_OK;
 					}
 
-					send(sock, (unsigned char[]){isOk? '\x01' : '\0'}, 1, 0);
+					send(sock, (unsigned char[]){resp}, 1, 0);
 				break;}
 
 				case AEM_API_MESSAGE_UPLOAD: {
@@ -566,7 +566,7 @@ static void takeConnections(void) {
 
 					free(data);
 
-					send(sock, (unsigned char[]){'\x01'}, 1, 0);
+					send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 				break;}
 
 				default: syslog(LOG_ERR, "Invalid API command");

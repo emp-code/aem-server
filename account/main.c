@@ -295,12 +295,12 @@ static void api_account_browse(const int sock, const int num) {
 
 static void api_account_create(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
 	}
 
-	if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) return;
+	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
 
 	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
@@ -315,7 +315,7 @@ static void api_account_create(const int sock, const int num) {
 	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
 
 	userCount++;
-	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 	saveUser();
 }
 
@@ -328,7 +328,7 @@ static void api_account_delete(const int sock, const int num) {
 
 	// Users can only delete themselves
 	if ((user[num].info & 3) != 3 && delNum != num) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
 	}
@@ -341,7 +341,7 @@ static void api_account_delete(const int sock, const int num) {
 	userCount--;
 	saveUser();
 
-	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 static void api_account_update(const int sock, const int num) {
@@ -355,7 +355,7 @@ static void api_account_update(const int sock, const int num) {
 
 	// If not admin && (updating another user || new-level >= current-level)
 	if ((user[num].info & 3) != 3 && (updateNum != num || buf[0] >= (user[num].info & 3))) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
 	}
@@ -365,7 +365,7 @@ static void api_account_update(const int sock, const int num) {
 
 	saveUser();
 
-	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 static void api_address_create(const int sock, const int num) {
@@ -414,7 +414,7 @@ static void api_address_create(const int sock, const int num) {
 
 		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
 	} else {
-		if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
+		if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
 	}
 }
 
@@ -444,7 +444,7 @@ static void api_address_delete(const int sock, const int num) {
 	user[num].info = (user[num].info & 3) | (addrCount << 3);
 
 	saveUser();
-	send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0);
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 static void api_address_lookup(const int sock, const int num) {
@@ -456,7 +456,7 @@ static void api_address_lookup(const int sock, const int num) {
 
 	const uint64_t hash = addressToHash(addr32, isShield);
 	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (num == userNum) send(sock, "\x01", 1, 0);
+	if (num == userNum) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 static void api_address_update(const int sock, const int num) {
@@ -491,12 +491,12 @@ static void api_private_update(const int sock, const int num) {
 
 static void api_setting_limits(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_ACCOUNT_RESPONSE_VIOLATION;
+		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
 		send(sock, &violation, 1, 0);
 		return;
 	}
 
-	if (send(sock, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0) != 1) return;
+	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
 
 	unsigned char buf[12];
 	if (recv(sock, buf, 12, 0) != 12) return;
@@ -602,7 +602,7 @@ static int takeConnections(void) {
 
 				// Internal functions
 				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient); break;
-				case AEM_API_INTERNAL_EXIST: send(sockClient, (unsigned char[]){AEM_ACCOUNT_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
+				case AEM_API_INTERNAL_EXIST: send(sockClient, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
 				case AEM_API_INTERNAL_PUBKS: api_internal_pubks(sockClient, num); break;

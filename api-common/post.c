@@ -195,10 +195,10 @@ static void account_create(void) {
 	if (sock < 0) return;
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_ACCOUNT_RESPONSE_OK) {
+	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {
 		close(sock);
 		return;
-	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_CREATE);
 		close(sock);
 		return;
@@ -210,7 +210,7 @@ static void account_create(void) {
 		return;
 	}
 
-	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_ACCOUNT_RESPONSE_OK) {
+	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_INTERNAL_RESPONSE_OK) {
 		shortResponse(NULL, AEM_API_NOCONTENT);
 	}
 
@@ -235,12 +235,12 @@ static void account_delete(void) {
 		return;
 	}
 
-	if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		close(sock);
 		userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
 //		shortResponse((unsigned char*)"Violation", 9);
 		return;
-	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_INTERNAL_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -267,10 +267,10 @@ static void account_update(void) {
 
 	unsigned char resp;
 	if (recv(sock, &resp, 1, 0) == 1) {
-		if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+		if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 			userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
 //			shortResponse((unsigned char*)"Violation", 9);
-		} else if (resp == AEM_ACCOUNT_RESPONSE_OK) {
+		} else if (resp == AEM_INTERNAL_RESPONSE_OK) {
 			shortResponse(NULL, AEM_API_NOCONTENT);
 		}
 	}
@@ -294,7 +294,7 @@ static void address_create(void) {
 		unsigned char ret;
 		recv(sock, &ret, 1, 0);
 		close(sock);
-		if (ret == AEM_ACCOUNT_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
+		if (ret == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
 		return;
 	}
 
@@ -323,7 +323,7 @@ static void address_delete(void) {
 	}
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_ACCOUNT_RESPONSE_OK) {
+	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_INTERNAL_RESPONSE_OK) {
 		shortResponse(NULL, AEM_API_NOCONTENT);
 	}
 
@@ -376,7 +376,7 @@ static void message_upload(void) {
 	if (send(sock, enc, lenEnc, 0) != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1 || resp != 0x01) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); close(sock); return;}
+	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); close(sock); return;}
 	close(sock);
 
 	shortResponse(enc, 16);
@@ -455,12 +455,15 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return false;
 
-	unsigned char answer;
-	if (send(sock, addrData, 11, 0) != 11) {close(sock); return false;}
-	if (recv(sock, &answer, 1, 0) != 1) {close(sock); return false;}
-	close(sock);
+	unsigned char resp;
+	const bool isOk = (
+	   send(sock, addrData, 11, 0) == 11
+	&& recv(sock, &resp, 1, 0) == 1
+	&& resp == AEM_INTERNAL_RESPONSE_OK
+	);
 
-	return (answer == 0x01);
+	close(sock);
+	return isOk;
 }
 
 static unsigned char getUserLevel(const unsigned char * const pubkey) {
@@ -793,11 +796,12 @@ static void message_create_int(void) {
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
 	free(enc);
+
+	unsigned char resp;
+	if (sentBytes != (ssize_t)(lenEnc) || recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); return;}
 	close(sock);
-	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 
 	deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
-
 	shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
@@ -825,7 +829,7 @@ static void message_delete(void) {
 	}
 
 	close(sock);
-	if (resp == '\x01') shortResponse(NULL, AEM_API_NOCONTENT);
+	if (resp == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
 }
 
 static void message_public(void) {
@@ -883,7 +887,7 @@ static void message_public(void) {
 		if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); close(sock); return;}
 
 		unsigned char resp;
-		if (recv(sock, &resp, 1, 0) != 1 || resp != 0x01) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); close(sock); return;}
+		if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); sodium_memzero(content, lenContent); free(pubKeys); close(sock); return;}
 		close(sock);
 	}
 
@@ -918,11 +922,11 @@ static void setting_limits(void) {
 	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
 		return;
-	} else if (resp == AEM_ACCOUNT_RESPONSE_VIOLATION) {
+	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_SETTING_LIMITS);
 		close(sock);
 		return;
-	} else if (resp != AEM_ACCOUNT_RESPONSE_OK) {
+	} else if (resp != AEM_INTERNAL_RESPONSE_OK) {
 		close(sock);
 		return;
 	}
@@ -955,7 +959,7 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return -1;}
 	close(sock);
 
-	return (resp == AEM_ACCOUNT_RESPONSE_OK) ? 0 : -1;
+	return (resp == AEM_INTERNAL_RESPONSE_OK) ? 0 : -1;
 }
 
 __attribute__((warn_unused_result))
