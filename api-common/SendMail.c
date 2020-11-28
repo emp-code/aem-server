@@ -18,26 +18,17 @@
 #include "../Global.h"
 #include "../Common/aes.h"
 #include "../Data/dkim.h"
-#include "../Data/domain.h"
-#include "../Data/tls.h"
 
 #include "SendMail.h"
 
-#define AEM_API_SENDMAIL
+#define AEM_API_SMTP
 
 static bool useTls;
 
-static mbedtls_x509_crt tlsCrt;
-static mbedtls_pk_context tlsKey;
-
-static mbedtls_ssl_context ssl;
-static mbedtls_ssl_config conf;
-static mbedtls_entropy_context entropy;
-static mbedtls_ctr_drbg_context ctr_drbg;
-static mbedtls_x509_crt cacert;
-
 static unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
 static unsigned char msgId_aesKey[32];
+
+#include "../Common/tls_setup.c"
 
 void setMsgIdKeys(const unsigned char * const src) {
 	crypto_kdf_derive_from_key(msgId_hashKey, crypto_generichash_KEYBYTES, 1, "AEM-MsId", src);
@@ -47,64 +38,6 @@ void setMsgIdKeys(const unsigned char * const src) {
 void sm_clearKeys(void) {
 	sodium_memzero(msgId_hashKey, crypto_generichash_KEYBYTES);
 	sodium_memzero(msgId_aesKey, 32);
-}
-
-__attribute__((warn_unused_result))
-static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
-	if (tls == NULL) return 0;
-
-	const char * const c = mbedtls_ssl_get_version(tls);
-	if (c == NULL || strncmp(c, "TLSv1.", 6) != 0) return 0;
-
-	switch(c[6]) {
-		case '0': return 1;
-		case '1': return 2;
-		case '2': return 3;
-		case '3': return 4;
-	}
-
-	return 0;
-}
-
-void tlsFree_sendmail(void) {
-	mbedtls_ssl_free(&ssl);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_entropy_free(&entropy);
-	mbedtls_x509_crt_free(&cacert);
-}
-
-int tlsSetup_sendmail(void) {
-	mbedtls_x509_crt_init(&tlsCrt);
-	int ret = mbedtls_x509_crt_parse(&tlsCrt, AEM_TLS_CRT_DATA, AEM_TLS_CRT_SIZE);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
-
-	mbedtls_pk_init(&tlsKey);
-	ret = mbedtls_pk_parse_key(&tlsKey, AEM_TLS_KEY_DATA, AEM_TLS_KEY_SIZE, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", ret); return -1;}
-
-	mbedtls_ssl_config_init(&conf);
-	mbedtls_x509_crt_init(&cacert);
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-	mbedtls_entropy_init(&entropy);
-
-	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0) != 0) return -1;
-	if (mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/")) {syslog(LOG_ERR, "ssl-certs"); return -1;}
-	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) return -1;
-
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
-	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
-	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
-	mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
-	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
-
-	ret = mbedtls_ssl_setup(&ssl, &conf);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %x", -ret); return -1;}
-	return 0;
 }
 
 static int makeSocket(const uint32_t ip) {

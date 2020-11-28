@@ -69,8 +69,9 @@ int createMount(const int type) {
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
-		case AEM_PROCESSTYPE_ENQUIRY:
-		case AEM_PROCESSTYPE_MTA: fsmode = 1110; nr_inodes = 10; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 10; break;
+
+		case AEM_PROCESSTYPE_MTA: fsmode = 1110; nr_inodes = 11; break;
 
 		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 10; break;
 		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 11; break;
@@ -104,6 +105,7 @@ int createMount(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
+			if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
 			if (bindMount(AEM_PATH_HOME"/GeoLite2-Country.mmdb", AEM_PATH_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_ISFILE | AEM_MOUNT_RDONLY) != 0) return -1;
 		break;
 
