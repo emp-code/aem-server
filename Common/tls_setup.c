@@ -67,8 +67,9 @@ int tlsSetup(void) {
 #ifdef AEM_MTA
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_1); // Require TLS v1.0+
 #else // API/Web
-	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
 	mbedtls_ssl_conf_curves(&conf, tls_curves);
+	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048);
+	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
 	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 #endif
