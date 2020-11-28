@@ -113,12 +113,12 @@ int main(int argc, char *argv[]) {
 //	if (read(argv[0][0], accessKey, AEM_LEN_ACCESSKEY) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "Terminating: Failed loading AccessKey"); return EXIT_FAILURE;}
 	close(argv[0][0]);
 
-	if (dns_setupTls() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up TLS for DNS"); return EXIT_FAILURE;}
+	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed tlsSetup()"); return EXIT_FAILURE;}
 
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
 	syslog(LOG_INFO, "Terminating");
 
-	dns_freeTls();
+	tlsFree();
 	return EXIT_SUCCESS;
 }

@@ -1,5 +1,15 @@
+#include "../Global.h"
+
 #include "../Data/domain.h"
 #include "../Data/tls.h"
+
+#include <mbedtls/certs.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/error.h>
+#include <mbedtls/net_sockets.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/x509.h>
 
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;
@@ -9,7 +19,7 @@ static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 
-#if defined(AEM_API_SMTP) || defined(AEM_MTA)
+#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
 static mbedtls_x509_crt cacert;
 #endif
 
@@ -51,7 +61,7 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 }
 #endif
 
-#if defined(AEM_API_HTTP) || defined(AEM_WEB)
+#if defined(AEM_API_HTTP) || defined(AEM_WEB)  || defined(AEM_ENQUIRY)
 static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsigned char * const hostname, const size_t len) {
 	if (empty != NULL || ssl2 != &ssl) return -1;
 	if (len == 0) return 0;
@@ -81,7 +91,7 @@ int tlsSetup(void) {
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
-#ifdef AEM_API_SMTP
+#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 #else
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
@@ -93,12 +103,12 @@ int tlsSetup(void) {
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
 #endif
 
-#if defined(AEM_API_HTTP) || defined(AEM_WEB)
+#if defined(AEM_API_HTTP) || defined(AEM_WEB) || defined(AEM_ENQUIRY)
 	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048);
 	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 #endif
 
-#if defined(AEM_API_SMTP) || defined(AEM_MTA)
+#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
 	mbedtls_x509_crt_init(&cacert);
 	ret = mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/");
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse_path failed: %x", ret); return -1;}

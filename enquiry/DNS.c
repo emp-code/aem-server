@@ -14,62 +14,21 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/certs.h>
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-#include <mbedtls/x509.h>
-
 #include <sodium.h>
 
 #include "DNS_protocol.h"
+
+#include "DNS.h"
+
+#define AEM_ENQUIRY
+
+#include "../Common/tls_setup.c"
 
 #define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net
 #define AEM_DNS_SERVER_HOST "dns.quad9.net"
 
 #define AEM_DNS_SERVER_PORT "853" // DNS over TLS
 #define AEM_DNS_BUFLEN 512
-
-static mbedtls_ssl_config conf;
-static mbedtls_entropy_context entropy;
-static mbedtls_ctr_drbg_context ctr_drbg;
-static mbedtls_x509_crt cacert;
-static mbedtls_ssl_context ssl;
-
-void dns_freeTls(void) {
-	mbedtls_ssl_free(&ssl);
-	mbedtls_ssl_config_free(&conf);
-	mbedtls_ctr_drbg_free(&ctr_drbg);
-	mbedtls_entropy_free(&entropy);
-	mbedtls_x509_crt_free(&cacert);
-}
-
-int dns_setupTls(void) {
-	mbedtls_ssl_config_init(&conf);
-	mbedtls_x509_crt_init(&cacert);
-	mbedtls_ctr_drbg_init(&ctr_drbg);
-	mbedtls_entropy_init(&entropy);
-
-	if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0) != 0) return -1;
-	if (mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/")) {syslog(LOG_ERR, "ssl-certs"); return -1;}
-	if (mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT) != 0) return -1;
-
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_REQUIRED);
-	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048); // Minimum length for DH parameters
-	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
-	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, MBEDTLS_SSL_MINOR_VERSION_3); // Require TLS v1.2+
-	mbedtls_ssl_conf_renegotiation(&conf, MBEDTLS_SSL_RENEGOTIATION_DISABLED);
-	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
-	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
-
-	mbedtls_ssl_init(&ssl);
-	if (mbedtls_ssl_setup(&ssl, &conf) != 0) {syslog(LOG_ERR, "Failed setting up TLS"); return -1;}
-	if (mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST) != 0) {syslog(LOG_ERR, "Failed setting hostname"); return -1;}
-	return 0;
-}
 
 static int makeSocket(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);

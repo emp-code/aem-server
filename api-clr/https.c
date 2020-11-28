@@ -4,12 +4,6 @@
 #include <string.h>
 #include <syslog.h>
 
-#include <mbedtls/ctr_drbg.h>
-#include <mbedtls/entropy.h>
-#include <mbedtls/error.h>
-#include <mbedtls/net_sockets.h>
-#include <mbedtls/ssl.h>
-
 #include "../Global.h"
 #include "../api-common/post.h"
 #include "../Common/tls_common.h"

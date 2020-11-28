@@ -1,5 +1,6 @@
-#include <mbedtls/ssl.h>
 #include <syslog.h>
+
+#include "tls_common.h"
 
 void sendData(mbedtls_ssl_context * const ssl, const void * const data, const size_t lenData) {
 	if (data == NULL || lenData < 1) return;
