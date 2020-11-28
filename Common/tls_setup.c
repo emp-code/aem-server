@@ -61,7 +61,7 @@ static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 }
 #endif
 
-#if defined(AEM_API_HTTP) || defined(AEM_WEB)  || defined(AEM_ENQUIRY)
+#if defined(AEM_API_HTTP) || defined(AEM_WEB)
 static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsigned char * const hostname, const size_t len) {
 	if (empty != NULL || ssl2 != &ssl) return -1;
 	if (len == 0) return 0;
@@ -103,7 +103,7 @@ int tlsSetup(void) {
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
 #endif
 
-#if defined(AEM_API_HTTP) || defined(AEM_WEB) || defined(AEM_ENQUIRY)
+#if defined(AEM_API_HTTP) || defined(AEM_WEB)
 	mbedtls_ssl_conf_dhm_min_bitlen(&conf, 2048);
 	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 #endif
