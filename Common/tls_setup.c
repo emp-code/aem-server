@@ -80,11 +80,11 @@ int tlsSetup(void) {
 #endif
 	mbedtls_x509_crt_init(&tlsCrt);
 	int ret = mbedtls_x509_crt_parse(&tlsCrt, AEM_TLS_CRT_DATA, AEM_TLS_CRT_SIZE);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", -ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);
 	ret = mbedtls_pk_parse_key(&tlsKey, AEM_TLS_KEY_DATA, AEM_TLS_KEY_SIZE, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_pk_parse_key failed: %x", -ret); return -1;}
 
 	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
@@ -96,7 +96,7 @@ int tlsSetup(void) {
 #else
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 #endif
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %x", -ret); return -1;}
 
 #ifndef AEM_MTA
 	mbedtls_ssl_conf_curves(&conf, tls_curves);
@@ -111,7 +111,7 @@ int tlsSetup(void) {
 #if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
 	mbedtls_x509_crt_init(&cacert);
 	ret = mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/");
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse_path failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse_path failed: %x", -ret); return -1;}
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 #endif
 
@@ -124,13 +124,13 @@ int tlsSetup(void) {
 	mbedtls_ssl_conf_session_tickets(&conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
 
 	ret = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ctr_drbg_seed failed: %x", -ret); return -1;}
 
 	ret = mbedtls_ssl_conf_own_cert(&conf, &tlsCrt, &tlsKey);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_conf_own_cert failed: %x", -ret); return -1;}
 
 	ret = mbedtls_ssl_setup(&ssl, &conf);
-	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %x", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_setup failed: %x", -ret); return -1;}
 
 	return 0;
 }

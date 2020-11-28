@@ -238,7 +238,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %d", ret);
+				syslog(LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %x", -ret);
 				tlsClose(tls);
 				return;
 			}

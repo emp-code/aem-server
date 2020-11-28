@@ -51,14 +51,14 @@ static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_
 	mbedtls_pk_init(&pk);
 
 	int ret = mbedtls_pk_parse_key(&pk, isAdmin? AEM_DKIM_ADM_DATA : AEM_DKIM_USR_DATA, isAdmin? AEM_DKIM_ADM_SIZE : AEM_DKIM_USR_SIZE, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %d", ret); mbedtls_pk_free(&pk); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %x", -ret); mbedtls_pk_free(&pk); return -1;}
 
 	// Calculate the signature of the hash
 	unsigned char sig[256];
 	size_t olen;
 	ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, sig, &olen, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_pk_free(&pk);
-	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %d", ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %x", -ret); return -1;}
 
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
 	return 0;
@@ -249,7 +249,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 		int ret;
 		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_WARNING, "SendMail: Handshake failed: %d", ret);
+				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
 				closeTls(sock);
 				return AEM_SENDMAIL_ERR_MISC;
 			}
