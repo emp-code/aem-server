@@ -66,9 +66,10 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 	if (empty != NULL || ssl2 != &ssl) return -1;
 	if (len == 0) return 0;
 
-	return (hostname != NULL && (
-	(len == AEM_DOMAIN_LEN && memcmp(hostname, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) ||
-	(len == AEM_DOMAIN_LEN + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
+	return (hostname != NULL && ((len == AEM_DOMAIN_LEN && memcmp(hostname, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
+#ifdef AEM_WEB
+	|| (len == AEM_DOMAIN_LEN + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
+#endif
 	)) ? 0 : -1;
 }
 #endif
