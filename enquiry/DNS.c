@@ -57,6 +57,8 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 	// Connect
 	int sock = makeSocket();
 	if (sock < 0) return 0;
+
+	mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST);
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
 
 	int ret;
