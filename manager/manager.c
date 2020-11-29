@@ -81,7 +81,7 @@ static bool process_verify(const pid_t pid) {
 	if (pid < 1) return false;
 
 	char path[22];
-	sprintf(path, "/proc/%u/stat", pid);
+	snprintf(path, 22, "/proc/%u/stat", pid);
 	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return false;
 
