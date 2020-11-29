@@ -684,9 +684,9 @@ static void message_create_ext(void) {
 
 	// Domain
 	const unsigned char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) return; // @a.bc
+	if (emailDomain == NULL || strlen((char*)emailDomain) < 5) return; // @a.bc
 
-	const int sock = enquirySocket(AEM_DNS_LOOKUP, emailDomain + 1, strlen(emailDomain) - 1);
+	const int sock = enquirySocket(AEM_DNS_LOOKUP, emailDomain + 1, strlen((char*)emailDomain) - 1);
 	if (sock < 0) return;
 
 	int lenMxDomain = 0;
