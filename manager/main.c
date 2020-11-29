@@ -164,7 +164,7 @@ static bool ptraceDisabled(void) {
 static int setSignals(void) {
 	struct sigaction sa;
 	sa.sa_handler = killAll;
-	sigfillset(&(sa.sa_mask));
+	sigfillset(&sa.sa_mask);
 	sa.sa_flags = 0;
 
 	return (

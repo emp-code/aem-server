@@ -3,7 +3,7 @@
 static int setSignals(void) {
 	struct sigaction sa;
 	sa.sa_handler = sigTerm;
-	sigfillset(&(sa.sa_mask));
+	sigfillset(&sa.sa_mask);
 	sa.sa_flags = 0;
 
 	return (

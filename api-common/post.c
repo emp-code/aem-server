@@ -697,7 +697,7 @@ static void message_create_ext(void) {
 	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
 	|| lenMxDomain < 4
 	|| lenMxDomain > 255
-	|| recv(sock, &(email.mxDomain), lenMxDomain, 0) < lenMxDomain
+	|| recv(sock, &email.mxDomain, lenMxDomain, 0) < lenMxDomain
 	) {
 		close(sock);
 		unsigned char x[32]; // Errcode + max 31 bytes
