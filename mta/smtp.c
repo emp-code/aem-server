@@ -178,7 +178,7 @@ static size_t smtp_addr_our(const char * const buf, const size_t len, char * con
 		}
 	}
 
-	return addrChars;
+	return (addrChars == 6 && memcmp(addr, "system", 6) == 0) ? 0 : addrChars;
 }
 
 __attribute__((warn_unused_result))
