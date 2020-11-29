@@ -56,6 +56,9 @@ static int pipeLoadPids(const int fd) {
 	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
 	setStoragePid(pid);
 
+	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
+	setEnquiryPid(pid);
+
 	return 0;
 }
 

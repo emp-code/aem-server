@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fsanitize=undefined -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
+CFLAGS=-O1 -g -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
 all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
@@ -9,7 +9,7 @@ aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
 
 aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
@@ -27,7 +27,7 @@ aem-api-oni: api-oni/*.c
 	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/HtmlRefs.c Common/ref2codepoint.c Common/QuotedPrintable.c Common/UnixSocketClient.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -lmaxminddb -licuuc -licui18n
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/Brotli.c Common/CreateSocket.c Common/HtmlToText.c Common/HtmlRefs.c Common/ref2codepoint.c Common/QuotedPrintable.c Common/UnixSocketClient.c Common/ToUtf8.c Common/Trim.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium

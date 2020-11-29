@@ -21,6 +21,7 @@
 #include "../Data/internal.h"
 
 #include "DNS.h"
+#include "Geo.h"
 
 #define AEM_LOGNAME "AEM-Enq"
 #define AEM_SOCK_QUEUE 50
@@ -84,9 +85,9 @@ void takeConnections(void) {
 
 		const size_t lenDec = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 		unsigned char dec[lenDec];
-		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_ALL) == 0) {
+		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_API) == 0) {
 			switch (dec[0]) {
-				case AEM_DNS_LOOKUP:{
+				case AEM_ENQUIRY_MX: {
 					unsigned char mxDomain[256];
 					int lenMxDomain = 0;
 					const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain, &lenMxDomain);
@@ -98,8 +99,19 @@ void takeConnections(void) {
 					}
 				break;}
 
-				default:
-					syslog(LOG_ERR, "Invalid command: %u", dec[0]);
+				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
+			}
+		} else if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_MTA) == 0) {
+			switch (dec[0]) {
+				case AEM_ENQUIRY_IP: {
+					if (lenDec != 5) break;
+					const uint16_t resp = getCountryCode(*((uint32_t*)(dec + 1)));
+					send(sock, &resp, 2, 0);
+
+					// TODO: PTR record
+				break;}
+
+				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
 			}
 		} else syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);
 

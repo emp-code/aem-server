@@ -8,7 +8,7 @@
 
 struct emailInfo {
 	unsigned char toAddr32[10];
-	unsigned char countryCode[2];
+	unsigned char ccBytes[2];
 	uint32_t timestamp;
 	uint32_t ip;
 	int tls_ciphersuite;

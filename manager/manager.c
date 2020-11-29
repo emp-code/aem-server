@@ -446,6 +446,7 @@ static void process_spawn(const int type) {
 			if (
 			   write(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) != sizeof(pid_t)
 			|| write(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) != sizeof(pid_t)
 			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			) {
 				syslog(LOG_ERR, "Failed writing to pipe: %m");

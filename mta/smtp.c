@@ -7,7 +7,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <maxminddb.h>
 #include <sodium.h>
 
 #include "../Common/Brotli.h"
@@ -46,38 +45,6 @@ static struct emailInfo email;
 
 void setSignKey_mta(const unsigned char * const seed) {
 	return setSignKey(seed);
-}
-
-static void getCountryCode(const struct sockaddr * const sockAddr) {
-	bzero(email.countryCode, 2);
-	if (sockAddr == NULL) return;
-
-	MMDB_s mmdb;
-	int status = MMDB_open("GeoLite2-Country.mmdb", MMDB_MODE_MMAP, &mmdb);
-	if (status != MMDB_SUCCESS) {
-		syslog(LOG_ERR, "getCountryCode: Can't open database: %s", MMDB_strerror(status));
-		return;
-	}
-
-	MMDB_lookup_result_s mmdb_result = MMDB_lookup_sockaddr(&mmdb, sockAddr, &status);
-	if (status != MMDB_SUCCESS) {
-		syslog(LOG_ERR, "getCountryCode: libmaxminddb error: %s", MMDB_strerror(status));
-		MMDB_close(&mmdb);
-		return;
-	}
-
-	if (mmdb_result.found_entry) {
-		MMDB_entry_data_s entry_data;
-		status = MMDB_get_value(&mmdb_result.entry, &entry_data, "country", "iso_code", NULL);
-
-		if (status == MMDB_SUCCESS) {
-			memcpy(email.countryCode, entry_data.utf8_string, 2);
-		} else {
-			syslog(LOG_ERR, "getCountryCode: Error looking up the entry data: %s", MMDB_strerror(status));
-		}
-	} else syslog(LOG_ERR, "getCountryCode: No entry for the IP address was found");
-
-	MMDB_close(&mmdb);
 }
 
 __attribute__((warn_unused_result))
@@ -210,7 +177,6 @@ static void smtp_fail(const struct sockaddr_in * const clientAddr, const int cod
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
-	getCountryCode((struct sockaddr*)clientAddr);
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
 

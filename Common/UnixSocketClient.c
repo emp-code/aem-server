@@ -60,12 +60,11 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 #ifdef AEM_API
 	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_API);
 	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_API);
-	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_ALL);
-#else
-#ifdef AEM_MTA
+	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_API);
+#elif defined(AEM_MTA)
 	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_MTA);
 	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_MTA);
-#endif
+	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_MTA);
 #endif
 
 	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
@@ -85,8 +84,6 @@ int storageSocket(const unsigned char command, const unsigned char * const msg, 
 	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }
 
-#ifdef AEM_API
 int enquirySocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ENQUIRY, pid_enquiry, command, msg, lenMsg);
 }
-#endif

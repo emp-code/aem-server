@@ -11,7 +11,10 @@ enum aem_internal_response {
 #define AEM_MTA_GETPUBKEY_SHIELD 11
 #define AEM_MTA_INSERT 20
 
-#define AEM_DNS_LOOKUP 10
+enum aem_internal_enquiry {
+	AEM_ENQUIRY_MX,
+	AEM_ENQUIRY_IP,
+};
 
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
 

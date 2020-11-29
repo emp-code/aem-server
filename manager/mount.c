@@ -64,11 +64,11 @@ int createMount(const int type) {
 
 	int fsmode, nr_inodes;
 	switch (type) {
+		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1110; nr_inodes = 9; break;
 
-		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 10; break;
-		case AEM_PROCESSTYPE_MTA:     fsmode = 1110; nr_inodes = 11; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI: fsmode = 1110; nr_inodes = 12; break;
@@ -110,12 +110,10 @@ int createMount(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_ENQUIRY:
-			if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
-		break;
-
-		case AEM_PROCESSTYPE_MTA:
-			if (bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs", AEM_MOUNT_RDONLY) != 0) return -1;
-			if (bindMount(AEM_PATH_HOME"/GeoLite2-Country.mmdb", AEM_PATH_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_RDONLY | AEM_MOUNT_ISFILE) != 0) return -1;
+			if (
+			   bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs",             AEM_MOUNT_RDONLY) != 0
+			|| bindMount(AEM_PATH_HOME"/GeoLite2-Country.mmdb", AEM_PATH_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_RDONLY | AEM_MOUNT_ISFILE) != 0
+			) return -1;
 		break;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
@@ -123,8 +121,10 @@ int createMount(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-			if (bindMount(AEM_PATH_HOME"/Stindex.aem", AEM_PATH_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0) return -1;
-			if (bindMount(AEM_PATH_HOME"/MessageData", AEM_PATH_MOUNTDIR"/MessageData", 0) != 0) return -1;
+			if (
+			   bindMount(AEM_PATH_HOME"/Stindex.aem", AEM_PATH_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0
+			|| bindMount(AEM_PATH_HOME"/MessageData", AEM_PATH_MOUNTDIR"/MessageData", 0) != 0
+			) return -1;
 		break;
 	}
 

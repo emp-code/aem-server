@@ -42,7 +42,8 @@ int main(void) {
 	printKey("AEM_KEY_ACCESS_ACCOUNT_MTA", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_STORAGE_API", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_STORAGE_MTA", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_ACCESS_ENQUIRY_ALL", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_ACCESS_ENQUIRY_API", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_ACCESS_ENQUIRY_MTA", crypto_box_SECRETKEYBYTES);
 
 	puts("");
 

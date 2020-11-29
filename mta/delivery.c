@@ -49,8 +49,8 @@ static unsigned char *makeExtMsg(const unsigned char * const body, size_t * cons
 
 	uint8_t infoBytes[8];
 	infoBytes[0] = (email->tls_version << 5) | (email->attachCount & 31);
-	infoBytes[1] = isupper(email->countryCode[0]) ? email->countryCode[0] - 'A' : 31;
-	infoBytes[2] = isupper(email->countryCode[1]) ? email->countryCode[1] - 'A' : 31;
+	infoBytes[1] = email->ccBytes[0];
+	infoBytes[2] = email->ccBytes[1];
 	infoBytes[3] = 0;
 	infoBytes[4] = email->lenGreeting & 127;
 	infoBytes[5] = email->lenRdns     & 127;
@@ -96,6 +96,17 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 	if (email->lenCharset  > 127) email->lenCharset  = 127;
 	if (email->lenEnvFrom  > 127) email->lenEnvFrom  = 127;
 
+	// Get countrycode
+	email->ccBytes[0] = 31;
+	email->ccBytes[1] = 31;
+
+	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email->ip, 4);
+	if (sock >= 0) {
+		recv(sock, email->ccBytes, 2, 0);
+		close(sock);
+	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
+
+	// Deliver
 	const char *toStart = to;
 	const char * const toEnd = to + lenToTotal;
 
