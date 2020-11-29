@@ -86,7 +86,7 @@ static unsigned char *makeExtMsg(const unsigned char * const body, size_t * cons
 }
 
 void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email) {
-	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1) return;
+	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) return;
 
 	if (email->attachCount > 31) email->attachCount = 31;
 	if (email->tls_version >  7) email->tls_version =  7;
