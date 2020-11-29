@@ -453,6 +453,7 @@ static void api_address_lookup(const int sock, const int num) {
 
 	const bool isShield = (buf[0] == 'S');
 	const unsigned char * const addr32 = buf + 1;
+	if (!isShield && memcmp(addr32, AEM_ADDR32_SYSTEM, 10) == 0) return;
 
 	const uint64_t hash = addressToHash(addr32, isShield);
 	const int userNum = hashToUserNum(hash, isShield, NULL);
