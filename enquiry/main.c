@@ -88,12 +88,14 @@ void takeConnections(void) {
 			switch (dec[0]) {
 				case AEM_DNS_LOOKUP:{
 					unsigned char mxDomain[256];
-					bzero(mxDomain, 256);
+					int lenMxDomain = 0;
+					const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain, &lenMxDomain);
 
-					const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain);
-
-					send(sock, &ip, 4, 0);
-					send(sock, mxDomain, 256, 0);
+					if (lenMxDomain > 4 && lenMxDomain < 256) {
+						send(sock, &ip, 4, 0);
+						send(sock, &lenMxDomain, sizeof(int), 0);
+						send(sock, mxDomain, lenMxDomain, 0);
+					}
 				break;}
 
 				default:

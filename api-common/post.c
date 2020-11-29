@@ -689,10 +689,13 @@ static void message_create_ext(void) {
 	const int sock = enquirySocket(AEM_DNS_LOOKUP, emailDomain + 1, strlen(emailDomain) - 1);
 	if (sock < 0) return;
 
+	int lenMxDomain = 0;
 	email.ip = 0;
 	if (
 	   recv(sock, &(email.ip), 4, 0) != 4
-	|| recv(sock, &(email.mxDomain), 256, 0) != 256
+	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
+	|| lenMxDomain < 4
+	|| recv(sock, &(email.mxDomain), lenMxDomain, 0) < lenMxDomain
 	|| email.ip == 0
 	) {
 		close(sock);

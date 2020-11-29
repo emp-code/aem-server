@@ -51,8 +51,9 @@ static bool checkDnsLength(const unsigned char * const src, const int len) {
 	return (len == (int)u + 2);
 }
 
-uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain) {
-	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL) return 0; // a.bc
+uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, int * const lenMxDomain) {
+	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
+	*lenMxDomain = 0;
 
 	// Connect
 	int sock = makeSocket();
@@ -104,14 +105,13 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 		return 0;
 	}
 
-	int lenMxDomain = 0;
 	uint32_t ip = 0;
-	if (dnsResponse_GetMx(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
+	if (dnsResponse_GetMx(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, lenMxDomain) == 0 && *lenMxDomain > 4) { // a.bc
 		randombytes_buf(&reqId, 2);
 		bzero(req, 100);
 		bzero(question, 256);
 		lenQuestion = 0;
-		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, lenMxDomain, false);
+		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, *lenMxDomain, false);
 
 		do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
