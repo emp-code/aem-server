@@ -51,8 +51,8 @@ static bool checkDnsLength(const unsigned char * const src, const int len) {
 	return (len == (int)u + 2);
 }
 
-uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
-	if (domain == NULL || domain[0] == '\0' || lenDomain < 4) return 0; // a.bc
+uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain) {
+	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL) return 0; // a.bc
 
 	// Connect
 	int sock = makeSocket();
@@ -104,12 +104,9 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain) {
 		return 0;
 	}
 
-	unsigned char mxDomain[256];
 	int lenMxDomain = 0;
 	uint32_t ip = 0;
 	if (dnsResponse_GetMx(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, &lenMxDomain) == 0 && lenMxDomain > 4) { // a.bc
-		syslog(LOG_INFO, "mx=%.*s;", lenMxDomain, mxDomain);
-
 		randombytes_buf(&reqId, 2);
 		bzero(req, 100);
 		bzero(question, 256);

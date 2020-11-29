@@ -4,6 +4,6 @@
 void tlsFree(void);
 int tlsSetup(void);
 
-uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain);
+uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain);
 
 #endif

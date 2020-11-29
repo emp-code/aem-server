@@ -682,23 +682,26 @@ static void message_create_ext(void) {
 
 	if (!isValidUtf8((unsigned char*)email.body, lenEb)) {free(email.body); return;}
 
-	// MxDomain
-	char * const mxDomain = strchr(email.addrTo + 1, '@');
-	if (mxDomain == NULL || strlen(mxDomain) < 4) return; // a.bc
-	strcpy(email.mxDomain, mxDomain + 1);
+	// Domain
+	const unsigned char * const emailDomain = strchr(email.addrTo + 1, '@');
+	if (emailDomain == NULL || strlen(emailDomain) < 5) return; // @a.bc
 
-	const int sock = enquirySocket(AEM_DNS_LOOKUP, (unsigned char*)(email.mxDomain), strlen(email.mxDomain));
+	const int sock = enquirySocket(AEM_DNS_LOOKUP, emailDomain + 1, strlen(emailDomain) - 1);
 	if (sock < 0) return;
 
 	email.ip = 0;
-	recv(sock, &(email.ip), 4, 0);
-	close(sock);
-	if (email.ip == 0) {
+	if (
+	   recv(sock, &(email.ip), 4, 0) != 4
+	|| recv(sock, &(email.mxDomain), 256, 0) != 256
+	|| email.ip == 0
+	) {
+		close(sock);
 		unsigned char x[32]; // Errcode + max 31 bytes
 		x[0] = UINT8_MAX;
 		shortResponse(x, 1);
 		return;
 	}
+	close(sock);
 
 	// Deliver
 	const unsigned char ret = sendMail(upk, userLevel, &email, &info);

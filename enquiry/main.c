@@ -87,8 +87,13 @@ void takeConnections(void) {
 		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_ALL) == 0) {
 			switch (dec[0]) {
 				case AEM_DNS_LOOKUP:{
-					const uint32_t ip = queryDns(dec + 1, lenDec - 1);
+					unsigned char mxDomain[256];
+					bzero(mxDomain, 256);
+
+					const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain);
+
 					send(sock, &ip, 4, 0);
+					send(sock, mxDomain, 256, 0);
 				break;}
 
 				default:
