@@ -704,6 +704,8 @@ static void message_create_ext(void) {
 		shortResponse(x, 1);
 		return;
 	}
+
+	email.mxDomain[lenMxDomain] = '\0';
 	close(sock);
 
 	// Deliver
