@@ -85,6 +85,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	*lenMxDomain = 0;
 
 	int sock = makeTlsSocket();
+	if (sock < 0) return 0;
 
 	size_t lenQuestion = 0;
 	unsigned char question[256];
@@ -144,6 +145,7 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	if (ip == 0 || ptr == NULL || lenPtr == NULL) return -1;
 
 	int sock = makeTlsSocket();
+	if (sock < 0) return -1;
 
 	size_t lenQuestion = 0;
 	unsigned char question[256];
