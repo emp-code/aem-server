@@ -1,3 +1,5 @@
+// https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
+
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -48,7 +50,9 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 
 		00000000
 		[1] Recursion available. N/A.
-		[3] Reserved. Always zero.
+		[1] Reserved
+		[1] Authentic Data
+		[1] Checking Disabled
 		[4] Response code. N/A.
 
 		[16] QDCOUNT: One question entry (00000000 00000001).
@@ -75,9 +79,9 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 		memcpy(question + *lenQuestion + 1, dom, sz);
 
 		(*lenQuestion) += sz + 1;
-		dom += sz + 1;
 
 		if (final) break;
+		dom += sz + 1;
 	}
 
 	question[*lenQuestion] = '\0'; // End of question
@@ -120,11 +124,10 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 				memcpy(name + *lenName, msg + offset + 1, msg[offset]);
 				*lenName += msg[offset];
 				offset += msg[offset] + 1;
-
 				continue;
 			}
 			default: // 128, 64: reserved
-				syslog(LOG_ERR, "128/64");
+				syslog(LOG_ERR, "Unsupported DNS label type: %u", msg[offset]);
 				return -1;
 		}
 	}
@@ -141,30 +144,35 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		int lenName = 0;
 
 		const int offset = rr_getName(msg, lenMsg, rrOffset, name, &lenName, true);
-		if (offset < 1) {syslog(LOG_ERR, "os=%d", offset); return -1;}
+		if (offset < 1) {syslog(LOG_ERR, "rr_getName failed"); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (memcmp(msg + offset + 0,recordType, 2) != 0) {syslog(LOG_ERR, "Non_MX: %.2x", msg[offset + 1]); return -1;} // Non-MX record
-		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
+		if (memcmp(msg + offset + 0, recordType, 2) != 0) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Record not internet class"); return -1;}
 		// +4 TTL (32 bits) ignored
 
-		uint16_t mxLen;
-		memcpy((unsigned char*)&mxLen + 0, msg + offset + 9, 1);
-		memcpy((unsigned char*)&mxLen + 1, msg + offset + 8, 1);
-		if (mxLen < 1) {syslog(LOG_ERR, "mxLen"); return -1;}
+		uint16_t rdLen;
+		memcpy((unsigned char*)&rdLen + 0, msg + offset + 9, 1);
+		memcpy((unsigned char*)&rdLen + 1, msg + offset + 8, 1);
+		if (rdLen < 1) {syslog(LOG_ERR, "rdLen"); return -1;}
 
-		uint16_t newPrio;
-		memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
-		memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
+		if (memcmp(recordType, AEM_DNS_RECORDTYPE_MX, 2) == 0) {
+			uint16_t newPrio;
+			memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
+			memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
 
-		if (newPrio < prio) {
-			*lenResult = 0;
-			const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
-			if (o2 < 1) return -1;
-			prio = newPrio;
-		}
+			if (newPrio < prio) {
+				*lenResult = 0;
+				const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
+				if (o2 < 1) return -1;
+				prio = newPrio;
+			}
 
-		rrOffset = offset + 10 + mxLen; // offset is at byte after name-section
+			rrOffset = offset + 10 + rdLen; // offset is at byte after name-section
+		} else if (memcmp(recordType, AEM_DNS_RECORDTYPE_PTR, 2) == 0) {
+			rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
+			return 0;
+		} else return -1;
 	}
 
 	return 0;

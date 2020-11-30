@@ -133,3 +133,63 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	close(sock);
 	return ip;
 }
+
+int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
+	if (ip == 0 || ptr == NULL || lenPtr == NULL) return -1;
+
+	// Connect
+	int sock = makeSocket();
+	if (sock < 0) return 0;
+
+	mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST);
+	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+	int ret;
+	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			syslog(LOG_ERR, "Failed TLS handshake: %x", -ret);
+			mbedtls_ssl_close_notify(&ssl);
+			mbedtls_ssl_session_reset(&ssl);
+			return 0;
+		}
+	}
+
+	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
+	if (flags != 0) {
+		syslog(LOG_ERR, "Failed verifying cert");
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+		return 0;
+	}
+
+	// DNS request (MX)
+	size_t lenQuestion = 0;
+	unsigned char question[256];
+
+	uint16_t reqId;
+	randombytes_buf(&reqId, 2);
+
+	unsigned char req[100];
+	bzero(req, 100);
+
+	unsigned char reqDomain[100];
+	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
+
+	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, reqDomain, strlen((char*)reqDomain), AEM_DNS_RECORDTYPE_PTR);
+
+	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+	unsigned char res[AEM_DNS_BUFLEN];
+	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+
+	mbedtls_ssl_close_notify(&ssl);
+	mbedtls_ssl_session_reset(&ssl);
+	close(sock);
+
+	if (!checkDnsLength(res, ret)) {
+		syslog(LOG_INFO, "DNS length mismatch");
+		return -1;
+	}
+
+	return dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, question, lenQuestion, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
+}
