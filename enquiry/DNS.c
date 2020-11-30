@@ -90,7 +90,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	unsigned char req[100];
 	bzero(req, 100);
 
-	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, domain, lenDomain, true);
+	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
 
 	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
@@ -111,7 +111,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 		bzero(req, 100);
 		bzero(question, 256);
 		lenQuestion = 0;
-		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, *lenMxDomain, false);
+		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 
 		do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 

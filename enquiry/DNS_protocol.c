@@ -32,7 +32,7 @@ static uint32_t validIp(const uint32_t ip) {
 	) ? 0 : ip;
 }
 
-int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const bool isMx) {
+int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const unsigned char queryType[2]) {
 	memcpy(rq + 2, &id, 2);
 
 	// 16-bit flags field, entry counts
@@ -78,7 +78,9 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 		if (final) break;
 	}
 
-	memcpy(question + *lenQuestion, isMx? "\0\0\x0F\0\1" : "\0\0\x01\0\1", 5); // 00: end of name; 000F/0001: MX/A record; 0001: Internet question class
+	question[*lenQuestion] = '\0'; // End of question
+	memcpy(question + *lenQuestion + 1, queryType, 2);
+	memcpy(question + *lenQuestion + 3, "\0\1", 2); // Internet class
 	(*lenQuestion) += 5;
 
 	memcpy(rq + 14, question, *lenQuestion);
