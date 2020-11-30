@@ -115,6 +115,8 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 				allowPointer = true;
 				if (msg[offset] == 0) return offset + 1; // Label end
 
+				if (*lenName + msg[offset] + 1 > 127) return -1;
+
 				// Label part
 				if (*lenName > 0) {
 					name[*lenName] = '.';
