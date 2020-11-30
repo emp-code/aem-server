@@ -162,7 +162,7 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 		return 0;
 	}
 
-	// DNS request (MX)
+	// DNS request
 	size_t lenQuestion = 0;
 	unsigned char question[256];
 
