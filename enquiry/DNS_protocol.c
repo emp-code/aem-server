@@ -235,7 +235,7 @@ uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res
 
 int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const result, int * const lenResult, const unsigned char queryType[2]) {
 	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
-	if (answerCount <= 0) return 0;
+	if (answerCount <= 0) return -1;
 
 	return getNameRecord(res, lenRes, 12 + lenQuestion, answerCount, result, lenResult, queryType);
 }
