@@ -7,6 +7,8 @@
 
 #include <sodium.h>
 
+#include "DNS_protocol.h"
+
 static uint32_t validIp(const uint32_t ip) {
 	const uint8_t b1 = ip & 0xFF;
 	const uint8_t b2 = (ip >>  8) & 0xFF;
@@ -131,7 +133,7 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 	return -1;
 }
 
-static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const mxDomain, int * const lenMxDomain) {
+static int getNameRecord(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const result, int * const lenResult, const unsigned char recordType[2]) {
 	uint16_t prio = UINT16_MAX;
 
 	for (int i = 0; i < answerCount; i++) {
@@ -142,8 +144,8 @@ static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset
 		if (offset < 1) {syslog(LOG_ERR, "os=%d", offset); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (memcmp(msg + offset + 0, "\0\x0F", 2) != 0) {syslog(LOG_ERR, "Non_MX: %.2x", msg[offset + 1]); return -1;} // Non-MX record
-		if (memcmp(msg + offset + 2, "\0\x01", 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
+		if (memcmp(msg + offset + 0,recordType, 2) != 0) {syslog(LOG_ERR, "Non_MX: %.2x", msg[offset + 1]); return -1;} // Non-MX record
+		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Non_IN"); return -1;} // Non-Internet class
 		// +4 TTL (32 bits) ignored
 
 		uint16_t mxLen;
@@ -156,8 +158,8 @@ static int getMx(const unsigned char * const msg, const int lenMsg, int rrOffset
 		memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
 
 		if (newPrio < prio) {
-			*lenMxDomain = 0;
-			const int o2 = rr_getName(msg, lenMsg, offset + 12, mxDomain, lenMxDomain, true);
+			*lenResult = 0;
+			const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
 			if (o2 < 1) return -1;
 			prio = newPrio;
 		}
@@ -231,9 +233,9 @@ uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res
 	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
 }
 
-int dnsResponse_GetMx(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const mxDomain, int * const lenMxDomain) {
+int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const result, int * const lenResult, const unsigned char queryType[2]) {
 	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
 	if (answerCount <= 0) return 0;
 
-	return getMx(res, lenRes, 12 + lenQuestion, answerCount, mxDomain, lenMxDomain);
+	return getNameRecord(res, lenRes, 12 + lenQuestion, answerCount, result, lenResult, queryType);
 }

@@ -106,7 +106,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	}
 
 	uint32_t ip = 0;
-	if (dnsResponse_GetMx(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, lenMxDomain) == 0 && *lenMxDomain > 4) { // a.bc
+	if (dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 && *lenMxDomain > 4) { // a.bc
 		randombytes_buf(&reqId, 2);
 		bzero(req, 100);
 		bzero(question, 256);
