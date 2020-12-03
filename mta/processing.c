@@ -15,6 +15,32 @@
 
 #define AEM_LIMIT_MULTIPARTS 50
 
+void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget) {
+	char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
+	if (headersEnd == NULL) return;
+	size_t lenHeaders = headersEnd - data;
+
+	char * const hdr = memmem(data, lenHeaders, needle, lenNeedle);
+	if (hdr != NULL) {
+		const char * const hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
+		if (hdrEnd != NULL) {
+			if (target != NULL || lenTarget != NULL) {
+				const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
+				if (lenTgt > 255) return;
+				*lenTarget = lenTgt;
+				memcpy(target, hdr + lenNeedle, *lenTarget);
+			}
+
+			const size_t lenMove = (data + *lenData) - hdrEnd;
+			memmove(hdr, hdrEnd, lenMove);
+
+			const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
+			*lenData -= lenDelete;
+			data[*lenData] = '\0';
+		}
+	}
+}
+
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 void decodeEncodedWord(char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
@@ -339,7 +365,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 					}
 				}
 			} else {
-				fn = "AEM-NoName";
+				fn = "AEM-NoName"; // TODO, name based on message/sender/etc
 				lenFn = 10;
 			}
 
@@ -354,7 +380,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
 					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
 
-					email->attachSize[email->attachCount] = 17 + lenFn + lenNew;
+					email->lenAttachment[email->attachCount] = 17 + lenFn + lenNew;
 					(email->attachCount)++;
 				} else syslog(LOG_ERR, "Failed allocation");
 			}

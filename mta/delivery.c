@@ -9,6 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <brotli/encode.h>
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
@@ -39,62 +40,116 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 }
 
 __attribute__((warn_unused_result))
-static unsigned char *makeExtMsg(const unsigned char * const body, size_t * const lenBody, const struct emailInfo * const email) {
-	if (*lenBody > AEM_EXTMSG_BODY_MAXLEN) *lenBody = AEM_EXTMSG_BODY_MAXLEN;
+static unsigned char *makeExtMsg(const unsigned char * const body, const size_t lenBody, const struct emailInfo * const email, size_t * const lenOut) {
+	if (lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
 
-	const size_t lenContent = AEM_EXTMSG_HEADERS_LEN + *lenBody;
-	unsigned char * const content = sodium_malloc(lenContent);
+	// Data to be compressed
+	const size_t lenUncomp = email->lenGreeting + email->lenRdns + email->lenEnvTo + email->lenHeaderTo + email->lenEnvFrom + email->lenHeaderFrom + email->lenMsgId + email->lenSubject + 4 + lenBody;
+	unsigned char * const uncomp = malloc(lenUncomp);
+	if (uncomp == NULL) return NULL;
 
-	const uint16_t cs16 = (email->tls_ciphersuite > UINT16_MAX || email->tls_ciphersuite < 0) ? 1 : email->tls_ciphersuite;
+	size_t offset = 0;
 
-	uint8_t infoBytes[8];
-	infoBytes[0] = (email->tls_version << 5) | (email->attachCount & 31);
-	infoBytes[1] = email->ccBytes[0];
-	infoBytes[2] = email->ccBytes[1];
-	infoBytes[3] = 0;
-	infoBytes[4] = email->lenGreeting & 127;
-	infoBytes[5] = email->lenRdns     & 127;
-	infoBytes[6] = email->lenCharset  & 127;
-	infoBytes[7] = email->lenEnvFrom  & 127;
+	// The four under-128 fields
+	memcpy(uncomp + offset, email->envTo,    email->lenEnvTo);    offset += email->lenEnvTo;
+	memcpy(uncomp + offset, email->headerTo, email->lenHeaderTo); offset += email->lenHeaderTo;
+	memcpy(uncomp + offset, email->greeting, email->lenGreeting); offset += email->lenGreeting;
+	memcpy(uncomp + offset, email->rdns,     email->lenRdns);     offset += email->lenRdns;
 
-	if (email->isShield) infoBytes[4] |= 128;
+	// The four under-256 fields
+	memcpy(uncomp + offset, email->envFrom,    email->lenEnvFrom);    offset += email->lenEnvFrom;    uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->headerFrom, email->lenHeaderFrom); offset += email->lenHeaderFrom; uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->msgId,      email->lenMsgId);      offset += email->lenMsgId;      uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->subject,    email->lenSubject);    offset += email->lenSubject;    uncomp[offset] = '\n'; offset++;
 
-	if (email->protocolEsmtp)     infoBytes[1] |= 128;
-	if (email->quitReceived)      infoBytes[1] |=  64;
-	if (email->protocolViolation) infoBytes[1] |=  32;
+	// The body
+	memcpy(uncomp + offset, body, lenBody);
 
-	if (email->invalidCommands) infoBytes[2] |=  128;
-	if (email->rareCommands)    infoBytes[2] |=  64;
-	// [2] & 32 unused
-
-	content[0] = msg_getPadAmount(lenContent);
-	memcpy(content + 1, &(email->timestamp), 4);
-	memcpy(content + 5, &(email->ip), 4);
-	memcpy(content + 9, &cs16, 2);
-	memcpy(content + 11, infoBytes, 8);
-	memcpy(content + 19, email->toAddr32, 10);
-	memcpy(content + 29, body, *lenBody);
-
-	unsigned char * const encrypted = msg_encrypt(upk, content, lenContent, lenBody);
-	sodium_free(content);
-	if (encrypted == NULL) {
-		syslog(LOG_ERR, "Failed creating encrypted message");
+	// Compress
+	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
+	unsigned char * const comp = malloc(lenComp);
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenComp, comp) == BROTLI_FALSE) {
+		free(uncomp);
 		return NULL;
 	}
+
+	// Create the ExtMsg
+	const size_t lenContent = 22 + ((email->dkimCount & 7) * 4) + lenComp;
+	unsigned char * const content = malloc(lenContent);
+	if (content == NULL) {
+		free(comp);
+		return NULL;
+	}
+
+	// Universal Part
+	content[0] = msg_getPadAmount(lenContent);
+	memcpy(content + 1, &(email->timestamp), 4);
+
+	// ExtMsg Part
+	memcpy(content + 5, &email->ip, 4);
+	memcpy(content + 9, &email->tls_ciphersuite, 2);
+
+	// The 8 InfoBytes
+	content[11] = (email->tls_version << 5) | (email->attachCount & 31);
+
+	content[12] = email->ccBytes[0];
+	if (email->protocolEsmtp)     content[12] |= 128;
+	if (email->quitReceived)      content[12] |=  64;
+	if (email->protocolViolation) content[12] |=  32;
+
+	content[13] = email->ccBytes[1];
+	if (email->invalidCommands)   content[13] |=  128;
+	if (email->rareCommands)      content[13] |=   64;
+	if (email->toMultiple)        content[13] |=   32;
+
+	content[14] = (email->lenEnvTo & 31) | (email->spf & 192);
+	if (email->greetingIpMatch)   content[14] |=   32;
+
+	content[15] = (email->lenHeaderTo & 31) | (email->dmarc & 192);
+	if (email->ipBlacklisted)     content[15] |=  32;
+
+	content[16] = email->lenGreeting & 127;
+	if (email->dnssec)            content[16] |=  128;
+
+	content[17] = email->lenRdns & 127;
+	if (email->dane)              content[17] |=  128;
+
+	content[18] = email->certInfo;
+	content[19] = (email->caa & 192) | /* 48 open  |*/ (email->dkimCount & 7);
+
+	content[20] = email->headerTz;
+	content[21] = email->headerTs;
+
+	// DKIM
+	offset = 22;
+	for (int i = 0; i < (email->dkimCount & 7); i++) {
+		memcpy(content + offset, email->dkimInfo[i], 4);
+		offset += 4;
+	}
+
+	// The compressed body
+	memcpy(content + offset, comp, lenComp);
+	free(comp);
+
+	// Encrypt into the final form
+	unsigned char * const encrypted = msg_encrypt(upk, content, lenContent, lenOut);
+	free(content);
+
+	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
 
 	return encrypted;
 }
 
-void deliverMessage(const char * const to, const size_t lenToTotal, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email) {
-	if (to == NULL || lenToTotal < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) return;
+void deliverMessage(char to[][32], const int toCount, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email) {
+	if (to == NULL || toCount < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
 
 	if (email->attachCount > 31) email->attachCount = 31;
 	if (email->tls_version >  7) email->tls_version =  7;
 
 	if (email->lenGreeting > 127) email->lenGreeting = 127;
-	if (email->lenRdns     > 127) email->lenRdns     = 127;
-	if (email->lenCharset  > 127) email->lenCharset  = 127;
+	if (email->lenEnvTo    > 127) email->lenEnvTo    = 127;
 	if (email->lenEnvFrom  > 127) email->lenEnvFrom  = 127;
+	email->lenRdns = 0;
 
 	// Get countrycode
 	email->ccBytes[0] = 31;
@@ -102,35 +157,47 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 
 	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email->ip, 4);
 	if (sock >= 0) {
-		recv(sock, email->ccBytes, 2, 0);
+		unsigned char ipInfo[129];
+		const int lenIpInfo = recv(sock, ipInfo, 129, 0);
+
+		if (lenIpInfo >= 2) {
+			memcpy(email->ccBytes, ipInfo, 2);
+
+			if (lenIpInfo > 2) {
+				email->lenRdns = lenIpInfo - 2;
+				memcpy(email->rdns, ipInfo + 2, email->lenRdns);
+			}
+		}
+
 		close(sock);
 	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
 
 	// Deliver
-	const char *toStart = to;
-	const char * const toEnd = to + lenToTotal;
+	for (int i = 0; i < toCount; i++) {
+		char toAddr[16];
 
-	while(1) {
-		char * const nextTo = memchr(toStart, '\n', toEnd - toStart);
-		const size_t lenTo = ((nextTo != NULL) ? nextTo : toEnd) - toStart;
-		if (lenTo < 1 || lenTo > 16) {syslog(LOG_ERR, "deliverMessage: Invalid receiver address length"); break;}
-
-		addr32_store(email->toAddr32, toStart, lenTo);
-		email->isShield = (lenTo == 16);
-
-		const int ret = getPublicKey(email->toAddr32, email->isShield);
-		if (ret != 0) {
-			if (nextTo == NULL) break;
-			toStart = nextTo + 1;
-			continue;
+		size_t lenToAddr = 0;
+		for (size_t j = 0; j < strlen(to[i]); j++) {
+			if (isalnum(to[i][j])) {
+				if (lenToAddr > 15) {syslog(LOG_ERR, "Address overlong"); return;}
+				toAddr[lenToAddr] = tolower(to[i][j]);
+				lenToAddr++;
+			}
 		}
 
-		unsigned char *enc = makeExtMsg(msgBody, &lenMsgBody, email);
-		size_t lenEnc = lenMsgBody;
+		unsigned char toAddr32[10];
+		addr32_store(toAddr32, toAddr, lenToAddr);
+
+		const int ret = getPublicKey(toAddr32, (lenToAddr == 16));
+		if (ret != 0) continue;
+
+		email->lenEnvTo = strlen(to[i]);
+		memcpy(email->envTo, to[i], email->lenEnvTo);
+
+		size_t lenEnc = 0;
+		unsigned char *enc = makeExtMsg(msgBody, lenMsgBody, email, &lenEnc);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
-			if (nextTo == NULL) break;
-			toStart = nextTo + 1;
 			continue;
 		}
 
@@ -161,13 +228,13 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 			for (int i = 0; i < email->attachCount; i++) {
 				if (email->attachment[i] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
-				unsigned char * const att = malloc(5 + email->attachSize[i]);
-				att[0] = msg_getPadAmount(5 + email->attachSize[i]) | 32;
+				unsigned char * const att = malloc(5 + email->lenAttachment[i]);
+				att[0] = msg_getPadAmount(5 + email->lenAttachment[i]) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
-				memcpy(att + 5, email->attachment[i], email->attachSize[i]);
+				memcpy(att + 5, email->attachment[i], email->lenAttachment[i]);
 				memcpy(att + 6, msgId, 16);
 
-				enc = msg_encrypt(upk, att, 5 + email->attachSize[i], &lenEnc);
+				enc = msg_encrypt(upk, att, 5 + email->lenAttachment[i], &lenEnc);
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
@@ -188,9 +255,6 @@ void deliverMessage(const char * const to, const size_t lenToTotal, const unsign
 			send(stoSock, &u, 2, 0);
 			close(stoSock);
 		}
-
-		if (nextTo == NULL) break;
-		toStart = nextTo + 1;
 	}
 
 	for (int i = 0; i < email->attachCount; i++) {

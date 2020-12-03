@@ -9,7 +9,6 @@
 
 #include <sodium.h>
 
-#include "../Common/Brotli.h"
 #include "../Common/QuotedPrintable.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
@@ -22,7 +21,7 @@
 #include "../Global.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
-#define AEM_SMTP_MAX_SIZE_TO 4096 // RFC5321: must accept 100 recipients at minimum
+#define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_MAX_SIZE_BODY 1048576 // 1 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 #define AEM_SMTP_MAX_ROUNDS 500
 
@@ -117,38 +116,50 @@ static int smtp_addr_sender(const char * const buf, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static size_t smtp_addr_our(const char * const buf, const size_t len, char * const addr) {
-	if (buf == NULL || len < 1 || addr == NULL) return 0;
+static int smtp_addr_our(const char * const buf, const size_t len, char to[32]) {
+	if (buf == NULL || len < 1) return -1;
 
 	size_t skipBytes = 0;
 	while (skipBytes < len && isspace(buf[skipBytes])) skipBytes++;
-	if (skipBytes >= len) return 0;
+	if (skipBytes >= len) return -1;
 
-	if (buf[skipBytes] != '<') return 0;
+	if (buf[skipBytes] != '<') return -1;
 	skipBytes++;
 
 	const int max = len - skipBytes - 1;
 	int lenAddr = 0;
 	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
 
-	if (lenAddr < 1) return 0;
+	if (lenAddr < 1) return -1;
 
+	char addr[AEM_MAXLEN_ADDR32];
 	int addrChars = 0;
+	int toChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
+		if (buf[skipBytes + i] == '@') {
+			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return -1;
+			break;
+		}
+
+		if (toChars >= 31) return -1;
+		to[toChars] = buf[skipBytes + i];
+		toChars++;
+
 		if (isalnum(buf[skipBytes + i])) {
-			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return 0;
+			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return -1;
 			addr[addrChars] = tolower(buf[skipBytes + i]);
 			addrChars++;
-		} else if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return 0;
-			break;
 		}
 	}
 
-	return (
+	if (
 	   (addrChars == 6 && memcmp(addr, "system", 6) == 0)
 	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
-	) ? 0 : addrChars;
+	) return -1;
+
+	to[toChars] = '\0';
+
+	return 0;
 }
 
 __attribute__((warn_unused_result))
@@ -241,8 +252,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
 
-	size_t lenTo = 0;
-	char to[AEM_SMTP_MAX_SIZE_TO];
+	size_t toCount = 0;
+	char to[AEM_SMTP_MAX_TO][32];
 
 	char *body = NULL;
 	size_t lenBody = 0;
@@ -280,20 +291,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
-			char newTo[AEM_MAXLEN_ADDR32];
-			const int lenNewTo = smtp_addr_our(buf + 8, bytes - 8, newTo);
-
-			if (lenNewTo < 1) {
-				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					smtp_fail(clientAddr, 103);
-					break;
-				}
-
-				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-				continue;
-			}
-
-			if ((lenTo + 1 + lenNewTo) > AEM_SMTP_MAX_SIZE_TO) {
+			if (toCount >= AEM_SMTP_MAX_TO - 1) {
 				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
 					smtp_fail(clientAddr, 104);
 					break;
@@ -303,20 +301,24 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
-			if (lenTo > 0) {
-				to[lenTo] = '\n';
-				lenTo++;
+			if (smtp_addr_our(buf + 8, bytes - 8, to[toCount]) != 0) {
+				if (!smtp_respond(sock, tls, '5', '5', '0')) {
+					smtp_fail(clientAddr, 103);
+					break;
+				}
+
+				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
+				continue;
 			}
 
-			memcpy(to + lenTo, newTo, lenNewTo);
-			lenTo += lenNewTo;
+			toCount++;
 		}
 
 		else if (strncasecmp(buf, "RSET", 4) == 0) {
 			email.rareCommands = true;
 
 			email.lenEnvFrom = 0;
-			lenTo = 0;
+			toCount = 0;
 		}
 
 		else if (strncasecmp(buf, "VRFY", 4) == 0) {
@@ -337,7 +339,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (strncasecmp(buf, "DATA", 4) == 0) {
-			if (email.lenEnvFrom < 1 || lenTo < 1) {
+			if (email.lenEnvFrom < 1 || toCount < 1) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
@@ -354,8 +356,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			const size_t maxBodySize = email.lenGreeting + email.lenRdns + email.lenCharset + email.lenEnvFrom + AEM_SMTP_MAX_SIZE_BODY;
-			body = malloc(maxBodySize);
+			body = malloc(AEM_SMTP_MAX_SIZE_BODY);
 			if (body == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
@@ -363,15 +364,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			lenBody = 0;
-			memcpy(body + lenBody, email.greeting, email.lenGreeting); lenBody += email.lenGreeting;
-			memcpy(body + lenBody, email.rdns,     email.lenRdns);     lenBody += email.lenRdns;
-			memcpy(body + lenBody, email.charset,  email.lenCharset);  lenBody += email.lenCharset;
-			memcpy(body + lenBody, email.envFrom,  email.lenEnvFrom);  lenBody += email.lenEnvFrom;
+			body[0] = '\n';
+			lenBody = 1;
 
 			// Receive body
 			while(1) {
-				bytes = recv_aem(sock, tls, body + lenBody, maxBodySize - lenBody);
+				bytes = recv_aem(sock, tls, body + lenBody, AEM_SMTP_MAX_SIZE_BODY - lenBody);
 				if (bytes < 1) break;
 
 				lenBody += bytes;
@@ -381,7 +379,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					break;
 				}
 
-				if (lenBody >= maxBodySize) break;
+				if (lenBody >= AEM_SMTP_MAX_SIZE_BODY) break;
 			}
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
@@ -406,18 +404,40 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				trimLinebreaks(body, &lenBody);
 				removeSpaceBegin(body, &lenBody);
 				trimEnd(body, &lenBody);
-			}
-			brotliCompress((unsigned char**)&body, &lenBody);
 
-			deliverMessage(to, lenTo, (unsigned char*)body, lenBody, &email);
+				// Headers moved to the emailInfo struct
+				moveHeader(body, &lenBody, "\nSubject:", 9, email.subject, &email.lenSubject);
+				moveHeader(body, &lenBody, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom);
+				moveHeader(body, &lenBody, "\nTo:", 4, email.headerTo, &email.lenHeaderTo);
+
+				// Headers removed entirely
+				moveHeader(body, &lenBody, "\nMIME-Version:", 14, NULL, NULL);
+				moveHeader(body, &lenBody, "\nContent-Type:", 14, NULL, NULL);
+				moveHeader(body, &lenBody, "\nContent-Transfer-Encoding:", 27, NULL, NULL);
+
+				uint8_t lenHdrMsgId = 0;
+				unsigned char hdrMsgId[256];
+				moveHeader(body, &lenBody, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId);
+				if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
+				if (hdrMsgId[0] == '<') {
+					memcpy(email.msgId, hdrMsgId + 1, lenHdrMsgId - 1);
+					email.lenMsgId = lenHdrMsgId - 1;
+				} else {
+					memcpy(email.msgId, hdrMsgId, lenHdrMsgId);
+					email.lenMsgId = lenHdrMsgId;
+				}
+			}
+
+			deliverMessage(to, toCount, (unsigned char*)body, lenBody, &email);
 
 			sodium_memzero(&email, sizeof(struct emailInfo));
-			sodium_memzero(to, lenTo);
-			sodium_memzero(body, lenBody);
 
-			lenTo = 0;
+			sodium_memzero(body, lenBody);
 			lenBody = 0;
 			free(body);
+
+			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
+			toCount = 0;
 
 			if (bytes < 1) break;
 			continue;
