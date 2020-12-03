@@ -105,10 +105,16 @@ void takeConnections(void) {
 			switch (dec[0]) {
 				case AEM_ENQUIRY_IP: {
 					if (lenDec != 5) break;
-					const uint16_t resp = getCountryCode(*((uint32_t*)(dec + 1)));
-					send(sock, &resp, 2, 0);
+					const uint32_t ip = *((uint32_t*)(dec + 1));
 
-					// TODO: PTR record
+					unsigned char resp[129];
+					const uint16_t cc = getCountryCode(ip);
+					memcpy(resp, &cc, 2);
+
+					int lenPtr = 0;
+					getPtr(ip, resp + 2, &lenPtr);
+
+					send(sock, &resp, (lenPtr < 1) ? 2 : 2 + lenPtr, 0);
 				break;}
 
 				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
