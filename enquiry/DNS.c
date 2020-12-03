@@ -30,8 +30,10 @@
 #define AEM_DNS_SERVER_PORT "853" // DNS over TLS
 #define AEM_DNS_BUFLEN 512
 
-static int makeSocket(void) {
-	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+static int sock;
+
+static int connectSocket(void) {
+	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
 
 	struct sockaddr_in myaddr;
@@ -41,13 +43,11 @@ static int makeSocket(void) {
 
 	if (connect(sock, &myaddr, sizeof(struct sockaddr_in)) != 0) {syslog(LOG_ERR, "Failed connect(): %m"); close(sock); return -1;}
 
-	return sock;
+	return 0;
 }
 
-int makeTlsSocket(void) {
-	// Connect
-	int sock = makeSocket();
-	if (sock < 0) return -1;
+int connectTls(void) {
+	if (connectSocket() < 0) return -1;
 
 	mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST);
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -58,6 +58,7 @@ int makeTlsSocket(void) {
 			syslog(LOG_ERR, "Failed TLS handshake: %x", -ret);
 			mbedtls_ssl_close_notify(&ssl);
 			mbedtls_ssl_session_reset(&ssl);
+			close(sock);
 			return -1;
 		}
 	}
@@ -67,6 +68,7 @@ int makeTlsSocket(void) {
 		syslog(LOG_ERR, "Failed verifying cert");
 		mbedtls_ssl_close_notify(&ssl);
 		mbedtls_ssl_session_reset(&ssl);
+		close(sock);
 		return -1;
 	}
 
@@ -84,9 +86,6 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
 	*lenMxDomain = 0;
 
-	int sock = makeTlsSocket();
-	if (sock < 0) return 0;
-
 	size_t lenQuestion = 0;
 	unsigned char question[256];
 
@@ -97,6 +96,8 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	bzero(req, 100);
 
 	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
+
+	if (connectTls() < 0) return 0;
 
 	int ret;
 	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
@@ -144,9 +145,6 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	if (ip == 0 || ptr == NULL || lenPtr == NULL) return -1;
 
-	int sock = makeTlsSocket();
-	if (sock < 0) return -1;
-
 	size_t lenQuestion = 0;
 	unsigned char question[256];
 
@@ -160,6 +158,8 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
 
 	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, reqDomain, strlen((char*)reqDomain), AEM_DNS_RECORDTYPE_PTR);
+
+	if (connectTls() < 0) return -1;
 
 	int ret;
 	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
