@@ -143,6 +143,8 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 void deliverMessage(char to[][32], const int toCount, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email) {
 	if (to == NULL || toCount < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
 
+	if (toCount > 1) email->toMultiple = true;
+
 	if (email->attachCount > 31) email->attachCount = 31;
 	if (email->tls_version >  7) email->tls_version =  7;
 
