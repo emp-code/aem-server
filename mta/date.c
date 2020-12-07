@@ -59,19 +59,19 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	offset = 1;
 	while (b[offset] == ' ') offset++;
 
-	int hour = strtol(b + offset, &end, 10);
+	const int hour = strtol(b + offset, &end, 10);
 	if (*end != ':') return 0;
 	b = end;
 	offset = 1;
 	while (b[offset] == ' ') offset++;
 
-	int min = strtol(b + offset, &end, 10);
+	const int min = strtol(b + offset, &end, 10);
 	if (*end != ':') return 0;
 	b = end;
 	offset = 1;
 	while (b[offset] == ' ') offset++;
 
-	int sec = strtol(b + offset, &end, 10);
+	const int sec = strtol(b + offset, &end, 10);
 	if (*end != ' ') return 0;
 	b = end;
 	offset = 0;
