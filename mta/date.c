@@ -5,6 +5,22 @@
 
 #include "date.h"
 
+int monthFromName(const char * const c) {
+	if (strncasecmp(c, "Jan", 3) == 0) return 0;
+	if (strncasecmp(c, "Feb", 3) == 0) return 1;
+	if (strncasecmp(c, "Mar", 3) == 0) return 2;
+	if (strncasecmp(c, "Apr", 3) == 0) return 3;
+	if (strncasecmp(c, "May", 3) == 0) return 4;
+	if (strncasecmp(c, "Jun", 3) == 0) return 5;
+	if (strncasecmp(c, "Jul", 3) == 0) return 6;
+	if (strncasecmp(c, "Aug", 3) == 0) return 7;
+	if (strncasecmp(c, "Sep", 3) == 0) return 8;
+	if (strncasecmp(c, "Oct", 3) == 0) return 9;
+	if (strncasecmp(c, "Nov", 3) == 0) return 10;
+	if (strncasecmp(c, "Dec", 3) == 0) return 11;
+	return -1;
+}
+
 time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (b == NULL || b[0] == '\0') return 0;
 
@@ -29,19 +45,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	offset = 0;
 	while (b[offset] == ' ') offset++;
 
-	int mon = -1;
-	if      (strncasecmp(b + offset, "Jan", 3) == 0) mon = 0;
-	else if (strncasecmp(b + offset, "Feb", 3) == 0) mon = 1;
-	else if (strncasecmp(b + offset, "Mar", 3) == 0) mon = 2;
-	else if (strncasecmp(b + offset, "Apr", 3) == 0) mon = 3;
-	else if (strncasecmp(b + offset, "May", 3) == 0) mon = 4;
-	else if (strncasecmp(b + offset, "Jun", 3) == 0) mon = 5;
-	else if (strncasecmp(b + offset, "Jul", 3) == 0) mon = 6;
-	else if (strncasecmp(b + offset, "Aug", 3) == 0) mon = 7;
-	else if (strncasecmp(b + offset, "Sep", 3) == 0) mon = 8;
-	else if (strncasecmp(b + offset, "Oct", 3) == 0) mon = 9;
-	else if (strncasecmp(b + offset, "Nov", 3) == 0) mon = 10;
-	else if (strncasecmp(b + offset, "Dec", 3) == 0) mon = 11;
+	const int mon = monthFromName(b + offset);
 	if (mon == -1) return 0;
 
 	offset += 3;
