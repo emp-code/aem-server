@@ -105,7 +105,7 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	content[14] = (email->lenEnvTo & 31) | (email->spf & 192);
 	if (email->greetingIpMatch)   content[14] |=  32;
 
-	content[15] = (email->certKeysize & 224) | (email->lenHeaderTo & 31);
+	content[15] = (email->certType & 224) | (email->lenHeaderTo & 31);
 
 	content[16] = email->lenGreeting & 127;
 	if (email->dnssec) content[16] |= 128;

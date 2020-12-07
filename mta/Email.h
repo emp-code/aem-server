@@ -6,6 +6,15 @@
 
 #include "../Global.h"
 
+#define AEM_EMAIL_CERT_EDDSA  224
+#define AEM_EMAIL_CERT_EC_521 192
+#define AEM_EMAIL_CERT_EC_384 160
+#define AEM_EMAIL_CERT_EC_256 128
+#define AEM_EMAIL_CERT_RSA_4K 96
+#define AEM_EMAIL_CERT_RSA_2K 64
+#define AEM_EMAIL_CERT_RSA_1K 32
+#define AEM_EMAIL_CERT_NONE   0
+
 struct emailInfo {
 	unsigned char ccBytes[2];
 	uint32_t timestamp;
@@ -30,7 +39,7 @@ struct emailInfo {
 
 	// Client Cert
 	unsigned char certInfo;
-	unsigned char certKeysize;
+	unsigned char certType;
 
 	// The four under-128 fields
 	uint8_t lenEnvTo;

@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <mbedtls/pk.h>
 #include <sodium.h>
 
 #include "../Common/QuotedPrintable.h"
@@ -45,6 +46,24 @@ static struct emailInfo email;
 
 void setSignKey_mta(const unsigned char * const seed) {
 	return setSignKey(seed);
+}
+
+static unsigned char getCertType(const mbedtls_x509_crt * const cert) {
+	if (cert == NULL) return AEM_EMAIL_CERT_NONE;
+
+	const size_t keyBits = mbedtls_pk_get_bitlen(&cert->pk);
+
+	if (strcmp(mbedtls_pk_get_name(&cert->pk), "RSA") == 0) {
+		if      (keyBits >= 4096) return AEM_EMAIL_CERT_RSA_4K;
+		else if (keyBits >= 2048) return AEM_EMAIL_CERT_RSA_2K;
+		else if (keyBits >= 1024) return AEM_EMAIL_CERT_RSA_1K;
+	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EC") == 0) {
+		if      (keyBits >= 521) return AEM_EMAIL_CERT_EC_521;
+		else if (keyBits >= 384) return AEM_EMAIL_CERT_EC_384;
+		else if (keyBits >= 256) return AEM_EMAIL_CERT_EC_256;
+	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EDDSA") == 0) return AEM_EMAIL_CERT_EDDSA;
+
+	return AEM_EMAIL_CERT_NONE;
 }
 
 __attribute__((warn_unused_result))
@@ -249,6 +268,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 		email.tls_version = getTlsVersion(tls);
+		email.certType = getCertType(mbedtls_ssl_get_peer_cert(tls));
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
