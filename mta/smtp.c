@@ -13,6 +13,7 @@
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
 
+#include "date.h"
 #include "delivery.h"
 #include "processing.h"
 
@@ -425,6 +426,17 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				} else {
 					memcpy(email.msgId, hdrMsgId, lenHdrMsgId);
 					email.lenMsgId = lenHdrMsgId;
+				}
+
+				uint8_t lenHdrDate = 0;
+				unsigned char hdrDate[256];
+				moveHeader(body, &lenBody, "\nDate:", 6, hdrDate, &lenHdrDate);
+				const time_t hdrTime = smtp_getTime((char*)hdrDate, &email.headerTz);
+
+				if (hdrTime > 0) {
+					// Store the difference between received and header timestamps (-18h .. +736s)
+					const time_t timeDiff = (time_t)email.timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
+					email.headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 				}
 			}
 

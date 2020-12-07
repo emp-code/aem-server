@@ -74,7 +74,7 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	}
 
 	// Create the ExtMsg
-	const size_t lenContent = 22 + ((email->dkimCount & 7) * 4) + lenComp;
+	const size_t lenContent = 23 + ((email->dkimCount & 7) * 4) + lenComp;
 	unsigned char * const content = malloc(lenContent);
 	if (content == NULL) {
 		free(comp);
@@ -89,7 +89,7 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	memcpy(content + 5, &email->ip, 4);
 	memcpy(content + 9, &email->tls_ciphersuite, 2);
 
-	// The 8 InfoBytes
+	// The 10 InfoBytes
 	content[11] = (email->tls_version << 5) | (email->attachCount & 31);
 
 	content[12] = email->ccBytes[0];
@@ -98,30 +98,32 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	if (email->protocolViolation) content[12] |=  32;
 
 	content[13] = email->ccBytes[1];
-	if (email->invalidCommands)   content[13] |=  128;
-	if (email->rareCommands)      content[13] |=   64;
-	if (email->toMultiple)        content[13] |=   32;
+	if (email->invalidCommands)   content[13] |= 128;
+	if (email->rareCommands)      content[13] |=  64;
+	if (email->toMultiple)        content[13] |=  32;
 
 	content[14] = (email->lenEnvTo & 31) | (email->spf & 192);
-	if (email->greetingIpMatch)   content[14] |=   32;
+	if (email->greetingIpMatch)   content[14] |=  32;
 
-	content[15] = (email->lenHeaderTo & 31) | (email->dmarc & 192);
-	if (email->ipBlacklisted)     content[15] |=  32;
+	content[15] = (email->certKeysize & 224) | (email->lenHeaderTo & 31);
 
 	content[16] = email->lenGreeting & 127;
-	if (email->dnssec)            content[16] |=  128;
+	if (email->dnssec) content[16] |= 128;
 
 	content[17] = email->lenRdns & 127;
-	if (email->dane)              content[17] |=  128;
+	if (email->dane) content[17] |= 128;
 
-	content[18] = email->certInfo;
+	content[18] = email->dmarc & 192; // TODO: CertInfo
+
 	content[19] = (email->caa & 192) | /* 48 open  |*/ (email->dkimCount & 7);
 
-	content[20] = email->headerTz;
-	content[21] = email->headerTs;
+	content[20] = email->headerTz & 127;
+	if (email->ipBlacklisted) content[20] |=  128;
+
+	memcpy(content + 21, &email->headerTs, 2);
 
 	// DKIM
-	offset = 22;
+	offset = 23;
 	for (int i = 0; i < (email->dkimCount & 7); i++) {
 		memcpy(content + offset, email->dkimInfo[i], 4);
 		offset += 4;

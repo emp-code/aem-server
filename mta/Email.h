@@ -27,7 +27,10 @@ struct emailInfo {
 	bool greetingIpMatch;
 	bool dnssec;
 	bool dane;
+
+	// Client Cert
 	unsigned char certInfo;
+	unsigned char certKeysize;
 
 	// The four under-128 fields
 	uint8_t lenEnvTo;
@@ -57,7 +60,7 @@ struct emailInfo {
 
 	// Header time info
 	unsigned char headerTz;
-	uint32_t headerTs;
+	uint16_t headerTs;
 
 	// DKIM
 	uint8_t dkimCount;
