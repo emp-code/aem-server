@@ -13,6 +13,6 @@ int prepareHeaders(char * const data, size_t * const lenData);
 void unfoldHeaders(char * const data, size_t * const lenData);
 void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email);
 
-void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget);
+void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit);
 
 #endif

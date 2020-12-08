@@ -49,19 +49,19 @@ void setSignKey_mta(const unsigned char * const seed) {
 	return setSignKey(seed);
 }
 
-static unsigned char getCertType(const mbedtls_x509_crt * const cert) {
+static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return AEM_EMAIL_CERT_NONE;
 
 	const size_t keyBits = mbedtls_pk_get_bitlen(&cert->pk);
 
 	if (strcmp(mbedtls_pk_get_name(&cert->pk), "RSA") == 0) {
-		if      (keyBits >= 4096) return AEM_EMAIL_CERT_RSA_4K;
-		else if (keyBits >= 2048) return AEM_EMAIL_CERT_RSA_2K;
-		else if (keyBits >= 1024) return AEM_EMAIL_CERT_RSA_1K;
+		if      (keyBits >= 4096) return AEM_EMAIL_CERT_RSA4K;
+		else if (keyBits >= 2048) return AEM_EMAIL_CERT_RSA2K;
+		else if (keyBits >= 1024) return AEM_EMAIL_CERT_RSA1K;
 	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EC") == 0) {
-		if      (keyBits >= 521) return AEM_EMAIL_CERT_EC_521;
-		else if (keyBits >= 384) return AEM_EMAIL_CERT_EC_384;
-		else if (keyBits >= 256) return AEM_EMAIL_CERT_EC_256;
+		if      (keyBits >= 521) return AEM_EMAIL_CERT_EC521;
+		else if (keyBits >= 384) return AEM_EMAIL_CERT_EC384;
+		else if (keyBits >= 256) return AEM_EMAIL_CERT_EC256;
 	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EDDSA") == 0) return AEM_EMAIL_CERT_EDDSA;
 
 	return AEM_EMAIL_CERT_NONE;
@@ -90,21 +90,21 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 
 		if (name != NULL && lenName > 0) {
 			// TODO: Support wildcards: *.example.com
-			if (lenName == email.lenGreeting && memcmp(name, email.greeting, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_GREETING;
-			if (lenName == email.lenRdns     && memcmp(name, email.rdns,     lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_RDNS;
+			if (lenName == email.lenGreeting && memcmp(name, email.greeting, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREETING;
+			if (lenName == email.lenRdns     && memcmp(name, email.rdns,     lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RDNS;
 
 			const unsigned char *envFrom = memchr(email.envFrom, '@', email.lenEnvFrom);
 			if (envFrom != NULL) {
 				envFrom++;
 				const size_t lenEnvFrom = email.lenEnvFrom - (envFrom - email.envFrom);
-				if (lenName == lenEnvFrom && memcmp(name, envFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM;
+				if (lenName == lenEnvFrom && memcmp(name, envFrom, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM;
 			}
 
 			const unsigned char *hdrFrom = memchr(email.headerFrom, '@', email.lenHeaderFrom);
 			if (hdrFrom != NULL) {
 				hdrFrom++;
 				const size_t lenHdrFrom = email.lenHeaderFrom - (hdrFrom - email.headerFrom);
-				if (lenName == lenHdrFrom && memcmp(name, hdrFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM;
+				if (lenName == lenHdrFrom && memcmp(name, hdrFrom, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM;
 			}
 		}
 	}
@@ -335,9 +335,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		clientCert = mbedtls_ssl_get_peer_cert(tls);
-		email.certType = getCertType(clientCert);
+		email.tlsInfo = getCertType(clientCert) | getTlsVersion(tls);
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-		email.tls_version = getTlsVersion(tls);
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
@@ -496,18 +495,18 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				trimEnd(body, &lenBody);
 
 				// Headers moved to the emailInfo struct
-				moveHeader(body, &lenBody, "\nSubject:", 9, email.subject, &email.lenSubject);
-				moveHeader(body, &lenBody, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom);
-				moveHeader(body, &lenBody, "\nTo:", 4, email.headerTo, &email.lenHeaderTo);
+				moveHeader(body, &lenBody, "\nSubject:", 9, email.subject, &email.lenSubject, 255);
+				moveHeader(body, &lenBody, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
+				moveHeader(body, &lenBody, "\nTo:", 4, email.headerTo, &email.lenHeaderTo, 63);
 
 				// Headers removed entirely
-				moveHeader(body, &lenBody, "\nMIME-Version:", 14, NULL, NULL);
-				moveHeader(body, &lenBody, "\nContent-Type:", 14, NULL, NULL);
-				moveHeader(body, &lenBody, "\nContent-Transfer-Encoding:", 27, NULL, NULL);
+				moveHeader(body, &lenBody, "\nMIME-Version:", 14, NULL, NULL, 0);
+				moveHeader(body, &lenBody, "\nContent-Type:", 14, NULL, NULL, 0);
+				moveHeader(body, &lenBody, "\nContent-Transfer-Encoding:", 27, NULL, NULL, 0);
 
 				uint8_t lenHdrMsgId = 0;
 				unsigned char hdrMsgId[256];
-				moveHeader(body, &lenBody, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId);
+				moveHeader(body, &lenBody, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId, 255);
 				if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
 				if (hdrMsgId[0] == '<') {
 					memcpy(email.msgId, hdrMsgId + 1, lenHdrMsgId - 1);
@@ -519,7 +518,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 				uint8_t lenHdrDate = 0;
 				unsigned char hdrDate[256];
-				moveHeader(body, &lenBody, "\nDate:", 6, hdrDate, &lenHdrDate);
+				moveHeader(body, &lenBody, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
 				const time_t hdrTime = smtp_getTime((char*)hdrDate, &email.headerTz);
 
 				if (hdrTime > 0) {

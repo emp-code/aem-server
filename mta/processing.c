@@ -15,7 +15,7 @@
 
 #define AEM_LIMIT_MULTIPARTS 50
 
-void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget) {
+void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
 	char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
 	if (headersEnd == NULL) return;
 	size_t lenHeaders = headersEnd - data;
@@ -26,7 +26,7 @@ void moveHeader(char * const data, size_t * const lenData, const char * const ne
 		if (hdrEnd != NULL) {
 			if (target != NULL || lenTarget != NULL) {
 				const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
-				if (lenTgt > 255) return;
+				if (lenTgt > limit) return;
 				*lenTarget = lenTgt;
 				memcpy(target, hdr + lenNeedle, *lenTarget);
 			}

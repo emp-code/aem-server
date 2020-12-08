@@ -40,8 +40,12 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 }
 
 __attribute__((warn_unused_result))
-static unsigned char *makeExtMsg(const unsigned char * const body, const size_t lenBody, const struct emailInfo * const email, size_t * const lenOut) {
+static unsigned char *makeExtMsg(const unsigned char * const body, const size_t lenBody, struct emailInfo * const email, size_t * const lenOut) {
 	if (lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
+
+	if (email->lenHeaderTo >  63) email->lenHeaderTo =  63;
+	if (email->lenGreeting > 127) email->lenGreeting = 127;
+	if (email->lenRdns     > 127) email->lenRdns     = 127;
 
 	// Data to be compressed
 	const size_t lenUncomp = email->lenGreeting + email->lenRdns + email->lenEnvTo + email->lenHeaderTo + email->lenEnvFrom + email->lenHeaderFrom + email->lenMsgId + email->lenSubject + 4 + lenBody;
@@ -50,13 +54,13 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 
 	size_t offset = 0;
 
-	// The four under-128 fields
+	// The four short text fields
 	memcpy(uncomp + offset, email->envTo,    email->lenEnvTo);    offset += email->lenEnvTo;
 	memcpy(uncomp + offset, email->headerTo, email->lenHeaderTo); offset += email->lenHeaderTo;
 	memcpy(uncomp + offset, email->greeting, email->lenGreeting); offset += email->lenGreeting;
 	memcpy(uncomp + offset, email->rdns,     email->lenRdns);     offset += email->lenRdns;
 
-	// The four under-256 fields
+	// The four long text fields
 	memcpy(uncomp + offset, email->envFrom,    email->lenEnvFrom);    offset += email->lenEnvFrom;    uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->headerFrom, email->lenHeaderFrom); offset += email->lenHeaderFrom; uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->msgId,      email->lenMsgId);      offset += email->lenMsgId;      uncomp[offset] = '\n'; offset++;
@@ -88,37 +92,34 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	// ExtMsg Part
 	memcpy(content + 5, &email->ip, 4);
 	memcpy(content + 9, &email->tls_ciphersuite, 2);
+	memcpy(content + 11, &email->tlsInfo, 2);
 
-	// The 10 InfoBytes
-	content[11] = (email->tls_version << 5) | (email->attachCount & 31);
+	// The 8 InfoBytes
+	content[13] = ((email->dkimCount & 7) << 5) | (email->attachCount & 31);
 
-	content[12] = email->ccBytes[0];
-	if (email->protocolEsmtp)     content[12] |= 128;
-	if (email->quitReceived)      content[12] |=  64;
-	if (email->protocolViolation) content[12] |=  32;
+	content[14] = email->ccBytes[0];
+	if (email->protocolEsmtp)     content[14] |= 128;
+	if (email->quitReceived)      content[14] |=  64;
+	if (email->protocolViolation) content[14] |=  32;
 
-	content[13] = email->ccBytes[1];
-	if (email->invalidCommands)   content[13] |= 128;
-	if (email->rareCommands)      content[13] |=  64;
-	if (email->toMultiple)        content[13] |=  32;
+	content[15] = email->ccBytes[1];
+	if (email->invalidCommands) content[15] |= 128;
+	if (email->rareCommands)    content[15] |=  64;
+	if (email->toMultiple)      content[15] |=  32;
 
-	content[14] = (email->lenEnvTo & 31) | (email->spf & 192);
-	if (email->greetingIpMatch)   content[14] |=  32;
+	content[16] = (email->spf & 192) | (email->lenEnvTo & 31);
+	if (email->greetingIpMatch) content[16] |=  32;
 
-	content[15] = (email->certType & 224) | (email->lenHeaderTo & 31);
+	content[17] = (email->dmarc & 192) | (email->lenHeaderTo & 63);
 
-	content[16] = email->lenGreeting & 127;
-	if (email->dnssec) content[16] |= 128;
+	content[18] = email->lenGreeting & 127;
+	if (email->ipBlacklisted) content[18] |= 128;
 
-	content[17] = email->lenRdns & 127;
-	if (email->dane) content[17] |= 128;
-
-	content[18] = (email->dmarc & 192) | (email->certInfo & 63);
-
-	content[19] = (email->caa & 192) | /* 48 open  |*/ (email->dkimCount & 7);
+	content[19] = email->lenRdns & 127;
+	if (email->dnssec) content[19] |= 128;
 
 	content[20] = email->headerTz & 127;
-	if (email->ipBlacklisted) content[20] |=  128;
+	if (email->dane) content[20] |= 128;
 
 	memcpy(content + 21, &email->headerTs, 2);
 
@@ -146,13 +147,7 @@ void deliverMessage(char to[][32], const int toCount, const unsigned char * cons
 	if (to == NULL || toCount < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
 
 	if (toCount > 1) email->toMultiple = true;
-
-	if (email->attachCount > 31) email->attachCount = 31;
-	if (email->tls_version >  7) email->tls_version =  7;
-
-	if (email->lenGreeting > 127) email->lenGreeting = 127;
-	if (email->lenEnvTo    > 127) email->lenEnvTo    = 127;
-	if (email->lenEnvFrom  > 127) email->lenEnvFrom  = 127;
+	if (email->attachCount >  31) email->attachCount =  31;
 
 	// Deliver
 	for (int i = 0; i < toCount; i++) {
@@ -174,6 +169,7 @@ void deliverMessage(char to[][32], const int toCount, const unsigned char * cons
 		if (ret != 0) continue;
 
 		email->lenEnvTo = strlen(to[i]);
+		if (email->lenEnvTo > 31) email->lenEnvTo = 31;
 		memcpy(email->envTo, to[i], email->lenEnvTo);
 
 		size_t lenEnc = 0;
