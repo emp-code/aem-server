@@ -68,6 +68,8 @@ static unsigned char getCertType(const mbedtls_x509_crt * const cert) {
 }
 
 static void getCertNames(const mbedtls_x509_crt * const cert) {
+	if (cert == NULL) return;
+
 	const size_t lenName = cert->subject.val.len;
 	const unsigned char * const name = cert->subject.val.p;
 	if (name != NULL) {
