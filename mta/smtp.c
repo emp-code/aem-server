@@ -71,10 +71,22 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 	const size_t lenName = cert->subject.val.len;
 	const unsigned char * const name = cert->subject.val.p;
 	if (name != NULL) {
-		if (lenName == email.lenEnvFrom    && memcmp(name, email.envFrom,    lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM; else syslog(LOG_INFO, "H=%.*s", (int)email.lenEnvFrom, email.envFrom);
-		if (lenName == email.lenHeaderFrom && memcmp(name, email.headerFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM; else syslog(LOG_INFO, "h=%.*s", (int)email.lenHeaderFrom, email.headerFrom);
-		if (lenName == email.lenGreeting   && memcmp(name, email.greeting,   lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_GREETING; else syslog(LOG_INFO, "G=%.*s", (int)email.lenGreeting, email.greeting);
-		if (lenName == email.lenRdns       && memcmp(name, email.rdns,       lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_RDNS; else syslog(LOG_INFO, "R=%.*s", (int)email.lenRdns, email.rdns);
+		if (lenName == email.lenGreeting && memcmp(name, email.greeting, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_GREETING;
+		if (lenName == email.lenRdns     && memcmp(name, email.rdns,     lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_RDNS;
+
+		const unsigned char *envFrom = memchr(email.envFrom, '@', email.lenEnvFrom);
+		if (envFrom != NULL) {
+			envFrom++;
+			const size_t lenEnvFrom = email.lenEnvFrom - (envFrom - email.envFrom);
+			if (lenName == lenEnvFrom && memcmp(name, envFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM;
+		}
+
+		const unsigned char *hdrFrom = memchr(email.headerFrom, '@', email.lenHeaderFrom);
+		if (hdrFrom != NULL) {
+			hdrFrom++;
+			const size_t lenHdrFrom = email.lenHeaderFrom - (hdrFrom - email.headerFrom);
+			if (lenName == lenHdrFrom && memcmp(name, hdrFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM;
+		}
 	}
 }
 
