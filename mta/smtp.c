@@ -13,6 +13,7 @@
 #include "../Common/QuotedPrintable.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
+#include "../Common/UnixSocketClient.h"
 
 #include "date.h"
 #include "delivery.h"
@@ -64,6 +65,40 @@ static unsigned char getCertType(const mbedtls_x509_crt * const cert) {
 	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EDDSA") == 0) return AEM_EMAIL_CERT_EDDSA;
 
 	return AEM_EMAIL_CERT_NONE;
+}
+
+static void getCertNames(const mbedtls_x509_crt * const cert) {
+	const size_t lenName = cert->subject.val.len;
+	const unsigned char * const name = cert->subject.val.p;
+	if (name != NULL) {
+		if (lenName == email.lenEnvFrom    && memcmp(name, email.envFrom,    lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM; else syslog(LOG_INFO, "H=%.*s", (int)email.lenEnvFrom, email.envFrom);
+		if (lenName == email.lenHeaderFrom && memcmp(name, email.headerFrom, lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM; else syslog(LOG_INFO, "h=%.*s", (int)email.lenHeaderFrom, email.headerFrom);
+		if (lenName == email.lenGreeting   && memcmp(name, email.greeting,   lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_GREETING; else syslog(LOG_INFO, "G=%.*s", (int)email.lenGreeting, email.greeting);
+		if (lenName == email.lenRdns       && memcmp(name, email.rdns,       lenName) == 0) email.certInfo |= AEM_EMAIL_CERT_MATCH_RDNS; else syslog(LOG_INFO, "R=%.*s", (int)email.lenRdns, email.rdns);
+	}
+}
+
+static void getIpInfo(void) {
+	email.lenRdns = 0;
+	email.ccBytes[0] |= 31;
+	email.ccBytes[1] |= 31;
+
+	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email.ip, 4);
+	if (sock >= 0) {
+		unsigned char ipInfo[129];
+		const int lenIpInfo = recv(sock, ipInfo, 129, 0);
+
+		if (lenIpInfo >= 2) {
+			memcpy(email.ccBytes, ipInfo, 2);
+
+			if (lenIpInfo > 2) {
+				email.lenRdns = lenIpInfo - 2;
+				memcpy(email.rdns, ipInfo + 2, email.lenRdns);
+			}
+		}
+
+		close(sock);
+	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
 }
 
 __attribute__((warn_unused_result))
@@ -228,6 +263,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
 
 	mbedtls_ssl_context *tls = NULL;
+	const mbedtls_x509_crt *clientCert = NULL;
 
 	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
 		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
@@ -266,9 +302,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
+		clientCert = mbedtls_ssl_get_peer_cert(tls);
+		email.certType = getCertType(clientCert);
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 		email.tls_version = getTlsVersion(tls);
-		email.certType = getCertType(mbedtls_ssl_get_peer_cert(tls));
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
@@ -459,6 +496,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					email.headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 				}
 			}
+
+			getIpInfo();
+			getCertNames(clientCert);
 
 			deliverMessage(to, toCount, (unsigned char*)body, lenBody, &email);
 

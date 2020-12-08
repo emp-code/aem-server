@@ -113,7 +113,7 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	content[17] = email->lenRdns & 127;
 	if (email->dane) content[17] |= 128;
 
-	content[18] = email->dmarc & 192; // TODO: CertInfo
+	content[18] = (email->dmarc & 192) | (email->certInfo & 63);
 
 	content[19] = (email->caa & 192) | /* 48 open  |*/ (email->dkimCount & 7);
 
@@ -153,28 +153,6 @@ void deliverMessage(char to[][32], const int toCount, const unsigned char * cons
 	if (email->lenGreeting > 127) email->lenGreeting = 127;
 	if (email->lenEnvTo    > 127) email->lenEnvTo    = 127;
 	if (email->lenEnvFrom  > 127) email->lenEnvFrom  = 127;
-	email->lenRdns = 0;
-
-	// Get countrycode
-	email->ccBytes[0] = 31;
-	email->ccBytes[1] = 31;
-
-	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email->ip, 4);
-	if (sock >= 0) {
-		unsigned char ipInfo[129];
-		const int lenIpInfo = recv(sock, ipInfo, 129, 0);
-
-		if (lenIpInfo >= 2) {
-			memcpy(email->ccBytes, ipInfo, 2);
-
-			if (lenIpInfo > 2) {
-				email->lenRdns = lenIpInfo - 2;
-				memcpy(email->rdns, ipInfo + 2, email->lenRdns);
-			}
-		}
-
-		close(sock);
-	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
 
 	// Deliver
 	for (int i = 0; i < toCount; i++) {

@@ -15,6 +15,11 @@
 #define AEM_EMAIL_CERT_RSA_1K 32
 #define AEM_EMAIL_CERT_NONE   0
 
+#define AEM_EMAIL_CERT_MATCH_ENVFROM    8
+#define AEM_EMAIL_CERT_MATCH_HEADERFROM 4
+#define AEM_EMAIL_CERT_MATCH_GREETING   2
+#define AEM_EMAIL_CERT_MATCH_RDNS       1
+
 struct emailInfo {
 	unsigned char ccBytes[2];
 	uint32_t timestamp;
