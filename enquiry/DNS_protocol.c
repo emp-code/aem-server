@@ -105,10 +105,7 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 		switch (msg[offset] & 192) {
 			case 192: { // Pointer (ends label)
 				if (!allowPointer) {syslog(LOG_ERR, "DNS: Pointer-to-pointer"); return -1;}
-				const unsigned char tmp[] = {msg[offset + 1], msg[offset] & 63};
-				const uint16_t p = *((uint16_t*)tmp);
-
-				rr_getName(msg, lenMsg, p, name, lenName, false);
+				rr_getName(msg, lenMsg, *(uint16_t*)(uint8_t[]){msg[offset + 1], msg[offset] & 63}, name, lenName, false); // rrOffset = pointer location
 				return offset + 2;
 			}
 			case 0: { // Normal
