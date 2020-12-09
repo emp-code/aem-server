@@ -46,7 +46,6 @@ static void acceptClients(void) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
-	close(argv[0][0]);
 
 	acceptClients();
 

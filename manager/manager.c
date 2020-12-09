@@ -382,6 +382,9 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
+	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI)
+		close(pipefd);
+
 	char arg1[] = {pipefd, '\0'};
 	char * const newargv[] = {arg1, NULL};
 	char * const emptyEnviron[] = {NULL};

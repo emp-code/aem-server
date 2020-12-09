@@ -135,9 +135,6 @@ int main(int argc, char *argv[]) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-//	if (read(argv[0][0], accessKey, AEM_LEN_ACCESSKEY) != AEM_LEN_ACCESSKEY) {syslog(LOG_ERR, "Terminating: Failed loading AccessKey"); return EXIT_FAILURE;}
-	close(argv[0][0]);
-
 	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed tlsSetup()"); return EXIT_FAILURE;}
 
 	syslog(LOG_INFO, "Ready");
