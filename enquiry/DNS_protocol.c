@@ -36,7 +36,7 @@ static uint32_t validIp(const uint32_t ip) {
 	) ? 0 : ip;
 }
 
-int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const unsigned char queryType[2]) {
+int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
 	memcpy(rq + 2, &id, 2);
 
 	// 16-bit flags field, entry counts
@@ -85,7 +85,7 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 	}
 
 	question[*lenQuestion] = '\0'; // End of question
-	memcpy(question + *lenQuestion + 1, queryType, 2);
+	memcpy(question + *lenQuestion + 1, &queryType, 2);
 	memcpy(question + *lenQuestion + 3, "\0\1", 2); // Internet class
 	(*lenQuestion) += 5;
 
@@ -138,7 +138,7 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 	return -1;
 }
 
-static int getNameRecord(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const result, int * const lenResult, const unsigned char recordType[2]) {
+static int getNameRecord(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const result, int * const lenResult, const uint16_t recordType) {
 	uint16_t prio = UINT16_MAX;
 
 	for (int i = 0; i < answerCount; i++) {
@@ -149,7 +149,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		if (offset < 1) {syslog(LOG_ERR, "rr_getName failed"); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (memcmp(msg + offset + 0, recordType, 2) != 0) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+		if (*(uint16_t*)(msg + offset) != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
 		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Record not internet class"); return -1;}
 		// +4 TTL (32 bits) ignored
 
@@ -158,7 +158,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		memcpy((unsigned char*)&rdLen + 1, msg + offset + 8, 1);
 		if (rdLen < 1) {syslog(LOG_ERR, "rdLen"); return -1;}
 
-		if (memcmp(recordType, AEM_DNS_RECORDTYPE_MX, 2) == 0) {
+		if (recordType == AEM_DNS_RECORDTYPE_MX) {
 			uint16_t newPrio;
 			memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
 			memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
@@ -171,7 +171,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 			}
 
 			rrOffset = offset + 10 + rdLen; // offset is at byte after name-section
-		} else if (memcmp(recordType, AEM_DNS_RECORDTYPE_PTR, 2) == 0) {
+		} else if (recordType == AEM_DNS_RECORDTYPE_PTR) {
 			rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
 			return 0;
 		} else return -1;
@@ -243,7 +243,7 @@ uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res
 	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
 }
 
-int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const result, int * const lenResult, const unsigned char queryType[2]) {
+int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const result, int * const lenResult, const uint16_t queryType) {
 	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
 	if (answerCount <= 0) return -1;
 
