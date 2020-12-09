@@ -472,14 +472,6 @@ static void process_spawn(const int type) {
 	close(fd[1]);
 
 	switch (type) {
-		case AEM_PROCESSTYPE_MTA:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
-			aemPid[type][freeSlot] = pid;
-		break;
-
 		case AEM_PROCESSTYPE_ACCOUNT:
 			pid_account = pid;
 		break;
@@ -491,6 +483,9 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_ENQUIRY:
 			pid_enquiry = pid;
 		break;
+
+		default:
+			aemPid[type][freeSlot] = pid;
 	}
 }
 
