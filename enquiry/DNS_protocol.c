@@ -86,7 +86,7 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 
 	question[*lenQuestion] = '\0'; // End of question
 	memcpy(question + *lenQuestion + 1, &queryType, 2);
-	memcpy(question + *lenQuestion + 3, "\0\1", 2); // Internet class
+	memcpy(question + *lenQuestion + 3, (unsigned char[]){0,1}, 2); // Internet class
 	(*lenQuestion) += 5;
 
 	memcpy(rq + 14, question, *lenQuestion);
