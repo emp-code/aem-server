@@ -471,12 +471,27 @@ static void process_spawn(const int type) {
 
 	close(fd[1]);
 
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
-		aemPid[type][freeSlot] = pid;
+	switch (type) {
+		case AEM_PROCESSTYPE_MTA:
+		case AEM_PROCESSTYPE_WEB_CLR:
+		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI:
+			aemPid[type][freeSlot] = pid;
+		break;
+
+		case AEM_PROCESSTYPE_ACCOUNT:
+			pid_account = pid;
+		break;
+
+		case AEM_PROCESSTYPE_STORAGE:
+			pid_storage = pid;
+		break;
+
+		case AEM_PROCESSTYPE_ENQUIRY:
+			pid_enquiry = pid;
+		break;
 	}
-	else if (type == AEM_PROCESSTYPE_ACCOUNT) pid_account = pid;
-	else if (type == AEM_PROCESSTYPE_STORAGE) pid_storage = pid;
-	else if (type == AEM_PROCESSTYPE_ENQUIRY) pid_enquiry = pid;
 }
 
 static void process_kill(const int type, const pid_t pid, const int sig) {
