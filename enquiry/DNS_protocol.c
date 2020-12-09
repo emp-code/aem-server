@@ -40,7 +40,7 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 	memcpy(rq + 2, &id, 2);
 
 	// 16-bit flags field, entry counts
-	memcpy(rq + 4, "\1\0\0\1\0\0\0\0\0\0", 10);
+	memcpy(rq + 4, (unsigned char[]){1,0,0,1,0,0,0,0,0,0}, 10);
 	/*	00000001
 		[1] QR (Query/Response). 0 = Query, 1 = Response.
 		[4] OPCODE (kind of query). 0000 = Standard query.
@@ -195,7 +195,7 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 			memcpy((unsigned char*)&lenRecord + 0, rr + offset + 9, 1);
 			memcpy((unsigned char*)&lenRecord + 1, rr + offset + 8, 1);
 
-			if (memcmp(rr + offset, "\0\1\0\1", 4) == 0 && lenRecord == 4) { // A Record
+			if (memcmp(rr + offset, (unsigned char[]){0,1,0,1}, 4) == 0 && lenRecord == 4) { // A Record
 				uint32_t ip;
 				memcpy(&ip, rr + offset + 10, 4);
 				return ip;
@@ -224,10 +224,10 @@ static int getAnswerCount(const uint16_t reqId, const unsigned char * const res,
 	if (res[2] != 129 || (res[3] & 192) != 128) {syslog(LOG_ERR, "Invalid DNS answer"); return 0;}
 	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "DNS Error: %u", res[3] & 15); return 0;}
 
-	if (memcmp(res +  4, "\0\1", 2) != 0) {syslog(LOG_ERR, "QDCOUNT mismatch"); return 0;}
+	if (memcmp(res +  4, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "QDCOUNT mismatch"); return 0;}
 	// 6,7 ANCOUNT
-	if (memcmp(res +  8, "\0\0", 2) != 0) {syslog(LOG_ERR, "NSCOUNT mismatch"); return 0;}
-	if (memcmp(res + 10, "\0\0", 2) != 0) {syslog(LOG_ERR, "ARCOUNT mismatch"); return 0;}
+	if (memcmp(res +  8, (unsigned char[]){0,0}, 2) != 0) {syslog(LOG_ERR, "NSCOUNT mismatch"); return 0;}
+	if (memcmp(res + 10, (unsigned char[]){0,0}, 2) != 0) {syslog(LOG_ERR, "ARCOUNT mismatch"); return 0;}
 	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
 
 	uint16_t answerCount;
