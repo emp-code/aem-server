@@ -1,7 +1,7 @@
 #include <ctype.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <time.h>
-#include <stdlib.h>
 
 #include "date.h"
 
