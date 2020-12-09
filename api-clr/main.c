@@ -46,17 +46,12 @@ static void sigTerm(const int sig) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadPids(const int fd) {
-	pid_t pid;
+	pid_t pids[3];
+	if (read(fd, pids, sizeof(pid_t) * 3) != sizeof(pid_t) * 3) return -1;
 
-	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
-	setAccountPid(pid);
-
-	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
-	setStoragePid(pid);
-
-	if (read(fd, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
-	setEnquiryPid(pid);
-
+	setAccountPid(pids[0]);
+	setStoragePid(pids[1]);
+	setEnquiryPid(pids[2]);
 	return 0;
 }
 

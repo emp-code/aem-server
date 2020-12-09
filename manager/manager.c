@@ -446,9 +446,7 @@ static void process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_MTA:
 			if (
-			   write(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) != sizeof(pid_t)
+			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
 			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			) {
 				syslog(LOG_ERR, "Failed writing to pipe: %m");
@@ -458,9 +456,7 @@ static void process_spawn(const int type) {
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
 			if (
-			   write(fd[1], (unsigned char*)&pid_account, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(fd[1], (unsigned char*)&pid_storage, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(fd[1], (unsigned char*)&pid_enquiry, sizeof(pid_t)) != sizeof(pid_t)
+			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
 			|| write(fd[1], key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
 			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			) {
