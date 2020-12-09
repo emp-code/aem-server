@@ -382,13 +382,12 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
-	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI)
+	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
 		close(pipefd);
-
-	char arg1[] = {pipefd, '\0'};
-	char * const newargv[] = {arg1, NULL};
-	char * const emptyEnviron[] = {NULL};
-	fexecve(binfd[type], newargv, emptyEnviron);
+		fexecve(binfd[type], (char*[]){(char[]){0}, NULL}, (char*[]){NULL});
+	} else {
+		fexecve(binfd[type], (char*[]){(char[]){pipefd, 0}, NULL}, (char*[]){NULL});
+	}
 
 	// Only runs if exec failed
 	close(0); // pivot dir fd
