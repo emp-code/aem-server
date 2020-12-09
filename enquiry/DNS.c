@@ -86,16 +86,13 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
 	*lenMxDomain = 0;
 
-	size_t lenQuestion = 0;
-	unsigned char question[256];
-
 	uint16_t reqId;
 	randombytes_buf(&reqId, 2);
 
 	unsigned char req[100];
 	bzero(req, 100);
 
-	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
+	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
 
 	if (connectTls() < 0) return 0;
 
@@ -114,12 +111,10 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 	}
 
 	uint32_t ip = 0;
-	if (dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, question, lenQuestion, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 && *lenMxDomain > 4) { // a.bc
+	if (dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, domain, lenDomain, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 && *lenMxDomain > 4) { // a.bc
 		randombytes_buf(&reqId, 2);
 		bzero(req, 100);
-		bzero(question, 256);
-		lenQuestion = 0;
-		reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
+		reqLen = dnsCreateRequest(reqId, req, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 
 		do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 
@@ -133,7 +128,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 			return 0;
 		}
 
-		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, question, lenQuestion);
+		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
 	}
 
 	mbedtls_ssl_close_notify(&ssl);
@@ -145,9 +140,6 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	if (ip == 0 || ptr == NULL || lenPtr == NULL) return -1;
 
-	size_t lenQuestion = 0;
-	unsigned char question[256];
-
 	uint16_t reqId;
 	randombytes_buf(&reqId, 2);
 
@@ -156,8 +148,9 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 
 	unsigned char reqDomain[100];
 	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
+	const size_t lenReqDomain = strlen((char*)reqDomain);
 
-	int reqLen = dnsCreateRequest(reqId, req, question, &lenQuestion, reqDomain, strlen((char*)reqDomain), AEM_DNS_RECORDTYPE_PTR);
+	int reqLen = dnsCreateRequest(reqId, req, reqDomain, lenReqDomain, AEM_DNS_RECORDTYPE_PTR);
 
 	if (connectTls() < 0) return -1;
 
@@ -176,5 +169,5 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 		return -1;
 	}
 
-	return dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, question, lenQuestion, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
+	return dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, reqDomain, lenReqDomain, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
 }

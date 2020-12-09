@@ -36,7 +36,36 @@ static uint32_t validIp(const uint32_t ip) {
 	) ? 0 : ip;
 }
 
-int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char * const question, size_t * const lenQuestion, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
+static void domainToQuestion(unsigned char * const question, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
+	const unsigned char *dom = domain;
+
+	size_t copied = 0;
+	while(1) {
+		bool final = false;
+
+		const unsigned char *dot = memchr(dom, '.', (domain + lenDomain) - dom);
+		if (dot == NULL) {
+			dot = domain + lenDomain;
+			final = true;
+		}
+
+		const size_t sz = dot - dom;
+
+		question[copied] = sz;
+		memcpy(question + copied + 1, dom, sz);
+
+		copied += sz + 1;
+
+		if (final) break;
+		dom += sz + 1;
+	}
+
+	question[lenDomain + 1] = '\0';
+	memcpy(question + lenDomain + 2, &queryType, 2);
+	memcpy(question + lenDomain + 4, (unsigned char[]){0,1}, 2); // Internet class
+}
+
+int dnsCreateRequest(const uint16_t id, unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
 	memcpy(rq + 2, &id, 2);
 
 	// 16-bit flags field, entry counts
@@ -61,41 +90,13 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, unsigned char 
 		[16] ARCOUNT: Zero.
 	*/
 
-	// Convert domain name to question format
-	const unsigned char *dom = domain;
-
-	while(1) {
-		bool final = false;
-
-		const unsigned char *dot = memchr(dom, '.', (domain + lenDomain) - dom);
-		if (dot == NULL) {
-			dot = domain + lenDomain;
-			final = true;
-		}
-
-		const size_t sz = dot - dom;
-
-		question[*lenQuestion] = sz;
-		memcpy(question + *lenQuestion + 1, dom, sz);
-
-		(*lenQuestion) += sz + 1;
-
-		if (final) break;
-		dom += sz + 1;
-	}
-
-	question[*lenQuestion] = '\0'; // End of question
-	memcpy(question + *lenQuestion + 1, &queryType, 2);
-	memcpy(question + *lenQuestion + 3, (unsigned char[]){0,1}, 2); // Internet class
-	(*lenQuestion) += 5;
-
-	memcpy(rq + 14, question, *lenQuestion);
+	domainToQuestion(rq + 14, domain, lenDomain, queryType);
 
 	// TCP DNS messages start with a uint16_t indicating the length of the message (excluding the uint16_t itself)
 	rq[0] = 0;
-	rq[1] = 14 + *lenQuestion;
+	rq[1] = 20 + lenDomain;
 
-	return 16 + *lenQuestion;
+	return 22 + lenDomain;
 }
 
 static int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
@@ -212,8 +213,8 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 	return 0;
 }
 
-static int getAnswerCount(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
-	if (lenRes < 12 + (int)lenQuestion) {syslog(LOG_ERR, "DNS answer too short"); return 0;}
+static int getAnswerCount(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
+	if (lenRes < 18 + (int)lenDomain) {syslog(LOG_ERR, "DNS answer too short"); return 0;}
 	if (memcmp(res, &reqId, 2) != 0) {syslog(LOG_ERR, "ID mismatch"); return 0;}
 
 	// 2: 128=QR: Answer (1); 64+32+16+8=120 OPCODE: Standard query (0000); 4=AA: Authorative Answer; 2=TC: Truncated; 1=RD: Recursion Desired
@@ -225,7 +226,10 @@ static int getAnswerCount(const uint16_t reqId, const unsigned char * const res,
 	// 6,7 ANCOUNT
 	if (memcmp(res +  8, (unsigned char[]){0,0}, 2) != 0) {syslog(LOG_ERR, "NSCOUNT mismatch"); return 0;}
 	if (memcmp(res + 10, (unsigned char[]){0,0}, 2) != 0) {syslog(LOG_ERR, "ARCOUNT mismatch"); return 0;}
-	if (memcmp(res + 12, question, lenQuestion) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
+
+	unsigned char question[lenDomain + 6];
+	domainToQuestion(question, domain, lenDomain, queryType);
+	if (memcmp(res + 12, question, lenDomain + 6) != 0) {syslog(LOG_ERR, "Question mismatch"); return 0;}
 
 	uint16_t answerCount;
 	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
@@ -233,16 +237,16 @@ static int getAnswerCount(const uint16_t reqId, const unsigned char * const res,
 	return answerCount;
 }
 
-uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion) {
-	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
+uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
+	const int answerCount = getAnswerCount(reqId, res, lenRes, domain, lenDomain, queryType);
 	if (answerCount <= 0) return 0;
 
-	return validIp(dnsResponse_GetIp_get(res + 12 + lenQuestion, lenRes - 12 - lenQuestion));
+	return validIp(dnsResponse_GetIp_get(res + 18 + lenDomain, lenRes - 18 - lenDomain));
 }
 
-int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const question, const size_t lenQuestion, unsigned char * const result, int * const lenResult, const uint16_t queryType) {
-	const int answerCount = getAnswerCount(reqId, res, lenRes, question, lenQuestion);
+int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, unsigned char * const result, int * const lenResult, const uint16_t queryType) {
+	const int answerCount = getAnswerCount(reqId, res, lenRes, domain, lenDomain, queryType);
 	if (answerCount <= 0) return -1;
 
-	return getNameRecord(res, lenRes, 12 + lenQuestion, answerCount, result, lenResult, queryType);
+	return getNameRecord(res, lenRes, 18 + lenDomain, answerCount, result, lenResult, queryType);
 }
