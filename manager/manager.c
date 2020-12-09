@@ -472,20 +472,11 @@ static void process_spawn(const int type) {
 	close(fd[1]);
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT:
-			pid_account = pid;
-		break;
+		case AEM_PROCESSTYPE_ACCOUNT: pid_account = pid; break;
+		case AEM_PROCESSTYPE_STORAGE: pid_storage = pid; break;
+		case AEM_PROCESSTYPE_ENQUIRY: pid_enquiry = pid; break;
 
-		case AEM_PROCESSTYPE_STORAGE:
-			pid_storage = pid;
-		break;
-
-		case AEM_PROCESSTYPE_ENQUIRY:
-			pid_enquiry = pid;
-		break;
-
-		default:
-			aemPid[type][freeSlot] = pid;
+		default: aemPid[type][freeSlot] = pid;
 	}
 }
 
