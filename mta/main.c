@@ -12,7 +12,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/ssl.h>
 #include <sodium.h>
 
 #include "delivery.h"
