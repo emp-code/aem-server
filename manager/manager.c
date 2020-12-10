@@ -421,51 +421,50 @@ static void process_spawn(const int type) {
 	if (pid == 0) exit(process_new(type, fd[0], fd[1]));
 	close(fd[0]);
 
+	bool fail = false;
 	switch(type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
-		if (
-		   write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
-		|| write(fd[1], slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
-		) {
-			syslog(LOG_ERR, "Failed writing to pipe: %m");
-		}
+			fail = (
+			   write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+			|| write(fd[1], slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+			);
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-		if (write(fd[1], key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
-			syslog(LOG_ERR, "Failed writing to pipe: %m");
-		}
+			fail = (write(fd[1], key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO);
 		break;
 
-		// Nothing
-		/*
-		case AEM_PROCESSTYPE_ENQUIRY:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
-		*/
-
 		case AEM_PROCESSTYPE_MTA:
-			if (
+			fail = (
 			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
 			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
-			) {
-				syslog(LOG_ERR, "Failed writing to pipe: %m");
-			}
+			);
 		break;
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
-			if (
+			fail = (
 			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
 			|| write(fd[1], key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
 			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
-			) {
-				syslog(LOG_ERR, "Failed writing to pipe: %m");
-			}
+			);
 		break;
+
+		/* Nothing:
+		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_WEB_CLR:
+		case AEM_PROCESSTYPE_WEB_ONI:
+		*/
 	}
 
+	if (fail) kill(pid, SIGKILL);
+
 	close(fd[1]);
+
+	if (fail) {
+		syslog(LOG_ERR, "Failed writing to pipe: %m");
+		return;
+	}
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: pid_account = pid; break;
