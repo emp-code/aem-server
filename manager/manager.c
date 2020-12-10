@@ -395,7 +395,7 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	exit(EXIT_FAILURE);
 }
 
-static void process_spawn(const int type) {
+static int process_spawn(const int type) {
 	int freeSlot = -1;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
@@ -405,11 +405,11 @@ static void process_spawn(const int type) {
 			}
 		}
 
-		if (freeSlot < 0) return;
+		if (freeSlot < 0) return -1;
 	}
 
 	int fd[2];
-	if (pipe2(fd, O_DIRECT) < 0) return;
+	if (pipe2(fd, O_DIRECT) < 0) return -1;
 
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
@@ -417,7 +417,7 @@ static void process_spawn(const int type) {
 	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
-	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return;}
+	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return -1;}
 	if (pid == 0) exit(process_new(type, fd[0], fd[1]));
 	close(fd[0]);
 
@@ -463,7 +463,7 @@ static void process_spawn(const int type) {
 
 	if (fail) {
 		syslog(LOG_ERR, "Failed writing to pipe: %m");
-		return;
+		return -1;
 	}
 
 	switch (type) {
@@ -473,6 +473,8 @@ static void process_spawn(const int type) {
 
 		default: aemPid[type][freeSlot] = pid;
 	}
+
+	return 0;
 }
 
 static void process_kill(const int type, const pid_t pid, const int sig) {
@@ -555,11 +557,13 @@ static void respond_manager(void) {
 
 int receiveConnections(void) {
 	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
-	if (sockMain < 0) {wipeKeys(); return EXIT_FAILURE;}
 
-	process_spawn(AEM_PROCESSTYPE_ACCOUNT);
-	process_spawn(AEM_PROCESSTYPE_STORAGE);
-	process_spawn(AEM_PROCESSTYPE_ENQUIRY);
+	if (
+	   sockMain < 0
+	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
+	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
+	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
+	) {wipeKeys(); return EXIT_FAILURE;}
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
