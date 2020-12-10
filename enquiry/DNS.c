@@ -128,7 +128,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 			return 0;
 		}
 
-		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
+		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 	}
 
 	mbedtls_ssl_close_notify(&ssl);
