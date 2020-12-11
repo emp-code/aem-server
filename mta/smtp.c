@@ -507,13 +507,15 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				uint8_t lenHdrMsgId = 0;
 				unsigned char hdrMsgId[256];
 				moveHeader(body, &lenBody, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId, 255);
-				if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
-				if (hdrMsgId[0] == '<') {
-					memcpy(email.msgId, hdrMsgId + 1, lenHdrMsgId - 1);
-					email.lenMsgId = lenHdrMsgId - 1;
-				} else {
-					memcpy(email.msgId, hdrMsgId, lenHdrMsgId);
-					email.lenMsgId = lenHdrMsgId;
+				if (lenHdrMsgId > 0) {
+					if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
+					if (hdrMsgId[0] == '<') {
+						memcpy(email.msgId, hdrMsgId + 1, lenHdrMsgId - 1);
+						email.lenMsgId = lenHdrMsgId - 1;
+					} else {
+						memcpy(email.msgId, hdrMsgId, lenHdrMsgId);
+						email.lenMsgId = lenHdrMsgId;
+					}
 				}
 
 				uint8_t lenHdrDate = 0;
