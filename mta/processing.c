@@ -120,18 +120,18 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	}
 }
 
-static void removeHeaderSpace(char * msg, size_t * const lenMsg) {
-	if (msg == NULL || *lenMsg < 5) return;
+static void removeHeaderSpace(char * msg, size_t const lenMsg) {
+	if (msg == NULL || lenMsg < 5) return;
 
 	char *c = msg;
 
 	while(1) {
 		if (c[2] == '\r') break;
 
-		char *next = memmem(c + 2, (msg + *lenMsg) - (c + 2) - 2, "\r\n", 2);
+		char *next = memmem(c + 2, (msg + lenMsg) - (c + 2) - 2, "\r\n", 2);
 		if (next == NULL) break;
 
-		char *colon = memchr(c + 2, ':', (msg + *lenMsg) - (c + 2));
+		char *colon = memchr(c + 2, ':', (msg + lenMsg) - (c + 2));
 		if (colon == NULL) break;
 		colon++;
 
@@ -149,10 +149,9 @@ int prepareHeaders(char * const data, size_t * const lenData) {
 	if (headersEnd2 != NULL && headersEnd2 < headersEnd) headersEnd = headersEnd2 + 2; else headersEnd += 4;
 	if (headersEnd == NULL) return -1;
 
-	removeHeaderSpace(data, lenData);
-
 	size_t lenHeaders = headersEnd - data;
 	const size_t lenHeaders_original = lenHeaders;
+	removeHeaderSpace(data, lenHeaders);
 	removeControlChars((unsigned char*)data, &lenHeaders);
 
 	memmove(data + lenHeaders, data + lenHeaders_original, (data + *lenData) - (data + lenHeaders_original));
