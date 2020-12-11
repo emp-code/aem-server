@@ -54,6 +54,13 @@ enum aem_internal_enquiry {
 #define AEM_PORT_API 302
 #define AEM_PORT_WEB_ONI 880 // Actual port is 80 (HTTP), this is just Tor's localhost port
 #define AEM_PORT_MANAGER 940
+#define AEM_PORT_MANAGER_STR "940"
+
+#define AEM_MAXPROCESSES 100
+#define AEM_MANAGER_RESLEN_DECRYPTED (AEM_MAXPROCESSES * 5 * 4)
+#define AEM_MANAGER_RESLEN_ENCRYPTED (AEM_MANAGER_RESLEN_DECRYPTED + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+#define AEM_MANAGER_CMDLEN_DECRYPTED 6
+#define AEM_MANAGER_CMDLEN_ENCRYPTED (AEM_MANAGER_CMDLEN_DECRYPTED + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0

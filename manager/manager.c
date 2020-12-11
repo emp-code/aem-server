@@ -28,10 +28,6 @@
 
 #include "manager.h"
 
-#define AEM_MAXPROCESSES 25
-#define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 3 * 4
-#define AEM_LEN_ENCRYPTED (AEM_LEN_MSG + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-
 #define AEM_LEN_FILE_MAX 128
 
 static unsigned char master[AEM_LEN_KEY_MASTER];
@@ -51,9 +47,6 @@ static pid_t pid_storage = 0;
 static pid_t pid_enquiry = 0;
 static pid_t aemPid[5][AEM_MAXPROCESSES];
 
-static unsigned char encrypted[AEM_LEN_ENCRYPTED];
-static unsigned char decrypted[AEM_LEN_MSG];
-
 static int sockMain = -1;
 static int sockClient = -1;
 
@@ -72,9 +65,6 @@ static void wipeKeys(void) {
 	sodium_memzero(key_sig, AEM_LEN_KEY_SIG);
 	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
 	sodium_memzero(slt_shd, AEM_LEN_SLT_SHD);
-
-	sodium_memzero(encrypted, AEM_LEN_ENCRYPTED);
-	sodium_memzero(decrypted, AEM_LEN_MSG);
 }
 
 static bool process_verify(const pid_t pid) {
@@ -495,22 +485,10 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	kill(pid, sig);
 }
 
-/*
-	Manager Protocol:
-		All messages are AEM_LEN_MSG bytes in cleartext, and are encrypted with crypto_secretbox_easy
-
-		1. Client sends message containing instructions (if any)
-		2. Server processes instructions, if any (spawn/terminate/kill an All-Ears process)
-		3. Server responds with message containing information about All-Ears processes
-
-	The encryption is mostly for authentication. There is no forward secrecy.
-*/
-
 static void cryptSend(void) {
 	refreshPids();
 
-	bzero(decrypted, AEM_LEN_MSG);
-
+	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
@@ -518,41 +496,59 @@ static void cryptSend(void) {
 		}
 	}
 
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_LEN_MSG, encrypted, key_mng);
-	send(sockClient, encrypted, AEM_LEN_ENCRYPTED, 0);
+	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
+	if (crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_RESLEN_DECRYPTED, encrypted, key_mng) == 0) {
+		if (send(sockClient, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+			syslog(LOG_WARNING, "Failed send");
+		}
+	} else {
+		syslog(LOG_WARNING, "Failed encrypt");
+	}
 }
 
 static void respond_manager(void) {
-	while (recv(sockClient, encrypted, AEM_LEN_ENCRYPTED, 0) == AEM_LEN_ENCRYPTED) {
-		if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_LEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) return;
+	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
+	if (recv(sockClient, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
+		syslog(LOG_WARNING, "Failed recv");
+		return;
+	}
 
-		switch(decrypted[0]) {
-			case '\0': break; // No action, only requesting info
+	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
+	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_CMDLEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) {
+		syslog(LOG_WARNING, "Failed decrypt");
+		return;
+	}
 
-			case 'T': { // Request termination
-				uint32_t pid;
-				memcpy(&pid, decrypted + 2, 4);
-				process_kill(decrypted[1], pid, SIGUSR1);
-				break;
-			}
+	uint32_t num;
+	memcpy(&num, decrypted + 2, 4);
 
-			case 'K': { // Request immediate termination (kill)
-				uint32_t pid;
-				memcpy(&pid, decrypted + 2, 4);
-				process_kill(decrypted[1], pid, SIGUSR2);
-				break;
-			}
+	switch (decrypted[0]) {
+		case '\0': break; // No action, only requesting info
 
-			case 'S': { // Spawn
-				process_spawn(decrypted[1]);
-				break;
-			}
-
-			default: return; // Invalid command
+		case 'T': { // Request termination
+			process_kill(decrypted[1], num, SIGUSR1);
+			break;
 		}
 
-		cryptSend();
+		case 'K': { // Request immediate termination (kill)
+			process_kill(decrypted[1], num, SIGUSR2);
+			break;
+		}
+
+		case 'S': { // Spawn
+			if (num > AEM_MAXPROCESSES) return;
+
+			for (unsigned int i = 0; i < num; i++) {
+				if (process_spawn(decrypted[1]) != 0) return;
+			}
+
+			break;
+		}
+
+		default: {syslog(LOG_WARNING, "Invalid command"); return;}
 	}
+
+	cryptSend();
 }
 
 int receiveConnections(void) {
@@ -564,6 +560,8 @@ int receiveConnections(void) {
 	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
 	) {wipeKeys(); return EXIT_FAILURE;}
+
+	bzero(aemPid, sizeof(aemPid));
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);

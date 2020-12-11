@@ -18,11 +18,6 @@
 #include "../Global.h"
 #include "GetKey.h"
 
-#define AEM_PORT_MANAGER_STR "940"
-#define AEM_MAXPROCESSES 25
-#define AEM_LEN_MSG 1024 // must be at least AEM_MAXPROCESSES * 5 * 4
-#define AEM_LEN_ENCRYPTED (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + AEM_LEN_MSG)
-
 static unsigned char key_manager[crypto_secretbox_KEYBYTES];
 
 static int makeSocket(const char * const host) {
@@ -69,7 +64,7 @@ static int loadKey(void) {
 }
 
 static int cryptSend(const int sock, const unsigned char comChar, const unsigned char comType, const uint32_t comNum) {
-	unsigned char decrypted[AEM_LEN_MSG];
+	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
 	decrypted[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
 	switch(comType) {
@@ -81,13 +76,12 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 	}
 
 	memcpy(decrypted + 2, &comNum, 4);
-	bzero(decrypted + 6, AEM_LEN_MSG - 6);
 
-	unsigned char encrypted[AEM_LEN_ENCRYPTED];
+	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_LEN_MSG, encrypted, key_manager);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_CMDLEN_DECRYPTED, encrypted, key_manager);
 
-	return (send(sock, encrypted, AEM_LEN_ENCRYPTED, 0) == AEM_LEN_ENCRYPTED) ? 0 : -1;
+	return (send(sock, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) == AEM_MANAGER_CMDLEN_ENCRYPTED) ? 0 : -1;
 }
 
 static char numToChar(const unsigned char n) {
@@ -110,33 +104,36 @@ int main(int argc, char *argv[]) {
 	if (loadKey() != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
 
 	int sock = makeSocket(argv[1]);
-	if (sock < 1) return EXIT_FAILURE;
+	if (sock < 0) return EXIT_FAILURE;
 
-	uint32_t comNum = 0;
-	unsigned char comChar = '\0';
-	unsigned char comType = '\0';
-	if (argc > 2) {
-		comChar = argv[2][0];
-		comType = argv[2][1];
-		comNum = strtol(argv[2] + 2, NULL, 10);
+	if (argc == 4) {
+		unsigned char comChar = argv[2][0];
+		unsigned char comType = argv[2][1];
+		uint32_t comNum = strtol(argv[3], NULL, 10);
+
+		if (cryptSend(sock, comChar, comType, comNum) != 0) {
+			printf("Failed send: %m\n");
+			close(sock);
+			return EXIT_FAILURE;
+		}
+	} else {
+		if (cryptSend(sock, 0, 0, 0) != 0) {
+			printf("Failed send: %m\n");
+			close(sock);
+			return EXIT_FAILURE;
+		}
 	}
 
-	if (cryptSend(sock, comChar, comType, comNum) != 0) {
-		puts("Send fail");
+	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
+	if (recv(sock, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, MSG_WAITALL) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+		printf("Failed recv: %m\n");
 		close(sock);
 		return EXIT_FAILURE;
 	}
 
-	unsigned char encrypted[AEM_LEN_ENCRYPTED];
-	if (recv(sock, encrypted, AEM_LEN_ENCRYPTED, 0) != AEM_LEN_ENCRYPTED) {
-		puts("Receive fail");
-		close(sock);
-		return EXIT_FAILURE;
-	}
-
-	unsigned char decrypted[AEM_LEN_MSG];
-	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_LEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_manager) != 0) {
-		puts("Open fail");
+	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
+	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_RESLEN_DECRYPTED + crypto_secretbox_MACBYTES, encrypted, key_manager) != 0) {
+		puts("Failed decrypt");
 		close(sock);
 		return EXIT_FAILURE;
 	}
