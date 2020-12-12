@@ -207,12 +207,12 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 static int loadExec(void) {
 	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
 	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+
 	size_t lenTmp;
+	const char * const path[] = AEM_PATH_EXE;
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
 		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-
-		const char * const path[] = AEM_PATH_EXE;
 
 		if (
 		   binfd[i] == -1
