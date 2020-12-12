@@ -205,27 +205,22 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 }
 
 static int loadExec(void) {
-	const char * const path[] = AEM_PATH_EXE;
-
 	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
 	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 	size_t lenTmp;
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		if (loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0) {
-			sodium_free(tmp);
-			return -1;
-		}
-
 		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-		if (binfd[i] == -1) {syslog(LOG_ERR, "Failed memfd_create: %m"); return -1;}
 
-		if (write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp) {
-			sodium_free(tmp);
-			return -1;
-		}
+		const char * const path[] = AEM_PATH_EXE;
 
-		if (fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0) {
+		if (
+		   binfd[i] == -1
+		|| loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0
+		|| write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp
+		|| fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
+		) {
+			syslog(LOG_ERR, "Failed loadExec: %m");
 			sodium_free(tmp);
 			return -1;
 		}
