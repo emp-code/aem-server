@@ -734,8 +734,8 @@ static bool ts_valid(const unsigned char * const ts_sender) {
 }
 
 static void message_create_int(void) {
-	const unsigned char infoByte = (decrypted[0] & 28) | (getUserLevel(upk) & 3); // 28=16+8+4
-	const bool isEncrypted = (infoByte & 16) > 0;
+	const unsigned char infoByte = (decrypted[0] & 76) | (getUserLevel(upk) & 3); // 76=64+8+4
+	const bool isEncrypted = (infoByte & 64) > 0;
 	const bool fromShield  = (infoByte &  8) > 0;
 	const bool toShield    = (infoByte &  4) > 0;
 
@@ -875,7 +875,7 @@ static void message_public(void) {
 	unsigned char content[lenContent];
 	content[0] = msg_getPadAmount(lenContent) | 16; // 16=IntMsg
 	memcpy(content + 1, &ts, 4);
-	content[5] = 32; // InfoByte: Public
+	content[5] = 128; // InfoByte: Public
 	memcpy(content + 6, decrypted, lenDecrypted);
 
 	for (int i = 0; i < userCount; i++) {
