@@ -305,6 +305,11 @@ static void api_account_create(const int sock, const int num) {
 	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
 
+	// Forbidden pubkeys
+	unsigned char pubkey_inv[crypto_box_PUBLICKEYBYTES];
+	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
+	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
+
 	if (userNumFromPubkey(pubkey_new) >= 0) return;
 
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
