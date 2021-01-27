@@ -5,6 +5,7 @@
 
 #define AEM_SLT_NRM (const unsigned char[]) {0}
 
+#define AEM_HASH_PUBLIC 0
 #define AEM_HASH_SYSTEM 0
 
 #define AEM_HASH_ADMIN_COUNT 0

@@ -40,6 +40,7 @@ int main(void) {
 	}
 	puts("}\n");
 
+	printf("#define AEM_HASH_PUBLIC %lullu\n",   addressToHash(AEM_ADDR32_PUBLIC));
 	printf("#define AEM_HASH_SYSTEM %lullu\n\n", addressToHash(AEM_ADDR32_SYSTEM));
 	sodium_memzero(salt_normal, AEM_LEN_SLT_NRM);
 
