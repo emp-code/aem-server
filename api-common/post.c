@@ -672,7 +672,7 @@ static bool isValidFrom(const char * const src) { // Only allow sending from val
 
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
-	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
+	if (userLevel < AEM_MINLEVEL_SENDEMAIL) return;
 
 	struct outEmail email;
 	bzero(&email, sizeof(email));
