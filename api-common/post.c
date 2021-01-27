@@ -144,6 +144,37 @@ static void shortResponse(const unsigned char * const data, const int len) {
 	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE + 73;
 }
 
+static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], const unsigned char * const msgContent, const size_t lenMsgContent) {
+	// Create message
+	const uint32_t ts = (uint32_t)time(NULL);
+
+	const size_t lenContent = 6 + lenMsgContent;
+	unsigned char content[lenContent];
+	content[0] = msg_getPadAmount(lenContent) | 16; // 16=IntMsg
+	memcpy(content + 1, &ts, 4);
+	content[5] = 192; // InfoByte: System
+	memcpy(content + 6, msgContent, lenMsgContent);
+
+	size_t lenEnc;
+	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
+
+	// Store message
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, toPubKey, crypto_box_PUBLICKEYBYTES);
+
+	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) {free(enc); return;}
+
+	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
+	free(enc);
+
+	unsigned char resp;
+	if (sentBytes != (ssize_t)(lenEnc) || recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); return;}
+	close(sock);
+}
+
 static void account_browse(void) {
 	if (lenDecrypted != 1) return;
 
