@@ -880,10 +880,7 @@ static void message_delete(void) {
 }
 
 static void message_public(void) {
-	if (lenDecrypted < 59) return; // 59=177-117-1
-
-	const int userLevel = getUserLevel(upk);
-	if ((userLevel & 3) < AEM_MINLEVEL_SENDEMAIL) return;
+	if ((getUserLevel(upk) & 3) < AEM_MINLEVEL_SENDEMAIL || lenDecrypted < 59) return; // 59=177-117-1
 
 	int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
