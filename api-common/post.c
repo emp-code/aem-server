@@ -880,7 +880,7 @@ static void message_delete(void) {
 }
 
 static void message_public(void) {
-	if ((getUserLevel(upk) & 3) != AEM_USERLEVEL_MAX || lenDecrypted < 59) return; // 59=177-117-1
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX || lenDecrypted < 59) return; // 59=177-117-1
 
 	int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
