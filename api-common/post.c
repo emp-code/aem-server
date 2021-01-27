@@ -18,6 +18,7 @@
 #include "../Common/UnixSocketClient.h"
 #include "../Common/ValidEmail.h"
 #include "../Common/ValidUtf8.h"
+#include "../Data/welcome.h"
 
 #include "SendMail.h"
 
@@ -243,11 +244,14 @@ static void account_create(void) {
 		return;
 	}
 
-	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_INTERNAL_RESPONSE_OK) {
-		shortResponse(NULL, AEM_API_NOCONTENT);
-	}
-
+	resp = 0;
+	recv(sock, &resp, 1, 0);
 	close(sock);
+
+	if (resp == AEM_INTERNAL_RESPONSE_OK) {
+		shortResponse(NULL, AEM_API_NOCONTENT);
+		systemMessage(decrypted, AEM_WELCOME, AEM_WELCOME_LEN);
+	}
 }
 
 static void account_delete(void) {
