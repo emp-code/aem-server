@@ -298,17 +298,22 @@ static void account_update(void) {
 		return;
 	}
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) == 1) {
-		if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
-			userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
-//			shortResponse((unsigned char*)"Violation", 9);
-		} else if (resp == AEM_INTERNAL_RESPONSE_OK) {
-			shortResponse(NULL, AEM_API_NOCONTENT);
-		}
-	}
-
+	unsigned char resp = 0;
+	recv(sock, &resp, 1, 0);
 	close(sock);
+
+	if (resp == AEM_INTERNAL_RESPONSE_OK) {
+		char sysMsg[100];
+		sprintf(sysMsg, "Account level set to %d\nYour account level has been set to %d.", decrypted[0], decrypted[0]);
+		systemMessage(decrypted + 1, (unsigned char*)sysMsg, strlen(sysMsg));
+
+		shortResponse(NULL, AEM_API_NOCONTENT);
+	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
+		userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
+//		shortResponse((unsigned char*)"Violation", 9);
+	} else {
+		// No response from Account
+	}
 }
 
 static void address_create(void) {
