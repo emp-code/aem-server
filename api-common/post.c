@@ -302,8 +302,8 @@ static void account_update(void) {
 		return;
 	}
 
-	unsigned char resp = 0;
-	recv(sock, &resp, 1, 0);
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return;}
 	close(sock);
 
 	if (resp == AEM_INTERNAL_RESPONSE_OK) {
