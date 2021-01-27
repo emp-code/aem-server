@@ -46,7 +46,6 @@ enum aem_internal_enquiry {
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
-#define AEM_MAXLEN_DOMAIN 32
 #define AEM_MAXNUM_ATTACHMENTS 31
 
 #define AEM_PORT_MTA 25
