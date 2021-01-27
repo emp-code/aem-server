@@ -823,6 +823,9 @@ static void message_create_int(void) {
 
 	close(sock);
 
+	// Forbid messaging oneself (pointless; not designed for it)
+	if (memcmp(upk, toPubKey, crypto_box_PUBLICKEYBYTES) == 0) return;
+
 	// Create message
 	const size_t lenContent = 6 + lenData;
 	unsigned char content[lenContent];
