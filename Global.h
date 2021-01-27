@@ -1,6 +1,8 @@
 #ifndef AEM_GLOBAL_H
 #define AEM_GLOBAL_H
 
+#include "Config.h"
+
 enum aem_internal_response {
 	AEM_INTERNAL_RESPONSE_OK,
 	AEM_INTERNAL_RESPONSE_ERR,
@@ -35,11 +37,7 @@ enum aem_internal_enquiry {
 #define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
 #define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
 
-#define AEM_ADDRESS_ARGON2_OPSLIMIT 3
-#define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
-
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
-#define AEM_MINLEVEL_SENDEMAIL 2
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
@@ -47,13 +45,6 @@ enum aem_internal_enquiry {
 
 #define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
 #define AEM_MAXNUM_ATTACHMENTS 31
-
-#define AEM_PORT_MTA 25
-#define AEM_PORT_WEB 443
-#define AEM_PORT_API 302
-#define AEM_PORT_WEB_ONI 880 // Actual port is 80 (HTTP), this is just Tor's localhost port
-#define AEM_PORT_MANAGER 940
-#define AEM_PORT_MANAGER_STR "940"
 
 #define AEM_MAXPROCESSES 100
 #define AEM_MANAGER_RESLEN_DECRYPTED (AEM_MAXPROCESSES * 5 * 4)
