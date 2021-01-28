@@ -72,6 +72,11 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	// Compress
 	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
 	unsigned char * const comp = malloc(lenComp);
+	if (comp == NULL) {
+		free(uncomp);
+		return NULL;
+	}
+
 	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenComp, comp) == BROTLI_FALSE) {
 		free(uncomp);
 		return NULL;
