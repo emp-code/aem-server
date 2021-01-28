@@ -918,12 +918,16 @@ static void message_public(void) {
 	content[5] = 128; // InfoByte: Public
 	memcpy(content + 6, decrypted, lenDecrypted);
 
+	unsigned char msgId[16];
+
 	for (int i = 0; i < userCount; i++) {
 		const unsigned char * const toPubKey = pubKeys + (i * crypto_box_PUBLICKEYBYTES);
 		size_t lenEnc;
 		unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
 		const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 		if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); sodium_memzero(content, lenContent); free(pubKeys); return;}
+
+		if (memcmp(toPubKey, upk, crypto_box_PUBLICKEYBYTES) == 0) memcpy(msgId, enc, 16);
 
 		// Store message
 		unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
@@ -944,7 +948,7 @@ static void message_public(void) {
 
 	free(pubKeys);
 	sodium_memzero(content, lenContent);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(msgId, 16);
 }
 
 static void private_update(void) {
