@@ -79,8 +79,11 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 
 	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenComp, comp) == BROTLI_FALSE) {
 		free(uncomp);
+		free(comp);
 		return NULL;
 	}
+
+	free(uncomp);
 
 	// Create the ExtMsg
 	const size_t lenContent = 23 + ((email->dkimCount & 7) * 4) + lenComp;
