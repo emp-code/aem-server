@@ -467,7 +467,7 @@ static void message_browse(void) {
 
 	const char * const kaStr = keepAlive ? "Connection: keep-alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
-	// Preapre and send response
+	// Prepare and send response
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
