@@ -1,5 +1,5 @@
-#ifndef AEM_SENDMAIL_H
-#define AEM_SENDMAIL_H
+#ifndef AEM_API_SENDMAIL_H
+#define AEM_API_SENDMAIL_H
 
 #include <stddef.h>
 #include <stdint.h>

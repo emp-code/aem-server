@@ -1,5 +1,5 @@
-#ifndef AEM_MOUNT_H
-#define AEM_MOUNT_H
+#ifndef AEM_MANAGER_MOUNT_H
+#define AEM_MANAGER_MOUNT_H
 
 int createMount(const int type);
 

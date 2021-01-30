@@ -1,5 +1,5 @@
-#ifndef AEM_ISREQUESTVALID_H
-#define AEM_ISREQUESTVALID_H
+#ifndef AEM_API_ISREQUESTVALID_H
+#define AEM_API_ISREQUESTVALID_H
 
 #include <stdbool.h>
 
