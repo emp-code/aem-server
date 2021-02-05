@@ -172,7 +172,10 @@ static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], con
 }
 
 static void account_browse(void) {
-	if (lenDecrypted != 1) return;
+	if (lenDecrypted != 1) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -218,7 +221,10 @@ static void account_browse(void) {
 }
 
 static void account_create(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -250,7 +256,10 @@ static void account_create(void) {
 }
 
 static void account_delete(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return;
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -286,7 +295,10 @@ static void account_delete(void) {
 }
 
 static void account_update(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) return;
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -316,7 +328,10 @@ static void account_update(void) {
 }
 
 static void address_create(void) {
-	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return;
+	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -348,7 +363,10 @@ static void address_create(void) {
 }
 
 static void address_delete(void) {
-	if (lenDecrypted != 8) return;
+	if (lenDecrypted != 8) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ADDRESS_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -372,7 +390,10 @@ static void address_lookup(void) {
 }
 
 static void address_update(void) {
-	if (lenDecrypted % 9 != 0) return;
+	if (lenDecrypted % 9 != 0) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_ADDRESS_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -426,7 +447,10 @@ static void message_browse(void) {
 
 	if (lenDecrypted == 17)
 		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
-	else if (lenDecrypted != 1) return;
+	else if (lenDecrypted != 1) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	// Data to boxed
 	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999);
@@ -859,7 +883,10 @@ static void message_create(void) {
 }
 
 static void message_delete(void) {
-	if (lenDecrypted % 16 != 0) return;
+	if (lenDecrypted % 16 != 0) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = storageSocket(AEM_API_MESSAGE_DELETE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -882,7 +909,10 @@ static void message_delete(void) {
 }
 
 static void message_public(void) {
-	if (getUserLevel(upk) != AEM_USERLEVEL_MAX || lenDecrypted < 59) return; // 59 = 177-48-64-5-1
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX || lenDecrypted < 59) { // 59 = 177-48-64-5-1
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -947,7 +977,10 @@ static void message_public(void) {
 }
 
 static void private_update(void) {
-	if (lenDecrypted != AEM_LEN_PRIVATE) return;
+	if (lenDecrypted != AEM_LEN_PRIVATE) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_PRIVATE_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
@@ -963,7 +996,10 @@ static void private_update(void) {
 }
 
 static void setting_limits(void) {
-	if (lenDecrypted != 12) return;
+	if (lenDecrypted != 12) {
+		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		return;
+	}
 
 	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
