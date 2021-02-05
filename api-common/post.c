@@ -20,6 +20,7 @@
 #include "../Common/ValidUtf8.h"
 #include "../Data/welcome.h"
 
+#include "Error.h"
 #include "SendMail.h"
 
 #include "post.h"
@@ -93,13 +94,11 @@ static void userViolation(const int violation) {
 	// ...
 }
 
-static void shortResponse(const unsigned char * const data, const int len) {
-	if (len != AEM_API_ERROR && (len < 0 || len > 32)) return;
-
+static void shortResponse(const unsigned char * const data, const unsigned char len) {
 #ifndef AEM_IS_ONION
-	#define AEM_LEN_SHORTRESPONSE 277
+	#define AEM_LEN_SHORTRESPONSE_HEADERS 277
 #else
-	#define AEM_LEN_SHORTRESPONSE 166
+	#define AEM_LEN_SHORTRESPONSE_HEADERS 166
 #endif
 
 	memcpy(response, keepAlive?
@@ -128,21 +127,17 @@ static void shortResponse(const unsigned char * const data, const int len) {
 		"Connection: close\r\n"
 		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
-	, AEM_LEN_SHORTRESPONSE);
+	, AEM_LEN_SHORTRESPONSE_HEADERS);
 
-	randombytes_buf(response + AEM_LEN_SHORTRESPONSE, crypto_box_NONCEBYTES);
+	randombytes_buf(response + AEM_LEN_SHORTRESPONSE_HEADERS, crypto_box_NONCEBYTES);
 
 	unsigned char clr[33];
-	if (len == AEM_API_ERROR) {
-		memset(clr, 0xFF, 33);
-	} else {
-		bzero(clr, 33);
-		clr[0] = len;
-		if (data != NULL && len > 0) memcpy(clr + 1, data, len);
-	}
+	bzero(clr, 33);
+	clr[0] = len;
+	if (data != NULL && len > 0 && len <= 32) memcpy(clr + 1, data, len);
 
-	const int ret = crypto_box_easy(response + AEM_LEN_SHORTRESPONSE + crypto_box_NONCEBYTES, clr, 33, response + AEM_LEN_SHORTRESPONSE, upk, ssk);
-	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE + 73;
+	const int ret = crypto_box_easy(response + AEM_LEN_SHORTRESPONSE_HEADERS + crypto_box_NONCEBYTES, clr, 33, response + AEM_LEN_SHORTRESPONSE_HEADERS, upk, ssk);
+	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE_HEADERS + 33 + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
 }
 
 static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], const unsigned char * const msgContent, const size_t lenMsgContent) {
@@ -249,7 +244,7 @@ static void account_create(void) {
 	close(sock);
 
 	if (resp == AEM_INTERNAL_RESPONSE_OK) {
-		shortResponse(NULL, AEM_API_NOCONTENT);
+		shortResponse(NULL, 0);
 		systemMessage(decrypted, AEM_WELCOME, AEM_WELCOME_LEN);
 	}
 }
@@ -283,7 +278,7 @@ static void account_delete(void) {
 	}
 
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(NULL, 0);
 
 	sock = storageSocket(AEM_API_INTERNAL_ERASE, decrypted, lenDecrypted);
 	if (sock < 0) return;
@@ -311,7 +306,7 @@ static void account_update(void) {
 		sprintf(sysMsg, "Account level set to %d\nYour account level has been set to %d.", decrypted[0], decrypted[0]);
 		systemMessage(decrypted + 1, (unsigned char*)sysMsg, strlen(sysMsg));
 
-		shortResponse(NULL, AEM_API_NOCONTENT);
+		shortResponse(NULL, 0);
 	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
 //		shortResponse((unsigned char*)"Violation", 9);
@@ -336,7 +331,7 @@ static void address_create(void) {
 		unsigned char ret;
 		recv(sock, &ret, 1, 0);
 		close(sock);
-		if (ret == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
+		if (ret == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, 0);
 		return;
 	}
 
@@ -366,7 +361,7 @@ static void address_delete(void) {
 
 	unsigned char resp;
 	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_INTERNAL_RESPONSE_OK) {
-		shortResponse(NULL, AEM_API_NOCONTENT);
+		shortResponse(NULL, 0);
 	}
 
 	close(sock);
@@ -389,7 +384,7 @@ static void address_update(void) {
 	}
 
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(NULL, 0);
 }
 
 static void message_upload(void) {
@@ -754,7 +749,7 @@ static void message_create_ext(void) {
 	deliveryReport_ext(&email, &info);
 
 	if (ret == 0) {
-		shortResponse(NULL, AEM_API_NOCONTENT);
+		shortResponse(NULL, 0);
 	} else {
 		unsigned char x[32]; // Errcode + max 31 bytes
 		x[0] = ret;
@@ -856,7 +851,7 @@ static void message_create_int(void) {
 	close(sock);
 
 	deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(NULL, 0);
 }
 
 static void message_create(void) {
@@ -883,7 +878,7 @@ static void message_delete(void) {
 	}
 
 	close(sock);
-	if (resp == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, AEM_API_NOCONTENT);
+	if (resp == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, 0);
 }
 
 static void message_public(void) {
@@ -964,7 +959,7 @@ static void private_update(void) {
 	}
 
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(NULL, 0);
 }
 
 static void setting_limits(void) {
@@ -993,7 +988,7 @@ static void setting_limits(void) {
 	}
 
 	close(sock);
-	shortResponse(NULL, AEM_API_NOCONTENT);
+	shortResponse(NULL, 0);
 }
 
 int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
@@ -1055,7 +1050,7 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 
-	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERROR);
+	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERR_MISC);
 	if (lenResponse < 0) return -1;
 
 	*response_p = response;
