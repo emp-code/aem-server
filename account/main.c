@@ -364,6 +364,11 @@ static void api_account_update(const int sock, const int num) {
 		return;
 	}
 
+	if ((user[updateNum].info & 3) == (buf[0] & 3)) {
+		// Trying to set level to what it already is
+		return;
+	}
+
 	user[updateNum].info = (user[updateNum].info & 252) | (buf[0] & 3);
 	saveUser();
 
