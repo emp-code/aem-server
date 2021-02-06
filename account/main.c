@@ -364,9 +364,7 @@ static void api_account_update(const int sock, const int num) {
 		return;
 	}
 
-	user[updateNum].info &= 252;
-	user[updateNum].info |= buf[0] & 3;
-
+	user[updateNum].info = (user[updateNum].info & 252) | (buf[0] & 3);
 	saveUser();
 
 	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
