@@ -517,7 +517,7 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
-static void api_internal_adrpk(const int sock) {
+static void api_internal_adrpk(const int sock, const int num) {
 	unsigned char buf[11];
 	if (recv(sock, buf, 11, 0) != 11) return;
 	const bool isShield = buf[0] == 'S';
@@ -527,7 +527,7 @@ static void api_internal_adrpk(const int sock) {
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCINT) == 0) return;
+	if (userNum < 0 || (user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0) return;
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
@@ -607,7 +607,7 @@ static int takeConnections(void) {
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 
 				// Internal functions
-				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient); break;
+				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient, num); break;
 				case AEM_API_INTERNAL_EXIST: send(sockClient, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
