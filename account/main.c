@@ -180,7 +180,7 @@ static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char
 
 __attribute__((warn_unused_result))
 static uint64_t addressToHash(const unsigned char * const addr32, const bool shield) {
-	if (addr32 == NULL) return -1;
+	if (addr32 == NULL) return 0;
 
 	if (shield) {
 		uint64_t hash;
@@ -193,7 +193,6 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 		syslog(LOG_ERR, "Failed hashing address");
 		return 0;
 	}
-
 	return halves[0] ^ halves[1];
 }
 
