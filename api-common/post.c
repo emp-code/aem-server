@@ -513,7 +513,7 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 	addrData[0] = shield? 'S' : 'N';
 	memcpy(addrData + 1, ver_addr32, 10);
 
-	const int sock = accountSocket(AEM_API_ADDRESS_LOOKUP, ver_pk, crypto_box_PUBLICKEYBYTES);
+	const int sock = accountSocket(AEM_API_INTERNAL_MYADR, ver_pk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return false;
 
 	unsigned char resp;

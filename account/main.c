@@ -451,19 +451,6 @@ static void api_address_delete(const int sock, const int num) {
 	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
-static void api_address_lookup(const int sock, const int num) {
-	unsigned char buf[11];
-	if (recv(sock, buf, 11, 0) != 11) return;
-
-	const bool isShield = (buf[0] == 'S');
-	const unsigned char * const addr32 = buf + 1;
-	if (!isShield && ((memcmp(addr32, AEM_ADDR32_PUBLIC, 10) == 0) || memcmp(addr32, AEM_ADDR32_SYSTEM, 10) == 0)) return;
-
-	const uint64_t hash = addressToHash(addr32, isShield);
-	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (num == userNum) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
-}
-
 static void api_address_update(const int sock, const int num) {
 	unsigned char buf[8192];
 	const ssize_t len = recv(sock, buf, 8192, 0);
@@ -516,19 +503,35 @@ static void api_internal_level(const int sock, const int num) {
 	send(sock, &level, 1, 0);
 }
 
-static void api_internal_adrpk(const int sock, const int num) {
+static uint64_t getAddrHash(const int sock, bool * const isShield) {
 	unsigned char buf[11];
-	if (recv(sock, buf, 11, 0) != 11) return;
-	const bool isShield = buf[0] == 'S';
+	if (recv(sock, buf, 11, 0) != 11) return 0;
 
-	const uint64_t hash = addressToHash(buf + 1, isShield);
+	*isShield = (buf[0] == 'S');
+	if (!(*isShield) && ((memcmp(buf + 1, AEM_ADDR32_PUBLIC, 10) == 0) || memcmp(buf + 1, AEM_ADDR32_SYSTEM, 10) == 0)) return 0;
+
+	return addressToHash(buf + 1, *isShield);
+}
+
+static void api_internal_adrpk(const int sock, const int num) {
+	bool isShield;
+	const uint64_t hash = getAddrHash(sock, &isShield);
 	if (hash == 0) return;
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || (user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0) return;
+	if (userNum < 0 || ((user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0)) return;
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+}
+
+static void api_internal_myadr(const int sock, const int num) {
+	bool isShield;
+	const uint64_t hash = getAddrHash(sock, &isShield);
+	if (hash == 0) return;
+
+	const int userNum = hashToUserNum(hash, isShield, NULL);
+	if (userNum == num) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 static void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
@@ -599,7 +602,7 @@ static int takeConnections(void) {
 
 				case AEM_API_ADDRESS_CREATE: api_address_create(sockClient, num); break;
 				case AEM_API_ADDRESS_DELETE: api_address_delete(sockClient, num); break;
-				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient, num); break;
+//				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient, num); break;
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
@@ -609,6 +612,7 @@ static int takeConnections(void) {
 				case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sockClient, num); break;
 				case AEM_API_INTERNAL_EXIST: send(sockClient, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
 				case AEM_API_INTERNAL_LEVEL: api_internal_level(sockClient, num); break;
+				case AEM_API_INTERNAL_MYADR: api_internal_myadr(sockClient, num); break;
 				case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sockClient, num); break;
 				case AEM_API_INTERNAL_PUBKS: api_internal_pubks(sockClient, num); break;
 
