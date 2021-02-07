@@ -227,6 +227,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		"%s"
 		"Cross-Origin-Embedder-Policy: require-corp\r\n"
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
+		"Cross-Origin-Resource-Policy: same-origin\r\n"
 		"Digest: sha-256=%s\r\n"
 		"Referrer-Policy: no-referrer\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
