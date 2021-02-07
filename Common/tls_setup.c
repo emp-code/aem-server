@@ -116,7 +116,12 @@ int tlsSetup(void) {
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
 #endif
 
+#ifdef AEM_MTA
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+#else
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
+#endif
+
 	mbedtls_ssl_conf_ciphersuites(&conf, tls_ciphersuites);
 	mbedtls_ssl_conf_fallback(&conf, MBEDTLS_SSL_IS_NOT_FALLBACK);
 	mbedtls_ssl_conf_min_version(&conf, MBEDTLS_SSL_MAJOR_VERSION_3, AEM_TLS_MINOR);
