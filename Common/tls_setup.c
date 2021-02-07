@@ -100,8 +100,11 @@ int tlsSetup(void) {
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %x", -ret); return -1;}
 
 #ifndef AEM_MTA
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 	mbedtls_ssl_conf_curves(&conf, tls_curves);
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
+#else
+	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
 #endif
 
 #if defined(AEM_API_HTTP) || defined(AEM_WEB)
@@ -114,12 +117,6 @@ int tlsSetup(void) {
 	ret = mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/");
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse_path failed: %x", -ret); return -1;}
 	mbedtls_ssl_conf_ca_chain(&conf, &cacert, NULL);
-#endif
-
-#ifdef AEM_MTA
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
-#else
-	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
 #endif
 
 	mbedtls_ssl_conf_ciphersuites(&conf, tls_ciphersuites);
