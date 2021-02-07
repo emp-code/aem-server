@@ -45,6 +45,7 @@ bool isRequestValid(const char * const req, const size_t lenReq, bool * const ke
 		|| NULL != strcasestr(req, "\r\nIf-Range:")
 		|| NULL != strcasestr(req, "\r\nIf-Unmodified-Since:")
 		|| NULL != strcasestr(req, "\r\nRange:")
+		|| NULL != strcasestr(req, "\r\nReferer:")
 		|| NULL != strcasestr(req, "\r\nSec-Fetch-Site: none")
 		|| NULL != strcasestr(req, "\r\nSec-Fetch-Site: same-origin")
 		// These are only for preflighted requests, which All-Ears doesn't use
