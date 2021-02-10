@@ -10,6 +10,7 @@
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
+#include "../Common/Addr32.h"
 #include "../Common/QuotedPrintable.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
@@ -244,6 +245,19 @@ static int smtp_addr_our(const char * const buf, const size_t len, char to[32]) 
 	|| (addrChars == 6 && memcmp(addr, "public", 6) == 0)
 	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
 	) return -1;
+
+	if (addrChars == 16) { // Shield addresses: check if exists
+		unsigned char addr32[10];
+		addr32_store(addr32, addr, addrChars);
+
+		const int sock = accountSocket(AEM_MTA_ADREXISTS_SHIELD, addr32, 10);
+		if (sock >= 0) {
+			unsigned char tmp;
+			const ssize_t ret = recv(sock, &tmp, 1, 0);
+			close(sock);
+			if (ret != 1) return -1;
+		}
+	}
 
 	to[toChars] = '\0';
 

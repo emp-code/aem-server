@@ -548,6 +548,11 @@ static void mta_getPubKey(const int sock, const unsigned char * const addr32, co
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }
 
+static void mta_shieldExist(const int sock, const unsigned char * const addr32) {
+	const uint64_t hash = addressToHash(addr32, true);
+	if (hash > 0 && hashToUserNum(hash, true, NULL) >= 0) send(sock, (unsigned char[]){0}, 1, 0);
+}
+
 static bool peerOk(const int sock) {
 	struct ucred peer;
 	unsigned int lenUc = sizeof(struct ucred);
@@ -626,6 +631,7 @@ static int takeConnections(void) {
 			continue;
 		} else if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_MTA) == 0) {
 			switch(req[0]) {
+				case AEM_MTA_ADREXISTS_SHIELD: mta_shieldExist(sockClient, req + 1); break;
 				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;
 				case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sockClient, req + 1, true);  break;
 			}
