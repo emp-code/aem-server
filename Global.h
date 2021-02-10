@@ -10,11 +10,6 @@ enum aem_internal_response {
 	AEM_INTERNAL_RESPONSE_VIOLATION
 };
 
-#define AEM_MTA_ADREXISTS_SHIELD 5
-#define AEM_MTA_GETPUBKEY_NORMAL 10
-#define AEM_MTA_GETPUBKEY_SHIELD 11
-#define AEM_MTA_INSERT 20
-
 enum aem_internal_enquiry {
 	AEM_ENQUIRY_MX,
 	AEM_ENQUIRY_IP,
@@ -116,6 +111,13 @@ enum aem_api_commands {
 	AEM_API_INTERNAL_MYADR,
 	AEM_API_INTERNAL_PUBKS,
 	AEM_API_INTERNAL_UINFO
+};
+
+enum aem_mta_commands {
+	AEM_MTA_ADREXISTS_SHIELD,
+	AEM_MTA_GETPUBKEY_NORMAL,
+	AEM_MTA_GETPUBKEY_SHIELD,
+	AEM_MTA_INSERT
 };
 
 enum aem_process_types {
