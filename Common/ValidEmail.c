@@ -13,7 +13,7 @@ bool isValidEmail(const char * const email) {
 	int lenLocal = 0;
 
 	for (;lenLocal < lenEmail; lenLocal++) {
-		if (islower(email[lenLocal]) || isdigit(email[lenLocal])) continue;
+		if (isalnum(email[lenLocal])) continue;
 		if (lenLocal > 0 && (email[lenLocal] == '-' || email[lenLocal] == '_' || (email[lenLocal] == '.' && email[lenLocal - 1] != '.'))) continue;
 		if (email[lenLocal] == '@') break;
 		return false;
