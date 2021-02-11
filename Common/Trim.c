@@ -7,6 +7,8 @@
 
 void removeControlChars(unsigned char * const text, size_t * const len) {
 	unsigned char * const new = malloc(*len);
+	if (new == NULL) return;
+
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
