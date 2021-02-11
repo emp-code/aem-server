@@ -6,6 +6,8 @@
 #include "Trim.h"
 
 void removeControlChars(unsigned char * const text, size_t * const len) {
+	if (text == NULL || len == NULL) return;
+
 	unsigned char * const new = malloc(*len);
 	if (new == NULL) return;
 
