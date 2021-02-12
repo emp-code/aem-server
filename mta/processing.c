@@ -17,13 +17,11 @@
 #define AEM_CHAR_HEADERS_END 0x1e // Record Separator
 
 static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
-	if (msg == NULL || lenMsg < 5) return;
+	if (lenMsg < 5) return;
 
 	const unsigned char *c = msg;
-
-	while(1) {
+	while (c != NULL) {
 		const unsigned char * const next = memchr(c + 1, '\n', (msg + lenMsg) - (c + 1));
-		if (next == NULL) break;
 
 		const unsigned char * const colon = memchr(c + 1, ':', (msg + lenMsg) - (c + 1));
 		if (colon == NULL) break;
