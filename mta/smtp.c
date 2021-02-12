@@ -575,7 +575,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					if (new != NULL) {
 						free(email.body);
 						email.body = new;
-					} else free(source);
+					}
 
 					// TODO: charset conversion
 
