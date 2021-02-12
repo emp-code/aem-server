@@ -31,11 +31,13 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	*len = lenNew;
 }
 
-void convertText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
+void convertText(unsigned char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
+	if (text == NULL || lenText == NULL || bad == NULL) return;
+
 	const size_t diff = lenBad - 1;
 
 	while(1) {
-		char * const c = memmem(text, *lenText, bad, lenBad);
+		unsigned char * const c = memmem(text, *lenText, bad, lenBad);
 		if (c == NULL) break;
 
 		memmove(c + 1, c + lenBad, (text + *lenText) - (c + lenBad));
@@ -44,8 +46,8 @@ void convertText(char * const text, size_t * const lenText, const char * const b
 	}
 }
 
-void convertLineDots(char * const text, size_t * const len) {
-	char *c = memmem(text, *len, "\r\n..", 4);
+void convertLineDots(unsigned char * const text, size_t * const len) {
+	unsigned char *c = memmem(text, *len, "\r\n..", 4);
 
 	while (c != NULL) {
 		c += 2;
@@ -59,31 +61,31 @@ void convertLineDots(char * const text, size_t * const len) {
 }
 
 // Convert non-breaking space to normal space (UTF-8)
-void convertNbsp(char * const text, size_t * const len) {
-	convertText(text, len, "\xc2\xa0", 2, ' ');
+void convertNbsp(unsigned char * const text, size_t * const len) {
+	convertText(text, len, (char[]){0xc2, 0xa0}, 2, ' ');
 }
 
 // Compress multiple spaces to one
-void trimSpace(char * const text, size_t * const len) {
+void trimSpace(unsigned char * const text, size_t * const len) {
 	convertText(text, len, "  ", 2, ' ');
 }
 
 // Remove space before linebreak
-void removeSpaceEnd(char * const text, size_t * const len) {
+void removeSpaceEnd(unsigned char * const text, size_t * const len) {
 	convertText(text, len, " \n", 2, '\n');
 }
 
 // Remove space after linebreak
-void removeSpaceBegin(char * const text, size_t * const len) {
+void removeSpaceBegin(unsigned char * const text, size_t * const len) {
 	convertText(text, len, "\n ", 2, '\n');
 }
 
 // Compress over two linebreaks to two
-void trimLinebreaks(char * const text, size_t * const len) {
+void trimLinebreaks(unsigned char * const text, size_t * const len) {
 	convertText(text, len, "\n\n\n", 3, '\n');
 }
 
-void trimBegin(char * const text, size_t * const len) {
+void trimBegin(unsigned char * const text, size_t * const len) {
 	size_t rem = 0;
 	for (size_t i = 0; i < *len; i++) {
 		if (!isspace(text[i])) break;
@@ -95,7 +97,7 @@ void trimBegin(char * const text, size_t * const len) {
 	*len -= rem;
 }
 
-void trimEnd(const char * const text, size_t * const len) {
+void trimEnd(const unsigned char * const text, size_t * const len) {
 	for (int i = *len - 1; i >= 0; i--) {
 		if (!isspace(text[i])) break;
 		(*len)--;

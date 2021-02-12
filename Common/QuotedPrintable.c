@@ -5,13 +5,13 @@
 #include "QuotedPrintable.h"
 
 __attribute__((warn_unused_result))
-static unsigned long hexToChar(const char * const src) {
+static unsigned long hexToChar(const unsigned char * const src) {
 	const char hex[3] = {src[0], src[1], '\0'};
 	return strtoul(hex, NULL, 16);
 }
 
-void decodeQuotedPrintable(char * const data, size_t * const lenData) {
-	char * const new = malloc(*lenData);
+void decodeQuotedPrintable(unsigned char * const data, size_t * const lenData) {
+	unsigned char * const new = malloc(*lenData);
 	if (new == NULL) return;
 	size_t lenNew = 0;
 

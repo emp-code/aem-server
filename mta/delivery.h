@@ -4,6 +4,6 @@
 #include "Email.h"
 
 void setSignKey(const unsigned char * const seed);
-void deliverMessage(char to[][32], const int toCount, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email);
+void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email);
 
 #endif

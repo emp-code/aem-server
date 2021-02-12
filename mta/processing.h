@@ -3,16 +3,19 @@
 
 #include "Email.h"
 
+#define MTA_PROCESSING_CTE_NONE 0
+#define MTA_PROCESSING_CTE_B64 1
+#define MTA_PROCESSING_CTE_QP 2
+
 void tabsToSpaces(char * const text, const size_t len);
-void trimSpace(char * const text, size_t * const len);
-void removeSpaceEnd(char * const text, size_t * const len);
-void trimLinebreaks(char * const text, size_t * const len);
+int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email);
 
-void decodeEncodedWord(char * const data, size_t * const lenData);
-int prepareHeaders(char * const data, size_t * const lenData);
-void unfoldHeaders(char * const data, size_t * const lenData);
-void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email);
+void decodeEncodedWord(unsigned char * const data, size_t * const lenData);
 
-void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit);
+void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit);
+unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0);
+
+int getCte(const char * const h);
+unsigned char *decodeCte(const char cte, const unsigned char * const src, size_t * const lenSrc);
 
 #endif

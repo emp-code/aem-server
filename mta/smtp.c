@@ -135,7 +135,7 @@ static void getIpInfo(void) {
 }
 
 __attribute__((warn_unused_result))
-static int recv_aem(const int sock, mbedtls_ssl_context * const tls, char * const buf, const size_t maxSize) {
+static int recv_aem(const int sock, mbedtls_ssl_context * const tls, unsigned char * const buf, const size_t maxSize) {
 	if (buf == NULL || maxSize < 1) return -1;
 
 	if (tls != NULL) {
@@ -177,7 +177,7 @@ static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const 
 }
 
 __attribute__((warn_unused_result))
-static int smtp_addr_sender(const char * const buf, const size_t len) {
+static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 	if (buf == NULL || len < 1) return -1;
 
 	size_t skipBytes = 0;
@@ -204,7 +204,7 @@ static int smtp_addr_sender(const char * const buf, const size_t len) {
 }
 
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const char * const buf, const size_t len, char to[32]) {
+static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32]) {
 	if (buf == NULL || len < 1) return -1;
 
 	size_t skipBytes = 0;
@@ -225,7 +225,7 @@ static int smtp_addr_our(const char * const buf, const size_t len, char to[32]) 
 	int toChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
 		if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return -1;
+			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp((char*)buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return -1;
 			break;
 		}
 
@@ -265,12 +265,12 @@ static int smtp_addr_our(const char * const buf, const size_t len, char to[32]) 
 }
 
 __attribute__((warn_unused_result))
-static bool smtp_helo(const int sock, const char * const buf, const ssize_t bytes) {
+static bool smtp_helo(const int sock, const unsigned char * const buf, const ssize_t bytes) {
 	if (buf == NULL || bytes < 4) return false;
 
-	if (strncasecmp(buf, "HELO", 4) == 0) {
+	if (strncasecmp((char*)buf, "HELO", 4) == 0) {
 		return send_aem(sock, NULL, "250 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
-	} else if (strncasecmp(buf, "EHLO", 4) == 0) {
+	} else if (strncasecmp((char*)buf, "EHLO", 4) == 0) {
 		return send_aem(sock, NULL, "250-"AEM_DOMAIN""AEM_EHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_EHLO_RESPONSE_LEN);
 	}
 
@@ -295,7 +295,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(clientAddr, 0);
 
-	char buf[AEM_SMTP_MAX_SIZE_CMD];
+	unsigned char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
 	if (bytes < 7) return smtp_fail(clientAddr, 1); // HELO \r\n
 
@@ -312,7 +312,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	mbedtls_ssl_context *tls = NULL;
 	const mbedtls_x509_crt *clientCert = NULL;
 
-	if (bytes >= 8 && strncasecmp(buf, "STARTTLS", 8) == 0) {
+	if (bytes >= 8 && strncasecmp((char*)buf, "STARTTLS", 8) == 0) {
 		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
 
 		tls = &ssl;
@@ -332,12 +332,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			tlsClose(tls);
 			return;
-		} else if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) {
+		} else if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) {
 			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
 			smtp_respond(sock, tls, '2', '2', '1');
 			tlsClose(tls);
 			return;
-		} else if (bytes < 4 || (strncasecmp(buf, "EHLO", 4) != 0 && strncasecmp(buf, "HELO", 4) != 0)) {
+		} else if (bytes < 4 || (strncasecmp((char*)buf, "EHLO", 4) != 0 && strncasecmp((char*)buf, "HELO", 4) != 0)) {
 			syslog(LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
 			tlsClose(tls);
 			return;
@@ -359,8 +359,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	size_t toCount = 0;
 	char to[AEM_SMTP_MAX_TO][32];
 
-	char *body = NULL;
-	size_t lenBody = 0;
+	unsigned char *source = NULL;
+	size_t lenSource = 0;
 
 	for (int roundsDone = 0;; roundsDone++) {
 		if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
@@ -375,14 +375,14 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			break;
 		}
 
-		if (bytes > 10 && strncasecmp(buf, "MAIL FROM:", 10) == 0) {
+		if (bytes > 10 && strncasecmp((char*)buf, "MAIL FROM:", 10) == 0) {
 			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {
 				smtp_fail(clientAddr, 100);
 				break;
 			}
 		}
 
-		else if (bytes > 8 && strncasecmp(buf, "RCPT TO:", 8) == 0) {
+		else if (bytes > 8 && strncasecmp((char*)buf, "RCPT TO:", 8) == 0) {
 			if (email.lenEnvFrom < 1) {
 				email.protocolViolation = true;
 
@@ -418,14 +418,14 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			toCount++;
 		}
 
-		else if (strncasecmp(buf, "RSET", 4) == 0) {
+		else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
 			email.rareCommands = true;
 
 			email.lenEnvFrom = 0;
 			toCount = 0;
 		}
 
-		else if (strncasecmp(buf, "VRFY", 4) == 0) {
+		else if (strncasecmp((char*)buf, "VRFY", 4) == 0) {
 			email.rareCommands = true;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
@@ -437,12 +437,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			continue;
 		}
 
-		else if (strncasecmp(buf, "QUIT", 4) == 0) {
+		else if (strncasecmp((char*)buf, "QUIT", 4) == 0) {
 			smtp_respond(sock, tls, '2', '2', '1');
 			break;
 		}
 
-		else if (strncasecmp(buf, "DATA", 4) == 0) {
+		else if (strncasecmp((char*)buf, "DATA", 4) == 0) {
 			if (email.lenEnvFrom < 1 || toCount < 1) {
 				email.protocolViolation = true;
 
@@ -460,68 +460,64 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			body = malloc(AEM_SMTP_MAX_SIZE_BODY);
-			if (body == NULL) {
+			source = malloc(AEM_SMTP_MAX_SIZE_BODY);
+			if (source == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
 				smtp_fail(clientAddr, 999);
 				break;
 			}
 
-			body[0] = '\n';
-			lenBody = 1;
+			source[0] = '\n';
+			lenSource = 1;
 
-			// Receive body
+			// Receive body/source
 			while(1) {
-				bytes = recv_aem(sock, tls, body + lenBody, AEM_SMTP_MAX_SIZE_BODY - lenBody);
+				bytes = recv_aem(sock, tls, source + lenSource, AEM_SMTP_MAX_SIZE_BODY - lenSource);
 				if (bytes < 1) break;
 
-				lenBody += bytes;
+				lenSource += bytes;
 
-				if (lenBody >= 5 && memcmp(body + lenBody - 5, "\r\n.\r\n", 5) == 0) {
-					lenBody -= 5;
+				if (lenSource >= 5 && memcmp(source + lenSource - 5, "\r\n.\r\n", 5) == 0) {
+					lenSource -= 5;
 					break;
 				}
 
-				if (lenBody >= AEM_SMTP_MAX_SIZE_BODY) break;
+				if (lenSource >= AEM_SMTP_MAX_SIZE_BODY) break;
 			}
 
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
-				sodium_memzero(body, lenBody);
-				free(body);
+				sodium_memzero(source, lenSource);
+				free(source);
 				smtp_fail(clientAddr, 150);
 				break;
 			}
 
 			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-			if (bytes >= 4 && strncasecmp(buf, "QUIT", 4) == 0) email.quitReceived = true;
+			if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) email.quitReceived = true;
 
-			convertLineDots(body, &lenBody);
+			convertLineDots(source, &lenSource);
 
-			if (prepareHeaders(body, &lenBody) == 0) {
-				unfoldHeaders(body, &lenBody);
-				decodeEncodedWord(body, &lenBody);
-				decodeMessage(&body, &lenBody, &email);
-				convertNbsp(body, &lenBody);
-				trimSpace(body, &lenBody);
-				removeSpaceEnd(body, &lenBody);
-				trimLinebreaks(body, &lenBody);
-				removeSpaceBegin(body, &lenBody);
-				trimEnd(body, &lenBody);
+			if (getHeaders(source, &lenSource, &email) == 0) {
+				moveHeader(email.head, &email.lenHead, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
+				moveHeader(email.head, &email.lenHead, "\nMessage-ID:", 12, email.msgId, &email.lenMsgId, 255);
+				moveHeader(email.head, &email.lenHead, "\nSubject:", 9, email.subject, &email.lenSubject, 255);
+				moveHeader(email.head, &email.lenHead, "\nTo:", 4, email.headerTo, &email.lenHeaderTo, 127);
 
-				// Headers moved to the emailInfo struct
-				moveHeader(body, &lenBody, "\nSubject:", 9, email.subject, &email.lenSubject, 255);
-				moveHeader(body, &lenBody, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
-				moveHeader(body, &lenBody, "\nTo:", 4, email.headerTo, &email.lenHeaderTo, 63);
+				uint8_t lenHdrDate = 0;
+				unsigned char hdrDate[256];
+				moveHeader(email.head, &email.lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
+				const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email.headerTz);
 
-				// Headers removed entirely
-				moveHeader(body, &lenBody, "\nMIME-Version:", 14, NULL, NULL, 0);
-				moveHeader(body, &lenBody, "\nContent-Type:", 14, NULL, NULL, 0);
-				moveHeader(body, &lenBody, "\nContent-Transfer-Encoding:", 27, NULL, NULL, 0);
+				if (hdrTime > 0) {
+					// Store the difference between received and header timestamps (-18h .. +736s)
+					const time_t timeDiff = (time_t)email.timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
+					email.headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
+				}
 
 				uint8_t lenHdrMsgId = 0;
 				unsigned char hdrMsgId[256];
-				moveHeader(body, &lenBody, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId, 255);
+				moveHeader(email.head, &email.lenHead, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId, 255);
 				if (lenHdrMsgId > 0) {
 					if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
 					if (hdrMsgId[0] == '<') {
@@ -533,28 +529,81 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					}
 				}
 
-				uint8_t lenHdrDate = 0;
-				unsigned char hdrDate[256];
-				moveHeader(body, &lenBody, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
-				const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email.headerTz);
+				// Content-Type
+				const char * const ct = strcasestr((char*)email.head, "\nContent-Type:");
+				if (ct != NULL && strncmp(ct + 14, "multipart", 9) == 0) {
+					const char *boundStart = strcasestr(ct, "boundary=");
+					if (boundStart != NULL) {
+						char *boundEnd = NULL;
+						boundStart += 9;
 
-				if (hdrTime > 0) {
-					// Store the difference between received and header timestamps (-18h .. +736s)
-					const time_t timeDiff = (time_t)email.timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
-					email.headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
+						if (*boundStart == '"') {
+							boundStart++;
+							boundEnd = strchr(boundStart, '"');
+						} else if (*boundStart == '\'') {
+							boundStart++;
+							boundEnd = strchr(boundStart, '\'');
+						} else {
+							boundStart++;
+							boundEnd = strpbrk(boundStart, "; \t\v\f\r\n");
+						}
+
+						if (boundEnd != NULL) {
+							const size_t lenBound = boundEnd - boundStart + 4;
+							unsigned char *bound = malloc(lenBound);
+							bound[0] = '\r';
+							bound[1] = '\n';
+							bound[2] = '-';
+							bound[3] = '-';
+							memcpy(bound + 4, boundStart, lenBound - 4);
+
+							email.lenBody = lenSource;
+							email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound);
+							if (email.body == NULL) {
+								email.body = source;
+								email.lenBody = lenSource;
+							} else free(source);
+						} else { // Error - boundary string doesn't have a proper ending
+							email.body = source;
+							email.lenBody = lenSource;
+						}
+					} else { // Error - boundary string not found
+						email.body = source;
+						email.lenBody = lenSource;
+					}
+				} else { // Single-part body
+					email.body = source;
+					email.lenBody = lenSource;
+
+					const int cte = getCte((char*)email.head);
+					unsigned char * const new = decodeCte(cte, email.body, &email.lenBody);
+					if (new != NULL) {
+						free(email.body);
+						email.body = new;
+					} else free(source);
+
+					// TODO: charset conversion
+
+					convertNbsp(email.body, &email.lenBody);
+					removeControlChars(email.body, &email.lenBody);
+					trimSpace(email.body, &email.lenBody);
+					removeSpaceEnd(email.body, &email.lenBody);
+					trimLinebreaks(email.body, &email.lenBody);
+					removeSpaceBegin(email.body, &email.lenBody);
+					trimEnd(email.body, &email.lenBody);
 				}
 			}
 
 			getIpInfo();
 			getCertNames(clientCert);
 
-			deliverMessage(to, toCount, (unsigned char*)body, lenBody, &email);
+			deliverMessage(to, toCount, &email);
 
+			sodium_memzero(email.head, email.lenHead);
+			sodium_memzero(email.body, email.lenBody);
+			free(email.head);
+			free(email.body);
 			sodium_memzero(&email, sizeof(struct emailInfo));
-
-			sodium_memzero(body, lenBody);
-			lenBody = 0;
-			free(body);
 
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
 			toCount = 0;
@@ -563,7 +612,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			continue;
 		}
 
-		else if (strncasecmp(buf, "NOOP", 4) == 0) {
+		else if (strncasecmp((char*)buf, "NOOP", 4) == 0) {
 			email.rareCommands = true;
 		}
 

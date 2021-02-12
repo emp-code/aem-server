@@ -66,10 +66,6 @@ struct emailInfo {
 	unsigned char msgId[255];
 	unsigned char subject[255];
 
-	// Attachments
-	unsigned char *attachment[AEM_MAXNUM_ATTACHMENTS];
-	size_t lenAttachment[AEM_MAXNUM_ATTACHMENTS];
-
 	// Header time info
 	unsigned char headerTz;
 	uint16_t headerTs;
@@ -81,6 +77,16 @@ struct emailInfo {
 	// 2-bit data fields
 	uint8_t dmarc;
 	uint8_t spf;
+
+	// Headers, Body, Attachments
+	unsigned char *head;
+	size_t lenHead;
+
+	unsigned char *body;
+	size_t lenBody;
+
+	unsigned char *attachment[AEM_MAXNUM_ATTACHMENTS];
+	size_t lenAttachment[AEM_MAXNUM_ATTACHMENTS];
 };
 
 #endif

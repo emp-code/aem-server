@@ -15,11 +15,11 @@ bool isUtf8(const char * const charset) {
 	));
 }
 
-char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
+unsigned char *toUtf8(const unsigned char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset)) {
-		char * const new = malloc(lenInput + 1);
+		unsigned char * const new = malloc(lenInput + 1);
 		memcpy(new, input, lenInput);
 		new[lenInput] = '\0';
 		*lenOut = lenInput;
@@ -32,7 +32,7 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 	if (buf == NULL) return NULL;
 
 	UErrorCode status = U_ZERO_ERROR;
-	const int newLen = ucnv_convert("utf-8", charset, buf, maxLen, input, lenInput, &status);
+	const int newLen = ucnv_convert("utf-8", charset, buf, maxLen, (char*)input, lenInput, &status);
 
 	if (U_FAILURE(status) || newLen < 1) {
 		free(buf);
@@ -40,5 +40,5 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 	}
 
 	*lenOut = newLen;
-	return buf;
+	return (unsigned char*)buf;
 }

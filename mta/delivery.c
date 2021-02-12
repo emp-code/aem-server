@@ -40,15 +40,15 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 }
 
 __attribute__((warn_unused_result))
-static unsigned char *makeExtMsg(const unsigned char * const body, const size_t lenBody, struct emailInfo * const email, size_t * const lenOut) {
-	if (lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
+static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
+	if (email->lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
 
 	if (email->lenHeaderTo >  63) email->lenHeaderTo =  63;
 	if (email->lenGreeting > 127) email->lenGreeting = 127;
 	if (email->lenRdns     > 127) email->lenRdns     = 127;
 
 	// Data to be compressed
-	const size_t lenUncomp = email->lenGreeting + email->lenRdns + email->lenEnvTo + email->lenHeaderTo + email->lenEnvFrom + email->lenHeaderFrom + email->lenMsgId + email->lenSubject + 4 + lenBody;
+	const size_t lenUncomp = email->lenGreeting + email->lenRdns + email->lenEnvTo + email->lenHeaderTo + email->lenEnvFrom + email->lenHeaderFrom + email->lenMsgId + email->lenSubject + 4 + email->lenHead + email->lenBody;
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
 
@@ -64,10 +64,13 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	memcpy(uncomp + offset, email->envFrom,    email->lenEnvFrom);    offset += email->lenEnvFrom;    uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->headerFrom, email->lenHeaderFrom); offset += email->lenHeaderFrom; uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->msgId,      email->lenMsgId);      offset += email->lenMsgId;      uncomp[offset] = '\n'; offset++;
-	memcpy(uncomp + offset, email->subject,    email->lenSubject);    offset += email->lenSubject;    uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->subject,    email->lenSubject);    offset += email->lenSubject; // email->head begins with a linebreak
 
-	// The body
-	memcpy(uncomp + offset, body, lenBody);
+	// The headers and body
+	memcpy(uncomp + offset, email->head, email->lenHead);
+	offset += email->lenHead;
+	uncomp[offset] = '\r'; offset++;
+	memcpy(uncomp + offset, email->body, email->lenBody);
 
 	// Compress
 	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
@@ -151,8 +154,8 @@ static unsigned char *makeExtMsg(const unsigned char * const body, const size_t 
 	return encrypted;
 }
 
-void deliverMessage(char to[][32], const int toCount, const unsigned char * const msgBody, size_t lenMsgBody, struct emailInfo * const email) {
-	if (to == NULL || toCount < 1 || msgBody == NULL || lenMsgBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
+void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
+	if (to == NULL || toCount < 1 || email->body == NULL || email->lenBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
 
 	if (toCount > 1) email->toMultiple = true;
 	if (email->attachCount >  31) email->attachCount =  31;
@@ -181,7 +184,7 @@ void deliverMessage(char to[][32], const int toCount, const unsigned char * cons
 		memcpy(email->envTo, to[i], email->lenEnvTo);
 
 		size_t lenEnc = 0;
-		unsigned char *enc = makeExtMsg(msgBody, lenMsgBody, email, &lenEnc);
+		unsigned char *enc = makeExtMsg(email, &lenEnc);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			continue;

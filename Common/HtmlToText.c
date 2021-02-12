@@ -387,9 +387,9 @@ void htmlToText(char * const text, size_t * const len) {
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_GT, '>');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LT, '<');
 
-	convertNbsp(text, len);
-	trimSpace(text, len);
-	removeSpaceBegin(text, len);
-	removeSpaceEnd(text, len);
-	trimLinebreaks(text, len);
+	convertNbsp((unsigned char*)text, len);
+	trimSpace((unsigned char*)text, len);
+	removeSpaceBegin((unsigned char*)text, len);
+	removeSpaceEnd((unsigned char*)text, len);
+	trimLinebreaks((unsigned char*)text, len);
 }

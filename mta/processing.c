@@ -14,15 +14,77 @@
 #include "processing.h"
 
 #define AEM_LIMIT_MULTIPARTS 50
+#define AEM_CHAR_HEADERS_END 0x1e // Record Separator
 
-void moveHeader(char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
-	char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
-	if (headersEnd == NULL) return;
-	size_t lenHeaders = headersEnd - data;
+static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
+	if (msg == NULL || lenMsg < 5) return;
 
-	char * const hdr = memmem(data, lenHeaders, needle, lenNeedle);
+	const unsigned char *c = msg;
+
+	while(1) {
+		const unsigned char * const next = memchr(c + 1, '\n', (msg + lenMsg) - (c + 1));
+		if (next == NULL) break;
+
+		const unsigned char * const colon = memchr(c + 1, ':', (msg + lenMsg) - (c + 1));
+		if (colon == NULL) break;
+
+		for (int i = (colon + 1) - msg; i < next - msg; i++) {
+			if (isspace(msg[i])) msg[i] = 127; else break; // 127=del
+		}
+
+		c = next;
+	}
+}
+
+static void compressSpaces(unsigned char * msg, size_t const lenMsg) {
+	if (msg == NULL || lenMsg < 5) return;
+
+	for (size_t i = 0; i < lenMsg - 1; i++) {
+		if (isspace(msg[i]) && isspace(msg[i + 1])) msg[i] = 127; // Delete
+	}
+}
+
+static void unfoldHeaders(unsigned char * const data, const size_t lenData) {
+	while(1) {
+		char * const lfSp = memmem(data + 2, lenData - 2, "\n ", 2);
+		if (lfSp == NULL) break;
+		*lfSp = 127; // Delete
+	}
+}
+
+int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
+	if (data == NULL) return -1;
+
+	unsigned char *hend = memmem(data, *lenData, "\r\n\r\n", 4);
+	unsigned char *hend2 = memmem(data, *lenData, "\n\n", 2);
+	if (hend == NULL || (hend2 != NULL && hend2 < hend)) hend = hend2;
+	if (hend == NULL) return -1;
+	const size_t lenHend = (hend == hend2) ? 2 : 4;
+
+	email->lenHead = hend - data;
+	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
+
+	email->head = malloc(email->lenHead + 1);
+	memcpy(email->head, data, email->lenHead);
+	email->head[email->lenHead] = '\0';
+
+	memmove(data, hend + lenHend, (data + *lenData) - (hend + lenHend));
+	*lenData -= (email->lenHead + lenHend);
+
+	// Processing
+	removeControlChars(email->head, &email->lenHead);
+	removeHeaderSpace(email->head, email->lenHead);
+	compressSpaces(email->head, email->lenHead);
+	removeControlChars(email->head, &email->lenHead);
+	unfoldHeaders(email->head, email->lenHead);
+	removeControlChars(email->head, &email->lenHead);
+	return 0;
+}
+
+void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
+	unsigned char * const hdr = memmem(data, *lenData, needle, lenNeedle);
 	if (hdr != NULL) {
-		const char * const hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
+		const unsigned char * const hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
 		if (hdrEnd != NULL) {
 			if (target != NULL || lenTarget != NULL) {
 				const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
@@ -42,19 +104,15 @@ void moveHeader(char * const data, size_t * const lenData, const char * const ne
 }
 
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
-void decodeEncodedWord(char * const data, size_t * const lenData) {
+void decodeEncodedWord(unsigned char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
 	while(1) {
-		const char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
-		if (headersEnd == NULL) break;
-
-		const size_t searchLen = headersEnd - data;
-		char * const ew = memmem(data, searchLen, "=?", 2);
+		unsigned char * const ew = memmem(data, *lenData, "=?", 2);
 		if (ew == NULL) break;
 
 		// Remove charset part
-		char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
+		unsigned char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
 		if (charsetEnd == NULL) break;
 		if (charsetEnd[2] != '?') break;
 
@@ -64,9 +122,9 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		cs[lenCs] = '\0';
 
 		const char type = charsetEnd[1];
-		char *ewText = charsetEnd + 3;
+		unsigned char *ewText = charsetEnd + 3;
 
-		const char * const ewEnd = memmem(ewText, *lenData - (ewText - data), "?=", 2);
+		const unsigned char * const ewEnd = memmem(ewText, *lenData - (ewText - data), "?=", 2);
 		if (ewEnd == NULL) break;
 
 		size_t lenEw = ewEnd - ew;
@@ -79,7 +137,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		}
 
 		while(1) {
-			char * const underscore = memchr(ewText, '_', lenEwText);
+			unsigned char * const underscore = memchr(ewText, '_', lenEwText);
 			if (underscore == NULL) break;
 			*underscore = ' ';
 		}
@@ -89,7 +147,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else if (type == 'B' || type == 'b') {
 			unsigned char * const dec = malloc(lenEwText);
 			size_t lenDec;
-			if (dec == NULL || sodium_base642bin(dec, lenEwText, ewText, lenEwText, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
+			if (dec == NULL || sodium_base642bin(dec, lenEwText, (char*)ewText, lenEwText, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
 
 			memcpy(ewText, dec, lenDec);
 			lenEwText = lenDec;
@@ -97,7 +155,7 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 		} else break;
 
 		size_t lenUtf8 = 0;
-		char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
+		unsigned char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
 		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
@@ -120,131 +178,120 @@ void decodeEncodedWord(char * const data, size_t * const lenData) {
 	}
 }
 
-static void removeHeaderSpace(char * msg, size_t const lenMsg) {
-	if (msg == NULL || lenMsg < 5) return;
+int getCte(const char * const h) {
+	if (h == NULL) return MTA_PROCESSING_CTE_NONE;
 
-	char *c = msg;
+	const char *cte = strcasestr(h, "\nContent-Transfer-Encoding:");
+	if (cte == NULL) return MTA_PROCESSING_CTE_NONE;
 
-	while(1) {
-		if (c[2] == '\r') break;
+	cte += 26;
+	while (isspace(*cte)) cte++;
 
-		char *next = memmem(c + 2, (msg + lenMsg) - (c + 2) - 2, "\r\n", 2);
-		if (next == NULL) break;
+	if (strncasecmp(cte, "Quoted-Printable", 16) == 0) return MTA_PROCESSING_CTE_QP;
+	if (strncasecmp(cte, "Base64", 6) == 0) return MTA_PROCESSING_CTE_B64;
+	return MTA_PROCESSING_CTE_NONE;
+}
 
-		char *colon = memchr(c + 2, ':', (msg + lenMsg) - (c + 2));
-		if (colon == NULL) break;
-		colon++;
+unsigned char *decodeCte(const char cte, const unsigned char * const src, size_t * const lenSrc) {
+	unsigned char *new;
 
-		for (int i = colon - msg; i < next - msg; i++) {
-			if (isspace(msg[i])) msg[i] = 127; else break; // 127=del
-		}
+	switch(cte) {
+		case MTA_PROCESSING_CTE_QP:
+			new = malloc(*lenSrc + 1);
+			if (new == NULL) return NULL;
+			memcpy(new, src, *lenSrc);
+			decodeQuotedPrintable(new, lenSrc);
+		break;
 
-		c = next;
+		case MTA_PROCESSING_CTE_B64:
+			new = malloc(*lenSrc);
+			if (new == NULL) return NULL;
+
+			size_t lenNew;
+			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \t\v\f\r\n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(new); return NULL;}
+			*lenSrc = lenNew;
+		break;
+
+		default:
+			new = malloc(*lenSrc + 1);
+			if (new == NULL) return NULL;
+			memcpy(new, src, *lenSrc);
 	}
+
+	new[*lenSrc] = '\0';
+	return new;
 }
 
-int prepareHeaders(char * const data, size_t * const lenData) {
-	const char *headersEnd = memmem(data, *lenData, "\r\n\r\n", 4);
-	const char * const headersEnd2 = memmem(data, *lenData, "\n\n", 2);
-	if (headersEnd2 != NULL && headersEnd2 < headersEnd) headersEnd = headersEnd2 + 2; else headersEnd += 4;
-	if (headersEnd == NULL) return -1;
+unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
+	const size_t lenSrc = *outLen;
 
-	size_t lenHeaders = headersEnd - data;
-	const size_t lenHeaders_original = lenHeaders;
-	removeHeaderSpace(data, lenHeaders);
-	removeControlChars((unsigned char*)data, &lenHeaders);
-
-	memmove(data + lenHeaders, data + lenHeaders_original, (data + *lenData) - (data + lenHeaders_original));
-	*lenData -= (lenHeaders_original - lenHeaders);
-	return 0;
-}
-
-void unfoldHeaders(char * const data, size_t * const lenData) {
-	const char * const headersEnd = memmem(data, *lenData, "\n\n", 2);
-	if (headersEnd == NULL) return;
-	size_t lenHeaders = headersEnd - data;
-
-	while(1) {
-		char * const lfSp = memmem(data + 2, lenHeaders, "\n ", 2);
-		if (lfSp == NULL) break;
-
-		const size_t num = (memcmp(lfSp - 2, "?=", 2) == 0) ? 2 : 1; // Remove space if previous line ended with an Encoded-Word
-
-		memmove(lfSp, lfSp + num, (data + *lenData) - (lfSp + num));
-
-		*lenData -= num;
-		lenHeaders -= num;
-		data[*lenData] = '\0';
-	}
-}
-
-static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo * const email, char * const firstBound) {
-	char *out = NULL;
+	unsigned char *out = NULL;
 	*outLen = 0;
 
 	int boundCount = 1;
-	char *bound[AEM_LIMIT_MULTIPARTS];
-	bound[0] = firstBound;
+	unsigned char *bound[AEM_LIMIT_MULTIPARTS];
+	size_t lenBound[AEM_LIMIT_MULTIPARTS];
+	bound[0] = bound0;
+	lenBound[0] = lenBound0;
 
-	const char *searchBegin = msg;
+	const unsigned char *searchBegin = src;
 	for (int i = 0; i < boundCount;) {
-		const char *begin = strstr(searchBegin, bound[i]);
+		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i], lenBound[i]);
 		if (begin == NULL) break;
 
-		begin += strlen(bound[i]);
+		begin += lenBound[i];
 
-		if (begin[0] == '-' && begin[1] == '-' && (begin[2] == '\r' || begin[2] == '\n')) {
-			searchBegin = msg;
+		if (begin[0] == '-' && begin[1] == '-' && begin[2] == '\r' && begin[3] == '\n') {
+			searchBegin = src;
 			i++;
 			continue;
 		}
 
-		const char *hend = strstr(begin, "\r\n\r\n");
-		const char * const hend2 = strstr(begin, "\n\n");
-		size_t lenHend;
-		if (hend2 != NULL && (hend == NULL || hend2 < hend)) {
-			hend = hend2;
-			lenHend = 2;
-		} else lenHend = 4;
+		const unsigned char *hend = memmem(begin, (src + lenSrc) - begin, (unsigned char[]){'\r','\n','\r','\n'}, 4);
 		if (hend == NULL) break;
+		hend += 3;
 
-		const char *cte = strcasestr(begin, "\nContent-Transfer-Encoding:");
-		if (cte != NULL && cte < hend) {
-			while(1) {if (isspace(cte[27])) cte++; else break;}
-			if (cte[27] == '\0') break;
+		const size_t lenPartHeaders = hend - begin;
+		if (lenPartHeaders > 9999) break;
 
-			if (strncasecmp(cte + 27, "quoted-printable", 16) == 0) cte = "Q";
-			else if (strncasecmp(cte + 27, "base64", 6) == 0) cte = "B";
-			else cte = "X";
-		} else cte = "X";
+		char partHeaders[lenPartHeaders + 1];
+		memcpy(partHeaders, begin, lenPartHeaders);
+		partHeaders[lenPartHeaders] = '\0';
 
-		const char *ct = strcasestr(begin, "\nContent-Type:");
-		if (ct > hend) {
-			ct = NULL;
-		} else if (ct != NULL) {
-			while(1) {if (isspace(ct[14])) ct++; else break;}
-			if (ct[14] == '\0') break;
+		const char *ct = strcasestr(partHeaders, "Content-Type:");
+		if (ct != NULL) {
+			ct += 13;
+			while (isspace(*ct)) ct++;
 		}
 
-		const char *fn = strcasestr(begin, "name=");
-		if (fn > hend) fn = NULL;
+		const char *fn = (ct == NULL) ? NULL : strcasestr(ct, "NAME=");
+		size_t lenFn = 0;
+		if (fn != NULL) {
+			fn += 5;
+			while (isspace(*fn)) fn++;
 
-		const char *boundEnd = strstr(hend + lenHend, bound[i]);
+			if (*fn == '"' || *fn == '\'') fn++;
+			while (isspace(*fn)) fn++;
+
+			while (fn[lenFn] != '\0' && fn[lenFn] != '\'' && fn[lenFn] != '"') lenFn++;
+			trimEnd((unsigned char*)fn, &lenFn);
+		}
+
+		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
 		if (boundEnd == NULL) break;
 
-		hend += lenHend;
 		size_t lenNew = boundEnd - hend;
 
-		const bool isText = (ct != NULL) && (strncasecmp(ct + 14, "text/", 5) == 0);
-		const bool isHtml = (ct != NULL) && (strncasecmp(ct + 14, "text/html", 9) == 0);
-		const bool ignore = (ct != NULL) && (strncasecmp(ct + 14, "multipart", 9) == 0);
+		const bool isText = (ct != NULL) && (strncasecmp(ct, "text/", 5) == 0);
+		const bool isHtml = isText && (strncasecmp(ct + 5, "html", 4) == 0);
+		const bool ignore = (ct != NULL) && (strncasecmp(ct, "multipart", 9) == 0);
 
 		if (ignore) {
-			char *newBegin = strcasestr(ct + 14, "boundary=");
-			if (newBegin != NULL && newBegin < hend) {
+			char *newBegin = strcasestr(ct + 10, "boundary=");
+			if (newBegin != NULL) {
 				newBegin += 9;
-				const char *newEnd;
 
+				const char *newEnd;
 				if (newBegin[0] == '"') {
 					newBegin++;
 					newEnd = strchr(newBegin, '"');
@@ -258,11 +305,14 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				if (newEnd != NULL) {
 					bound[boundCount] = malloc(4 + (newEnd - newBegin));
 					if (bound[boundCount] == NULL) {syslog(LOG_ERR, "Failed allocation"); out = NULL; break;}
-					memcpy(bound[boundCount] + 3, newBegin, newEnd - newBegin);
-					bound[boundCount][0] = '\n';
-					bound[boundCount][1] = '-';
+
+					bound[boundCount][0] = '\r';
+					bound[boundCount][1] = '\n';
 					bound[boundCount][2] = '-';
-					bound[boundCount][3 + (newEnd - newBegin)] = '\0';
+					bound[boundCount][3] = '-';
+					memcpy(bound[boundCount] + 4, newBegin, newEnd - newBegin);
+					lenBound[boundCount] = newEnd - newBegin + 4;
+
 					boundCount++;
 					if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
 				}
@@ -271,47 +321,38 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 
 		char *charset = NULL;
 		if (isText) {
-			const char *cs = strcasestr(ct + 14, "charset=");
-			if (cs == NULL) cs = strcasestr(ct + 14, "harset =");
+			const unsigned char *cs = (unsigned char*)strcasestr((char*)ct + 14, "charset=");
+			if (cs == NULL) cs = (unsigned char*)strcasestr((char*)ct + 14, "harset =");
 			if (cs != NULL && cs < hend) {
-				const char *csEnd;
+				const unsigned char *csEnd;
 				cs += 8;
 
 				if (cs[0] == '"') {
 					cs++;
-					csEnd = strchr(cs, '"');
+					csEnd = (unsigned char*)strchr((char*)cs, '"');
 				} else if (cs[0] == '\'') {
 					cs++;
-					csEnd = strchr(cs, '\'');
+					csEnd = (unsigned char*)strchr((char*)cs, '\'');
 				} else {
-					csEnd = strpbrk(cs, "; \t\v\f\r\n");
+					csEnd = (unsigned char*)strpbrk((char*)cs, "; \t\v\f\r\n");
 				}
 
-				if (csEnd != NULL) charset = strndup(cs, csEnd - cs);
+				if (csEnd != NULL) {
+					charset = malloc(csEnd - cs + 1); // TODO: check result
+					memcpy(charset, cs, csEnd - cs);
+					charset[csEnd - cs] = '\0';
+				}
 			}
 		}
 
-		char *new = NULL;
-
-		if (*cte == 'Q') {
-			new = strndup(hend, lenNew);
-			if (new == NULL) {if (charset != NULL) {free(charset);} break;}
-			decodeQuotedPrintable(new, &lenNew);
-		} else if (*cte == 'B') {
-			new = malloc(lenNew);
-			size_t lenNew2;
-			if (new == NULL || sodium_base642bin((unsigned char*)new, lenNew, hend, lenNew, " \t\v\f\r\n", &lenNew2, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {if (charset != NULL) {free(charset);} break;}
-			new[lenNew2] = '\0';
-			lenNew = lenNew2;
-		} else {
-			new = strndup(hend, lenNew);
-			if (new == NULL) {if (charset != NULL) {free(charset);} break;}
-		}
+		const char cte = getCte(partHeaders);
+		unsigned char *new = decodeCte(cte, hend, &lenNew);
+		if (new == NULL) break;
 
 		if (isText) {
 			if (charset != NULL && !isUtf8(charset)) {
 				size_t lenUtf8;
-				char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
+				unsigned char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
 				if (utf8 != NULL) {
 					free(new);
 					new = utf8;
@@ -321,8 +362,8 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 			if (charset != NULL) free(charset);
 
 			convertNbsp(new, &lenNew);
-			removeControlChars((unsigned char*)new, &lenNew);
-			if (isHtml) htmlToText(new, &lenNew);
+			removeControlChars(new, &lenNew);
+			if (isHtml) htmlToText((char*)new, &lenNew);
 
 			trimBegin(new, &lenNew);
 			trimEnd(new, &lenNew);
@@ -334,7 +375,7 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				memcpy(out, new, lenNew);
 				*outLen += lenNew;
 			} else {
-				char * const out2 = realloc(out, *outLen + lenNew + 1);
+				unsigned char * const out2 = realloc(out, *outLen + lenNew + 1);
 				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 				out = out2;
 
@@ -343,34 +384,12 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 				*outLen += lenNew + 1;
 			}
 		} else if (!ignore && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-			size_t lenFn = 0;
-			if (fn != NULL) {
-				fn += 5; // name=
+			if (fn == NULL || lenFn < 1) {
+				fn = (char[]){'A','E','M'}; // TODO, name based on message/sender/etc
+				lenFn = 3;
+			} else if (lenFn > 256) lenFn = 256;
 
-				if (*fn == '"') {
-					fn++;
-					const char * const fnEnd = memchr(fn, '"', hend - fn);
-					if (fnEnd != NULL) lenFn = fnEnd - fn;
-				} else if (*fn == '\'') {
-					fn++;
-					const char * const fnEnd = memchr(fn, '\'', hend - fn);
-					if (fnEnd != NULL) lenFn = fnEnd - fn;
-				} else {
-					for (const char *fnEnd = fn; fnEnd < hend; fnEnd++) {
-						if (isspace(*fnEnd) || *fnEnd == ';') {
-							lenFn = fnEnd - fn;
-							break;
-						}
-					}
-				}
-			} else {
-				fn = "AEM-NoName"; // TODO, name based on message/sender/etc
-				lenFn = 10;
-			}
-
-			if (lenFn > 256) lenFn = 256;
-
-			if (lenFn > 0 && (lenFn + lenNew) <= 1048576) { // 1 MiB, TODO more exact
+			if (lenFn + lenNew <= 1048576) { // 1 MiB, TODO more exact
 				email->attachment[email->attachCount] = malloc(17 + lenFn + lenNew);
 
 				if (email->attachment[email->attachCount] != NULL) {
@@ -392,145 +411,4 @@ static char *decodeMp(const char * const msg, size_t *outLen, struct emailInfo *
 	for (int i = 0; i < boundCount; i++) free(bound[i]);
 
 	return out;
-}
-
-void decodeMessage(char ** const msg, size_t * const lenMsg, struct emailInfo * const email) {
-	char *headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
-	if (headersEnd == NULL) return;
-	headersEnd += 2;
-
-	const char *ct = strcasestr(*msg, "\nContent-Type:");
-	if (ct == NULL || ct > headersEnd) {
-		removeControlChars((unsigned char*)(*msg), lenMsg);
-		return;
-	}
-	ct += 14;
-
-	if (strncasecmp(ct, "multipart/", 10) == 0) {
-		const char *firstBoundBegin = strcasestr(ct + 10, "boundary=");
-		if (firstBoundBegin == NULL || firstBoundBegin > headersEnd) return;
-		firstBoundBegin += 9;
-		char *firstBound;
-		const char *firstBoundEnd;
-
-		if (firstBoundBegin[0] == '"') {
-			firstBoundBegin++;
-			firstBoundEnd = strchr(firstBoundBegin, '"');
-		} else if (firstBoundBegin[0] == '\'') {
-			firstBoundBegin++;
-			firstBoundEnd = strchr(firstBoundBegin, '\'');
-		} else {
-			firstBoundEnd = strpbrk(firstBoundBegin, "; \t\v\f\r\n");
-		}
-
-		if (firstBoundEnd == NULL) return;
-
-		firstBound = malloc(4 + (firstBoundEnd - firstBoundBegin));
-		memcpy(firstBound + 3, firstBoundBegin, firstBoundEnd - firstBoundBegin);
-		firstBound[0] = '\n';
-		firstBound[1] = '-';
-		firstBound[2] = '-';
-		firstBound[3 + (firstBoundEnd - firstBoundBegin)] = '\0';
-
-		size_t lenNew;
-		char * const new = decodeMp(*msg, &lenNew, email, firstBound);
-
-		if (new != NULL) {
-			const size_t lenHeaders = headersEnd - *msg;
-
-			const size_t lenFull = lenHeaders + lenNew;
-			char * const full = malloc(lenFull);
-			if (full == NULL) {free(new); return;}
-
-			memcpy(full, *msg, lenHeaders);
-			memcpy(full + lenHeaders, new, lenNew);
-			free(new);
-
-			*lenMsg = lenFull;
-			free(*msg);
-			*msg = full;
-		}
-	} else {
-		char *charset = NULL;
-		const char *cs = strcasestr(ct, "charset=");
-		if (cs == NULL) cs = strcasestr(ct, "harset =");
-		if (cs == NULL) cs = strcasestr(ct, "harset\t=");
-		if (cs != NULL && cs < headersEnd) {
-			const char *csEnd;
-			cs += 8;
-
-			if (cs[0] == '"') {
-				cs++;
-				csEnd = strchr(cs, '"');
-			} else if (cs[0] == '\'') {
-				cs++;
-				csEnd = strchr(cs, '\'');
-			} else {
-				csEnd = strpbrk(cs, "; \t\v\f\r\n");
-			}
-
-			if (csEnd != NULL) charset = strndup(cs, csEnd - cs);
-		}
-
-		const char *cte = strcasestr(*msg, "\nContent-Transfer-Encoding:quoted-printable");
-		if (cte != NULL && cte < headersEnd) {
-			size_t len = (*lenMsg) - (headersEnd - *msg);
-			const size_t lenOld = len;
-			decodeQuotedPrintable(headersEnd, &len);
-			const size_t lenDiff = lenOld - len;
-			*lenMsg -= lenDiff;
-		} else {
-			cte = strcasestr(*msg, "\nContent-Transfer-Encoding:base64");
-			if (cte != NULL && cte < headersEnd) {
-				const size_t lenOld = *lenMsg - (headersEnd - *msg);
-				size_t lenDec;
-				unsigned char * const dec = malloc(lenOld);
-				if (dec != NULL && sodium_base642bin(dec, lenOld, headersEnd, lenOld, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
-					memcpy(headersEnd, dec, lenDec);
-					*lenMsg -= lenOld - lenDec;
-					free(dec);
-				}
-			}
-		}
-
-		if (charset != NULL && !isUtf8(charset)) {
-			size_t lenUtf8;
-			const ssize_t lenOld = (*msg + *lenMsg) - headersEnd;
-			char * const utf8 = toUtf8(headersEnd, lenOld, &lenUtf8, charset);
-			if (utf8 != NULL) {
-				if (lenOld > (ssize_t)lenUtf8) {
-					memcpy(headersEnd, utf8, lenUtf8);
-					*lenMsg -= (lenOld - lenUtf8);
-				} else {
-					const size_t lenHeaders = headersEnd - *msg;
-					char * const new = malloc(lenHeaders + lenUtf8);
-					if (new != NULL) {
-						memcpy(new, *msg, lenHeaders);
-						free(*msg);
-						memcpy(new + lenHeaders, utf8, lenUtf8);
-						free(utf8);
-						*msg = new;
-					}
-					*lenMsg += (lenUtf8 - lenOld);
-				}
-			}
-		}
-
-		if (charset != NULL) free(charset);
-
-		removeControlChars((unsigned char*)(*msg), lenMsg);
-		convertNbsp(*msg, lenMsg);
-
-		ct = strcasestr(*msg, "\nContent-Type:");
-		if (strncasecmp(ct + 14, "text/html", 9) == 0) {
-			headersEnd = memmem(*msg,  *lenMsg, "\n\n", 2);
-			if (headersEnd == NULL) return;
-			headersEnd += 2;
-
-			size_t lenHe = (*msg + *lenMsg) - headersEnd;
-			const size_t lenOld = lenHe;
-			htmlToText(headersEnd, &lenHe);
-			*lenMsg -= (lenOld - lenHe);
-		}
-	}
 }
