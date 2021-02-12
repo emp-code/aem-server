@@ -604,6 +604,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			sodium_memzero(email.body, email.lenBody);
 			free(email.head);
 			free(email.body);
+
+			for (int i = 0; i < email.attachCount; i++) {
+				if (email.attachment[i] == NULL) break;
+				free(email.attachment[i]);
+			}
+
 			sodium_memzero(&email, sizeof(struct emailInfo));
 
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);

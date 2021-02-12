@@ -245,9 +245,4 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 			close(stoSock);
 		}
 	}
-
-	for (int i = 0; i < email->attachCount; i++) {
-		if (email->attachment[i] == NULL) break;
-		free(email->attachment[i]);
-	}
 }
