@@ -182,7 +182,7 @@ int getCte(const char * const h) {
 	const char *cte = strcasestr(h, "\nContent-Transfer-Encoding:");
 	if (cte == NULL) return MTA_PROCESSING_CTE_NONE;
 
-	cte += 26;
+	cte += 27;
 	while (isspace(*cte)) cte++;
 
 	if (strncasecmp(cte, "Quoted-Printable", 16) == 0) return MTA_PROCESSING_CTE_QP;
