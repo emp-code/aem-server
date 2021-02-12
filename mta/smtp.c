@@ -507,6 +507,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				uint8_t lenHdrDate = 0;
 				unsigned char hdrDate[256];
 				moveHeader(email.head, &email.lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
+				hdrDate[lenHdrDate] = '\0';
 				const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email.headerTz);
 
 				if (hdrTime > 0) {
