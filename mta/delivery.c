@@ -155,7 +155,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 }
 
 void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
-	if (to == NULL || toCount < 1 || email->body == NULL || email->lenBody < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage: Empty"); return;}
+	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return;}
 
 	if (toCount > 1) email->toMultiple = true;
 	if (email->attachCount >  31) email->attachCount =  31;
