@@ -545,7 +545,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 							boundStart++;
 							boundEnd = strchr(boundStart, '\'');
 						} else {
-							boundStart++;
 							boundEnd = strpbrk(boundStart, "; \t\v\f\r\n");
 						}
 
