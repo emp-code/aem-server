@@ -549,25 +549,20 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 							boundEnd = strpbrk(boundStart, "; \t\v\f\r\n");
 						}
 
-						if (boundEnd != NULL) {
-							const size_t lenBound = boundEnd - boundStart + 4;
-							unsigned char *bound = malloc(lenBound);
-							bound[0] = '\r';
-							bound[1] = '\n';
-							bound[2] = '-';
-							bound[3] = '-';
-							memcpy(bound + 4, boundStart, lenBound - 4);
+						const size_t lenBound = ((boundEnd != NULL) ? boundEnd : ((char*)email.head + email.lenHead)) - boundStart + 4;
+						unsigned char *bound = malloc(lenBound);
+						bound[0] = '\r';
+						bound[1] = '\n';
+						bound[2] = '-';
+						bound[3] = '-';
+						memcpy(bound + 4, boundStart, lenBound - 4);
 
-							email.lenBody = lenSource;
-							email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound);
-							if (email.body == NULL) {
-								email.body = source;
-								email.lenBody = lenSource;
-							} else free(source);
-						} else { // Error - boundary string doesn't have a proper ending
+						email.lenBody = lenSource;
+						email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound);
+						if (email.body == NULL) {
 							email.body = source;
 							email.lenBody = lenSource;
-						}
+						} else free(source);
 					} else { // Error - boundary string not found
 						email.body = source;
 						email.lenBody = lenSource;
