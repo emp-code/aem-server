@@ -460,7 +460,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			source = malloc(AEM_SMTP_MAX_SIZE_BODY);
+			source = malloc(AEM_SMTP_MAX_SIZE_BODY + 1);
 			if (source == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
@@ -497,6 +497,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) email.quitReceived = true;
 
 			convertLineDots(source, &lenSource);
+			source[lenSource] = '\0';
 
 			if (getHeaders(source, &lenSource, &email) == 0) {
 				moveHeader(email.head, &email.lenHead, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
