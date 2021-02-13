@@ -79,7 +79,7 @@ int getHeaders(unsigned char * const data, size_t * const lenData, struct emailI
 }
 
 void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
-	unsigned char * const hdr = memmem(data, *lenData, needle, lenNeedle);
+	unsigned char * const hdr = (unsigned char*)strcasestr((char*)data, needle);
 	if (hdr == NULL) return;
 
 	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
