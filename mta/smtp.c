@@ -505,6 +505,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				moveHeader(email.head, &email.lenHead, "\nSubject:", 9, email.subject, &email.lenSubject, 255);
 				moveHeader(email.head, &email.lenHead, "\nTo:", 4, email.headerTo, &email.lenHeaderTo, 127);
 
+				char ct[256];
+				uint8_t lenCt = 0;
+				moveHeader(email.head, &email.lenHead, "\nContent-Type:", 14, (unsigned char*)ct, &lenCt, 255);
+				ct[lenCt] = '\0';
+
 				uint8_t lenHdrDate = 0;
 				unsigned char hdrDate[256];
 				moveHeader(email.head, &email.lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
@@ -532,9 +537,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				}
 
 				// Content-Type
-				const char * const ct = strcasestr((char*)email.head, "\nContent-Type:");
-				if (ct != NULL && strncmp(ct + 14, "multipart", 9) == 0) {
-					const char *boundStart = strcasestr(ct, "boundary=");
+				if (strncmp(ct, "multipart", 9) == 0) {
+					const char *boundStart = strcasestr(ct + 9, "boundary=");
 					if (boundStart != NULL) {
 						char *boundEnd = NULL;
 						boundStart += 9;
