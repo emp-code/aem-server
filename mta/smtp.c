@@ -590,7 +590,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					}
 
 					if (strncasecmp(ct, "text/", 5) == 0) {
-						// TODO: charset conversion
+						char * const cs = getCharset(ct);
+						convertToUtf8(&email.body, &email.lenBody, cs);
+						if (cs != NULL) free(cs);
 
 						convertNbsp(email.body, &email.lenBody);
 						removeControlChars(email.body, &email.lenBody);
