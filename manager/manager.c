@@ -67,49 +67,22 @@ static void wipeKeys(void) {
 	sodium_memzero(slt_shd, AEM_LEN_SLT_SHD);
 }
 
-static bool process_verify(const pid_t pid) {
-	if (pid < 1) return false;
-
-	char path[22];
-	snprintf(path, 22, "/proc/%u/stat", pid);
-	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) return false;
-
-	char buf[41];
-	const off_t bytes = read(fd, buf, 41);
-	close(fd);
-	if (bytes < 41) return false;
-
-	const char *c = memchr(buf, ' ', 41);
-	if (c == NULL || c - buf > 11) return false;
-	c++;
-	if (*c != '(') return false;
-
-	c = strchr(c + 1, ' ');
-	if (c == NULL || c - buf > 29) return false;
-	c++;
-	if (*c != 'R' && *c != 'S') return false;
-	c++;
-	if (*c != ' ') return false;
-	c++;
-
-	if (strtol(c, NULL, 10) != getpid()) return false;
-
-	return true;
+static bool process_exists(const pid_t pid) {
+	return (pid < 1) ? false : kill(pid, 0) == 0;
 }
 
 static void refreshPids(void) {
 	for (int type = 0; type < 5; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] != 0 && !process_verify(aemPid[type][i])) {
+			if (aemPid[type][i] != 0 && !process_exists(aemPid[type][i])) {
 				aemPid[type][i] = 0;
 			}
 		}
 	}
 
-	if (pid_account != 0 && !process_verify(pid_account)) pid_account = 0;
-	if (pid_storage != 0 && !process_verify(pid_storage)) pid_storage = 0;
-	if (pid_enquiry != 0 && !process_verify(pid_enquiry)) pid_enquiry = 0;
+	if (pid_account != 0 && !process_exists(pid_account)) pid_account = 0;
+	if (pid_storage != 0 && !process_exists(pid_storage)) pid_storage = 0;
+	if (pid_enquiry != 0 && !process_exists(pid_enquiry)) pid_enquiry = 0;
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
@@ -475,7 +448,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	}
 
 	if (!found) {syslog(LOG_INFO, "Process %d was not found", pid); return;}
-	if (!process_verify(pid)) {syslog(LOG_INFO, "Process %d not valid", pid); return;}
+	if (!process_exists(pid)) {syslog(LOG_INFO, "Process %d not valid", pid); return;}
 
 	kill(pid, sig);
 }
