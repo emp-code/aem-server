@@ -549,13 +549,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 							boundEnd = strpbrk(boundStart, "; \t\v\f\r\n");
 						}
 
-						const size_t lenBound = ((boundEnd != NULL) ? boundEnd : ((char*)email.head + email.lenHead)) - boundStart + 4;
+						const size_t lenBound = ((boundEnd != NULL) ? boundEnd : ((char*)email.head + email.lenHead)) - boundStart + 2;
 						unsigned char *bound = malloc(lenBound);
-						bound[0] = '\r';
-						bound[1] = '\n';
-						bound[2] = '-';
-						bound[3] = '-';
-						memcpy(bound + 4, boundStart, lenBound - 4);
+						bound[0] = '-';
+						bound[1] = '-';
+						memcpy(bound + 2, boundStart, lenBound - 2);
 
 						email.lenBody = lenSource;
 						email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound);
