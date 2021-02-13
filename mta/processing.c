@@ -379,7 +379,7 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 				out = out2;
 
-				out[*outLen] = '\x1f'; // Unit Seperator
+				out[*outLen] = '\r';
 				memcpy(out + *outLen + 1, new, lenNew);
 				*outLen += lenNew + 1;
 			}
