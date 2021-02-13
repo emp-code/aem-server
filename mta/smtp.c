@@ -569,7 +569,16 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					email.body = source;
 					email.lenBody = lenSource;
 
-					const int cte = getCte((char*)email.head);
+					char tmp[256];
+					uint8_t lenTmp = 0;
+					moveHeader(email.head, &email.lenHead, "\nContent-Transfer-Encoding:", 27, (unsigned char*)tmp, &lenTmp, 255);
+					tmp[lenTmp] = '\0';
+
+					int cte;
+					if (strcasestr(tmp, "quoted-printable") != 0) cte = MTA_PROCESSING_CTE_QP;
+					else if (strcasestr(tmp, "base64") != 0) cte = MTA_PROCESSING_CTE_B64;
+					else cte = 0;
+
 					unsigned char * const new = decodeCte(cte, email.body, &email.lenBody);
 					if (new != NULL) {
 						free(email.body);
