@@ -99,11 +99,11 @@ int tlsSetup(void) {
 #endif
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_ssl_config_defaults failed: %x", -ret); return -1;}
 
-#ifndef AEM_MTA
+#ifdef AEM_MTA
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+#else
 	mbedtls_ssl_conf_curves(&conf, tls_curves);
 	mbedtls_ssl_conf_sig_hashes(&conf, tls_hashes);
-#else
 	mbedtls_ssl_conf_authmode(&conf, MBEDTLS_SSL_VERIFY_NONE);
 #endif
 
