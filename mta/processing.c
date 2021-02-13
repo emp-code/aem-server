@@ -92,7 +92,7 @@ void moveHeader(unsigned char * const data, size_t * const lenData, const char *
 		}
 
 		const size_t lenMove = (data + *lenData) - hdrEnd;
-		memmove(hdr, hdrEnd, lenMove);
+		if (lenMove > 0) memmove(hdr, hdrEnd, lenMove);
 
 		const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
 		*lenData -= lenDelete;
