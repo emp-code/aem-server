@@ -42,7 +42,6 @@ int main(void) {
 
 	printf("#define AEM_HASH_PUBLIC %lullu\n",   addressToHash(AEM_ADDR32_PUBLIC));
 	printf("#define AEM_HASH_SYSTEM %lullu\n\n", addressToHash(AEM_ADDR32_SYSTEM));
-	sodium_memzero(salt_normal, AEM_LEN_SLT_NRM);
 
 	const int fdTxt = open("Admin.adr.txt", O_RDONLY);
 	if (fdTxt < 0) {puts("Failed to open Admin.adr.txt"); return EXIT_FAILURE;}
@@ -78,6 +77,8 @@ int main(void) {
 
 		s = lf + 1;
 	}
+
+	sodium_memzero(salt_normal, AEM_LEN_SLT_NRM);
 
 	puts("\\\n}\n\n#endif");
 
