@@ -541,34 +541,21 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 				// Content-Type
 				if (strncmp(ct, "multipart", 9) == 0) {
-					const char *boundStart = strcasestr(ct + 9, "boundary=");
-					if (boundStart != NULL) {
-						char *boundEnd = NULL;
-						boundStart += 9;
+					size_t lenBound;
+					unsigned char * const bound = getBound(ct + 9, &lenBound);
 
-						if (*boundStart == '"') {
-							boundStart++;
-							boundEnd = strchr(boundStart, '"');
-						} else if (*boundStart == '\'') {
-							boundStart++;
-							boundEnd = strchr(boundStart, '\'');
-						} else {
-							boundEnd = strpbrk(boundStart, "; \t\v\f\r\n");
-						}
-
-						const size_t lenBound = ((boundEnd != NULL) ? boundEnd : ((char*)email.head + email.lenHead)) - boundStart + 2;
-						unsigned char *bound = malloc(lenBound);
-						bound[0] = '-';
-						bound[1] = '-';
-						memcpy(bound + 2, boundStart, lenBound - 2);
-
+					if (bound != NULL) {
 						email.lenBody = lenSource;
-						email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound);
+						email.body = decodeMp(source, &(email.lenBody), &email, bound, lenBound - 2);
+						// bound is free'd by decodeMp()
+
 						if (email.body == NULL) {
+							// Error - decodeMp() failed
 							email.body = source;
 							email.lenBody = lenSource;
 						} else free(source);
-					} else { // Error - boundary string not found
+					} else {
+						// Error - getBound() failed
 						email.body = source;
 						email.lenBody = lenSource;
 					}

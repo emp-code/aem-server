@@ -19,5 +19,6 @@ int getCte(const char * const h);
 unsigned char *decodeCte(const int cte, const unsigned char * const src, size_t * const lenSrc);
 void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset);
 char *getCharset(const char *ct);
+unsigned char* getBound(const char * const src, size_t * const lenBound);
 
 #endif

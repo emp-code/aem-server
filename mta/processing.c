@@ -255,6 +255,31 @@ char *getCharset(const char *ct) {
 	return charset;
 }
 
+unsigned char* getBound(const char * const src, size_t * const lenBound) {
+	const char *start = strcasestr(src, "boundary");
+	if (start == NULL) return NULL;
+	start = strchr(start + 8, '=');
+	if (start == NULL) return NULL;
+	start++;
+
+	const char *end = NULL;
+	if (*start == '"' || *start == '\'') {
+		end = strchr(start + 1, *start);
+		start++;
+	} else {
+		end = strpbrk(start, "; \t\v\f\r\n");
+	}
+
+	*lenBound = 4 + ((end != NULL) ? end : src + strlen(src)) - start;
+	unsigned char *bound = malloc(*lenBound);
+	bound[0] = '\r';
+	bound[1] = '\n';
+	bound[2] = '-';
+	bound[3] = '-';
+	memcpy(bound + 4, start, *lenBound - 4);
+	return bound;
+}
+
 unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
 	const size_t lenSrc = *outLen;
 
@@ -269,7 +294,7 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 
 	const unsigned char *searchBegin = src;
 	for (int i = 0; i < boundCount;) {
-		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i], lenBound[i]);
+		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i] + ((i == 0) ? 2 : 0), lenBound[i]);
 		if (begin == NULL) break;
 
 		begin += lenBound[i];
@@ -317,38 +342,14 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 
 		const bool isText = (ct != NULL) && (strncasecmp(ct, "text/", 5) == 0);
 		const bool isHtml = isText && (strncasecmp(ct + 5, "html", 4) == 0);
-		const bool ignore = (ct != NULL) && (strncasecmp(ct, "multipart", 9) == 0);
+		const bool multip = (ct != NULL) && (strncasecmp(ct, "multipart", 9) == 0);
 
-		if (ignore) {
-			char *newBegin = strcasestr(ct + 10, "boundary=");
-			if (newBegin != NULL) {
-				newBegin += 9;
+		if (multip) {
+			bound[boundCount] = getBound(ct + 9, lenBound + boundCount);
 
-				const char *newEnd;
-				if (newBegin[0] == '"') {
-					newBegin++;
-					newEnd = strchr(newBegin, '"');
-				} else if (newBegin[0] == '\'') {
-					newBegin++;
-					newEnd = strchr(newBegin, '\'');
-				} else {
-					newEnd = strpbrk(newBegin, "; \t\v\f\r\n");
-				}
-
-				if (newEnd != NULL) {
-					bound[boundCount] = malloc(4 + (newEnd - newBegin));
-					if (bound[boundCount] == NULL) {syslog(LOG_ERR, "Failed allocation"); out = NULL; break;}
-
-					bound[boundCount][0] = '\r';
-					bound[boundCount][1] = '\n';
-					bound[boundCount][2] = '-';
-					bound[boundCount][3] = '-';
-					memcpy(bound[boundCount] + 4, newBegin, newEnd - newBegin);
-					lenBound[boundCount] = newEnd - newBegin + 4;
-
-					boundCount++;
-					if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
-				}
+			if (bound[boundCount] != NULL) {
+				boundCount++;
+				if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
 			}
 		}
 
@@ -383,7 +384,7 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 				memcpy(out + *outLen + 1, new, lenNew);
 				*outLen += lenNew + 1;
 			}
-		} else if (!ignore && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
+		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 			if (fn == NULL || lenFn < 1) {
 				fn = (char[]){'A','E','M'}; // TODO, name based on message/sender/etc
 				lenFn = 3;
