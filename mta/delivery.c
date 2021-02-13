@@ -69,7 +69,8 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	// The headers and body
 	memcpy(uncomp + offset, email->head, email->lenHead);
 	offset += email->lenHead;
-	uncomp[offset] = '\r'; offset++;
+	uncomp[offset] = '\r';
+	offset++;
 	memcpy(uncomp + offset, email->body, email->lenBody);
 
 	// Compress
