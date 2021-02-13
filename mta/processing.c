@@ -231,6 +231,30 @@ void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char
 	*lenSrc = lenUtf8;
 }
 
+char *getCharset(const char *ct) {
+	const char *cs = strcasestr(ct, "charset");
+	if (cs == NULL) return NULL;
+	cs = strchr(cs + 7, '=');
+	if (cs == NULL) return NULL;
+	cs++;
+	while (isspace(*cs)) cs++;
+
+	char *csEnd;
+	if (*cs == '"' || *cs == '\'') {
+		csEnd = strchr(cs + 1, *cs);
+		cs++;
+	} else {
+		csEnd = strpbrk(cs, "; \t\v\f\r\n");
+	}
+	if (csEnd == NULL) return NULL;
+
+	const size_t lenCs = csEnd - cs;
+	char *charset = malloc(lenCs + 1);
+	memcpy(charset, cs, lenCs);
+	charset[lenCs] = '\0';
+	return charset;
+}
+
 unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
 	const size_t lenSrc = *outLen;
 
@@ -328,38 +352,14 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 			}
 		}
 
-		char *charset = NULL;
-		if (isText) {
-			const unsigned char *cs = (unsigned char*)strcasestr((char*)ct + 14, "charset=");
-			if (cs == NULL) cs = (unsigned char*)strcasestr((char*)ct + 14, "harset =");
-			if (cs != NULL && cs < hend) {
-				const unsigned char *csEnd;
-				cs += 8;
-
-				if (cs[0] == '"') {
-					cs++;
-					csEnd = (unsigned char*)strchr((char*)cs, '"');
-				} else if (cs[0] == '\'') {
-					cs++;
-					csEnd = (unsigned char*)strchr((char*)cs, '\'');
-				} else {
-					csEnd = (unsigned char*)strpbrk((char*)cs, "; \t\v\f\r\n");
-				}
-
-				if (csEnd != NULL) {
-					charset = malloc(csEnd - cs + 1); // TODO: check result
-					memcpy(charset, cs, csEnd - cs);
-					charset[csEnd - cs] = '\0';
-				}
-			}
-		}
-
 		const char cte = getCte(partHeaders);
 		unsigned char *new = decodeCte(cte, hend, &lenNew);
 		if (new == NULL) break;
+
 		if (isText) {
-			convertToUtf8(&new, &lenNew, charset);
-			if (charset != NULL) free(charset);
+			char * const cs = getCharset(ct);
+			convertToUtf8(&new, &lenNew, cs);
+			if (cs != NULL) free(cs);
 
 			convertNbsp(new, &lenNew);
 			removeControlChars(new, &lenNew);
