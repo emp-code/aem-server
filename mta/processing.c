@@ -85,7 +85,7 @@ void moveHeader(unsigned char * const data, size_t * const lenData, const char *
 	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
 	if (hdrEnd == NULL) hdrEnd = data + *lenData;
 
-	if (target != NULL || lenTarget != NULL) {
+	if (target != NULL && lenTarget != NULL) {
 		const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
 		if (lenTgt > limit) return;
 		*lenTarget = lenTgt;
