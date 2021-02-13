@@ -589,15 +589,17 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 						email.body = new;
 					}
 
-					// TODO: charset conversion
+					if (strncasecmp(ct, "text/", 5) == 0) {
+						// TODO: charset conversion
 
-					convertNbsp(email.body, &email.lenBody);
-					removeControlChars(email.body, &email.lenBody);
-					trimSpace(email.body, &email.lenBody);
-					removeSpaceEnd(email.body, &email.lenBody);
-					trimLinebreaks(email.body, &email.lenBody);
-					removeSpaceBegin(email.body, &email.lenBody);
-					trimEnd(email.body, &email.lenBody);
+						convertNbsp(email.body, &email.lenBody);
+						removeControlChars(email.body, &email.lenBody);
+						trimSpace(email.body, &email.lenBody);
+						removeSpaceEnd(email.body, &email.lenBody);
+						trimLinebreaks(email.body, &email.lenBody);
+						removeSpaceBegin(email.body, &email.lenBody);
+						trimEnd(email.body, &email.lenBody);
+					}
 				}
 			}
 
