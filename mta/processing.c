@@ -219,6 +219,18 @@ unsigned char *decodeCte(const int cte, const unsigned char * const src, size_t 
 	return new;
 }
 
+void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset) {
+	if (src == NULL || *src == NULL || charset == NULL || isUtf8(charset)) return;
+
+	size_t lenUtf8;
+	unsigned char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
+	if (utf8 == NULL) return;
+
+	free(*src);
+	*src = utf8;
+	*lenSrc = lenUtf8;
+}
+
 unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
 	const size_t lenSrc = *outLen;
 
@@ -345,17 +357,8 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 		const char cte = getCte(partHeaders);
 		unsigned char *new = decodeCte(cte, hend, &lenNew);
 		if (new == NULL) break;
-
 		if (isText) {
-			if (charset != NULL && !isUtf8(charset)) {
-				size_t lenUtf8;
-				unsigned char * const utf8 = toUtf8(new, lenNew, &lenUtf8, charset);
-				if (utf8 != NULL) {
-					free(new);
-					new = utf8;
-					lenNew = lenUtf8;
-				}
-			}
+			convertToUtf8(&new, &lenNew, charset);
 			if (charset != NULL) free(charset);
 
 			convertNbsp(new, &lenNew);
