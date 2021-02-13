@@ -80,24 +80,24 @@ int getHeaders(unsigned char * const data, size_t * const lenData, struct emailI
 
 void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
 	unsigned char * const hdr = memmem(data, *lenData, needle, lenNeedle);
-	if (hdr != NULL) {
-		const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
-		if (hdrEnd == NULL) hdrEnd = data + *lenData;
+	if (hdr != NULL) return;
 
-		if (target != NULL || lenTarget != NULL) {
-			const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
-			if (lenTgt > limit) return;
-			*lenTarget = lenTgt;
-			memcpy(target, hdr + lenNeedle, *lenTarget);
-		}
+	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
+	if (hdrEnd == NULL) hdrEnd = data + *lenData;
 
-		const size_t lenMove = (data + *lenData) - hdrEnd;
-		if (lenMove > 0) memmove(hdr, hdrEnd, lenMove);
-
-		const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
-		*lenData -= lenDelete;
-		data[*lenData] = '\0';
+	if (target != NULL || lenTarget != NULL) {
+		const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
+		if (lenTgt > limit) return;
+		*lenTarget = lenTgt;
+		memcpy(target, hdr + lenNeedle, *lenTarget);
 	}
+
+	const size_t lenMove = (data + *lenData) - hdrEnd;
+	if (lenMove > 0) memmove(hdr, hdrEnd, lenMove);
+
+	const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
+	*lenData -= lenDelete;
+	data[*lenData] = '\0';
 }
 
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
