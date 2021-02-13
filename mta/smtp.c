@@ -11,6 +11,7 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
+#include "../Common/HtmlToText.h"
 #include "../Common/QuotedPrintable.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
@@ -593,6 +594,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 						char * const cs = getCharset(ct);
 						convertToUtf8(&email.body, &email.lenBody, cs);
 						if (cs != NULL) free(cs);
+
+						if (strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email.body, &email.lenBody);
 
 						convertNbsp(email.body, &email.lenBody);
 						removeControlChars(email.body, &email.lenBody);
