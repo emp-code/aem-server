@@ -501,11 +501,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			source[lenSource] = '\0';
 
 			if (getHeaders(source, &lenSource, &email) == 0) {
-				moveHeader(email.head, &email.lenHead, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
 				moveHeader(email.head, &email.lenHead, "\nMessage-ID:", 12, email.msgId, &email.lenMsgId, 255);
+				moveHeader(email.head, &email.lenHead, "\nFrom:", 6, email.headerFrom, &email.lenHeaderFrom, 255);
 				moveHeader(email.head, &email.lenHead, "\nTo:", 4, email.headerTo, &email.lenHeaderTo, 127);
-
 				moveHeader(email.head, &email.lenHead, "\nSubject:", 9, email.subject, &email.lenSubject, 255);
+
+				decodeEncodedWord(email.headerFrom, &email.lenHeaderFrom);
+				decodeEncodedWord(email.headerTo, &email.lenHeaderTo);
 				decodeEncodedWord(email.subject, &email.lenSubject);
 
 				char ct[256];
