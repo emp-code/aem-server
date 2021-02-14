@@ -631,6 +631,7 @@ static int takeConnections(void) {
 		syslog(LOG_WARNING, "Invalid request");
 	}
 
+	close(sockListen);
 	return 0;
 }
 
