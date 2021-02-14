@@ -557,9 +557,9 @@ static void mta_shieldExist(const int sock, const unsigned char * const addr32) 
 	if (hash > 0 && hashToUserNum(hash, true, NULL) >= 0) send(sock, (unsigned char[]){0}, 1, 0);
 }
 
-static int takeConnections(void) {
+static void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (bindSocket(sockListen) != 0) return -1;
+	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, 50);
 
 	while (!terminate) {
@@ -632,7 +632,7 @@ static int takeConnections(void) {
 	}
 
 	close(sockListen);
-	return 0;
+	return;
 }
 
 int main(void) {
