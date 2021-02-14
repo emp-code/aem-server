@@ -589,7 +589,7 @@ static int takeConnections(void) {
 		unsigned char enc[encLen];
 
 		ssize_t reqLen = recv(sockClient, enc, encLen, 0);
-		if (reqLen < 1) {
+		if (reqLen < crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1) {
 			syslog(LOG_WARNING, "Invalid connection");
 			close(sockClient);
 			continue;
