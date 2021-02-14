@@ -354,20 +354,6 @@ static void freeStindex(void) {
 	free(stindex);
 }
 
-static int bindSocket(const int sock) {
-	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	memcpy(addr.sun_path, AEM_SOCKPATH_STORAGE, AEM_SOCKPATH_LEN);
-	return bind(sock, (struct sockaddr*)&addr, sizeof(addr.sun_family) + AEM_SOCKPATH_LEN);
-}
-
-static bool peerOk(const int sock) {
-	struct ucred peer;
-	unsigned int lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
-}
-
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
 	const uint16_t count = stindex[stindexNum].msgCount;
 
@@ -457,6 +443,20 @@ static int storage_read(unsigned char * const msgData, const int stindexNum, con
 
 	close(fdMsg);
 	return offset;
+}
+
+static bool peerOk(const int sock) {
+	struct ucred peer;
+	unsigned int lenUc = sizeof(struct ucred);
+	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
+	return (peer.gid == getgid() && peer.uid == getuid());
+}
+
+static int bindSocket(const int sock) {
+	struct sockaddr_un addr;
+	addr.sun_family = AF_UNIX;
+	memcpy(addr.sun_path, AEM_SOCKPATH_STORAGE, AEM_SOCKPATH_LEN);
+	return bind(sock, (struct sockaddr*)&addr, sizeof(addr.sun_family) + AEM_SOCKPATH_LEN);
 }
 
 static void takeConnections(void) {
