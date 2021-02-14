@@ -25,7 +25,7 @@ static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
 		const unsigned char * const colon = memchr(c + 1, ':', (msg + lenMsg) - (c + 1));
 		if (colon == NULL) break;
 
-		for (int i = (colon + 1) - msg; i < (next != NULL) ? next - msg : (int)lenMsg; i++) {
+		for (int i = (colon + 1) - msg; i < ((next != NULL) ? next - msg : (int)lenMsg); i++) {
 			if (isspace(msg[i])) msg[i] = 127; else break; // 127=del
 		}
 
