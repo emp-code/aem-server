@@ -75,6 +75,9 @@ static void sigTerm(const int sig) {
 
 #include "../Common/main_all.c"
 
+#define AEM_SOCKPATH AEM_SOCKPATH_ACCOUNT
+#include "../Common/tier2_common.c"
+
 static int saveUser(void) {
 	if (userCount <= 0) return -1;
 
@@ -553,30 +556,15 @@ static void mta_shieldExist(const int sock, const unsigned char * const addr32) 
 	if (hash > 0 && hashToUserNum(hash, true, NULL) >= 0) send(sock, (unsigned char[]){0}, 1, 0);
 }
 
-static bool peerOk(const int sock) {
-	struct ucred peer;
-	unsigned int lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
-}
-
 static int takeConnections(void) {
 	umask(0077);
 
-	struct sockaddr_un local;
-	local.sun_family = AF_UNIX;
-	memcpy(local.sun_path, AEM_SOCKPATH_ACCOUNT, AEM_SOCKPATH_LEN);
-
-	const int sockMain = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-	if (bind(sockMain, (struct sockaddr*)&local, sizeof(local.sun_family) + AEM_SOCKPATH_LEN) != 0) {
-		syslog(LOG_ERR, "Failed binding to socket: %m");
-		return -1;
-	}
-
-	listen(sockMain, 50);
+	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (bindSocket(sockListen) != 0) return -1;
+	listen(sockListen, 50);
 
 	while (!terminate) {
-		const int sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
+		const int sockClient = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) continue;
 
 		if (!peerOk(sockClient)) {

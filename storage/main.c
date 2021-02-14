@@ -23,7 +23,6 @@
 
 #define AEM_LOGNAME "AEM-Sto"
 #define AEM_STINDEX_PAD 90000 // 36B * 2500
-#define AEM_SOCK_QUEUE 50
 
 static unsigned char stindexKey[AEM_LEN_KEY_STI];
 static unsigned char storageKey[AEM_LEN_KEY_STO];
@@ -54,6 +53,9 @@ static void sigTerm(const int sig) {
 }
 
 #include "../Common/main_all.c"
+
+#define AEM_SOCKPATH AEM_SOCKPATH_STORAGE
+#include "../Common/tier2_common.c"
 
 static void getStorageKey(unsigned char * const target, const unsigned char * const pubkey, const uint16_t sze) {
 	uint64_t keyId;
@@ -445,26 +447,12 @@ static int storage_read(unsigned char * const msgData, const int stindexNum, con
 	return offset;
 }
 
-static bool peerOk(const int sock) {
-	struct ucred peer;
-	unsigned int lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
-}
-
-static int bindSocket(const int sock) {
-	struct sockaddr_un addr;
-	addr.sun_family = AF_UNIX;
-	memcpy(addr.sun_path, AEM_SOCKPATH_STORAGE, AEM_SOCKPATH_LEN);
-	return bind(sock, (struct sockaddr*)&addr, sizeof(addr.sun_family) + AEM_SOCKPATH_LEN);
-}
-
 static void takeConnections(void) {
 	umask(0077);
 
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) return;
-	listen(sockListen, AEM_SOCK_QUEUE);
+	listen(sockListen, 50);
 
 	while (!terminate) {
 		const int sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
