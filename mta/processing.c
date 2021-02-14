@@ -250,6 +250,8 @@ char *getCharset(const char *ct) {
 
 	const size_t lenCs = csEnd - cs;
 	char *charset = malloc(lenCs + 1);
+	if (charset == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
+
 	memcpy(charset, cs, lenCs);
 	charset[lenCs] = '\0';
 	return charset;
