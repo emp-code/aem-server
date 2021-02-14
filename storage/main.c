@@ -448,8 +448,6 @@ static int storage_read(unsigned char * const msgData, const int stindexNum, con
 }
 
 static void takeConnections(void) {
-	umask(0077);
-
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) return;
 	listen(sockListen, 50);
@@ -592,6 +590,7 @@ static int pipeLoad(const int fd) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+	umask(0077);
 
 	if (
 	   setCaps(CAP_IPC_LOCK) != 0

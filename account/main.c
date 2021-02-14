@@ -557,8 +557,6 @@ static void mta_shieldExist(const int sock, const unsigned char * const addr32) 
 }
 
 static int takeConnections(void) {
-	umask(0077);
-
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) return -1;
 	listen(sockListen, 50);
@@ -637,6 +635,7 @@ static int takeConnections(void) {
 
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
+	umask(0077);
 
 	if (
 	   setCaps(CAP_IPC_LOCK) != 0
