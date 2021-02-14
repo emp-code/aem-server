@@ -215,16 +215,16 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 			free(enc);
 
 			// Store attachments
-			for (int i = 0; i < email->attachCount; i++) {
-				if (email->attachment[i] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
+			for (int j = 0; j < email->attachCount; j++) {
+				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
-				unsigned char * const att = malloc(5 + email->lenAttachment[i]);
-				att[0] = msg_getPadAmount(5 + email->lenAttachment[i]) | 32;
+				unsigned char * const att = malloc(5 + email->lenAttachment[j]);
+				att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
-				memcpy(att + 5, email->attachment[i], email->lenAttachment[i]);
+				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
 				memcpy(att + 6, msgId, 16);
 
-				enc = msg_encrypt(upk, att, 5 + email->lenAttachment[i], &lenEnc);
+				enc = msg_encrypt(upk, att, 5 + email->lenAttachment[j], &lenEnc);
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
