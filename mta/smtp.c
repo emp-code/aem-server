@@ -588,13 +588,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 						if (strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email.body, &email.lenBody);
 
-						convertNbsp(email.body, &email.lenBody);
-						removeControlChars(email.body, &email.lenBody);
-						trimSpace(email.body, &email.lenBody);
-						removeSpaceEnd(email.body, &email.lenBody);
-						trimLinebreaks(email.body, &email.lenBody);
-						removeSpaceBegin(email.body, &email.lenBody);
-						trimEnd(email.body, &email.lenBody);
+						cleanText(email.body, &email.lenBody);
+						email.body[email.lenBody] = '\0';
 					}
 				}
 			}

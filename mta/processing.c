@@ -33,19 +33,17 @@ static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
 	}
 }
 
-static void compressSpaces(unsigned char * msg, size_t const lenMsg) {
-	if (msg == NULL || lenMsg < 5) return;
-
-	for (size_t i = 0; i < lenMsg - 1; i++) {
-		if (isspace(msg[i]) && isspace(msg[i + 1])) msg[i] = 127; // Delete
-	}
-}
-
 static void unfoldHeaders(unsigned char * const data, const size_t lenData) {
 	while(1) {
-		char * const lfSp = memmem(data + 2, lenData - 2, "\n ", 2);
+		char *t = memchr(data, '\t', lenData);
+		if (t == NULL) break;
+		*t = ' ';
+	}
+
+	while(1) {
+		char * const lfSp = memmem(data, lenData, (unsigned char[]){'\n',' '}, 2);
 		if (lfSp == NULL) break;
-		*lfSp = 127; // Delete
+		*lfSp = 127; // DEL
 	}
 }
 
@@ -68,13 +66,15 @@ int getHeaders(unsigned char * const data, size_t * const lenData, struct emailI
 	memmove(data, hend + lenHend, (data + *lenData) - (hend + lenHend));
 	*lenData -= (email->lenHead + lenHend);
 
-	// Processing
-	removeControlChars(email->head, &email->lenHead);
-	removeHeaderSpace(email->head, email->lenHead);
-	compressSpaces(email->head, email->lenHead);
-	removeControlChars(email->head, &email->lenHead);
 	unfoldHeaders(email->head, email->lenHead);
-	removeControlChars(email->head, &email->lenHead);
+	removeHeaderSpace(email->head, email->lenHead);
+
+	// Preserve first linebreak
+	email->lenHead--;
+	cleanText(email->head + 1, &email->lenHead);
+	email->lenHead++;
+
+	email->head[email->lenHead] = '\0';
 	return 0;
 }
 
@@ -158,8 +158,6 @@ void decodeEncodedWord(unsigned char * const data, uint8_t * const lenData) {
 		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
 			if ((unsigned char)(utf8[i]) < 32 || (unsigned char)(utf8[i]) == 127) utf8[i] = ' '; // 127=DEL
 		}
-
-		trimSpace(utf8, &lenUtf8);
 
 		const size_t lenDiff = lenEw - lenUtf8;
 		if (lenDiff > 0) {
@@ -334,7 +332,6 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 			while (isspace(*fn)) fn++;
 
 			while (fn[lenFn] != '\0' && fn[lenFn] != '\'' && fn[lenFn] != '"') lenFn++;
-			trimEnd((unsigned char*)fn, &lenFn);
 		}
 
 		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
@@ -364,12 +361,9 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 			convertToUtf8(&new, &lenNew, cs);
 			if (cs != NULL) free(cs);
 
-			convertNbsp(new, &lenNew);
-			removeControlChars(new, &lenNew);
 			if (isHtml) htmlToText((char*)new, &lenNew);
 
-			trimBegin(new, &lenNew);
-			trimEnd(new, &lenNew);
+			cleanText(new, &lenNew);
 			new[lenNew] = '\0';
 
 			if (*outLen == 0) {
