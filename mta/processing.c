@@ -175,7 +175,7 @@ void decodeEncodedWord(unsigned char * const data, uint8_t * const lenData) {
 	}
 }
 
-int getCte(const char * const h) {
+static int getCte(const char * const h) {
 	if (h == NULL) return MTA_PROCESSING_CTE_NONE;
 
 	const char *cte = strcasestr(h, "\nContent-Transfer-Encoding:");
