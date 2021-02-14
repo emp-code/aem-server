@@ -22,6 +22,8 @@
 #include "../Data/internal.h"
 
 #define AEM_LOGNAME "AEM-Sto"
+#define AEM_PIPEFD 1
+
 #define AEM_STINDEX_PAD 90000 // 36B * 2500
 
 static unsigned char stindexKey[AEM_LEN_KEY_STI];
@@ -583,7 +585,7 @@ static void takeConnections(void) {
 	close(sockListen);
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
 #include "../Common/MainSetup.c"
 	umask(0077);
 
@@ -592,13 +594,13 @@ int main(int argc, char *argv[]) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	if (read(argv[0][0], storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
-		close(argv[0][0]);
+	if (read(AEM_PIPEFD, storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
+		close(AEM_PIPEFD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe");
 		return EXIT_FAILURE;
 	}
 
-	close(argv[0][0]);
+	close(AEM_PIPEFD);
 	crypto_kdf_derive_from_key(stindexKey, AEM_LEN_KEY_STI, 1, "AEM-Sti0", storageKey);
 
 	if (loadStindex() != 0) {syslog(LOG_ERR, "Terminating: Failed opening Stindex.aem"); return EXIT_FAILURE;}

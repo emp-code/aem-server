@@ -44,7 +44,7 @@ static void acceptClients(void) {
 	close(sock);
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
 #include "../Common/MainSetup.c"
 
 	acceptClients();

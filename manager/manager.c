@@ -326,6 +326,9 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	close(sockClient);
 	close(closefd);
 
+	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI)
+		close(pipefd);
+
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
 		if (i != type) close(binfd[i]);
 	}
@@ -340,12 +343,7 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
 	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
 
-	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
-		close(pipefd);
-		fexecve(binfd[type], (char*[]){(char[]){0}, NULL}, (char*[]){NULL});
-	} else {
-		fexecve(binfd[type], (char*[]){(char[]){pipefd, 0}, NULL}, (char*[]){NULL});
-	}
+	fexecve(binfd[type], (char*[]){NULL}, (char*[]){NULL});
 
 	// Only runs if exec failed
 	close(0); // pivot dir fd
@@ -520,9 +518,9 @@ static void respond_manager(void) {
 }
 
 int receiveConnections(void) {
-	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
+	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND); // fd=0
 
-	if (
+	if ( // pipefd=1
 	   sockMain < 0
 	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
 	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
@@ -532,9 +530,9 @@ int receiveConnections(void) {
 	bzero(aemPid, sizeof(aemPid));
 
 	while (!terminate) {
-		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC);
+		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC); // fd=1
 		if (sockClient < 0) continue;
-		respond_manager();
+		respond_manager(); // pipefd=2
 		close(sockClient);
 	}
 

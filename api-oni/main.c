@@ -21,7 +21,7 @@
 #include "../api-common/post.h"
 
 #define AEM_LOGNAME "AEM-AOn"
-
+#define AEM_PIPEFD 2
 #define AEM_MAXLEN_PIPEREAD 64
 
 static bool terminate = false;
@@ -43,9 +43,9 @@ static void sigTerm(const int sig) {
 #include "../Common/main_all.c"
 
 __attribute__((warn_unused_result))
-static int pipeLoadPids(const int fd) {
+static int pipeLoadPids(void) {
 	pid_t pids[3];
-	if (read(fd, pids, sizeof(pid_t) * 3) != sizeof(pid_t) * 3) return -1;
+	if (read(AEM_PIPEFD, pids, sizeof(pid_t) * 3) != sizeof(pid_t) * 3) return -1;
 
 	setAccountPid(pids[0]);
 	setStoragePid(pids[1]);
@@ -54,13 +54,13 @@ static int pipeLoadPids(const int fd) {
 }
 
 __attribute__((warn_unused_result))
-static int pipeLoadKeys(const int fd) {
+static int pipeLoadKeys(void) {
 	unsigned char buf[AEM_MAXLEN_PIPEREAD];
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
+	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
 	setApiKey(buf);
 
-	if (read(fd, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
+	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
 	setSigKey(buf);
 
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
@@ -84,11 +84,11 @@ static void acceptClients(void) {
 	close(sock);
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
 #include "../Common/MainSetup.c"
-	if (pipeLoadPids(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
-	if (pipeLoadKeys(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
-	close(argv[0][0]);
+	if (pipeLoadPids() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
+	if (pipeLoadKeys() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
+	close(AEM_PIPEFD);
 
 	if (aem_api_init() == 0) {
 		acceptClients();

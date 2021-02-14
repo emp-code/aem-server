@@ -22,6 +22,7 @@
 
 #define AEM_ACCOUNT
 #define AEM_LOGNAME "AEM-Acc"
+#define AEM_PIPEFD 1
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8/4 unused
@@ -633,7 +634,7 @@ static int takeConnections(void) {
 	return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
 #include "../Common/MainSetup.c"
 	umask(0077);
 
@@ -643,15 +644,15 @@ int main(int argc, char *argv[]) {
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
 	if (
-	   read(argv[0][0], accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
-	|| read(argv[0][0], saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+	   read(AEM_PIPEFD, accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+	|| read(AEM_PIPEFD, saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
 	) {
-		close(argv[0][0]);
+		close(AEM_PIPEFD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe");
 		return EXIT_FAILURE;
 	}
 
-	close(argv[0][0]);
+	close(AEM_PIPEFD);
 
 	if (loadUser() != 0) {syslog(LOG_ERR, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 
