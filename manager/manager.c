@@ -347,6 +347,7 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 
 	// Only runs if exec failed
 	close(0); // pivot dir fd
+	close(binfd[type]);
 	syslog(LOG_ERR, "Failed starting process");
 	exit(EXIT_FAILURE);
 }
