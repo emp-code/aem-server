@@ -656,11 +656,9 @@ int main(int argc, char *argv[]) {
 	if (loadUser() != 0) {syslog(LOG_ERR, "Terminating: Failed loading Account.aem"); return EXIT_FAILURE;}
 
 	syslog(LOG_INFO, "Ready");
-
 	takeConnections();
 
 	free(user);
-
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

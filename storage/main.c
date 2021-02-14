@@ -583,11 +583,6 @@ static void takeConnections(void) {
 	close(sockListen);
 }
 
-__attribute__((warn_unused_result))
-static int pipeLoad(const int fd) {
-	return (read(fd, storageKey, AEM_LEN_KEY_STO) == AEM_LEN_KEY_STO) ? 0 : -1;
-}
-
 int main(int argc, char *argv[]) {
 #include "../Common/MainSetup.c"
 	umask(0077);
@@ -597,7 +592,12 @@ int main(int argc, char *argv[]) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	if (pipeLoad(argv[0][0]) < 0) {syslog(LOG_ERR, "Terminating: Failed loading data"); return EXIT_FAILURE;}
+	if (read(argv[0][0], storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
+		close(argv[0][0]);
+		syslog(LOG_ERR, "Terminating: Failed reading pipe");
+		return EXIT_FAILURE;
+	}
+
 	close(argv[0][0]);
 	crypto_kdf_derive_from_key(stindexKey, AEM_LEN_KEY_STI, 1, "AEM-Sti0", storageKey);
 
@@ -605,7 +605,8 @@ int main(int argc, char *argv[]) {
 
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
-	syslog(LOG_INFO, "Terminating");
+
 	freeStindex();
+	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }
