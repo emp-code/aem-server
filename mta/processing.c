@@ -101,7 +101,7 @@ void moveHeader(unsigned char * const data, size_t * const lenData, const char *
 }
 
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
-void decodeEncodedWord(unsigned char * const data, uint8_t * const lenData) {
+void decodeEncodedWord(unsigned char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
 	while(1) {
