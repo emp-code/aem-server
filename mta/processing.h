@@ -15,5 +15,6 @@ void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char
 char *getCharset(const char *ct);
 unsigned char* getBound(const char * const src, size_t * const lenBound);
 unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0);
+void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email);
 
 #endif

@@ -11,6 +11,8 @@
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
 
+#include "date.h"
+
 #include "processing.h"
 
 #define AEM_LIMIT_MULTIPARTS 50
@@ -299,7 +301,7 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 
 		begin += lenBound[i];
 
-		if (begin[0] == '-' && begin[1] == '-' && begin[2] == '\r' && begin[3] == '\n') {
+		if (begin[0] == '-' && begin[1] == '-') {
 			searchBegin = src;
 			i++;
 			continue;
@@ -406,6 +408,95 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 	}
 
 	for (int i = 0; i < boundCount; i++) free(bound[i]);
-
 	return out;
+}
+
+void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email) {
+	if (getHeaders(source, lenSource, email) != 0) return;
+
+	decodeEncodedWord(email->head, &email->lenHead);
+	moveHeader(email->head, &email->lenHead, "\nFrom:", 6, email->headerFrom, &email->lenHeaderFrom, 255);
+	moveHeader(email->head, &email->lenHead, "\nTo:", 4, email->headerTo, &email->lenHeaderTo, 127);
+	moveHeader(email->head, &email->lenHead, "\nSubject:", 9, email->subject, &email->lenSubject, 255);
+
+	char ct[256];
+	uint8_t lenCt = 0;
+	moveHeader(email->head, &email->lenHead, "\nContent-Type:", 14, (unsigned char*)ct, &lenCt, 255);
+	ct[lenCt] = '\0';
+
+	uint8_t lenHdrDate = 0;
+	unsigned char hdrDate[256];
+	moveHeader(email->head, &email->lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
+	hdrDate[lenHdrDate] = '\0';
+	const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email->headerTz);
+
+	if (hdrTime > 0) {
+		// Store the difference between received and header timestamps (-18h .. +736s)
+		const time_t timeDiff = (time_t)email->timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
+		email->headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
+	}
+
+	uint8_t lenHdrMsgId = 0;
+	unsigned char hdrMsgId[256];
+	moveHeader(email->head, &email->lenHead, "\nMessage-ID:", 12, hdrMsgId, &lenHdrMsgId, 255);
+	if (lenHdrMsgId > 0) {
+		if (hdrMsgId[lenHdrMsgId - 1] == '>') lenHdrMsgId--;
+		if (hdrMsgId[0] == '<') {
+			memcpy(email->msgId, hdrMsgId + 1, lenHdrMsgId - 1);
+			email->lenMsgId = lenHdrMsgId - 1;
+		} else {
+			memcpy(email->msgId, hdrMsgId, lenHdrMsgId);
+			email->lenMsgId = lenHdrMsgId;
+		}
+	}
+
+	// Content-Type
+	if (strncmp(ct, "multipart", 9) == 0) {
+		size_t lenBound;
+		unsigned char * const bound = getBound(ct + 9, &lenBound);
+
+		if (bound != NULL) {
+			email->lenBody = *lenSource;
+			email->body = decodeMp(source, &(email->lenBody), email, bound, lenBound - 2);
+			// bound is free'd by decodeMp()
+
+			if (email->body == NULL) { // Error - decodeMp() failed
+				email->body = source;
+				email->lenBody = *lenSource;
+			} else free(source);
+		} else { // Error - getBound() failed
+			email->body = source;
+			email->lenBody = *lenSource;
+		}
+	} else { // Single-part body
+		email->body = source;
+		email->lenBody = *lenSource;
+
+		char tmp[256];
+		uint8_t lenTmp = 0;
+		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, (unsigned char*)tmp, &lenTmp, 255);
+		tmp[lenTmp] = '\0';
+
+		int cte;
+		if (strcasestr(tmp, "quoted-printable") != 0) cte = MTA_PROCESSING_CTE_QP;
+		else if (strcasestr(tmp, "base64") != 0) cte = MTA_PROCESSING_CTE_B64;
+		else cte = 0;
+
+		unsigned char * const new = decodeCte(cte, email->body, &email->lenBody);
+		if (new != NULL) {
+			free(email->body);
+			email->body = new;
+		}
+
+		if (strncasecmp(ct, "text/", 5) == 0) {
+			char * const cs = getCharset(ct);
+			convertToUtf8(&email->body, &email->lenBody, cs);
+			if (cs != NULL) free(cs);
+
+			if (strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email->body, &email->lenBody);
+
+			cleanText(email->body, &email->lenBody);
+			email->body[email->lenBody] = '\0';
+		}
+	}
 }
