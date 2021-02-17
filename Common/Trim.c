@@ -20,6 +20,9 @@ void cleanText(unsigned char * const text, size_t * const len) {
 
 	for (size_t i = 0; i < *len; i++) {
 		if ((i + 1 < *len) && text[i] == 0xc2 && text[i + 1] == 0xa0) { // NBSP
+			if (lenNew > 0 && (new[lenNew - 1] == ' ' || new[lenNew - 1] == '\n')) {i++; continue;} // follows SP/LF - skip
+			if ((i + 1 < *len) && text[i + 1] == '\n') {i++; continue;} // followed by LF - skip
+
 			new[lenNew] = ' ';
 			lenNew++;
 			i++;
