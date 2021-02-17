@@ -469,6 +469,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	if (getHeaders(source, lenSource, email) != 0) return;
 
 	decodeEncodedWord(email->head, &email->lenHead);
+	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->headerFrom, &email->lenHeaderFrom, 255); // Removed/ignored
 	moveHeader(email->head, &email->lenHead, "\nFrom:", 6, email->headerFrom, &email->lenHeaderFrom, 255);
 	moveHeader(email->head, &email->lenHead, "\nTo:", 4, email->headerTo, &email->lenHeaderTo, 127);
 	moveHeader(email->head, &email->lenHead, "\nSubject:", 9, email->subject, &email->lenSubject, 255);
@@ -509,6 +510,11 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 
 	// Content-Type
 	if (strncmp(ct, "multipart", 9) == 0) {
+		// CTE in headers: ignored
+		unsigned char ignore[255];
+		uint8_t lenIgnore;
+		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, ignore, &lenIgnore, 255);
+
 		size_t lenBound;
 		unsigned char * const bound = getBound(ct + 9, &lenBound);
 
