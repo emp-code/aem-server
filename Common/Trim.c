@@ -4,13 +4,8 @@
 
 #include "Trim.h"
 
-/* Converts HT/NBSP to SP
- * Converts VT/FF to LF
- * Removes other control-chars
- * Compresses multiple LF/SP to one
- * Removes SP followed by/following LF
- */
-void cleanText(unsigned char * const text, size_t * const len) {
+// Converts HT/NBSP to SP; Converts VT/FF to LF; Removes other control-chars
+static void removeControlChars(unsigned char * const text, size_t * const len) {
 	if (text == NULL || len == NULL) return;
 
 	unsigned char * const new = malloc(*len);
@@ -20,22 +15,53 @@ void cleanText(unsigned char * const text, size_t * const len) {
 
 	for (size_t i = 0; i < *len; i++) {
 		if ((i + 1 < *len) && text[i] == 0xc2 && text[i + 1] == 0xa0) { // NBSP
-			if (lenNew > 0 && (new[lenNew - 1] == ' ' || new[lenNew - 1] == '\n')) {i++; continue;} // follows SP/LF - skip
-			if ((i + 1 < *len) && text[i + 1] == '\n') {i++; continue;} // followed by LF - skip
-
 			new[lenNew] = ' ';
 			lenNew++;
 			i++;
-		} else if (text[i] > 32 && text[i] != 127) { // 127=DEL
+		} else if (text[i] >= 32 && text[i] != 127) { // 127=DEL
 			new[lenNew] = text[i];
 			lenNew++;
-		} else if (text[i] == '\t' || text[i] == ' ') {
-			if (lenNew > 0 && (new[lenNew - 1] == ' ' || new[lenNew - 1] == '\n')) continue; // follows SP/LF - skip
-			if ((i + 1 < *len) && text[i + 1] == '\n') continue; // followed by LF - skip
+		} else if (text[i] == '\n' || text[i] == '\v' || text[i] == '\f') {
+			new[lenNew] = '\n';
+			lenNew++;
+		} else if (text[i] == '\t') {
+			new[lenNew] = ' ';
+			lenNew++;
+		}
+	}
+
+	size_t skip = 0;
+	while (skip < *len && isspace(new[skip])) skip++;
+
+	memcpy(text, new + skip, lenNew - skip);
+	free(new);
+	*len = lenNew - skip;
+
+	while (*len > 0 && isspace(text[*len - 1])) (*len)--;
+}
+
+// Compresses multiple LF/SP to one; Removes SP followed by/following LF
+void cleanText(unsigned char * const text, size_t * const len) {
+	if (text == NULL || len == NULL) return;
+
+	removeControlChars(text, len);
+
+	unsigned char * const new = malloc(*len);
+	if (new == NULL) return;
+
+	size_t lenNew = 0;
+
+	for (size_t i = 0; i < *len; i++) {
+		if (text[i] > 32 && text[i] != 127) { // 127=DEL
+			new[lenNew] = text[i];
+			lenNew++;
+		} else if (text[i] == ' ') {
+			if (lenNew > 0 && new[lenNew - 1] == '\n') continue; // follows LF - skip
+			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // followed by SP/LF - skip
 
 			new[lenNew] = ' ';
 			lenNew++;
-		} else if (text[i] == '\n' || text[i] == '\v' || text[i] == '\f') {
+		} else if (text[i] == '\n') {
 			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // follows 2 LF - skip
 
 			new[lenNew] = '\n';
