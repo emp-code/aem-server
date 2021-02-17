@@ -18,6 +18,60 @@
 #define AEM_LIMIT_MULTIPARTS 50
 #define AEM_CHAR_HEADERS_END 0x1e // Record Separator
 
+// "abc" <def@ghj> --> abc\rdef@ghj
+static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource) {
+	while(1) {
+		unsigned char *r = memchr(source, '\r', *lenSource);
+		if (r == NULL) break;
+		*r = ' ';
+	}
+
+	unsigned char *addrStart = memchr(source, '<', *lenSource);
+	unsigned char *addrEnd = memchr(source, '>', *lenSource);
+	if (addrStart == NULL || addrEnd == NULL || addrEnd < addrStart) return;
+	addrStart++;
+	const size_t lenAddr = addrEnd - addrStart;
+
+	if (addrStart == source + 1) {
+		memmove(source, addrStart, lenAddr);
+		*lenSource = lenAddr;
+		return;
+	}
+
+	unsigned char *nameEnd = addrStart - 1;
+	unsigned char *nameStart = source;
+	while (isspace(*nameStart) && nameStart[1] != '<') nameStart++;
+
+	const bool quot = (*nameStart == '"');
+	if (quot) nameStart++;
+
+	if (nameStart == nameEnd) {
+		memmove(source, addrStart, lenAddr);
+		*lenSource = lenAddr;
+		return;
+	}
+
+	size_t lenName = nameEnd - nameStart;
+	while (lenName > 0 && isspace(nameStart[lenName - 1])) lenName--;
+
+	if (quot && lenName > 0 && nameStart[lenName - 1] == '"') lenName--;
+
+	if (lenName < 1) {
+		memcpy(source, addrStart, lenAddr);
+		*lenSource = lenAddr;
+		return;
+	}
+
+	unsigned char new[255];
+	memcpy(new, nameStart, lenName);
+	new[lenName] = '\r';
+	memcpy(new + lenName + 1, addrStart, lenAddr);
+
+	*lenSource = lenName + 1 + lenAddr;
+	memcpy(source, new, *lenSource);
+	return;
+}
+
 static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
 	if (lenMsg < 5) return;
 
@@ -418,6 +472,9 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	moveHeader(email->head, &email->lenHead, "\nFrom:", 6, email->headerFrom, &email->lenHeaderFrom, 255);
 	moveHeader(email->head, &email->lenHead, "\nTo:", 4, email->headerTo, &email->lenHeaderTo, 127);
 	moveHeader(email->head, &email->lenHead, "\nSubject:", 9, email->subject, &email->lenSubject, 255);
+
+	minifyHeaderAddress(email->headerFrom, &email->lenHeaderFrom);
+	minifyHeaderAddress(email->headerTo, &email->lenHeaderTo);
 
 	char ct[256];
 	uint8_t lenCt = 0;
