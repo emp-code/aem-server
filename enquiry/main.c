@@ -117,6 +117,12 @@ void takeConnections(void) {
 					send(sock, &resp, (lenPtr < 1) ? 2 : 2 + lenPtr, 0);
 				break;}
 
+				case AEM_ENQUIRY_A: {
+					if (lenDec > 128) break;
+					const uint32_t ip = queryDns_a(dec + 1, lenDec - 1);
+					send(sock, &ip, 4, 0);
+				break;}
+
 				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
 			}
 		} else syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);

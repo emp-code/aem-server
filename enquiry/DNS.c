@@ -82,6 +82,41 @@ static bool checkDnsLength(const unsigned char * const src, const int len) {
 	return (len == (int)u + 2);
 }
 
+uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) {
+	if (domain == NULL || domain[0] == '\0' || lenDomain < 4) return 0; // a.bc
+
+	uint16_t reqId;
+	randombytes_buf(&reqId, 2);
+
+	unsigned char req[100];
+	bzero(req, 100);
+
+	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
+
+	if (connectTls() < 0) return 0;
+
+	int ret;
+	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+
+	unsigned char res[AEM_DNS_BUFLEN];
+	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+
+	if (!checkDnsLength(res, ret)) {
+		syslog(LOG_INFO, "DNS length mismatch");
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+		close(sock);
+		return 0;
+	}
+
+	const uint32_t ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
+
+	mbedtls_ssl_close_notify(&ssl);
+	mbedtls_ssl_session_reset(&ssl);
+	close(sock);
+	return ip;
+}
+
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, int * const lenMxDomain) {
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
 	*lenMxDomain = 0;

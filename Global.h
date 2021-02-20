@@ -12,6 +12,7 @@ enum aem_internal_response {
 
 enum aem_internal_enquiry {
 	AEM_ENQUIRY_MX,
+	AEM_ENQUIRY_A,
 	AEM_ENQUIRY_IP,
 };
 

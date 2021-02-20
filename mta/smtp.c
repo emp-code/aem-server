@@ -134,6 +134,20 @@ static void getIpInfo(void) {
 	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
 }
 
+static bool greetingDomainMatchesIp(const uint32_t ip_conn) {
+	const int sock = enquirySocket(AEM_ENQUIRY_A, email.greet, email.lenGreet);
+	if (sock < 0) {
+		syslog(LOG_ERR, "Failed connecting to Enquiry");
+		return false;
+	}
+
+	uint32_t ip_greet;
+	const int lenRecv = recv(sock, &ip_greet, sizeof(uint32_t), 0);
+	close(sock);
+
+	return (lenRecv == sizeof(uint32_t) && ip_greet == ip_conn);
+}
+
 __attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, unsigned char * const buf, const size_t maxSize) {
 	if (buf == NULL || maxSize < 1) return -1;
@@ -500,6 +514,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			source[lenSource] = '\0';
 			processEmail(source, &lenSource, &email);
 
+			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
 			getIpInfo();
 			getCertNames(clientCert);
 
