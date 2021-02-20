@@ -43,28 +43,28 @@ __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
 	if (email->lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
 
-	if (email->lenHeaderTo >  63) email->lenHeaderTo =  63;
-	if (email->lenGreeting > 127) email->lenGreeting = 127;
-	if (email->lenRdns     > 127) email->lenRdns     = 127;
+	if (email->lenHdrTo >  63) email->lenHdrTo =  63;
+	if (email->lenGreet > 127) email->lenGreet = 127;
+	if (email->lenRvDns > 127) email->lenRvDns = 127;
 
-	// Data to be compressed
-	const size_t lenUncomp = email->lenGreeting + email->lenRdns + email->lenEnvTo + email->lenHeaderTo + email->lenEnvFrom + email->lenHeaderFrom + email->lenMsgId + email->lenSubject + 4 + email->lenHead + email->lenBody;
+	const size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenHead + email->lenBody + 5;
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
 
 	size_t offset = 0;
 
-	// The four short text fields
-	memcpy(uncomp + offset, email->envTo,    email->lenEnvTo);    offset += email->lenEnvTo;
-	memcpy(uncomp + offset, email->headerTo, email->lenHeaderTo); offset += email->lenHeaderTo;
-	memcpy(uncomp + offset, email->greeting, email->lenGreeting); offset += email->lenGreeting;
-	memcpy(uncomp + offset, email->rdns,     email->lenRdns);     offset += email->lenRdns;
+	// The four short-text fields
+	memcpy(uncomp + offset, email->envTo, email->lenEnvTo); offset += email->lenEnvTo;
+	memcpy(uncomp + offset, email->hdrTo, email->lenHdrTo); offset += email->lenHdrTo;
+	memcpy(uncomp + offset, email->greet, email->lenGreet); offset += email->lenGreet;
+	memcpy(uncomp + offset, email->rvDns, email->lenRvDns); offset += email->lenRvDns;
 
-	// The four long text fields
-	memcpy(uncomp + offset, email->envFrom,    email->lenEnvFrom);    offset += email->lenEnvFrom;    uncomp[offset] = '\n'; offset++;
-	memcpy(uncomp + offset, email->headerFrom, email->lenHeaderFrom); offset += email->lenHeaderFrom; uncomp[offset] = '\n'; offset++;
-	memcpy(uncomp + offset, email->msgId,      email->lenMsgId);      offset += email->lenMsgId;      uncomp[offset] = '\n'; offset++;
-	memcpy(uncomp + offset, email->subject,    email->lenSubject);    offset += email->lenSubject; // email->head begins with a linebreak
+	// The five long-text fields
+	memcpy(uncomp + offset, email->envFr, email->lenEnvFr); offset += email->lenEnvFr; uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->hdrFr, email->lenHdrFr); offset += email->lenHdrFr; uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->hdrRt, email->lenHdrRt); offset += email->lenHdrRt; uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->msgId, email->lenMsgId); offset += email->lenMsgId; uncomp[offset] = '\n'; offset++;
+	memcpy(uncomp + offset, email->sbjct, email->lenSbjct); offset += email->lenSbjct; // email->head begins with a linebreak
 
 	// The headers and body
 	memcpy(uncomp + offset, email->head, email->lenHead);
@@ -73,7 +73,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	offset++;
 	memcpy(uncomp + offset, email->body, email->lenBody);
 
-	// Compress
+	// Compress the data
 	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
 	unsigned char * const comp = malloc(lenComp);
 	if (comp == NULL) {
@@ -122,18 +122,18 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[16] = (email->spf & 192) | (email->lenEnvTo & 31);
 	if (email->greetingIpMatch) content[16] |=  32;
 
-	content[17] = (email->dmarc & 192) | (email->lenHeaderTo & 63);
+	content[17] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
-	content[18] = email->lenGreeting & 127;
+	content[18] = email->lenGreet & 127;
 	if (email->ipBlacklisted) content[18] |= 128;
 
-	content[19] = email->lenRdns & 127;
+	content[19] = email->lenRvDns & 127;
 	if (email->dnssec) content[19] |= 128;
 
-	content[20] = email->headerTz & 127;
+	content[20] = email->hdrTz & 127;
 	if (email->dane) content[20] |= 128;
 
-	memcpy(content + 21, &email->headerTs, 2);
+	memcpy(content + 21, &email->hdrTs, 2);
 
 	// DKIM
 	offset = 23;

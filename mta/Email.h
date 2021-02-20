@@ -15,10 +15,10 @@
 #define AEM_EMAIL_CERT_RSA1K  8192
 #define AEM_EMAIL_CERT_NONE      0
 
-#define AEM_EMAIL_CERT_MATCH_ENVFROM    64
-#define AEM_EMAIL_CERT_MATCH_HEADERFROM 32
-#define AEM_EMAIL_CERT_MATCH_GREETING   16
-#define AEM_EMAIL_CERT_MATCH_RDNS        8
+#define AEM_EMAIL_CERT_MATCH_ENVFR 64
+#define AEM_EMAIL_CERT_MATCH_HDRFR 32
+#define AEM_EMAIL_CERT_MATCH_GREET 16
+#define AEM_EMAIL_CERT_MATCH_RVDNS  8
 
 struct emailInfo {
 	unsigned char ccBytes[2];
@@ -44,31 +44,33 @@ struct emailInfo {
 	uint16_t tlsInfo;
 	uint16_t tls_ciphersuite;
 
-	// The four short text fields
+	// The four short-text fields
 	uint8_t lenEnvTo;
-	uint8_t lenHeaderTo;
-	uint8_t lenGreeting;
-	uint8_t lenRdns;
+	uint8_t lenHdrTo;
+	uint8_t lenGreet;
+	uint8_t lenRvDns;
 
-	unsigned char envTo[31];
-	unsigned char headerTo[63];
-	unsigned char greeting[127];
-	unsigned char rdns[127];
+	unsigned char envTo[63];
+	unsigned char hdrTo[63];
+	unsigned char greet[127];
+	unsigned char rvDns[127];
 
-	// The four long text fields
-	uint8_t lenEnvFrom;
-	uint8_t lenHeaderFrom;
-	uint8_t lenMsgId;
-	uint8_t lenSubject;
+	// The five long-text fields
+	uint8_t lenEnvFr; // MAIL FROM
+	uint8_t lenHdrFr; // From
+	uint8_t lenHdrRt; // Reply-To
+	uint8_t lenMsgId; // Message-ID
+	uint8_t lenSbjct; // Subject
 
-	unsigned char envFrom[255];
-	unsigned char headerFrom[255];
+	unsigned char envFr[255];
+	unsigned char hdrFr[255];
+	unsigned char hdrRt[255];
 	unsigned char msgId[255];
-	unsigned char subject[255];
+	unsigned char sbjct[255];
 
 	// Header time info
-	unsigned char headerTz;
-	uint16_t headerTs;
+	unsigned char hdrTz;
+	uint16_t hdrTs;
 
 	// DKIM
 	uint8_t dkimCount;

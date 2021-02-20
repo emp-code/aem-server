@@ -91,28 +91,28 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 
 		if (name != NULL && lenName > 0) {
 			// TODO: Support wildcards: *.example.com
-			if (lenName == email.lenGreeting && memcmp(name, email.greeting, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREETING;
-			if (lenName == email.lenRdns     && memcmp(name, email.rdns,     lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RDNS;
+			if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET;
+			if (lenName == email.lenRvDns && memcmp(name, email.rvDns, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RVDNS;
 
-			const unsigned char *envFrom = memchr(email.envFrom, '@', email.lenEnvFrom);
-			if (envFrom != NULL) {
-				envFrom++;
-				const size_t lenEnvFrom = email.lenEnvFrom - (envFrom - email.envFrom);
-				if (lenName == lenEnvFrom && memcmp(name, envFrom, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFROM;
+			const unsigned char *envFr = memchr(email.envFr, '@', email.lenEnvFr);
+			if (envFr != NULL) {
+				envFr++;
+				const size_t lenEnvFr = email.lenEnvFr - (envFr - email.envFr);
+				if (lenName == lenEnvFr && memcmp(name, envFr, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR;
 			}
 
-			const unsigned char *hdrFrom = memchr(email.headerFrom, '@', email.lenHeaderFrom);
-			if (hdrFrom != NULL) {
-				hdrFrom++;
-				const size_t lenHdrFrom = email.lenHeaderFrom - (hdrFrom - email.headerFrom);
-				if (lenName == lenHdrFrom && memcmp(name, hdrFrom, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HEADERFROM;
+			const unsigned char *hdrFr = memchr(email.hdrFr, '@', email.lenHdrFr);
+			if (hdrFr != NULL) {
+				hdrFr++;
+				const size_t lenHdrFr = email.lenHdrFr - (hdrFr - email.hdrFr);
+				if (lenName == lenHdrFr && memcmp(name, hdrFr, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR;
 			}
 		}
 	}
 }
 
 static void getIpInfo(void) {
-	email.lenRdns = 0;
+	email.lenRvDns = 0;
 	email.ccBytes[0] |= 31;
 	email.ccBytes[1] |= 31;
 
@@ -125,8 +125,8 @@ static void getIpInfo(void) {
 			memcpy(email.ccBytes, ipInfo, 2);
 
 			if (lenIpInfo > 2) {
-				email.lenRdns = lenIpInfo - 2;
-				memcpy(email.rdns, ipInfo + 2, email.lenRdns);
+				email.lenRvDns = lenIpInfo - 2;
+				memcpy(email.rvDns, ipInfo + 2, email.lenRvDns);
 			}
 		}
 
@@ -188,18 +188,18 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 	skipBytes++;
 
 	const int max = len - skipBytes - 1;
-	while (email.lenEnvFrom < max && buf[skipBytes + email.lenEnvFrom] != '>') (email.lenEnvFrom)++;
+	while (email.lenEnvFr < max && buf[skipBytes + email.lenEnvFr] != '>') (email.lenEnvFr)++;
 
 	// Empty addresses are used by notifications such as bounces
-	if (email.lenEnvFrom < 1) {
-		email.envFrom[0] = '@';
-		email.lenEnvFrom = 1;
+	if (email.lenEnvFr < 1) {
+		email.envFr[0] = '@';
+		email.lenEnvFr = 1;
 		return 0;
 	}
 
-	if (email.lenEnvFrom > 127) email.lenEnvFrom = 127;
+	if (email.lenEnvFr > 127) email.lenEnvFr = 127;
 
-	memcpy(email.envFrom, buf + skipBytes, email.lenEnvFrom);
+	memcpy(email.envFr, buf + skipBytes, email.lenEnvFr);
 	return 0;
 }
 
@@ -303,9 +303,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
-	email.lenGreeting = bytes - 7;
-	if (email.lenGreeting > 127) email.lenGreeting = 127;
-	memcpy(email.greeting, buf + 5, email.lenGreeting);
+	email.lenGreet = bytes - 7;
+	if (email.lenGreet > 127) email.lenGreet = 127;
+	memcpy(email.greet, buf + 5, email.lenGreet);
 
 	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
 
@@ -329,11 +329,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 		if (bytes == 0) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			tlsClose(tls);
 			return;
 		} else if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
+			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			smtp_respond(sock, tls, '2', '2', '1');
 			tlsClose(tls);
 			return;
@@ -370,8 +370,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (bytes < 4) {
-			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
-			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreeting, email.greeting);
+			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
+			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			break;
 		}
 
@@ -383,7 +383,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (bytes > 8 && strncasecmp((char*)buf, "RCPT TO:", 8) == 0) {
-			if (email.lenEnvFrom < 1) {
+			if (email.lenEnvFr < 1) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
@@ -421,7 +421,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
 			email.rareCommands = true;
 
-			email.lenEnvFrom = 0;
+			email.lenEnvFr = 0;
 			toCount = 0;
 		}
 
@@ -443,7 +443,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		else if (strncasecmp((char*)buf, "DATA", 4) == 0) {
-			if (email.lenEnvFrom < 1 || toCount < 1) {
+			if (email.lenEnvFr < 1 || toCount < 1) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {

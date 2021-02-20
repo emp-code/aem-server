@@ -469,13 +469,15 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	if (getHeaders(source, lenSource, email) != 0) return;
 
 	decodeEncodedWord(email->head, &email->lenHead);
-	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->headerFrom, &email->lenHeaderFrom, 255); // Removed/ignored
-	moveHeader(email->head, &email->lenHead, "\nFrom:", 6, email->headerFrom, &email->lenHeaderFrom, 255);
-	moveHeader(email->head, &email->lenHead, "\nTo:", 4, email->headerTo, &email->lenHeaderTo, 127);
-	moveHeader(email->head, &email->lenHead, "\nSubject:", 9, email->subject, &email->lenSubject, 255);
+	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->hdrFr, &email->lenHdrFr, 255); // Removed/ignored
+	moveHeader(email->head, &email->lenHead, "\nFrom:",          6, email->hdrFr, &email->lenHdrFr, 255);
+	moveHeader(email->head, &email->lenHead, "\nReply-To:",     10, email->hdrRt, &email->lenHdrRt, 255);
+	moveHeader(email->head, &email->lenHead, "\nTo:",            4, email->hdrTo, &email->lenHdrTo, 63);
+	moveHeader(email->head, &email->lenHead, "\nSubject:",       9, email->sbjct, &email->lenSbjct, 255);
 
-	minifyHeaderAddress(email->headerFrom, &email->lenHeaderFrom);
-	minifyHeaderAddress(email->headerTo, &email->lenHeaderTo);
+	minifyHeaderAddress(email->hdrFr, &email->lenHdrFr);
+	minifyHeaderAddress(email->hdrRt, &email->lenHdrRt);
+	minifyHeaderAddress(email->hdrTo, &email->lenHdrTo);
 
 	char ct[256];
 	uint8_t lenCt = 0;
@@ -486,12 +488,12 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	unsigned char hdrDate[256];
 	moveHeader(email->head, &email->lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
 	hdrDate[lenHdrDate] = '\0';
-	const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email->headerTz);
+	const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email->hdrTz);
 
 	if (hdrTime > 0) {
 		// Store the difference between received and header timestamps (-18h .. +736s)
 		const time_t timeDiff = (time_t)email->timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
-		email->headerTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
+		email->hdrTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 	}
 
 	uint8_t lenHdrMsgId = 0;
