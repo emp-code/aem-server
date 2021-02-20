@@ -47,7 +47,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	if (email->lenGreet > 127) email->lenGreet = 127;
 	if (email->lenRvDns > 127) email->lenRvDns = 127;
 
-	const size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenHead + email->lenBody + 5;
+	const size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
 
@@ -64,11 +64,14 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	memcpy(uncomp + offset, email->hdrFr, email->lenHdrFr); offset += email->lenHdrFr; uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->hdrRt, email->lenHdrRt); offset += email->lenHdrRt; uncomp[offset] = '\n'; offset++;
 	memcpy(uncomp + offset, email->msgId, email->lenMsgId); offset += email->lenMsgId; uncomp[offset] = '\n'; offset++;
-	memcpy(uncomp + offset, email->sbjct, email->lenSbjct); offset += email->lenSbjct; // email->head begins with a linebreak
+	memcpy(uncomp + offset, email->sbjct, email->lenSbjct); offset += email->lenSbjct; uncomp[offset] = '\n'; offset++;
 
 	// The headers and body
-	memcpy(uncomp + offset, email->head, email->lenHead);
-	offset += email->lenHead;
+	if (email->lenHead > 1) {
+		memcpy(uncomp + offset, email->head + 1, email->lenHead - 1); // Ignore leading linebreak
+		offset += email->lenHead - 1;
+	}
+
 	uncomp[offset] = '\r';
 	offset++;
 	memcpy(uncomp + offset, email->body, email->lenBody);
