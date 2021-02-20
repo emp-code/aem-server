@@ -120,11 +120,9 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[15] = email->ccBytes[1];
 	if (email->invalidCommands) content[15] |= 128;
 	if (email->rareCommands)    content[15] |=  64;
-	if (email->toMultiple)      content[15] |=  32;
+	if (email->greetingIpMatch) content[15] |=  32;
 
-	content[16] = (email->spf & 192) | (email->lenEnvTo & 31);
-	if (email->greetingIpMatch) content[16] |=  32;
-
+	content[16] = (email->spf   & 192) | (email->lenEnvTo & 63);
 	content[17] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
 	content[18] = email->lenGreet & 127;
@@ -160,8 +158,6 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return;}
-
-	if (toCount > 1) email->toMultiple = true;
 	if (email->attachCount >  31) email->attachCount =  31;
 
 	// Deliver

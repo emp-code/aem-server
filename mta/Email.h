@@ -32,7 +32,6 @@ struct emailInfo {
 	bool quitReceived;
 	bool invalidCommands;
 	bool rareCommands; // NOOP/RSET/etc
-	bool toMultiple;
 
 	// DNS/Host
 	bool ipBlacklisted;
