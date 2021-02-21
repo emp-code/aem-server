@@ -126,13 +126,13 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[17] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
 	content[18] = email->lenGreet & 127;
-	if (email->ipBlacklisted) content[18] |= 128;
+	if (email->dane) content[18] |= 128;
 
 	content[19] = email->lenRvDns & 127;
 	if (email->dnssec) content[19] |= 128;
 
 	content[20] = email->hdrTz & 127;
-	if (email->dane) content[20] |= 128;
+	if (email->ipBlacklisted) content[20] |= 128;
 
 	memcpy(content + 21, &email->hdrTs, 2);
 
