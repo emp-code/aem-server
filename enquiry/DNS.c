@@ -74,6 +74,8 @@ int connectTls(void) {
 }
 
 static bool checkDnsLength(const unsigned char * const src, const int len) {
+	if (len == -30848) return true; // peer closed connection
+
 	uint16_t u;
 	memcpy((unsigned char*)&u + 0, src + 1, 1);
 	memcpy((unsigned char*)&u + 1, src + 0, 1);
