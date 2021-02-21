@@ -24,10 +24,6 @@
 
 #include "../Common/tls_setup.c"
 
-#define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net
-#define AEM_DNS_SERVER_HOST "dns.quad9.net"
-
-#define AEM_DNS_SERVER_PORT "853" // DNS over TLS
 #define AEM_DNS_BUFLEN 512
 
 static int sock;
