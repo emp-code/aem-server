@@ -12,3 +12,12 @@
 #define AEM_PORT_WEB_ONI 880 // Actual port is 80 (HTTP), this is just Tor's localhost port
 #define AEM_PORT_MANAGER 940
 #define AEM_PORT_MANAGER_STR "940"
+
+// DNS
+#define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net
+#define AEM_DNS_SERVER_HOST "dns.quad9.net"
+#define AEM_DNS_SERVER_PORT "853" // DNS over TLS
+
+// DNSBL
+#define AEM_MTA_DNSBL_LEN 16
+#define AEM_MTA_DNSBL "zen.spamhaus.org"

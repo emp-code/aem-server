@@ -16,6 +16,8 @@
 
 #include <sodium.h>
 
+#include "../Config.h"
+
 #include "DNS_protocol.h"
 
 #include "DNS.h"
