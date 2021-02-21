@@ -752,7 +752,7 @@ static void message_create_ext(void) {
 	email.ip = 0;
 	if (
 	   recv(sock, &(email.ip), 4, 0) != 4
-	|| email.ip == 0
+	|| email.ip <= 1
 	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
 	|| lenMxDomain < 4
 	|| lenMxDomain > 255

@@ -33,7 +33,7 @@ static uint32_t validIp(const uint32_t ip) {
 	|| (b1 == 203 && b2 == 0  && b3 == 113)
 	|| (b1 >= 224 && b1 <= 239)
 	|| (b1 >= 240)
-	) ? 0 : ip;
+	) ? 1 : ip;
 }
 
 static void domainToQuestion(unsigned char * const question, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType) {
