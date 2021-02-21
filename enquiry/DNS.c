@@ -97,19 +97,16 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 	unsigned char res[AEM_DNS_BUFLEN];
 	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 
+	mbedtls_ssl_close_notify(&ssl);
+	mbedtls_ssl_session_reset(&ssl);
+	close(sock);
+
 	if (!checkDnsLength(res, ret)) {
 		syslog(LOG_INFO, "DNS length mismatch");
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_session_reset(&ssl);
-		close(sock);
 		return 0;
 	}
 
 	const uint32_t ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
-
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
-	close(sock);
 	return ip;
 }
 
