@@ -18,6 +18,6 @@
 #define AEM_DNS_SERVER_HOST "dns.quad9.net"
 #define AEM_DNS_SERVER_PORT "853" // DNS over TLS
 
-// DNSBL
-#define AEM_MTA_DNSBL_LEN 16
-#define AEM_MTA_DNSBL "zen.spamhaus.org"
+// DNSBL; see https://en.wikipedia.org/wiki/Comparison_of_DNS_blacklists
+#define AEM_MTA_DNSBL_LEN 15
+#define AEM_MTA_DNSBL "dnsbl.sorbs.net"
