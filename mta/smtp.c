@@ -135,6 +135,22 @@ static void getIpInfo(void) {
 	}
 }
 
+static bool isIpBlacklisted(const uint32_t ip) {
+	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
+	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
+
+	const int sock = enquirySocket(AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain));
+	if (sock < 0) {
+		syslog(LOG_ERR, "Failed connecting to Enquiry");
+		return false;
+	}
+
+	uint32_t dnsbl_ip = 0;
+	const int lenIpInfo = recv(sock, &dnsbl_ip, 4, 0);
+	close(sock);
+	return (lenIpInfo == sizeof(uint32_t) && dnsbl_ip == 1);
+}
+
 static bool greetingDomainMatchesIp(const uint32_t ip_conn) {
 	const int sock = enquirySocket(AEM_ENQUIRY_A, email.greet, email.lenGreet);
 	if (sock < 0) {
@@ -515,8 +531,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			source[lenSource] = '\0';
 			processEmail(source, &lenSource, &email);
 
-			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
 			getIpInfo();
+			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
+			email.ipBlacklisted = isIpBlacklisted(clientAddr->sin_addr.s_addr);
 			getCertNames(clientCert);
 
 			deliverMessage(to, toCount, &email);
