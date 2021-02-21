@@ -26,7 +26,7 @@
 #define AEM_LOGNAME "AEM-Enq"
 #define AEM_SOCK_QUEUE 50
 
-#define AEM_MAXLEN_ENQUIRY_ENC (32 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+#define AEM_MAXLEN_ENQUIRY_ENC (64 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 #define AEM_MINLEN_ENQUIRY_ENC (4 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
 static bool terminate = false;
