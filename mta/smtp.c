@@ -117,21 +117,22 @@ static void getIpInfo(void) {
 	email.ccBytes[1] |= 31;
 
 	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email.ip, 4);
-	if (sock >= 0) {
-		unsigned char ipInfo[129];
-		const int lenIpInfo = recv(sock, ipInfo, 129, 0);
+	if (sock < 0) {
+		syslog(LOG_ERR, "Failed connecting to Enquiry");
+		return;
+	}
 
-		if (lenIpInfo >= 2) {
-			memcpy(email.ccBytes, ipInfo, 2);
+	unsigned char ipInfo[129];
+	const int lenIpInfo = recv(sock, ipInfo, 129, 0);
+	close(sock);
+	if (lenIpInfo < 2) return;
 
-			if (lenIpInfo > 2) {
-				email.lenRvDns = lenIpInfo - 2;
-				memcpy(email.rvDns, ipInfo + 2, email.lenRvDns);
-			}
-		}
+	memcpy(email.ccBytes, ipInfo, 2);
 
-		close(sock);
-	} else syslog(LOG_ERR, "Failed connecting to Enquiry");
+	if (lenIpInfo > 2) {
+		email.lenRvDns = lenIpInfo - 2;
+		memcpy(email.rvDns, ipInfo + 2, email.lenRvDns);
+	}
 }
 
 static bool greetingDomainMatchesIp(const uint32_t ip_conn) {
