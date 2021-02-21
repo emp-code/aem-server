@@ -24,48 +24,19 @@
 
 #define AEM_ENQUIRY
 
-#include "../Common/tls_setup.c"
-
 #define AEM_DNS_BUFLEN 512
 
-static int sock;
-
 static int connectSocket(void) {
-	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
 
 	struct sockaddr_in myaddr;
 	myaddr.sin_family = AF_INET;
-	myaddr.sin_port = htons(853);
+	myaddr.sin_port = htons(AEM_DNS_SERVER_PORT);
 	inet_aton(AEM_DNS_SERVER_ADDR, &myaddr.sin_addr);
 
-	if (connect(sock, &myaddr, sizeof(struct sockaddr_in)) != 0) {syslog(LOG_ERR, "Failed connect(): %m"); close(sock); return -1;}
-
-	return 0;
-}
-
-int connectTls(void) {
-	if (connectSocket() < 0) return -1;
-
-	mbedtls_ssl_set_hostname(&ssl, AEM_DNS_SERVER_HOST);
-	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-	int ret;
-	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			syslog(LOG_ERR, "Failed TLS handshake: %x", -ret);
-			mbedtls_ssl_close_notify(&ssl);
-			mbedtls_ssl_session_reset(&ssl);
-			close(sock);
-			return -1;
-		}
-	}
-
-	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-	if (flags != 0) {
-		syslog(LOG_ERR, "Failed verifying cert");
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_session_reset(&ssl);
+	if (connect(sock, &myaddr, sizeof(struct sockaddr_in)) != 0) {
+		syslog(LOG_ERR, "Failed connect(): %m");
 		close(sock);
 		return -1;
 	}
@@ -74,7 +45,7 @@ int connectTls(void) {
 }
 
 static bool checkDnsLength(const unsigned char * const src, const int len) {
-	if (len == -30848) return true; // peer closed connection
+	if (len < 1) return false;
 
 	uint16_t u;
 	memcpy((unsigned char*)&u + 0, src + 1, 1);
@@ -93,16 +64,13 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 
 	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
 
-	if (connectTls() < 0) return 0;
+	const int sock = connectSocket();
+	if (sock < 0) return 0;
 
-	int ret;
-	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+	int ret = send(sock, req, reqLen, 0);
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
+	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
 
 	if (!checkDnsLength(res, ret)) {
@@ -126,18 +94,16 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 
 	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
 
-	if (connectTls() < 0) return 0;
+	const int sock = connectSocket();
+	if (sock < 0) return 0;
 
-	int ret;
-	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+	int ret = send(sock, req, reqLen, 0);
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 
 	if (!checkDnsLength(res, ret)) {
 		syslog(LOG_INFO, "DNS length mismatch");
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_session_reset(&ssl);
 		close(sock);
 		return 0;
 	}
@@ -148,14 +114,11 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 		bzero(req, 100);
 		reqLen = dnsCreateRequest(reqId, req, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 
-		do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-
-		do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+		ret = send(sock, req, reqLen, 0);
+		ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 
 		if (!checkDnsLength(res, ret)) {
 			syslog(LOG_INFO, "DNS length mismatch");
-			mbedtls_ssl_close_notify(&ssl);
-			mbedtls_ssl_session_reset(&ssl);
 			close(sock);
 			return 0;
 		}
@@ -163,8 +126,6 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 	}
 
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
 	close(sock);
 	return ip;
 }
@@ -184,16 +145,13 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 
 	int reqLen = dnsCreateRequest(reqId, req, reqDomain, lenReqDomain, AEM_DNS_RECORDTYPE_PTR);
 
-	if (connectTls() < 0) return -1;
+	const int sock = connectSocket();
+	if (sock < 0) return 0;
 
-	int ret;
-	do {ret = mbedtls_ssl_write(&ssl, req, reqLen);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+	int ret = send(sock, req, reqLen, 0);
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	do {ret = mbedtls_ssl_read(&ssl, res, AEM_DNS_BUFLEN);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
+	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
 
 	if (!checkDnsLength(res, ret)) {

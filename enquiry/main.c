@@ -141,12 +141,9 @@ int main(void) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
-	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed tlsSetup()"); return EXIT_FAILURE;}
-
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
 	syslog(LOG_INFO, "Terminating");
 
-	tlsFree();
 	return EXIT_SUCCESS;
 }
