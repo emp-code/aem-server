@@ -147,7 +147,10 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		if (offset < 1) {syslog(LOG_ERR, "rr_getName failed"); return -1;}
 		// TODO: Compare name to requestedName
 
-		if (*(uint16_t*)(msg + offset) != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+		uint16_t rt_u16;
+		memcpy(&rt_u16, msg + offset, 2);
+
+		if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
 		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Record not internet class"); return -1;}
 		// +4 TTL (32 bits) ignored
 
