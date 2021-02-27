@@ -112,7 +112,7 @@ MTA receives email. It converts the received email into a custom binary format, 
 
 ## Utilities ##
 
-The `data` folder contains header files which supply data to various parts of All-Ears. They must be carefully configured/generated before compilation.
+The `Data` folder contains header files which supply data to various parts of All-Ears. They must be carefully configured/generated before compilation.
 
 The `utils` folder contains:
 * `Accgen`: Generates Account.aem
