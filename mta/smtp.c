@@ -18,6 +18,7 @@
 #include "../Common/UnixSocketClient.h"
 
 #include "delivery.h"
+#include "dkim.h"
 #include "processing.h"
 
 #include "smtp.h"
@@ -529,6 +530,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			convertLineDots(source, &lenSource);
 			source[lenSource] = '\0';
+
+			verifyDkim(&email, source, lenSource);
+
 			processEmail(source, &lenSource, &email);
 
 			getIpInfo();

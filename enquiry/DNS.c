@@ -82,6 +82,41 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 	return ip;
 }
 
+void queryDns_dkim(const unsigned char * const selector, const size_t lenSelector, const unsigned char * const domain, const size_t lenDomain, unsigned char * const dkimRecord, int * const lenDkimRecord) {
+	if (domain == NULL || lenDomain < 1 || domain[0] == '\0' || selector == NULL || lenSelector < 1 || selector[0] == '\0') return;
+
+	uint16_t reqId;
+	randombytes_buf(&reqId, 2);
+
+	unsigned char req[100];
+	bzero(req, 100);
+
+	size_t lenDkimDomain = lenSelector + 12 + lenDomain;
+	unsigned char dkimDomain[lenDkimDomain];
+	memcpy(dkimDomain, selector, lenSelector);
+	memcpy(dkimDomain + lenSelector, "._domainkey.", 12);
+	memcpy(dkimDomain + lenSelector + 12, domain, lenDomain);
+
+	int reqLen = dnsCreateRequest(reqId, req, dkimDomain, lenDkimDomain, AEM_DNS_RECORDTYPE_TXT);
+
+	const int sock = connectSocket();
+	if (sock < 0) return;
+
+	int ret = send(sock, req, reqLen, 0);
+
+	unsigned char res[1024];
+	ret = recv(sock, res, 1024, 0);
+	close(sock);
+
+	if (!checkDnsLength(res, ret)) {
+		syslog(LOG_INFO, "DNS length mismatch");
+		return;
+	}
+
+	dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, dkimDomain, lenDkimDomain, dkimRecord, lenDkimRecord, AEM_DNS_RECORDTYPE_TXT);
+	return;
+}
+
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, int * const lenMxDomain) {
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
 	*lenMxDomain = 0;

@@ -47,11 +47,21 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	if (email->lenGreet > 127) email->lenGreet = 127;
 	if (email->lenRvDns > 127) email->lenRvDns = 127;
 
-	const size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+	const size_t lenUncomp = email->dkim[0].lenDomain + email->dkim[1].lenDomain + email->dkim[2].lenDomain + email->dkim[3].lenDomain + email->dkim[4].lenDomain + email->dkim[5].lenDomain + email->dkim[6].lenDomain
+		+ email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns
+		+ email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct
+		+ (email->dkimCount * 3) + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
 
 	size_t offset = 0;
+
+	// DKIM domains
+	for (int i = 0; i < email->dkimCount; i++) {
+		memcpy(uncomp + offset, email->dkim[i].domain, email->dkim[i].lenDomain);
+		offset += email->dkim[i].lenDomain;
+	}
 
 	// The four short-text fields
 	memcpy(uncomp + offset, email->envTo, email->lenEnvTo); offset += email->lenEnvTo;
@@ -93,8 +103,8 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	free(uncomp);
 
 	// Create the ExtMsg
-	const size_t lenContent = 23 + ((email->dkimCount & 7) * 4) + lenComp;
-	unsigned char * const content = malloc(lenContent);
+	const size_t lenContent = 23 + ((email->dkimCount & 7) * 3) + lenComp;
+	unsigned char * const content = calloc(lenContent, 1);
 	if (content == NULL) {
 		free(comp);
 		return NULL;
@@ -139,8 +149,28 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	// DKIM
 	offset = 23;
 	for (int i = 0; i < (email->dkimCount & 7); i++) {
-		memcpy(content + offset, email->dkimInfo[i], 4);
-		offset += 4;
+		if (email->dkim[i].algoRsa)    content[offset] |= 128;
+		if (email->dkim[i].algoSha256) content[offset] |=  64;
+		if (email->dkim[i].dnsFlag_s)  content[offset] |=  32;
+		if (email->dkim[i].dnsFlag_y)  content[offset] |=  16;
+		if (email->dkim[i].headSimple) content[offset] |=   8;
+		if (email->dkim[i].bodySimple) content[offset] |=   4;
+//expiration
+
+		if (email->dkim[i].fullId)     content[offset + 1] |= 128;
+		if (email->dkim[i].sgnAll)     content[offset + 1] |=  64;
+		if (email->dkim[i].sgnMsgId)   content[offset + 1] |=  32;
+		if (email->dkim[i].sgnDate)    content[offset + 1] |=  16;
+		if (email->dkim[i].sgnTo)      content[offset + 1] |=   8;
+		if (email->dkim[i].sgnFrom)    content[offset + 1] |=   4;
+		if (email->dkim[i].sgnReplyTo) content[offset + 1] |=   2;
+		if (email->dkim[i].sgnSubject) content[offset + 1] |=   1;
+
+		if (email->dkim[i].bodyTrunc)  content[offset + 2] |= 128;
+//sigold
+		content[offset + 2] |= (email->dkim[i].lenDomain - 4) & 63;
+
+		offset += 3;
 	}
 
 	// The compressed body

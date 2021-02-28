@@ -123,6 +123,17 @@ void takeConnections(void) {
 					send(sock, &ip, 4, 0);
 				break;}
 
+				case AEM_ENQUIRY_DKIM: {
+					const unsigned char * const slash = memchr(dec + 1, '/', lenDec - 1);
+					if (slash == NULL) break;
+
+					unsigned char dkimRecord[1024];
+					int lenDkimRecord = 0;
+
+					queryDns_dkim(dec + 1, slash - (dec + 1), slash + 1, (dec + lenDec) - (slash + 1), dkimRecord, &lenDkimRecord);
+					if (lenDkimRecord > 0) send(sock, dkimRecord, lenDkimRecord, 0);
+				break;}
+
 				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
 			}
 		} else syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);

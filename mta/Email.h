@@ -20,6 +20,31 @@
 #define AEM_EMAIL_CERT_MATCH_GREET 16
 #define AEM_EMAIL_CERT_MATCH_RVDNS  8
 
+struct dkimInfo {
+	bool algoRsa;
+	bool algoSha256;
+	bool dnsFlag_s;
+	bool dnsFlag_y;
+	bool headSimple;
+	bool bodySimple;
+	bool fullId;
+	bool bodyTrunc;
+
+	bool sgnAll;
+	bool sgnMsgId;
+	bool sgnDate;
+	bool sgnTo;
+	bool sgnFrom;
+	bool sgnReplyTo;
+	bool sgnSubject;
+
+	uint32_t ts_expr;
+	uint32_t ts_sign;
+
+	size_t lenDomain; // 0-63 -> 4-67
+	char domain[67];
+};
+
 struct emailInfo {
 	unsigned char ccBytes[2];
 	uint32_t timestamp;
@@ -73,7 +98,7 @@ struct emailInfo {
 
 	// DKIM
 	uint8_t dkimCount;
-	unsigned char dkimInfo[15][4];
+	struct dkimInfo dkim[7];
 
 	// 2-bit data fields
 	uint8_t dmarc;

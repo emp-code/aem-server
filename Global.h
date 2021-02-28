@@ -14,6 +14,7 @@ enum aem_internal_enquiry {
 	AEM_ENQUIRY_MX,
 	AEM_ENQUIRY_A,
 	AEM_ENQUIRY_IP,
+	AEM_ENQUIRY_DKIM
 };
 
 #define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES

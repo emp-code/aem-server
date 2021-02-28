@@ -159,23 +159,43 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		memcpy((unsigned char*)&rdLen + 1, msg + offset + 8, 1);
 		if (rdLen < 1) {syslog(LOG_ERR, "rdLen"); return -1;}
 
-		if (recordType == AEM_DNS_RECORDTYPE_MX) {
-			uint16_t newPrio;
-			memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
-			memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
+		switch (recordType) {
+			case AEM_DNS_RECORDTYPE_MX: {
+				uint16_t newPrio;
+				memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
+				memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
 
-			if (newPrio < prio) {
+				if (newPrio < prio) {
+					*lenResult = 0;
+					const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
+					if (o2 < 1) return -1;
+					prio = newPrio;
+				}
+
+				rrOffset = offset + 10 + rdLen; // offset is at byte after name-section
+			break;}
+
+			case AEM_DNS_RECORDTYPE_PTR: {
+				rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
+				return 0;
+			break;}
+
+			case AEM_DNS_RECORDTYPE_TXT: {
 				*lenResult = 0;
-				const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
-				if (o2 < 1) return -1;
-				prio = newPrio;
-			}
+				size_t rd_offset = 0;
+				while (rd_offset < rdLen) {
+					uint8_t lenCopy = msg[offset + 10 + rd_offset];
+					if (*lenResult + lenCopy > 1023) break;
+					rd_offset++;
+					memcpy(result + *lenResult, msg + offset + 10 + rd_offset, lenCopy);
 
-			rrOffset = offset + 10 + rdLen; // offset is at byte after name-section
-		} else if (recordType == AEM_DNS_RECORDTYPE_PTR) {
-			rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
-			return 0;
-		} else return -1;
+					*lenResult += lenCopy;
+					rd_offset += lenCopy;
+				}
+			break;}
+
+			default: return -1;
+		}
 	}
 
 	return 0;
