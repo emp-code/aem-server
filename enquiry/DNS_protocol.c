@@ -178,7 +178,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 			case AEM_DNS_RECORDTYPE_PTR: {
 				rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
 				return 0;
-			break;}
+			}
 
 			case AEM_DNS_RECORDTYPE_TXT: {
 				*lenResult = 0;
