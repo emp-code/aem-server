@@ -151,7 +151,6 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				if (lenVal > 67) return;
 				memcpy(email->dkim[0].domain, val, lenVal);
 				email->dkim[0].lenDomain = lenVal;
-				email->dkim[0].domain[lenVal] = '\0';
 			break;}
 
 			case 's': { // Selector
