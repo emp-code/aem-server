@@ -16,8 +16,6 @@
 
 #include "dkim.h"
 
-//v=DKIM1; t=s; k=rsa; h=sha256; s=email; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArdis9+NyDVZjYg9oTtLXgeA1EgQHZxuSWq/O4bPsEemVYCf1mSyIU8K1Lm1Tfl/3otT2yllRDumuuM0alMbQo+gVScpYP+P26ZTT1TgWQgvPo2onPz0heGF7EGfNZbJoIyoJoq+rVbpj1t5YYG6/xSKjzIN07s/9Aou7Hel6ivp8Na/rukbP8IhEhztpoUCZWNPh5bZtkvspY+ISPOD7fxYn2NWgCnDd43vsF5BCxxyd8f4LCU5VwjK/nnSn0CSRRm+wc8tloxRo9AFZPhkGjNpsI2SFjpCgB53+q8wzFWywnaEkCpVCE7fnskR4Osfy3v8nzmOwCXxGUt6jeqpp4wIDAQAB
-
 char getValuePair(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
 	if (strncasecmp(src, "bh=", 3) == 0) {
 		const char * const end = strpbrk(src + 3, " \t\f\v\r\n;");
