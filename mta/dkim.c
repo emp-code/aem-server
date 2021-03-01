@@ -193,7 +193,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
 				dkim_expr_ts = strtol(tmp, NULL, 10);
-				if (dkim_expr_ts < 1609459200) dkim_sign_ts = 0; // 2021-01-01
+				if (dkim_expr_ts < 1609459200) dkim_expr_ts = 0; // 2021-01-01
 			break;}
 
 			case 'h': { // Headers signed
