@@ -115,9 +115,6 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	char dkim_selector[256];
 	bzero(dkim_selector, 256);
 
-	int dkim_sign_ts = 0;
-	int dkim_expr_ts = 0; // default: no expiry
-
 	email->dkim[0].algoRsa = true;
 	email->dkim[0].algoSha256 = true;
 
@@ -176,11 +173,12 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 't': { // Timestamp
+				if (*val == '-') break;
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				dkim_sign_ts = strtol(tmp, NULL, 10);
-				if (dkim_sign_ts < 1609459200) dkim_sign_ts = 0; // 2021-01-01
+				email->dkim[0].ts_sign = strtoul(tmp, NULL, 10);
+				if (email->dkim[0].ts_sign < 1609459200) email->dkim[0].ts_sign = 0; // 2021-01-01
 				// TODO: reject future timestamps
 			break;}
 
@@ -189,11 +187,12 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'x': { // Expiry
+				if (*val == '-') break;
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				dkim_expr_ts = strtol(tmp, NULL, 10);
-				if (dkim_expr_ts < 1609459200) dkim_expr_ts = 0; // 2021-01-01
+				email->dkim[0].ts_expr = strtoul(tmp, NULL, 10);
+				if (email->dkim[0].ts_expr < 1609459200) email->dkim[0].ts_expr = 0; // 2021-01-01
 			break;}
 
 			case 'h': { // Headers signed

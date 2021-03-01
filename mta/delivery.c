@@ -155,7 +155,12 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 		if (email->dkim[i].dnsFlag_y)  content[offset] |=  16;
 		if (email->dkim[i].headSimple) content[offset] |=   8;
 		if (email->dkim[i].bodySimple) content[offset] |=   4;
-//expiration
+
+		const int64_t expiry = email->dkim[i].ts_expr - email->timestamp;
+		// 0: Expired
+		if (email->dkim[i].ts_expr == 0) content[offset] |= 1; // 1: Expiration disabled or value invalid
+		else if (expiry >= 2629746)      content[offset] |= 2; // 2: Long expiration: >= 1 month
+		else if (expiry >  0)            content[offset] |= 3; // 3: Short expiration: < 1 month
 
 		if (email->dkim[i].fullId)     content[offset + 1] |= 128;
 		if (email->dkim[i].sgnAll)     content[offset + 1] |=  64;
