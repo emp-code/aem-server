@@ -2,9 +2,12 @@
 
 bool isValidUtf8(const unsigned char * const src, const size_t len) {
 	for (size_t i = 0; i < len; i++) {
-		if (src[i] < 128) { // 1-byte (ASCII)
-			continue;
-		} else if ((src[i] & 248) == 240) { // 4-byte
+		// 1-byte ASCII
+		if ((src[i] >= 32 && src[i] < 127) || src[i] == '\t' || src[i] == '\n') continue; // ASCII printable, space/tab/newline
+		if (src[i] < 32 || src[i] == 127) return false; // ASCII control characters
+
+		// Multibyte Unicode
+		if ((src[i] & 248) == 240) { // 4-byte
 			if (i + 3 > len
 			|| (src[i] & 7) != 0 // Forbid code points above 0x3FFFF (unassigned, Private Use)
 			|| (src[i + 1] & 192) != 128
