@@ -236,14 +236,13 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		unsigned char relaxed[lenBody];
 		size_t lenRelaxed = 0;
 		for (size_t i = 0; i < lenBody; i++) {
-			// Remove whitespace at line ends; compact multiple WSP to one SP
-			if ((headEnd[i] == ' ' || headEnd[i] == '\t') && headEnd[i + 1] == '\t') {
-				headEnd[i + 1] = ' ';
+			if ((headEnd[i] == ' ' || headEnd[i] == '\t') && isspace(headEnd[i + 1])) continue; // Remove whitespace at line ends; compact multiple WSP to one SP
+
+			if (i > 0 && (headEnd[i - 1] == ' ' || headEnd[i - 1] == '\t') && headEnd[i] == '\t') {
+				relaxed[lenRelaxed] = ' ';
+				lenRelaxed++;
 				continue;
 			}
-
-			if ((headEnd[i] == ' ' || headEnd[i] == '\t') && isspace(headEnd[i + 1]))
-				continue;
 
 			relaxed[lenRelaxed] = headEnd[i];
 			lenRelaxed++;
