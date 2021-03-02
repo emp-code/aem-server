@@ -714,7 +714,7 @@ static void message_create_ext(void) {
 
 	// Body
 	const size_t lenBody = end - p;
-	if (lenBody < 15) return;
+	if (lenBody < 15 || lenBody > 99999) return;
 	if (!isValidUtf8((unsigned char*)p, lenBody)) return;
 
 	email.body = malloc(lenBody + 1000);
