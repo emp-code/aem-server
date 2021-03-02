@@ -119,6 +119,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	email->dkim[0].algoSha256 = true;
 
 	size_t lenBody = lenSrc - lenHead;
+	size_t lenTrunc = 0;
 	size_t finalOff = 0;
 
 	while (finalOff == 0) {
@@ -159,13 +160,11 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			case 'c': break; // Canon. method; ignored
 
 			case 'l': { // Length of body
-				email->dkim[0].bodyTrunc = true;
-
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
 				int newLen = strtol(tmp, NULL, 10);
-				if (newLen >= 0 && newLen < (int)lenBody) lenBody = newLen;
+				if (newLen >= 0 && newLen < (int)lenBody) lenTrunc = newLen;
 			break;}
 
 			case 'q': { // Query method
@@ -228,9 +227,10 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	// Verify bodyhash
 	// Remove extra linebreaks at end
 	while (lenBody > 4 && memcmp(headEnd + lenBody - 4, "\r\n\r\n", 4) == 0) lenBody -= 2;
+	if (lenTrunc > lenBody) lenTrunc = 0;
 
 	unsigned char calc_bodyhash[32];
-	if (crypto_hash_sha256(calc_bodyhash, headEnd, lenBody) != 0) return;
+	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) return;
 	if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
@@ -248,7 +248,9 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			lenRelaxed++;
 		}
 
-		if (crypto_hash_sha256(calc_bodyhash, relaxed, lenRelaxed) != 0) return;
+		if (lenTrunc > lenRelaxed) lenTrunc = 0;
+		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return;
+
 		if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) return;
 		email->dkim[0].bodySimple = false;
 	} else email->dkim[0].bodySimple = true;
@@ -268,6 +270,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 	mbedtls_pk_free(&pk);
 
+	if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
 	email->dkim[0].sgnAll = true;
 	email->dkimCount = 1;
 	return;
