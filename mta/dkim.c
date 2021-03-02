@@ -118,7 +118,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	email->dkim[0].algoRsa = true;
 	email->dkim[0].algoSha256 = true;
 
-	size_t lenBody = email->lenBody;
+	size_t lenBody = lenSrc - lenHead;
 	size_t finalOff = 0;
 
 	while (finalOff == 0) {
@@ -226,9 +226,25 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	}
 
 	// Verify bodyhash
+	// Simple: remove extra linebreaks at end
+	while (lenBody > 4 && memcmp(headEnd + lenBody - 4, "\r\n\r\n", 4) == 0) lenBody -= 2;
+
 	unsigned char calc_bodyhash[32];
-	if (crypto_hash_sha256(calc_bodyhash, headEnd, lenSrc - lenHead) != 0) return;
-	if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) return;
+	if (crypto_hash_sha256(calc_bodyhash, headEnd, lenBody) != 0) return;
+	if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) {
+		// Simple failed, try Relaxed
+		unsigned char relaxed[lenBody];
+		size_t lenRelaxed = 0;
+		for (size_t i = 0; i < lenBody; i++) {
+			if ((headEnd[i] == ' ' || headEnd[i] == '\t') && isspace(headEnd[i + 1])) continue; // Remove whitespace at line ends; compact multiple WSP to one SP
+			relaxed[lenRelaxed] = headEnd[i];
+			lenRelaxed++;
+		}
+
+		if (crypto_hash_sha256(calc_bodyhash, relaxed, lenRelaxed) != 0) return;
+		if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) return;
+		email->dkim[0].bodySimple = false;
+	} else email->dkim[0].bodySimple = true;
 
 	unsigned char x[lenHead];
 	const size_t cpLen = (dkimHeader + offset) - dkimHeader - finalOff;
