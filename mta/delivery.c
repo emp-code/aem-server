@@ -172,7 +172,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 		if (email->dkim[i].sgnSubject) content[offset + 1] |=   1;
 
 		if (email->dkim[i].bodyTrunc)  content[offset + 2] |= 128;
-//sigold
+		if ((int64_t)email->timestamp - email->dkim[i].ts_sign > 30) content[offset + 2] |= 64;
 		content[offset + 2] |= (email->dkim[i].lenDomain - 4) & 63;
 
 		offset += 3;
