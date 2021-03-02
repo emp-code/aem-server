@@ -715,6 +715,8 @@ static void message_create_ext(void) {
 	// Body
 	const size_t lenBody = end - p;
 	if (lenBody < 15) return;
+	if (!isValidUtf8((unsigned char*)p, lenBody)) return;
+
 	email.body = malloc(lenBody + 1000);
 	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
@@ -738,8 +740,6 @@ static void message_create_ext(void) {
 		if (lenEb > lenBody + 950) {free(email.body); return;}
 	}
 	memcpy(email.body + lenEb, "\r\n\0", 3);
-
-	if (!isValidUtf8((unsigned char*)email.body, lenEb)) {free(email.body); return;}
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
