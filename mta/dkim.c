@@ -182,7 +182,11 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'i': { // Identifier
-				// TODO: Compare against sender
+				if (
+				   (lenVal == email->lenEnvFr && memcmp(val, email->envFr, lenVal) == 0)
+				|| (lenVal == email->lenHdrFr && memcmp(val, email->hdrFr, lenVal) == 0)
+				|| (lenVal == email->lenHdrRt && memcmp(val, email->hdrRt, lenVal) == 0)
+				) email->dkim[0].fullId = true;
 			break;}
 
 			case 'x': { // Expiry
