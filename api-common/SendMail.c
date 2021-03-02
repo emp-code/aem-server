@@ -83,8 +83,9 @@ static void genMsgId(char * const out, const uint32_t ts, const unsigned char * 
 }
 
 static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
+	const size_t lenBody = strlen(email->body);
 	unsigned char bodyHash[32];
-	if (crypto_hash_sha256(bodyHash, (unsigned char*)(email->body), strlen(email->body)) != 0) return NULL;
+	if (crypto_hash_sha256(bodyHash, (unsigned char*)(email->body), lenBody) != 0) return NULL;
 
 	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
@@ -101,9 +102,9 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
-	char *final = sodium_malloc(2000 + strlen(email->body));
+	char *final = sodium_malloc(2000 + lenBody);
 	if (final == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
-	bzero(final, 2000 + strlen(email->body));
+	bzero(final, 2000 + lenBody);
 
 	char ref[1000];
 	if (strlen(email->replyId) > 5) { // a@b.cd
