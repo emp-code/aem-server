@@ -675,6 +675,8 @@ static void deliveryReport_int(const unsigned char * const recvPubKey, const uns
 
 static bool isValidFrom(const char * const src) { // Only allow sending from valid, reasonably normal looking addresses
 	const size_t len = strlen(src);
+	if (len > 63) return false;
+
 	for (size_t i = 0; i < len; i++) {
 		if (isalnum(src[i])
 		|| src[i] == '+'
