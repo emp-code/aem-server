@@ -561,7 +561,7 @@ static const unsigned char *cpyEmail(const unsigned char * const src, const size
 	if (lf == NULL) return NULL;
 
 	size_t len = lf - src;
-	if (len < min || len > 255) return NULL;
+	if (len < min || len > 127) return NULL;
 
 	for (size_t i = 0; i < len; i++) {
 		if (src[i] < 32 || src[i] >= 127) return NULL;
