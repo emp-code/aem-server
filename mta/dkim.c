@@ -96,14 +96,129 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	return retval;
 }
 
+static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
+	for (size_t i = 0; i < lenSource; i++) {
+		// Unfold
+		if (lenSource - i > 2 && source[i] == '\r' && source[i + 1] == '\n' && (source[i + 2] == ' ' || source[i + 2] == '\t')) {
+			target[*lenTarget] = source[i + 2];
+			(*lenTarget)++;
+			i += 2;
+			continue;
+		}
+
+		// Remove whitespace at line ends
+		if ((source[i] == ' ' || source[i] == '\t') && isspace(source[i + 1])) continue;
+
+		// Compact multiple tabs/spaces into one space
+		if ((source[i] == ' ' || source[i] == '\t') && (target[*lenTarget - 1] == ' ' || target[*lenTarget - 1] == '\t')) {
+			target[*lenTarget - 1] = ' ';
+			continue;
+		}
+
+		target[*lenTarget] = source[i];
+		(*lenTarget)++;
+	}
+}
+
+static bool verifyDkimSig(mbedtls_pk_context * const pk, unsigned char * const dkim_signature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
+	char headers[lenHeaders + 1];
+	memcpy(headers, headersSource, lenHeaders);
+	headers[lenHeaders] = '\0';
+
+	size_t lenSimple = 0;
+	unsigned char simple[lenHeaders];
+
+	size_t lenRelaxed = 0;
+	unsigned char relaxed[lenHeaders];
+
+	char *h = strtok(copyHeaders, ":");
+	while (h != NULL) {
+		unsigned char *s = (unsigned char*)strcasestr(headers, h);
+		if (s == NULL) {
+			h = strtok(NULL, ":");
+			continue;
+		}
+
+		unsigned char *end = s + 1;
+		bool found = false;
+		while(1) {
+			if (end[0] == '\0' || end[1] == '\0') break;
+
+			if (memcmp(end, "\r\n", 2) != 0 || end[2] == ' ' || end[2] == '\t') {
+				end++;
+				continue;
+			}
+
+			found = true;
+			break;
+		}
+
+		if (!found) end = (unsigned char*)headers + lenHeaders;
+
+		memcpy(simple + lenSimple, s, end - s);
+		lenSimple += end - s;
+
+		memcpy(simple + lenSimple, "\r\n", 2);
+		lenSimple += 2;
+
+		// Relaxed
+		s += strlen(h) + 1; // Include colon
+		while (isspace(*s)) s++;
+
+		const size_t lenHeader = end - s;
+
+		for (size_t i = 0; i < strlen(h); i++) {
+			relaxed[lenRelaxed] = tolower(h[i]);
+			lenRelaxed++;
+		}
+
+		relaxed[lenRelaxed] = ':';
+		lenRelaxed++;
+		copyRelaxed(relaxed, &lenRelaxed, s, lenHeader);
+		memcpy(relaxed + lenRelaxed, "\r\n", 2);
+		lenRelaxed += 2;
+
+		h = strtok(NULL, ":");
+	}
+
+	memcpy(simple + lenSimple, dkimHeader, lenDkimHeader);
+	lenSimple += lenDkimHeader;
+
+	// Verify sig
+	unsigned char dkim_hash[32];
+	if (crypto_hash_sha256(dkim_hash, simple, lenSimple) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, 256) == 0) {
+			*headSimple = true;
+			return true;
+		}
+	}
+
+	memcpy(relaxed + lenRelaxed, "dkim-signature:", 15);
+	lenRelaxed += 15;
+	size_t dkimOffset = 15;
+	while (isspace(dkimHeader[dkimOffset])) dkimOffset++;
+	size_t addLen = 0;
+	copyRelaxed(relaxed + lenRelaxed, &addLen, dkimHeader + dkimOffset, lenDkimHeader - dkimOffset);
+	lenRelaxed += addLen;
+
+	if (crypto_hash_sha256(dkim_hash, relaxed, lenRelaxed) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, 256) == 0) {
+			*headSimple = false;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
 	const unsigned char *headEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
 	if (headEnd == NULL) return;
 	headEnd += 4;
 	const size_t lenHead = headEnd - src;
 
-	const char *dkimHeader = strcasestr((char*)src, "\nDKIM-Signature:");
-	if (dkimHeader == NULL || dkimHeader > (char*)headEnd) return;
+	const unsigned char *dkimHeader = (unsigned char*)strcasestr((char*)src, "\nDKIM-Signature:");
+	if (dkimHeader == NULL || dkimHeader > headEnd) return;
 	dkimHeader++;
 	size_t offset = 15;
 
@@ -122,10 +237,12 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	size_t lenTrunc = 0;
 	size_t finalOff = 0;
 
+	char copyHeaders[256];
+
 	while (finalOff == 0) {
 		size_t o, lenVal;
 		char val[1024];
-		const char key = getValuePair(dkimHeader + offset, &o, val, &lenVal);
+		const char key = getValuePair((char*)dkimHeader + offset, &o, val, &lenVal);
 		if (key == 0) break;
 
 		if (offset + o > lenHead) break;
@@ -199,7 +316,9 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'h': { // Headers signed
-				// TODO
+				if (lenVal > 255) return;
+				memcpy(copyHeaders, val, lenVal);
+				copyHeaders[lenVal] = '\0';
 			break;}
 
 			case 'H': { // bodyhash
@@ -259,22 +378,10 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		email->dkim[0].bodySimple = false;
 	} else email->dkim[0].bodySimple = true;
 
-	unsigned char x[lenHead];
-	const size_t cpLen = (dkimHeader + offset) - dkimHeader - finalOff;
-	sprintf((char*)x, "%.*s%.*s", (int)(lenHead - 3 - offset), dkimHeader + offset, (int)cpLen, dkimHeader);
-
-	// Verify sig
-	unsigned char dkim_hash[32];
-	if (crypto_hash_sha256(dkim_hash, x, strlen((char*)x)) != 0) return;
-
-	if (mbedtls_pk_verify(&pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, 256) != 0) {
-		mbedtls_pk_free(&pk);
-		return;
+	if (verifyDkimSig(&pk, dkim_signature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[0].headSimple)) {
+		email->dkimCount = 1;
+		if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
 	}
 
 	mbedtls_pk_free(&pk);
-
-	if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
-	email->dkim[0].sgnAll = true;
-	email->dkimCount = 1;
 }
