@@ -16,7 +16,7 @@
 
 #include "dkim.h"
 
-char getValuePair(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
+static char getValuePair(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
 	if (strncasecmp(src, "bh=", 3) == 0) {
 		const char * const end = strpbrk(src + 3, " \t\f\v\r\n;");
 		if (end == NULL) return 0;
@@ -39,7 +39,7 @@ char getValuePair(const char * const src, size_t * const offset, char * const re
 	return t;
 }
 
-int getDkimRecord(struct emailInfo * const email, const char * const selector, unsigned char * const pkBin, size_t * const lenPkBin) {
+static int getDkimRecord(struct emailInfo * const email, const char * const selector, unsigned char * const pkBin, size_t * const lenPkBin) {
 	if (selector == NULL || selector[0] == '\0' || email->dkim[0].lenDomain < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
 
 	unsigned char tmp[512];
