@@ -184,7 +184,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 				*lenResult = 0;
 				size_t rd_offset = 0;
 				while (rd_offset < rdLen) {
-					uint8_t lenCopy = msg[offset + 10 + rd_offset];
+					const uint8_t lenCopy = msg[offset + 10 + rd_offset];
 					if (*lenResult + lenCopy > 1023) break;
 					rd_offset++;
 					memcpy(result + *lenResult, msg + offset + 10 + rd_offset, lenCopy);
