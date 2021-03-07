@@ -277,5 +277,4 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
 	email->dkim[0].sgnAll = true;
 	email->dkimCount = 1;
-	return;
 }
