@@ -75,7 +75,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 
 			case 'p': { // Public key
 				if (lenVal > 1024) return -1;
-				if (sodium_base642bin(pkBin, 1024, val, lenVal, NULL, lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return -1;
+				if (sodium_base642bin(pkBin, 1024, val, lenVal, " \t\r\n", lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return -1;
 				retval = 0;
 			break;}
 
@@ -322,11 +322,11 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'H': { // bodyhash
-				if (sodium_base642bin(dkim_bodyhash, 32, val, lenVal, NULL, NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_bodyhash, 32, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
 			break;}
 
 			case 'b': { // Signature - end
-				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, NULL, NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
 				finalOff = o;
 			break;}
 
