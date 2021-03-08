@@ -100,7 +100,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 	for (size_t i = 0; i < lenSource; i++) {
 		// Unfold
 		if (lenSource - i > 2 && source[i] == '\r' && source[i + 1] == '\n' && (source[i + 2] == ' ' || source[i + 2] == '\t')) {
-			target[*lenTarget] = source[i + 2];
+			target[*lenTarget] = ' ';
 			(*lenTarget)++;
 			i += 2;
 			continue;
@@ -115,7 +115,11 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 			continue;
 		}
 
-		target[*lenTarget] = source[i];
+		if (source[i] == '\t')
+			target[*lenTarget] = ' ';
+		else
+			target[*lenTarget] = source[i];
+
 		(*lenTarget)++;
 	}
 }
@@ -367,7 +371,11 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				continue;
 			}
 
-			relaxed[lenRelaxed] = headEnd[i];
+			if (headEnd[i] == '\t')
+				relaxed[lenRelaxed] = ' ';
+			else
+				relaxed[lenRelaxed] = headEnd[i];
+
 			lenRelaxed++;
 		}
 
