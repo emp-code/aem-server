@@ -190,7 +190,7 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 				size_t rd_offset = 0;
 				while (rd_offset < rdLen) {
 					const uint8_t lenCopy = msg[offset + 10 + rd_offset];
-					if (*lenResult + lenCopy > 1023) break;
+					if (*lenResult + lenCopy > 1023) {syslog(LOG_WARNING, "TXT too long"); return -1;}
 					rd_offset++;
 					memcpy(result + *lenResult, msg + offset + 10 + rd_offset, lenCopy);
 
