@@ -16,9 +16,23 @@
 
 #include "dkim.h"
 
-static char getValuePair(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
+static char getValuePair_dns(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
+	const char t = tolower(src[0]);
+	if (t == '\0') return 0;
+	if (src[1] != '=') return 0;
+
+	const char *end = strpbrk(src + 2, " \t\f\v\r\n;");
+	if (end == NULL) end = src + strlen(src);
+
+	*offset = end - src;
+	*lenResult = *offset - 2;
+	memcpy(result, src + 2, *lenResult);
+	return t;
+}
+
+static char getValuePair_header(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
 	if (strncasecmp(src, "bh=", 3) == 0) {
-		const char * const end = strpbrk(src + 3, " \t\f\v\r\n;");
+		const char * const end = strchr(src + 3, ';');
 		if (end == NULL) return 0;
 		*offset = end - src;
 		*lenResult = *offset - 3;
@@ -30,8 +44,21 @@ static char getValuePair(const char * const src, size_t * const offset, char * c
 	if (t == '\0') return 0;
 	if (src[1] != '=') return 0;
 
-	const char *end = strpbrk(src + 2, " \t\f\v\r\n;");
-	if (end == NULL) end = src + strlen(src);
+	const char *end;
+
+	if (t == 'b') {
+		end = strchr(src + 2, '\n');
+		if (end == NULL) return 0;
+		while (end[1] == ' ' || end[1] == '\t') {
+			end = strchr(end + 1, '\n');
+			if (end == NULL) return 0;
+		}
+
+		end--;
+	} else {
+		end = strchr(src + 2, ';');
+		if (end == NULL) end = src + strlen(src);
+	}
 
 	*offset = end - src;
 	*lenResult = *offset - 2;
@@ -59,7 +86,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	while(1) {
 		size_t o, lenVal;
 		char val[1024];
-		const unsigned char key = getValuePair((char*)dkim + offset, &o, val, &lenVal);
+		const unsigned char key = getValuePair_dns((char*)dkim + offset, &o, val, &lenVal);
 		if (key == 0) break;
 
 		offset += o;
@@ -246,7 +273,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	while (finalOff == 0) {
 		size_t o, lenVal;
 		char val[1024];
-		const char key = getValuePair((char*)dkimHeader + offset, &o, val, &lenVal);
+		const char key = getValuePair_header((char*)dkimHeader + offset, &o, val, &lenVal);
 		if (key == 0) break;
 
 		if (offset + o > lenHead) break;
