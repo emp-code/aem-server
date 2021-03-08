@@ -114,7 +114,6 @@ void queryDns_dkim(const unsigned char * const selector, const size_t lenSelecto
 	}
 
 	dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, dkimDomain, lenDkimDomain, dkimRecord, lenDkimRecord, AEM_DNS_RECORDTYPE_TXT);
-	return;
 }
 
 uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, int * const lenMxDomain) {
