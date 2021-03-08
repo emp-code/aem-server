@@ -150,7 +150,6 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		uint16_t rt_u16;
 		memcpy(&rt_u16, msg + offset, 2);
 
-		if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
 		if (memcmp(msg + offset + 2, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "Record not internet class"); return -1;}
 		// +4 TTL (32 bits) ignored
 
@@ -159,8 +158,10 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		memcpy((unsigned char*)&rdLen + 1, msg + offset + 8, 1);
 		if (rdLen < 1) {syslog(LOG_ERR, "rdLen"); return -1;}
 
-		switch (recordType) {
+		switch (rt_u16) {
 			case AEM_DNS_RECORDTYPE_MX: {
+				if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+
 				uint16_t newPrio;
 				memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
 				memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
@@ -176,11 +177,15 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 			break;}
 
 			case AEM_DNS_RECORDTYPE_PTR: {
+				if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+
 				rr_getName(msg, lenMsg, offset + 10, result, lenResult, true);
 				return 0;
 			}
 
 			case AEM_DNS_RECORDTYPE_TXT: {
+				if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
+
 				*lenResult = 0;
 				size_t rd_offset = 0;
 				while (rd_offset < rdLen) {
@@ -194,7 +199,12 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 				}
 			break;}
 
-			default: return -1;
+			case AEM_DNS_RECORDTYPE_CNAME: {
+				// Skip
+				rrOffset = offset + 10 + rdLen;
+			break;}
+
+			default: syslog(LOG_WARNING, "Unsupported record type: %u", rt_u16); return -1;
 		}
 	}
 
