@@ -31,12 +31,12 @@ struct dkimInfo {
 	bool bodyTrunc;
 
 	bool sgnAll;
-	bool sgnMsgId;
 	bool sgnDate;
-	bool sgnTo;
 	bool sgnFrom;
+	bool sgnMsgId;
 	bool sgnReplyTo;
 	bool sgnSubject;
+	bool sgnTo;
 
 	uint32_t ts_expr;
 	uint32_t ts_sign;
