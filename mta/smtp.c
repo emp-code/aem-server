@@ -531,16 +531,18 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			convertLineDots(source, &lenSource);
 			source[lenSource] = '\0';
 
-			while(1) {
+			for (int i = 0; i < 7; i++) {
 				const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
 				if (headersEnd == NULL) break;
 
-				const unsigned char * const start = (unsigned char*)strcasestr((char*)source, "DKIM-Signature:");
+				unsigned char * const start = (unsigned char*)strcasestr((char*)source, "DKIM-Signature:");
 				if (start == NULL || start > headersEnd) break;
-				verifyDkim(&email, start, (source + lenSource) - start);
+				const int offset = verifyDkim(&email, start, (source + lenSource) - start);
+				if (offset == 0) break;
 
-				// TODO: Delete sig from source, handle multiple sigs
-				break;
+				// Delete the signature from the headers
+				memmove(start, start + offset, (source + lenSource) - (start + offset));
+				lenSource -= offset;
 			}
 
 			processEmail(source, &lenSource, &email);

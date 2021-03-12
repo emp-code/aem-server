@@ -248,14 +248,14 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	return false;
 }
 
-void verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
+int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
 	const unsigned char *headEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
-	if (headEnd == NULL) return;
+	if (headEnd == NULL) return 0;
 	headEnd += 4;
 	const size_t lenHead = headEnd - src;
 
 	const unsigned char *dkimHeader = src;
-	if (strncasecmp((char*)dkimHeader, "DKIM-Signature:", 15) != 0) return;
+	if (strncasecmp((char*)dkimHeader, "DKIM-Signature:", 15) != 0) return 0;
 	size_t offset = 15;
 
 	while (isspace(dkimHeader[offset])) offset++;
@@ -291,22 +291,22 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 		switch (key) {
 			case 'v': { // Version
-				if (lenVal != 1 || *val != '1') return;
+				if (lenVal != 1 || *val != '1') return 0;
 			break;}
 
 			case 'a': { // Algo
 				// TODO: EdDSA, RSA-SHA support
-				if (lenVal != 10 || strncmp(val, "rsa-sha256", 10) != 0) return;
+				if (lenVal != 10 || strncmp(val, "rsa-sha256", 10) != 0) return 0;
 			break;}
 
 			case 'd': { // Domain
-				if (lenVal > 67) return;
+				if (lenVal > 67) return 0;
 				memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
 				email->dkim[email->dkimCount].lenDomain = lenVal;
 			break;}
 
 			case 's': { // Selector
-				if (lenVal > 255) return;
+				if (lenVal > 255) return 0;
 				memcpy(dkim_selector, val, lenVal);
 				dkim_selector[lenVal] = '\0';
 			break;}
@@ -322,7 +322,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'q': { // Query method
-				if (lenVal != 7 || strncmp(val, "dns/txt", 7) != 0) return;
+				if (lenVal != 7 || strncmp(val, "dns/txt", 7) != 0) return 0;
 			break;}
 
 			case 't': { // Timestamp
@@ -353,17 +353,17 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'h': { // Headers signed
-				if (lenVal > 255) return;
+				if (lenVal > 255) return 0;
 				memcpy(copyHeaders, val, lenVal);
 				copyHeaders[lenVal] = '\0';
 			break;}
 
 			case 'H': { // bodyhash
-				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
 			break;}
 
 			case 'b': { // Signature - end
-				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
 				finalOff = o;
 			break;}
 
@@ -373,7 +373,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 	size_t lenPkBin;
 	unsigned char pkBin[1024];
-	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) return;
+	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) return 0;
 
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
@@ -381,7 +381,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	if (ret != 0) {
 		syslog(LOG_INFO, "pk_parse failed: %x", -ret);
 		mbedtls_pk_free(&pk);
-		return;
+		return 0;
 	}
 
 	// Verify bodyhash
@@ -390,7 +390,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	if (lenTrunc > lenBody) lenTrunc = 0;
 
 	unsigned char calc_bodyhash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) return;
+	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) return 0;
 	if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
@@ -413,9 +413,9 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		}
 
 		if (lenTrunc > lenRelaxed) lenTrunc = 0;
-		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return;
+		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return 0;
 
-		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) return;
+		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) return 0;
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 
@@ -425,4 +425,5 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	}
 
 	mbedtls_pk_free(&pk);
+	return offset;
 }
