@@ -543,6 +543,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				// Delete the signature from the headers
 				memmove(start, start + offset, (source + lenSource) - (start + offset));
 				lenSource -= offset;
+				source[lenSource] = '\0';
 			}
 
 			processEmail(source, &lenSource, &email);
