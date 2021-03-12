@@ -199,12 +199,12 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 		lenSimple += 2;
 
 		// Relaxed
-		s += strlen(h) + 1; // Include colon
+		s += lenH + 1; // Include colon
 		while (isspace(*s)) s++;
 
 		const size_t lenHeader = end - s;
 
-		for (size_t i = 0; i < strlen(h); i++) {
+		for (size_t i = 0; i < lenH; i++) {
 			relaxed[lenRelaxed] = tolower(h[i]);
 			lenRelaxed++;
 		}
