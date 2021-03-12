@@ -151,7 +151,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 	}
 }
 
-static bool verifyDkimSig(mbedtls_pk_context * const pk, unsigned char * const dkim_signature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
+static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * const dkim_signature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
 	char headers[lenHeaders + 1];
 	memcpy(headers, headersSource, lenHeaders);
 	headers[lenHeaders] = '\0';
@@ -233,7 +233,7 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, unsigned char * const d
 	lenRelaxed += addLen;
 
 	if (crypto_hash_sha256(dkim_hash, relaxed, lenRelaxed) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, 256) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, lenDkimSignature) == 0) {
 			*headSimple = false;
 			return true;
 		}
@@ -255,6 +255,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 	while (isspace(dkimHeader[offset])) offset++;
 
+	size_t lenDkimSignature = 0;
 	unsigned char dkim_signature[1024]; // 8k
 	unsigned char dkim_bodyhash[32];
 
@@ -357,7 +358,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'b': { // Signature - end
-				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
 				finalOff = o;
 			break;}
 
@@ -413,7 +414,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		email->dkim[0].bodySimple = false;
 	} else email->dkim[0].bodySimple = true;
 
-	if (verifyDkimSig(&pk, dkim_signature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[0].headSimple)) {
+	if (verifyDkimSig(&pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[0].headSimple)) {
 		email->dkimCount = 1;
 		if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
 	}
