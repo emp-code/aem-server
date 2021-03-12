@@ -67,10 +67,10 @@ static char getValuePair_header(const char * const src, size_t * const offset, c
 }
 
 static int getDkimRecord(struct emailInfo * const email, const char * const selector, unsigned char * const pkBin, size_t * const lenPkBin) {
-	if (selector == NULL || selector[0] == '\0' || email->dkim[0].lenDomain < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
+	if (selector == NULL || selector[0] == '\0' || email->dkim[email->dkimCount].lenDomain < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
 
 	unsigned char tmp[512];
-	sprintf((char*)tmp, "%s/%.*s", selector, (int)email->dkim[0].lenDomain, email->dkim[0].domain);
+	sprintf((char*)tmp, "%s/%.*s", selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
 
 	const int sock = enquirySocket(AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp));
 	if (sock < 0) {syslog(LOG_ERR, "Failed connecting to Enquiry"); return -1;}
@@ -107,12 +107,12 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 			break;}
 
 			case 't': { // Flags
-				if      (lenVal >= 1 && val[0] == 's') {email->dkim[0].dnsFlag_s = true;}
-				else if (lenVal >= 1 && val[0] == 'y') {email->dkim[0].dnsFlag_y = true;}
+				if      (lenVal >= 1 && val[0] == 's') {email->dkim[email->dkimCount].dnsFlag_s = true;}
+				else if (lenVal >= 1 && val[0] == 'y') {email->dkim[email->dkimCount].dnsFlag_y = true;}
 
 				if (lenVal >= 3 && val[1] == ':') {
-					if      (val[2] == 's') {email->dkim[0].dnsFlag_s = true;}
-					else if (val[2] == 'y') {email->dkim[0].dnsFlag_y = true;}
+					if      (val[2] == 's') {email->dkim[email->dkimCount].dnsFlag_s = true;}
+					else if (val[2] == 'y') {email->dkim[email->dkimCount].dnsFlag_y = true;}
 				}
 			break;}
 
@@ -268,8 +268,8 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	char dkim_selector[256];
 	bzero(dkim_selector, 256);
 
-	email->dkim[0].algoRsa = true;
-	email->dkim[0].algoSha256 = true;
+	email->dkim[email->dkimCount].algoRsa = true;
+	email->dkim[email->dkimCount].algoSha256 = true;
 
 	size_t lenBody = lenSrc - lenHead;
 	size_t lenTrunc = 0;
@@ -302,8 +302,8 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 			case 'd': { // Domain
 				if (lenVal > 67) return;
-				memcpy(email->dkim[0].domain, val, lenVal);
-				email->dkim[0].lenDomain = lenVal;
+				memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
+				email->dkim[email->dkimCount].lenDomain = lenVal;
 			break;}
 
 			case 's': { // Selector
@@ -331,8 +331,8 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				email->dkim[0].ts_sign = strtoul(tmp, NULL, 10);
-				if (email->dkim[0].ts_sign < 1609459200) email->dkim[0].ts_sign = 0; // 2021-01-01
+				email->dkim[email->dkimCount].ts_sign = strtoul(tmp, NULL, 10);
+				if (email->dkim[email->dkimCount].ts_sign < 1609459200) email->dkim[email->dkimCount].ts_sign = 0; // 2021-01-01
 				// TODO: reject future timestamps
 			break;}
 
@@ -341,7 +341,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				   (lenVal == email->lenEnvFr && memcmp(val, email->envFr, lenVal) == 0)
 				|| (lenVal == email->lenHdrFr && memcmp(val, email->hdrFr, lenVal) == 0)
 				|| (lenVal == email->lenHdrRt && memcmp(val, email->hdrRt, lenVal) == 0)
-				) email->dkim[0].fullId = true;
+				) email->dkim[email->dkimCount].fullId = true;
 			break;}
 
 			case 'x': { // Expiry
@@ -349,8 +349,8 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				email->dkim[0].ts_expr = strtoul(tmp, NULL, 10);
-				if (email->dkim[0].ts_expr < 1609459200) email->dkim[0].ts_expr = 0; // 2021-01-01
+				email->dkim[email->dkimCount].ts_expr = strtoul(tmp, NULL, 10);
+				if (email->dkim[email->dkimCount].ts_expr < 1609459200) email->dkim[email->dkimCount].ts_expr = 0; // 2021-01-01
 			break;}
 
 			case 'h': { // Headers signed
@@ -417,12 +417,12 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return;
 
 		if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) return;
-		email->dkim[0].bodySimple = false;
-	} else email->dkim[0].bodySimple = true;
+		email->dkim[email->dkimCount].bodySimple = false;
+	} else email->dkim[email->dkimCount].bodySimple = true;
 
-	if (verifyDkimSig(&pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[0].headSimple)) {
-		email->dkimCount = 1;
-		if (lenTrunc > 0) email->dkim[0].bodyTrunc = true;
+	if (verifyDkimSig(&pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[email->dkimCount].headSimple)) {
+		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
+		(email->dkimCount)++;
 	}
 
 	mbedtls_pk_free(&pk);
