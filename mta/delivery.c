@@ -164,12 +164,12 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 		if (email->dkim[i].fullId)     content[offset + 1] |= 128;
 		if (email->dkim[i].sgnAll)     content[offset + 1] |=  64;
-		if (email->dkim[i].sgnMsgId)   content[offset + 1] |=  32;
-		if (email->dkim[i].sgnDate)    content[offset + 1] |=  16;
-		if (email->dkim[i].sgnTo)      content[offset + 1] |=   8;
-		if (email->dkim[i].sgnFrom)    content[offset + 1] |=   4;
-		if (email->dkim[i].sgnReplyTo) content[offset + 1] |=   2;
-		if (email->dkim[i].sgnSubject) content[offset + 1] |=   1;
+		if (email->dkim[i].sgnDate)    content[offset + 1] |=  32;
+		if (email->dkim[i].sgnFrom)    content[offset + 1] |=  16;
+		if (email->dkim[i].sgnMsgId)   content[offset + 1] |=   8;
+		if (email->dkim[i].sgnReplyTo) content[offset + 1] |=   4;
+		if (email->dkim[i].sgnSubject) content[offset + 1] |=   2;
+		if (email->dkim[i].sgnTo)      content[offset + 1] |=   1;
 
 		if (email->dkim[i].bodyTrunc)  content[offset + 2] |= 128;
 		if ((int64_t)email->timestamp - email->dkim[i].ts_sign > 30) content[offset + 2] |= 64;
