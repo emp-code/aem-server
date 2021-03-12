@@ -272,9 +272,6 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	unsigned char dkim_signature[1024]; // 8k
 	unsigned char dkim_bodyhash[crypto_hash_sha256_BYTES];
 
-	char dkim_selector[256];
-	bzero(dkim_selector, 256);
-
 	email->dkim[email->dkimCount].algoRsa = true;
 	email->dkim[email->dkimCount].algoSha256 = true;
 
@@ -282,6 +279,10 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	size_t lenTrunc = 0;
 	size_t finalOff = 0;
 
+	size_t lenUserId = 0;
+	char userId[256];
+
+	char dkim_selector[256];
 	char copyHeaders[256];
 
 	while (finalOff == 0) {
@@ -344,11 +345,9 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'i': { // Identifier
-				if (
-				   (lenVal == email->lenEnvFr && memcmp(val, email->envFr, lenVal) == 0)
-				|| (lenVal == email->lenHdrFr && memcmp(val, email->hdrFr, lenVal) == 0)
-				|| (lenVal == email->lenHdrRt && memcmp(val, email->hdrRt, lenVal) == 0)
-				) email->dkim[email->dkimCount].fullId = true;
+				if (lenVal > 255) return 0;
+				memcpy(userId, val, lenVal);
+				lenUserId = lenVal;
 			break;}
 
 			case 'x': { // Expiry
@@ -378,6 +377,13 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			default: syslog(LOG_WARNING, "Unsupported DKIM param: %c", key);
 		}
 	}
+
+	if (lenUserId > 0 && (
+	   (lenUserId == email->lenEnvFr && memcmp(email->envFr, userId, lenUserId) == 0)
+	|| (lenUserId == email->lenHdrFr && memcmp(email->hdrFr, userId, lenUserId) == 0)
+	|| (lenUserId == email->lenHdrRt && memcmp(email->hdrRt, userId, lenUserId) == 0)
+	) && (memcmp(userId + lenUserId - email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain, email->dkim[email->dkimCount].lenDomain) == 0))
+		email->dkim[email->dkimCount].fullId = true;
 
 	size_t lenPkBin;
 	unsigned char pkBin[1024];
