@@ -167,7 +167,7 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 		const size_t lenH = strlen(h);
 		const unsigned char *s = (unsigned char*)strcasestr(headers + 1, h);
 
-		while (*(s - 1) != '\n' || s[lenH] != ':') {
+		while (s != NULL && (*(s - 1) != '\n' || s[lenH] != ':')) {
 			s = (unsigned char*)strcasestr((char*)s + lenH, h);
 		}
 
