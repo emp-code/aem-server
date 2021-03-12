@@ -254,9 +254,8 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	headEnd += 4;
 	const size_t lenHead = headEnd - src;
 
-	const unsigned char *dkimHeader = (unsigned char*)strcasestr((char*)src, "\nDKIM-Signature:");
-	if (dkimHeader == NULL || dkimHeader > headEnd) return;
-	dkimHeader++;
+	const unsigned char *dkimHeader = src;
+	if (strncasecmp((char*)dkimHeader, "DKIM-Signature:", 15) != 0) return;
 	size_t offset = 15;
 
 	while (isspace(dkimHeader[offset])) offset++;
