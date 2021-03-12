@@ -151,7 +151,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 	}
 }
 
-static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * const dkim_signature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
+static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * const pk, const unsigned char * const dkim_signature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
 	char headers[lenHeaders + 1];
 	memcpy(headers, headersSource, lenHeaders);
 	headers[lenHeaders] = '\0';
@@ -165,6 +165,14 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	char *h = strtok(copyHeaders, ":");
 	while (h != NULL) {
 		const size_t lenH = strlen(h);
+
+		if      (strcasecmp(h, "Date")       == 0) email->dkim[email->dkimCount].sgnDate    = true;
+		else if (strcasecmp(h, "From")       == 0) email->dkim[email->dkimCount].sgnFrom    = true;
+		else if (strcasecmp(h, "Message-ID") == 0) email->dkim[email->dkimCount].sgnMsgId   = true;
+		else if (strcasecmp(h, "Reply-To")   == 0) email->dkim[email->dkimCount].sgnReplyTo = true;
+		else if (strcasecmp(h, "Subject")    == 0) email->dkim[email->dkimCount].sgnSubject = true;
+		else if (strcasecmp(h, "To")         == 0) email->dkim[email->dkimCount].sgnTo      = true;
+
 		const unsigned char *s = (unsigned char*)strcasestr(headers, h);
 
 		while (s != NULL && (((char*)s != headers && *(s - 1) != '\n') || s[lenH] != ':')) {
@@ -419,7 +427,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 
-	if (verifyDkimSig(&pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[email->dkimCount].headSimple)) {
+	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[email->dkimCount].headSimple)) {
 		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
 		(email->dkimCount)++;
 	}
