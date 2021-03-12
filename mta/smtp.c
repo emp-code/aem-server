@@ -511,7 +511,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				lenSource += bytes;
 
 				if (lenSource >= 5 && memcmp(source + lenSource - 5, "\r\n.\r\n", 5) == 0) {
-					lenSource -= 5;
+					lenSource -= 3;
 					break;
 				}
 
