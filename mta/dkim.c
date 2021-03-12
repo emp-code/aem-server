@@ -222,9 +222,9 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	lenSimple += lenDkimHeader;
 
 	// Verify sig
-	unsigned char dkim_hash[32];
+	unsigned char dkim_hash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(dkim_hash, simple, lenSimple) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, lenDkimSignature) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, crypto_hash_sha256_BYTES, dkim_signature, lenDkimSignature) == 0) {
 			*headSimple = true;
 			return true;
 		}
@@ -239,7 +239,7 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	lenRelaxed += addLen;
 
 	if (crypto_hash_sha256(dkim_hash, relaxed, lenRelaxed) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, lenDkimSignature) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, crypto_hash_sha256_BYTES, dkim_signature, lenDkimSignature) == 0) {
 			*headSimple = false;
 			return true;
 		}
@@ -263,7 +263,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 
 	size_t lenDkimSignature = 0;
 	unsigned char dkim_signature[1024]; // 8k
-	unsigned char dkim_bodyhash[32];
+	unsigned char dkim_bodyhash[crypto_hash_sha256_BYTES];
 
 	char dkim_selector[256];
 	bzero(dkim_selector, 256);
@@ -360,7 +360,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 			break;}
 
 			case 'H': { // bodyhash
-				if (sodium_base642bin(dkim_bodyhash, 32, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
+				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return;
 			break;}
 
 			case 'b': { // Signature - end
@@ -390,9 +390,9 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 	while (lenBody > 4 && memcmp(headEnd + lenBody - 4, "\r\n\r\n", 4) == 0) lenBody -= 2;
 	if (lenTrunc > lenBody) lenTrunc = 0;
 
-	unsigned char calc_bodyhash[32];
+	unsigned char calc_bodyhash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) return;
-	if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) {
+	if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
 		size_t lenRelaxed = 0;
@@ -416,7 +416,7 @@ void verifyDkim(struct emailInfo * const email, const unsigned char * const src,
 		if (lenTrunc > lenRelaxed) lenTrunc = 0;
 		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return;
 
-		if (memcmp(calc_bodyhash, dkim_bodyhash, 32) != 0) return;
+		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) return;
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 
