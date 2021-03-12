@@ -157,10 +157,10 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	headers[lenHeaders] = '\0';
 
 	size_t lenSimple = 0;
-	unsigned char simple[lenHeaders];
+	unsigned char simple[lenHeaders + lenDkimHeader];
 
 	size_t lenRelaxed = 0;
-	unsigned char relaxed[lenHeaders];
+	unsigned char relaxed[lenHeaders + lenDkimHeader];
 
 	char *h = strtok(copyHeaders, ":");
 	while (h != NULL) {
