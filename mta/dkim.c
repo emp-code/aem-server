@@ -224,7 +224,7 @@ static bool verifyDkimSig(mbedtls_pk_context * const pk, const unsigned char * c
 	// Verify sig
 	unsigned char dkim_hash[32];
 	if (crypto_hash_sha256(dkim_hash, simple, lenSimple) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, 256) == 0) {
+		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, 32, dkim_signature, lenDkimSignature) == 0) {
 			*headSimple = true;
 			return true;
 		}
