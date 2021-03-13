@@ -16,7 +16,6 @@
 #include "processing.h"
 
 #define AEM_LIMIT_MULTIPARTS 50
-#define AEM_CHAR_HEADERS_END 0x1e // Record Separator
 
 // "abc" <def@ghj> --> abc\rdef@ghj
 static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource) {
