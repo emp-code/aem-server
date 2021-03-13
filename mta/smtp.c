@@ -110,7 +110,6 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 			else if (lenName == lenEnvFr       && memcmp(name, envFr,       lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_ENVFR; break;}
 			else if (lenName == email.lenRvDns && memcmp(name, email.rvDns, lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_RVDNS; break;}
 			else if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_GREET; break;}
-			else syslog(LOG_INFO, "<%.*s>", (int)lenName, name);
 		}
 	}
 }
