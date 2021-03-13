@@ -104,7 +104,17 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 			s = s->next;
 		}
 
-		if (name != NULL && lenName > 0) {
+		if (name == NULL || lenName < 4) continue; // a.bc
+
+		if (memcmp(name, "*.", 2) == 0) { // Wildcard: remove the asterisk and see if the ends match
+			lenName--;
+			name++;
+
+			if (lenName < lenHdrFr       && memcmp(hdrFr       + lenHdrFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
+			if (lenName < lenEnvFr       && memcmp(envFr       + lenEnvFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
+			if (lenName < email.lenRvDns && memcmp(email.rvDns + email.lenRvDns - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RVDNS; break;}
+			if (lenName < email.lenGreet && memcmp(email.greet + email.lenGreet - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
+		} else {
 			// TODO: Support wildcards: *.example.com
 			if      (lenName == lenHdrFr       && memcmp(name, hdrFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
 			else if (lenName == lenEnvFr       && memcmp(name, envFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
