@@ -70,7 +70,7 @@ static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 	return AEM_EMAIL_CERT_NONE;
 }
 
-static void getCertNames(const mbedtls_x509_crt * const cert) {
+static void getCertName(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return;
 
 	size_t lenEnvFr = 0;
@@ -113,12 +113,10 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 
 			if (lenName < lenHdrFr       && memcmp(hdrFr       + lenHdrFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
 			if (lenName < lenEnvFr       && memcmp(envFr       + lenEnvFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			if (lenName < email.lenRvDns && memcmp(email.rvDns + email.lenRvDns - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RVDNS; break;}
 			if (lenName < email.lenGreet && memcmp(email.greet + email.lenGreet - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
 		} else {
 			if      (lenName == lenHdrFr       && memcmp(name, hdrFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
 			else if (lenName == lenEnvFr       && memcmp(name, envFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			else if (lenName == email.lenRvDns && memcmp(name, email.rvDns, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RVDNS; break;}
 			else if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
 		}
 	}
@@ -572,7 +570,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			getIpInfo();
 			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
 			email.ipBlacklisted = isIpBlacklisted(clientAddr->sin_addr.s_addr);
-			getCertNames(clientCert);
+			getCertName(clientCert);
 
 			deliverMessage(to, toCount, &email);
 

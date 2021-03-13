@@ -6,19 +6,18 @@
 
 #include "../Global.h"
 
-#define AEM_EMAIL_CERT_MATCH_HDRFR 768
-#define AEM_EMAIL_CERT_MATCH_ENVFR 512
-#define AEM_EMAIL_CERT_MATCH_RVDNS 256
-#define AEM_EMAIL_CERT_MATCH_GREET   0
+#define AEM_EMAIL_CERT_MATCH_HDRFR 96
+#define AEM_EMAIL_CERT_MATCH_ENVFR 64
+#define AEM_EMAIL_CERT_MATCH_GREET 32
 
-#define AEM_EMAIL_CERT_EDDSA 224
-#define AEM_EMAIL_CERT_EC521 192
-#define AEM_EMAIL_CERT_EC384 160
-#define AEM_EMAIL_CERT_EC256 128
-#define AEM_EMAIL_CERT_RSA4K  96
-#define AEM_EMAIL_CERT_RSA2K  64
-#define AEM_EMAIL_CERT_RSA1K  32
-#define AEM_EMAIL_CERT_NONE    0
+#define AEM_EMAIL_CERT_EDDSA 28
+#define AEM_EMAIL_CERT_EC521 24
+#define AEM_EMAIL_CERT_EC384 20
+#define AEM_EMAIL_CERT_EC256 16
+#define AEM_EMAIL_CERT_RSA4K 12
+#define AEM_EMAIL_CERT_RSA2K  8
+#define AEM_EMAIL_CERT_RSA1K  4
+#define AEM_EMAIL_CERT_NONE   0
 
 struct dkimInfo {
 	bool algoRsa;
@@ -65,8 +64,8 @@ struct emailInfo {
 	bool dane;
 
 	// TLS info
-	uint16_t tlsInfo;
 	uint16_t tls_ciphersuite;
+	uint8_t tlsInfo;
 
 	// The four short-text fields
 	uint8_t lenEnvTo;
