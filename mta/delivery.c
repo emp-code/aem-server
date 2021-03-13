@@ -28,6 +28,10 @@ void setSignKey(const unsigned char * const seed) {
 	crypto_sign_seed_keypair(tmp, sign_skey, seed);
 }
 
+void delSignKey(void) {
+	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
+}
+
 #include "../Common/Message.c"
 
 static int getPublicKey(const unsigned char * const addr32, const bool isShield) {

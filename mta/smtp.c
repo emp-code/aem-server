@@ -51,6 +51,10 @@ void setSignKey_mta(const unsigned char * const seed) {
 	return setSignKey(seed);
 }
 
+void delSignKey_mta() {
+	return delSignKey();
+}
+
 static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return AEM_EMAIL_CERT_NONE;
 

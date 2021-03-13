@@ -38,6 +38,7 @@ static void sigTerm(const int sig) {
 	}
 
 	// SIGUSR2: Fast kill
+	delSignKey_mta();
 	tlsFree();
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
@@ -120,6 +121,7 @@ int main(void) {
 	tlsSetup();
 	acceptClients();
 
+	delSignKey_mta();
 	tlsFree();
 	return EXIT_SUCCESS;
 }
