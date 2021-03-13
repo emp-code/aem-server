@@ -127,7 +127,7 @@ int getHeaders(unsigned char * const data, size_t * const lenData, struct emailI
 
 	// Preserve first linebreak
 	email->lenHead--;
-	cleanText(email->head + 1, &email->lenHead);
+	cleanText(email->head + 1, &email->lenHead, true);
 	email->lenHead++;
 
 	email->head[email->lenHead] = '\0';
@@ -417,9 +417,9 @@ unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct 
 			convertToUtf8(&new, &lenNew, cs);
 			if (cs != NULL) free(cs);
 
+			removeControlChars(new, &lenNew);
 			if (isHtml) htmlToText((char*)new, &lenNew);
-
-			cleanText(new, &lenNew);
+			cleanText(new, &lenNew, !isHtml);
 			new[lenNew] = '\0';
 
 			if (*outLen == 0) {
@@ -558,9 +558,10 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			convertToUtf8(&email->body, &email->lenBody, cs);
 			if (cs != NULL) free(cs);
 
+			removeControlChars(email->body, &email->lenBody);
 			if (strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email->body, &email->lenBody);
 
-			cleanText(email->body, &email->lenBody);
+			cleanText(email->body, &email->lenBody, false);
 			email->body[email->lenBody] = '\0';
 		}
 	}

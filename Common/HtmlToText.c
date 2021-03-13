@@ -12,6 +12,9 @@
 #define AEM_HTMLTOTEXT_PLACEHOLDER_GT 0x03
 #define AEM_HTMLTOTEXT_PLACEHOLDER_LT 0x04
 
+#define AEM_CHAR_LNK_START 0x11
+#define AEM_CHAR_LNK_END   0x12
+
 static void filterText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
 	while(1) {
 		char * const c = memmem(text, *lenText, bad, lenBad);
@@ -204,11 +207,12 @@ static void processLinks(char *text, size_t *len) {
 
 				if (term != NULL) {
 					const size_t lenUrl = term - url;
-					memmove(br1, url, lenUrl);
-					*br2 = ' ';
-					memmove(br1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl);
-					br2 = br1 + lenUrl;
+					*br1 = AEM_CHAR_LNK_START;
+					memmove(br1 + 1, url, lenUrl);
+					*br2 = AEM_CHAR_LNK_END;
+					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
+					*len -= (lenOrig - lenUrl - 1);
+					br2 = br1 + lenUrl + 1;
 				} else {br1 = br2 + 1;}
 			} else {
 				const char * const term = strpbrk(url, " >");

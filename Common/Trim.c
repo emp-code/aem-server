@@ -4,8 +4,8 @@
 
 #include "Trim.h"
 
-// Converts HT/NBSP to SP; Converts VT/FF to LF; Removes other control-chars
-static void removeControlChars(unsigned char * const text, size_t * const len) {
+// Converts HT/NBSP to SP; Converts VT/FF to LF; Removes other control characters
+void removeControlChars(unsigned char * const text, size_t * const len) {
 	if (text == NULL || len == NULL) return;
 
 	unsigned char * const new = malloc(*len);
@@ -40,11 +40,11 @@ static void removeControlChars(unsigned char * const text, size_t * const len) {
 	while (*len > 0 && isspace(text[*len - 1])) (*len)--;
 }
 
-// Compresses multiple LF/SP to one; Removes SP followed by/following LF
-void cleanText(unsigned char * const text, size_t * const len) {
+// Compresses multiple LF/SP to one; Removes SP followed by/following LF; Removes control characters
+void cleanText(unsigned char * const text, size_t * const len, const bool removeControl) {
 	if (text == NULL || len == NULL) return;
 
-	removeControlChars(text, len);
+	if (removeControl) removeControlChars(text, len);
 
 	unsigned char * const new = malloc(*len);
 	if (new == NULL) return;
@@ -65,6 +65,9 @@ void cleanText(unsigned char * const text, size_t * const len) {
 			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // follows 2 LF - skip
 
 			new[lenNew] = '\n';
+			lenNew++;
+		} else if (!removeControl) {
+			new[lenNew] = text[i];
 			lenNew++;
 		}
 	}
