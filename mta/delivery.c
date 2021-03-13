@@ -54,7 +54,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	const size_t lenUncomp = email->dkim[0].lenDomain + email->dkim[1].lenDomain + email->dkim[2].lenDomain + email->dkim[3].lenDomain + email->dkim[4].lenDomain + email->dkim[5].lenDomain + email->dkim[6].lenDomain
 		+ email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns
 		+ email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct
-		+ (email->dkimCount * 3) + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+		+ email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
 
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
