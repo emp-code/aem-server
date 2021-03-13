@@ -72,6 +72,20 @@ static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 static void getCertNames(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return;
 
+	size_t lenEnvFr = 0;
+	const unsigned char *envFr = memchr(email.envFr, '@', email.lenEnvFr);
+	if (envFr != NULL) {
+		envFr++;
+		lenEnvFr = email.lenEnvFr - (envFr - email.envFr);
+	}
+
+	size_t lenHdrFr = 0;
+	const unsigned char *hdrFr = memchr(email.hdrFr, '@', email.lenHdrFr);
+	if (hdrFr != NULL) {
+		hdrFr++;
+		lenHdrFr = email.lenHdrFr - (hdrFr - email.hdrFr);
+	}
+
 	bool firstDone = false;
 	const mbedtls_asn1_sequence *s = &cert->subject_alt_names;
 
@@ -92,22 +106,11 @@ static void getCertNames(const mbedtls_x509_crt * const cert) {
 
 		if (name != NULL && lenName > 0) {
 			// TODO: Support wildcards: *.example.com
-			if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET;
-			if (lenName == email.lenRvDns && memcmp(name, email.rvDns, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_RVDNS;
-
-			const unsigned char *envFr = memchr(email.envFr, '@', email.lenEnvFr);
-			if (envFr != NULL) {
-				envFr++;
-				const size_t lenEnvFr = email.lenEnvFr - (envFr - email.envFr);
-				if (lenName == lenEnvFr && memcmp(name, envFr, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR;
-			}
-
-			const unsigned char *hdrFr = memchr(email.hdrFr, '@', email.lenHdrFr);
-			if (hdrFr != NULL) {
-				hdrFr++;
-				const size_t lenHdrFr = email.lenHdrFr - (hdrFr - email.hdrFr);
-				if (lenName == lenHdrFr && memcmp(name, hdrFr, lenName) == 0) email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR;
-			}
+			if      (lenName == lenHdrFr       && memcmp(name, hdrFr,       lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_HDRFR; break;}
+			else if (lenName == lenEnvFr       && memcmp(name, envFr,       lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_ENVFR; break;}
+			else if (lenName == email.lenRvDns && memcmp(name, email.rvDns, lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_RVDNS; break;}
+			else if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) {email.tlsInfo = AEM_EMAIL_CERT_MATCH_GREET; break;}
+			else syslog(LOG_INFO, "<%.*s>", (int)lenName, name);
 		}
 	}
 }
