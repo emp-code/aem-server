@@ -46,18 +46,8 @@ static const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
 __attribute__((warn_unused_result))
 static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
-
 	const char * const c = mbedtls_ssl_get_version(tls);
-	if (c == NULL || strncmp(c, "TLSv1.", 6) != 0) return 0;
-
-	switch(c[6]) {
-		case '0': return 1;
-		case '1': return 2;
-		case '2': return 3;
-		case '3': return 4;
-	}
-
-	return 0;
+	return (c == NULL || strncmp(c, "TLSv1.", 6) != 0 || c[6] < '0' || c[6] > '3') ? 0 : c[6] - '0';
 }
 #endif
 
