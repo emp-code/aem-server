@@ -14,6 +14,8 @@
 
 #define AEM_CHAR_LNK_START 0x11
 #define AEM_CHAR_LNK_END   0x12
+#define AEM_CHAR_IMG_START 0x13
+#define AEM_CHAR_IMG_END   0x14
 
 static void filterText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
 	while(1) {
@@ -254,11 +256,12 @@ static void processImages(char * const text, size_t * const len) {
 
 				if (term != NULL) {
 					const size_t lenUrl = term - url;
-					memmove(br1, url, lenUrl);
-					*br2 = ' ';
-					memmove(br1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl);
-					br2 = br1 + lenUrl;
+					*br1 = AEM_CHAR_IMG_START;
+					memmove(br1 + 1, url, lenUrl);
+					*br2 = AEM_CHAR_IMG_END;
+					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
+					*len -= (lenOrig - lenUrl - 1);
+					br2 = br1 + lenUrl + 1;
 				} else {br1 = br2 + 1;}
 			} else {
 				const char * const term = strpbrk(url, " >");
