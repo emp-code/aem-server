@@ -11,9 +11,6 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
-#include "../Common/HtmlToText.h"
-#include "../Common/QuotedPrintable.h"
-#include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
 #include "../Common/UnixSocketClient.h"
 
