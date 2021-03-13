@@ -504,7 +504,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				break;
 			}
 
-			source = malloc(AEM_SMTP_MAX_SIZE_BODY + 1);
+			source = malloc(AEM_SMTP_MAX_SIZE_BODY + 5);
 			if (source == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
@@ -523,7 +523,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				lenSource += bytes;
 
 				if (lenSource >= 5 && memcmp(source + lenSource - 5, "\r\n.\r\n", 5) == 0) {
-					lenSource -= 3;
+					lenSource -= 5;
 					break;
 				}
 
@@ -541,7 +541,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) email.quitReceived = true;
 
 			convertLineDots(source, &lenSource);
-			source[lenSource] = '\0';
+
+			// Add final CRLF for DKIM
+			source[lenSource + 0] = '\r';
+			source[lenSource + 1] = '\n';
+			source[lenSource + 2] = '\0';
+			lenSource += 2;
 
 			for (int i = 0; i < 7; i++) {
 				const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
@@ -557,6 +562,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				lenSource -= offset;
 				source[lenSource] = '\0';
 			}
+
+			// Remove final CRLF
+			lenSource -= 2;
+			source[lenSource] = '\0';
 
 			processEmail(source, &lenSource, &email);
 
