@@ -6,15 +6,15 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "address.h" // for normal salt
-
-#include "../Global.h"
-#include "../Common/Brotli.c"
-#include "../Data/domain.h"
-#include "../utils/GetKey.h"
-
 #include <sodium.h>
 #include <zopfli/zopfli.h>
+
+#include "../Common/Brotli.c"
+#include "../Global.h"
+#include "../utils/GetKey.h"
+
+#include "address.h" // for normal salt
+#include "domain.h"
 
 static unsigned char master[crypto_secretbox_KEYBYTES];
 
