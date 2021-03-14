@@ -742,6 +742,11 @@ static void message_create_ext(void) {
 		if (lenEb > lenBody + 950) {free(email.body); return;}
 	}
 
+	while (lenEb > 0 && isspace(email.body[lenEb - 1]))
+		lenEb--;
+
+	if (lenEb < 15) {free(email.body); return;}
+
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
 	if (emailDomain == NULL || strlen(emailDomain) < 5) return; // @a.bc
