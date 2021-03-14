@@ -25,6 +25,8 @@ struct outEmail {
 	char addrFrom[256];
 	char addrTo[256];
 	char subject[256];
+
+	size_t lenBody;
 	char *body;
 };
 

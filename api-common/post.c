@@ -722,11 +722,11 @@ static void message_create_ext(void) {
 	email.body = malloc(lenBody + 1000);
 	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
-	size_t lenEb = 0;
+	email.lenBody = 0;
 	for (size_t copied = 0; copied < lenBody; copied++) {
 		if (p[copied] == '\n') { // Linebreak
-			memcpy(email.body + lenEb, "\r\n", 2);
-			lenEb += 2;
+			memcpy(email.body + email.lenBody, "\r\n", 2);
+			email.lenBody += 2;
 		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) { // Control characters
 			free(email.body);
 			return;
@@ -735,17 +735,20 @@ static void message_create_ext(void) {
 			free(email.body);
 			return;
 		} else { // ASCII
-			email.body[lenEb] = p[copied];
-			lenEb++;
+			email.body[email.lenBody] = p[copied];
+			email.lenBody++;
 		}
 
-		if (lenEb > lenBody + 950) {free(email.body); return;}
+		if (email.lenBody > lenBody + 950) {free(email.body); return;}
 	}
 
-	while (lenEb > 0 && isspace(email.body[lenEb - 1]))
-		lenEb--;
+	while (email.lenBody > 0 && isspace(email.body[email.lenBody - 1]))
+		email.lenBody--;
 
-	if (lenEb < 15) {free(email.body); return;}
+	memcpy(email.body + email.lenBody, "\r\n", 2);
+	email.lenBody += 2;
+
+	if (email.lenBody < 15) {free(email.body); return;}
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');

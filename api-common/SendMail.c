@@ -3,15 +3,18 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
+#include <time.h>
 #include <unistd.h>
 
+#include <mbedtls/pk.h>
 #include <sodium.h>
 
-#include "../Global.h"
 #include "../Common/aes.h"
-#include "../Data/dkim.h"
+#include "../Global.h"
 
 #include "SendMail.h"
+
+#include "../Data/dkim.h"
 
 #define AEM_API_SMTP
 
@@ -46,22 +49,22 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
-static int rsa_sign_b64(const unsigned char hash[crypto_hash_sha256_BYTES], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)], const bool isAdmin) {
+static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash, const bool isAdmin) {
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
 
 	int ret = mbedtls_pk_parse_key(&pk, isAdmin? AEM_DKIM_ADM_DATA : AEM_DKIM_USR_DATA, isAdmin? AEM_DKIM_ADM_SIZE : AEM_DKIM_USR_SIZE, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %x", -ret); mbedtls_pk_free(&pk); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "pk_parse failed: %x", -ret); mbedtls_pk_free(&pk); return 0;}
 
 	// Calculate the signature of the hash
-	unsigned char sig[256];
-	size_t olen;
-	ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, 0, sig, &olen, mbedtls_ctr_drbg_random, &ctr_drbg);
+	unsigned char sig[1024];
+	size_t lenSig;
+	ret = mbedtls_pk_sign(&pk, MBEDTLS_MD_SHA256, hash, crypto_hash_sha256_BYTES, sig, &lenSig, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_pk_free(&pk);
-	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %x", -ret); return -1;}
+	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %x", -ret); return 0;}
 
-	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
-	return 0;
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL), sig, lenSig, sodium_base64_VARIANT_ORIGINAL);
+	return sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL);
 }
 
 static void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk) {
@@ -82,13 +85,12 @@ static void genMsgId(char * const out, const uint32_t ts, const unsigned char * 
 	sodium_bin2base64(out, 65, hash, 48, sodium_base64_VARIANT_URLSAFE);
 }
 
-static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
-	const size_t lenBody = strlen(email->body);
+static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, size_t * const lenOut) {
 	unsigned char bodyHash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(bodyHash, (unsigned char*)(email->body), lenBody) != 0) return NULL;
+	if (crypto_hash_sha256(bodyHash, (unsigned char*)email->body, email->lenBody) != 0) return NULL;
 
-	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
+	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
 
 	const uint32_t ts = (uint32_t)time(NULL);
 
@@ -102,11 +104,11 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	strftime(rfctime, 64, "%a, %d %b %Y %T %z", &ourTime); // Wed, 17 Jun 2020 08:30:21 +0000
 
 // header-hash = SHA256(headers, crlf separated + DKIM-Signature-field with b= empty, no crlf)
-	char *final = sodium_malloc(2000 + lenBody);
+	char *final = malloc(2000 + email->lenBody);
 	if (final == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
-	bzero(final, 2000 + lenBody);
+	bzero(final, 2000 + email->lenBody);
 
-	char ref[1000];
+	char ref[544];
 	if (strlen(email->replyId) > 5) { // a@b.cd
 		sprintf(ref,
 			"References: <%s>\r\n"
@@ -161,12 +163,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	, bodyHashB64
 	);
 
-	unsigned char headHash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(headHash, (unsigned char*)final, strlen(final)) != 0) {sodium_free(final); return NULL;}
-
-// RSA
-	char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)];
-	if (rsa_sign_b64(headHash, sigB64, (userLevel == AEM_USERLEVEL_MAX)) != 0) {sodium_free(final); return NULL;}
+	size_t lenFinal = strlen(final);
 
 // EdDSA
 /*
@@ -177,14 +174,35 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL), sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
 */
 
-	strcpy(final + strlen(final), sigB64);
-	const size_t lenMsg = strlen(final) + 2;
-	memcpy(final + strlen(final), "\r\n", 2);
-	char *dkim = strstr(final, "\nDKIM-Signature:");
-	memmove(final + strlen(final), final, dkim - final); // Move headers after dkim-sig
-	memmove(final, dkim + 1, strlen(dkim + 1)); // Move everything back to the beginning
+// RSA
 
-	sprintf(final + lenMsg, "\r\n%s\r\n.\r\n", email->body);
+	unsigned char headHash[crypto_hash_sha256_BYTES];
+	if (crypto_hash_sha256(headHash, (unsigned char*)final, lenFinal) != 0) {free(final); return NULL;}
+
+	char hB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
+	sodium_bin2base64(hB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), headHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
+
+	const size_t lenSigB64 = rsa_sign_b64(final + lenFinal, headHash, (userLevel == AEM_USERLEVEL_MAX));
+	if (lenSigB64 < 1) {free(final); return NULL;}
+	lenFinal += lenSigB64;
+
+	memcpy(final + lenFinal, "\r\n", 2);
+	lenFinal += 2;
+
+	const char * const dkim = memmem(final, lenFinal, "\nDKIM-Signature:", 16) + 1;
+	memcpy(final + lenFinal, final, dkim - final);
+	memmove(final, dkim, lenFinal);
+
+	memcpy(final + lenFinal, "\r\n", 2);
+	lenFinal += 2;
+
+	memcpy(final + lenFinal, email->body, email->lenBody);
+	lenFinal += email->lenBody;
+
+	memcpy(final + lenFinal, ".\r\n", 3);
+	lenFinal += 5;
+
+	*lenOut = lenFinal;
 	return final;
 }
 
@@ -290,10 +308,11 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
 
-	char *msg = createEmail(upk, userLevel, email);
+	size_t lenMsg = 0;
+	char * const msg = createEmail(upk, userLevel, email, &lenMsg);
 	if (msg == NULL) {closeTls(sock); return AEM_SENDMAIL_ERR_MISC;}
-	if (smtp_send(sock, msg, strlen(msg)) < 0) {sodium_free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
-	sodium_free(msg);
+	if (smtp_send(sock, msg, lenMsg) < 0) {free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
+	free(msg);
 
 	len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_BODY;}
