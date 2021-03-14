@@ -64,7 +64,7 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 	if (ret != 0) {syslog(LOG_ERR, "pk_sign failed: %x", -ret); return 0;}
 
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL), sig, lenSig, sodium_base64_VARIANT_ORIGINAL);
-	return sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL);
+	return sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
 }
 
 static void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk) {
