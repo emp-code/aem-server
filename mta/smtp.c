@@ -520,8 +520,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 				lenSource += bytes;
 
-				if (lenSource >= 5 && memcmp(source + lenSource - 5, "\r\n.\r\n", 5) == 0) {
-					lenSource -= 5;
+				unsigned char *end = (lenSource < 5) ? NULL : memmem(source, lenSource, "\r\n.\r\n", 5);
+				if (end != NULL) {
+					lenSource = end - source;
 					break;
 				}
 
