@@ -137,11 +137,11 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	}
 	free(src);
 
-	unsigned char bodyHash[32];
+	unsigned char bodyHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {puts("Hash failed"); return NULL;}
 
-	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL)];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL), bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
+	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
 
 	const char * const conn = onion? "://"AEM_ONIONID".onion" : "s://"AEM_DOMAIN;
 	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion/\r\n";
