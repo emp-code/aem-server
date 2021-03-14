@@ -741,7 +741,6 @@ static void message_create_ext(void) {
 
 		if (lenEb > lenBody + 950) {free(email.body); return;}
 	}
-	memcpy(email.body + lenEb, "\r\n\0", 3);
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
