@@ -46,7 +46,7 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
-static int rsa_sign_b64(const unsigned char hash[32], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)], const bool isAdmin) {
+static int rsa_sign_b64(const unsigned char hash[crypto_hash_sha256_BYTES], char sigB64[sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL)], const bool isAdmin) {
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
 
@@ -84,11 +84,11 @@ static void genMsgId(char * const out, const uint32_t ts, const unsigned char * 
 
 static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email) {
 	const size_t lenBody = strlen(email->body);
-	unsigned char bodyHash[32];
+	unsigned char bodyHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)(email->body), lenBody) != 0) return NULL;
 
-	char bodyHashB64[sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(32, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, 32, sodium_base64_VARIANT_ORIGINAL);
+	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1];
+	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL) + 1, bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
 
 	const uint32_t ts = (uint32_t)time(NULL);
 
@@ -161,7 +161,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	, bodyHashB64
 	);
 
-	unsigned char headHash[32];
+	unsigned char headHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(headHash, (unsigned char*)final, strlen(final)) != 0) {sodium_free(final); return NULL;}
 
 // RSA
