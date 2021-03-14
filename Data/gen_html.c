@@ -190,8 +190,8 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 
 		// PP
 		"Permissions-Policy: "
-			"fullscreen"                      "=(self),"
 			"clipboard-write"                 "=(self),"
+			"fullscreen"                      "=(self),"
 
 			"accelerometer"                   "=(),"
 			"ambient-light-sensor"            "=(),"
