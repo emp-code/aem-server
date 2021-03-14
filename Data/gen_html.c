@@ -235,6 +235,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"screen-wake-lock"                "=(),"
 			"speaker-selection"               "=(),"
 			"sync-xhr"                        "=(),"
+			"trust-token-redemption"          "=(),"
 			"usb"                             "=(),"
 			"web-share"                       "=(),"
 			"xr-spatial-tracking"             "=()"
