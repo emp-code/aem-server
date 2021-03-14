@@ -551,8 +551,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
 				if (headersEnd == NULL) break;
 
-				unsigned char * const start = (unsigned char*)strcasestr((char*)source, "DKIM-Signature:");
+				unsigned char *start = (unsigned char*)strcasestr((char*)source, "\nDKIM-Signature:");
 				if (start == NULL || start > headersEnd) break;
+				start++;
 				const int offset = verifyDkim(&email, start, (source + lenSource) - start);
 				if (offset == 0) break;
 
