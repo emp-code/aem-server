@@ -224,6 +224,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"geolocation"                     "=(),"
 			"gyroscope"                       "=(),"
 			"idle-detection"                  "=(),"
+			"hid"                             "=(),"
 			"magnetometer"                    "=(),"
 			"microphone"                      "=(),"
 			"midi"                            "=(),"
