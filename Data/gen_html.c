@@ -233,6 +233,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"picture-in-picture"              "=(),"
 			"publickey-credentials-get"       "=(),"
 			"screen-wake-lock"                "=(),"
+			"serial"                          "=(),"
 			"speaker-selection"               "=(),"
 			"sync-xhr"                        "=(),"
 			"trust-token-redemption"          "=(),"
