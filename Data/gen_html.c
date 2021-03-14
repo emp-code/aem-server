@@ -214,6 +214,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"ch-viewport-width"               "=(),"
 			"ch-width"                        "=(),"
 			"clipboard-read"                  "=(),"
+			"conversion-measurement"          "=(),"
 			"cross-origin-isolated"           "=(),"
 			"display-capture"                 "=(),"
 			"document-domain"                 "=(),"
