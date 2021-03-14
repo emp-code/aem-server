@@ -144,7 +144,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
 
 	const char * const conn = onion? "://"AEM_ONIONID".onion" : "s://"AEM_DOMAIN;
-	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion/\r\n";
+	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion\r\n";
 	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
 
 	// Headers
