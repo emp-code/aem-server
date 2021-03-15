@@ -47,6 +47,7 @@ __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
 	if (email->lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
 
+	if (email->lenEnvTo >  31) email->lenEnvTo =  31;
 	if (email->lenHdrTo >  63) email->lenHdrTo =  63;
 	if (email->lenGreet > 127) email->lenGreet = 127;
 	if (email->lenRvDns > 127) email->lenRvDns = 127;
@@ -124,7 +125,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[11] = email->tlsInfo;
 
 	// The 8 InfoBytes
-	content[12] = (email->dkimFailed ? 128 : 0) | ((email->dkimCount & 7) << 4) | (email->attachCount & 15);
+	content[12] = ((email->dkimCount & 7) << 5) | (email->attachCount & 31);
 
 	content[13] = email->ccBytes[0];
 	if (email->protocolEsmtp)     content[13] |= 128;
@@ -136,7 +137,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	if (email->rareCommands)    content[14] |=  64;
 	if (email->greetingIpMatch) content[14] |=  32;
 
-	content[15] = (email->spf   & 192) | (email->lenEnvTo & 63);
+	content[15] = (email->spf   & 192) | (email->dkimFailed ? 32 : 0) | (email->lenEnvTo & 31);
 	content[16] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
 	content[17] = email->lenGreet & 127;
@@ -197,7 +198,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return;}
-	if (email->attachCount > 15) email->attachCount = 15;
+	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
 	for (int i = 0; i < toCount; i++) {
