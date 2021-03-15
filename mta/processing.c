@@ -17,6 +17,10 @@
 
 #define AEM_LIMIT_MULTIPARTS 50
 
+#define MTA_PROCESSING_CTE_NONE 0
+#define MTA_PROCESSING_CTE_B64 1
+#define MTA_PROCESSING_CTE_QP 2
+
 // "abc" <def@ghj> --> abc\rdef@ghj
 static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource) {
 	while(1) {
