@@ -242,7 +242,7 @@ static int getCte(const char * const h) {
 	return MTA_PROCESSING_CTE_NONE;
 }
 
-unsigned char *decodeCte(const int cte, const unsigned char * const src, size_t * const lenSrc) {
+static unsigned char *decodeCte(const int cte, const unsigned char * const src, size_t * const lenSrc) {
 	unsigned char *new;
 
 	switch(cte) {
