@@ -75,8 +75,8 @@ struct emailInfo {
 
 	unsigned char envTo[63];
 	unsigned char hdrTo[63];
-	unsigned char greet[127];
-	unsigned char rvDns[127];
+	unsigned char greet[63];
+	unsigned char rvDns[63];
 
 	// The five long-text fields
 	uint8_t lenEnvFr; // MAIL FROM

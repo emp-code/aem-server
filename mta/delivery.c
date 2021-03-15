@@ -47,10 +47,10 @@ __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
 	if (email->lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
 
-	if (email->lenEnvTo >  31) email->lenEnvTo =  31;
-	if (email->lenHdrTo >  63) email->lenHdrTo =  63;
-	if (email->lenGreet > 127) email->lenGreet = 127;
-	if (email->lenRvDns > 127) email->lenRvDns = 127;
+	if (email->lenEnvTo > 31) email->lenEnvTo = 31;
+	if (email->lenHdrTo > 63) email->lenHdrTo = 63;
+	if (email->lenGreet > 63) email->lenGreet = 63;
+	if (email->lenRvDns > 63) email->lenRvDns = 63;
 
 	const size_t lenUncomp = email->dkim[0].lenDomain + email->dkim[1].lenDomain + email->dkim[2].lenDomain + email->dkim[3].lenDomain + email->dkim[4].lenDomain + email->dkim[5].lenDomain + email->dkim[6].lenDomain
 		+ email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns
@@ -140,10 +140,10 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[15] = (email->spf   & 192) | (email->dkimFailed ? 32 : 0) | (email->lenEnvTo & 31);
 	content[16] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
-	content[17] = email->lenGreet & 127;
+	content[17] = email->lenGreet & 63;
 	if (email->dane) content[17] |= 128;
 
-	content[18] = email->lenRvDns & 127;
+	content[18] = email->lenRvDns & 63;
 	if (email->dnssec) content[18] |= 128;
 
 	content[19] = email->hdrTz & 127;

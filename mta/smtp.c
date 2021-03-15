@@ -346,7 +346,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
 	email.lenGreet = bytes - 7;
-	if (email.lenGreet > 127) email.lenGreet = 127;
+	if (email.lenGreet > 63) email.lenGreet = 63;
 	memcpy(email.greet, buf + 5, email.lenGreet);
 
 	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
