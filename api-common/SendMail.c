@@ -208,7 +208,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	}
 
 	memcpy(final + lenFinal, ".\r\n", 3);
-	lenFinal += 5;
+	lenFinal += 3;
 
 	*lenOut = lenFinal;
 	return final;
