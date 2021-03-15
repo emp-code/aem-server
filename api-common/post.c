@@ -740,7 +740,7 @@ static void message_create_ext(void) {
 			lineLength++;
 			if (lineLength > 998) {
 				free(email.body);
-				return
+				return;
 			}
 
 			email.body[email.lenBody] = p[copied];
