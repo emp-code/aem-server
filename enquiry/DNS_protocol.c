@@ -253,7 +253,10 @@ static int getAnswerCount(const uint16_t reqId, const unsigned char * const res,
 	// 2: 128=QR: Answer (1); 64+32+16+8=120 OPCODE: Standard query (0000); 4=AA: Authorative Answer; 2=TC: Truncated; 1=RD: Recursion Desired
 	// 3: 128=RA: Recursion Available; 64=Z: Zero (Reserved); 32=AD: Authentic Data; 16=CD: Checking Disabled; 15=RCODE: No Error (0000)
 	if (res[2] != 129 || (res[3] & 192) != 128) {syslog(LOG_ERR, "Invalid DNS answer"); return 0;}
-	if ((res[3] & 15) != 0) {syslog(LOG_ERR, "DNS Error: %u", res[3] & 15); return 0;}
+	if ((res[3] & 15) != 0) {
+		if ((res[3] & 15) != 3) {syslog(LOG_ERR, "DNS Error: %u", res[3] & 15);} // 3 = NXDomain
+		return 0;
+	}
 
 	if (memcmp(res +  4, (unsigned char[]){0,1}, 2) != 0) {syslog(LOG_ERR, "QDCOUNT mismatch"); return 0;}
 	// 6,7 ANCOUNT
