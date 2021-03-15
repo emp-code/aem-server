@@ -21,6 +21,7 @@
 #include "../Common/ValidDomain.h"
 #include "../Common/ValidIp.h"
 
+#include "../Data/domain.h"
 #include "../Data/internal.h"
 
 #include "DNS.h"
@@ -92,6 +93,7 @@ void takeConnections(void) {
 			switch (dec[0]) {
 				case AEM_ENQUIRY_MX: {
 					if (!isValidDomain((char*)dec + 1, lenDec - 1)) break;
+					if (lenDec - 1 == AEM_DOMAIN_LEN && memcmp(dec + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) break;
 
 					unsigned char mxDomain[256];
 					int lenMxDomain = 0;
