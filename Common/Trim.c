@@ -68,7 +68,7 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 	}
 
 	size_t skip = 0;
-	while (skip < *len && isspace(new[skip])) skip++;
+	while (skip < lenNew && isspace(new[skip])) skip++;
 
 	memcpy(text, new + skip, lenNew - skip);
 	free(new);
