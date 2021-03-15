@@ -196,8 +196,16 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	memcpy(final + lenFinal, "\r\n", 2);
 	lenFinal += 2;
 
-	memcpy(final + lenFinal, email->body, email->lenBody);
-	lenFinal += email->lenBody;
+	// Copy the body, dot-stuffing as necessary
+	for (size_t i = 0; i < email->lenBody; i++) {
+		if (email->body[i] == '.' && final[lenFinal - 1] == '\n') {
+			memcpy(final + lenFinal, "..", 2);
+			lenFinal += 2;
+		} else {
+			final[lenFinal] = email->body[i];
+			lenFinal++;
+		}
+	}
 
 	memcpy(final + lenFinal, ".\r\n", 3);
 	lenFinal += 5;
