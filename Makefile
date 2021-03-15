@@ -10,7 +10,7 @@ aem-account: account/*.c
 	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
+	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
 
 aem-storage: storage/*.c
 	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
