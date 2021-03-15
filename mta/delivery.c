@@ -257,6 +257,8 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
 				unsigned char * const att = malloc(5 + email->lenAttachment[j]);
+				if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+
 				att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
 				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);

@@ -8,6 +8,8 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 	const size_t lenPadded = lenContent + padAmount + crypto_sign_BYTES;
 
 	unsigned char * const clear = sodium_malloc(lenPadded);
+	if (clear == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
+
 	memcpy(clear, content, lenContent);
 	randombytes_buf_deterministic(clear + lenContent, padAmount, clear); // First randombytes_SEEDBYTES determine the padding bytes
 	crypto_sign_detached(clear + lenPadded - crypto_sign_BYTES, NULL, clear, lenPadded - crypto_sign_BYTES, sign_skey);

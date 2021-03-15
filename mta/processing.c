@@ -119,6 +119,7 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
 
 	email->head = malloc(email->lenHead + 1);
+	if (email->head == NULL) {syslog(LOG_ERR, "Failed allocation"); email->lenHead = 0; return -1;}
 	memcpy(email->head, data, email->lenHead);
 	email->head[email->lenHead] = '\0';
 
@@ -331,6 +332,7 @@ static unsigned char* getBound(const char * const src, size_t * const lenBound) 
 
 	*lenBound = 4 + ((end != NULL) ? end : src + strlen(src)) - start;
 	unsigned char *bound = malloc(*lenBound);
+	if (bound == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 	bound[0] = '\r';
 	bound[1] = '\n';
 	bound[2] = '-';

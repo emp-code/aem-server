@@ -94,6 +94,7 @@ static int html_addEmail(char * const src, size_t * const lenSrc) {
 static unsigned char *genHtml(const char * const src_original, const size_t lenSrc_original, size_t * const lenResult, const bool onion) {
 	size_t lenSrc = lenSrc_original;
 	char * const src = malloc(lenSrc);
+	if (src == NULL) return NULL;
 	memcpy(src, src_original, lenSrc);
 
 	if (html_putKeys(src, lenSrc) != 0) return NULL;
@@ -264,6 +265,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 
 	*lenResult = lenHeaders + lenData;
 	unsigned char *result = malloc(*lenResult);
+	if (result == NULL) {free(data); return NULL;}
 	memcpy(result, headers, lenHeaders);
 	memcpy(result + lenHeaders, data, lenData);
 	free(data);

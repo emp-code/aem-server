@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 
 #include <unicode/ucnv.h>
 
@@ -20,6 +21,7 @@ unsigned char *toUtf8(const unsigned char * const input, const size_t lenInput, 
 
 	if (isUtf8(charset)) {
 		unsigned char * const new = malloc(lenInput + 1);
+		if (new == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 		memcpy(new, input, lenInput);
 		new[lenInput] = '\0';
 		*lenOut = lenInput;

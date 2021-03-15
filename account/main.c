@@ -244,6 +244,7 @@ static void api_internal_pubks(const int sock, const int num) {
 	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
 
 	unsigned char * const response = malloc(userCount * crypto_box_PUBLICKEYBYTES);
+	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 	for (int i = 0; i < userCount; i++) {
 		memcpy(response + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
 	}
