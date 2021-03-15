@@ -19,6 +19,7 @@
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 #include "../Common/ValidDomain.h"
+#include "../Common/ValidIp.h"
 
 #include "../Data/internal.h"
 
@@ -110,6 +111,7 @@ void takeConnections(void) {
 				case AEM_ENQUIRY_IP: {
 					if (lenDec != 5) break;
 					const uint32_t ip = *((uint32_t*)(dec + 1));
+					if (validIp(ip) == 1) break;
 
 					unsigned char resp[129];
 					const uint16_t cc = getCountryCode(ip);
