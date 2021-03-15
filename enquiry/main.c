@@ -18,6 +18,8 @@
 
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../Common/ValidDomain.h"
+
 #include "../Data/internal.h"
 
 #include "DNS.h"
@@ -88,6 +90,8 @@ void takeConnections(void) {
 		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_API) == 0) {
 			switch (dec[0]) {
 				case AEM_ENQUIRY_MX: {
+					if (!isValidDomain((char*)dec + 1, lenDec - 1)) break;
+
 					unsigned char mxDomain[256];
 					int lenMxDomain = 0;
 					const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain, &lenMxDomain);
@@ -118,7 +122,8 @@ void takeConnections(void) {
 				break;}
 
 				case AEM_ENQUIRY_A: {
-					if (lenDec > 128) break;
+					if (!isValidDomain((char*)dec + 1, lenDec - 1)) break;
+
 					const uint32_t ip = queryDns_a(dec + 1, lenDec - 1);
 					send(sock, &ip, 4, 0);
 				break;}
