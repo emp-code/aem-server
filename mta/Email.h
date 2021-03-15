@@ -96,6 +96,7 @@ struct emailInfo {
 	uint16_t hdrTs;
 
 	// DKIM
+	bool dkimFailed;
 	uint8_t dkimCount;
 	struct dkimInfo dkim[7];
 

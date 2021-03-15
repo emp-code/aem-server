@@ -253,6 +253,7 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 		}
 	}
 
+	email->dkimFailed = true;
 	return false;
 }
 
@@ -387,7 +388,10 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 	size_t lenPkBin;
 	unsigned char pkBin[1024];
-	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) return 0;
+	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) {
+		email->dkimFailed = true;
+		return offset;
+	}
 
 	mbedtls_pk_context pk;
 	mbedtls_pk_init(&pk);
@@ -395,7 +399,8 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	if (ret != 0) {
 		syslog(LOG_INFO, "pk_parse failed: %x", -ret);
 		mbedtls_pk_free(&pk);
-		return 0;
+		email->dkimFailed = true;
+		return offset;
 	}
 
 	// Verify bodyhash
@@ -404,7 +409,11 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	if (lenTrunc > lenBody) lenTrunc = 0;
 
 	unsigned char calc_bodyhash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) return 0;
+	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) {
+		email->dkimFailed = true;
+		return offset;
+	}
+
 	if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
@@ -427,9 +436,16 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		}
 
 		if (lenTrunc > lenRelaxed) lenTrunc = 0;
-		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) return 0;
+		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) {
+			email->dkimFailed = true;
+			return offset;
+		}
 
-		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) return 0;
+		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
+			email->dkimFailed = true;
+			return offset;
+		}
+
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 

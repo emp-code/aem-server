@@ -124,7 +124,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[11] = email->tlsInfo;
 
 	// The 8 InfoBytes
-	content[12] = ((email->dkimCount & 7) << 5) | (email->attachCount & 31);
+	content[12] = (email->dkimFailed ? 128 : 0) | ((email->dkimCount & 7) << 4) | (email->attachCount & 15);
 
 	content[13] = email->ccBytes[0];
 	if (email->protocolEsmtp)     content[13] |= 128;
@@ -197,7 +197,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return;}
-	if (email->attachCount >  31) email->attachCount =  31;
+	if (email->attachCount > 15) email->attachCount = 15;
 
 	// Deliver
 	for (int i = 0; i < toCount; i++) {
