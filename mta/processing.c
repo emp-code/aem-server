@@ -552,7 +552,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			email->body = new;
 		}
 
-		if (strncasecmp(ct, "text/", 5) == 0) {
+		if (strncasecmp(ct, "text/", 5) == 0 || lenCt < 2) {
 			char * const cs = getCharset(ct);
 			convertToUtf8(&email->body, &email->lenBody, cs);
 			if (cs != NULL) free(cs);
