@@ -142,6 +142,7 @@ static void getIpInfo(void) {
 
 	if (lenIpInfo > 2) {
 		email.lenRvDns = lenIpInfo - 2;
+		if (email.lenRvDns > 63) email.lenRvDns = 63;
 		memcpy(email.rvDns, ipInfo + 2, email.lenRvDns);
 	}
 }
