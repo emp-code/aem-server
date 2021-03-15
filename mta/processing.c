@@ -558,7 +558,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			if (cs != NULL) free(cs);
 
 			removeControlChars(email->body, &email->lenBody);
-			if (strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email->body, &email->lenBody);
+			if (lenCt >= 9 && strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email->body, &email->lenBody);
 
 			cleanText(email->body, &email->lenBody, false);
 			email->body[email->lenBody] = '\0';
