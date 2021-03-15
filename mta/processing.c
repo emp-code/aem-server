@@ -102,7 +102,7 @@ static void unfoldHeaders(unsigned char * const data, const size_t lenData) {
 	}
 }
 
-int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
+static int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
 	if (data == NULL) return -1;
 
 	unsigned char *hend = memmem(data, *lenData, "\r\n\r\n", 4);
@@ -133,7 +133,7 @@ int getHeaders(unsigned char * const data, size_t * const lenData, struct emailI
 	return 0;
 }
 
-void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
+static void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
 	unsigned char * const hdr = (unsigned char*)strcasestr((char*)data, needle);
 	if (hdr == NULL) return;
 
@@ -156,7 +156,7 @@ void moveHeader(unsigned char * const data, size_t * const lenData, const char *
 }
 
 // Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
-void decodeEncodedWord(unsigned char * const data, size_t * const lenData) {
+static void decodeEncodedWord(unsigned char * const data, size_t * const lenData) {
 	if (data == NULL || lenData == NULL || *lenData < 1) return;
 
 	while(1) {
@@ -272,7 +272,7 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 	return new;
 }
 
-void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset) {
+static void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset) {
 	if (src == NULL || *src == NULL || charset == NULL || isUtf8(charset)) return;
 
 	size_t lenUtf8;
@@ -284,7 +284,7 @@ void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char
 	*lenSrc = lenUtf8;
 }
 
-char *getCharset(const char *ct) {
+static char *getCharset(const char *ct) {
 	const char *cs = strcasestr(ct, "charset");
 	if (cs == NULL) return NULL;
 	cs = strchr(cs + 7, '=');
@@ -310,7 +310,7 @@ char *getCharset(const char *ct) {
 	return charset;
 }
 
-unsigned char* getBound(const char * const src, size_t * const lenBound) {
+static unsigned char* getBound(const char * const src, size_t * const lenBound) {
 	const char *start = strcasestr(src, "boundary");
 	if (start == NULL) return NULL;
 	start = strchr(start + 8, '=');
@@ -335,7 +335,7 @@ unsigned char* getBound(const char * const src, size_t * const lenBound) {
 	return bound;
 }
 
-unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
+static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
 	const size_t lenSrc = *outLen;
 
 	unsigned char *out = NULL;

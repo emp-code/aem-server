@@ -7,13 +7,6 @@
 #define MTA_PROCESSING_CTE_B64 1
 #define MTA_PROCESSING_CTE_QP 2
 
-int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email);
-void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit);
-void decodeEncodedWord(unsigned char * const data, size_t * const lenData);
-void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset);
-char *getCharset(const char *ct);
-unsigned char* getBound(const char * const src, size_t * const lenBound);
-unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0);
 void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email);
 
 #endif
