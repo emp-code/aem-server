@@ -723,10 +723,12 @@ static void message_create_ext(void) {
 	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	email.lenBody = 0;
+	size_t lineLength = 0;
 	for (size_t copied = 0; copied < lenBody; copied++) {
 		if (p[copied] == '\n') { // Linebreak
 			memcpy(email.body + email.lenBody, "\r\n", 2);
 			email.lenBody += 2;
+			lineLength = 0;
 		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) { // Control characters
 			free(email.body);
 			return;
@@ -735,6 +737,12 @@ static void message_create_ext(void) {
 			free(email.body);
 			return;
 		} else { // ASCII
+			lineLength++;
+			if (lineLength > 998) {
+				free(email.body);
+				return
+			}
+
 			email.body[email.lenBody] = p[copied];
 			email.lenBody++;
 		}
