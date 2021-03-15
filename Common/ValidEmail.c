@@ -19,6 +19,8 @@ bool isValidEmail(const char * const email) {
 		return false;
 	}
 
+	if (lenLocal < 1 || lenLocal > 64) return false;
+
 	if (email[lenLocal] != '@') return false;
 
 	return (isValidDomain(email + lenLocal + 1, lenEmail - lenLocal - 1));
