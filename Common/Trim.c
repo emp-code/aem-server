@@ -30,14 +30,9 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 		}
 	}
 
-	size_t skip = 0;
-	while (skip < *len && isspace(new[skip])) skip++;
-
-	memcpy(text, new + skip, lenNew - skip);
+	memcpy(text, new, lenNew);
 	free(new);
-	*len = lenNew - skip;
-
-	while (*len > 0 && isspace(text[*len - 1])) (*len)--;
+	*len = lenNew;
 }
 
 // Compresses multiple LF/SP to one; Removes SP followed by/following LF; Removes control characters
