@@ -7,6 +7,11 @@
 #include "ref2codepoint.h"
 
 static size_t utf8char(unsigned char * const text, const unsigned int codepoint) {
+	if (codepoint == 9 || codepoint == 10) { // Tab/Linefeed -> Space
+		text[0] = ' ';
+		return 1;
+	}
+
 	if (codepoint < 32 || codepoint == 127) return 0; // Control characters
 
 	if (codepoint <= 0x007F) {
