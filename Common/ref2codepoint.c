@@ -1,6 +1,8 @@
 // Converts HTML character reference names to Unicode codepoints
 // html.spec.whatwg.org/multipage/named-characters.html#named-character-references
 
+#include "HtmlPlaceholders.h"
+
 #include "ref2codepoint.h"
 
 unsigned int cpHash(const unsigned char * const str) {
@@ -14,18 +16,18 @@ unsigned int cpHash(const unsigned char * const str) {
 
 unsigned int ref2codepoint(const unsigned char * const ref) {
 	switch (cpHash(ref)) {
-		case 2711: return 62;
-		case 2896: return 60;
-		case 3927: return 62;
-		case 4112: return 60;
+		case 2711: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 62
+		case 2896: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 60
+		case 3927: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 62
+		case 4112: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 60
 		case 91914: return 38;
 		case 95667: return 8517;
 		case 97641: return 208;
-		case 100366: return 62;
+		case 100366: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 62
 		case 101069: return 8921;
 		case 101550: return 8811;
 		case 104029: return 8465;
-		case 107211: return 60;
+		case 107211: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 60
 		case 108099: return 8920;
 		case 108395: return 8810;
 		case 109801: return 924;
@@ -51,7 +53,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 144803: return 8805;
 		case 144877: return 8811;
 		case 145062: return 8823;
-		case 145358: return 62;
+		case 145358: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 62
 		case 147467: return 8291;
 		case 147689: return 8520;
 		case 147874: return 8712;
@@ -60,7 +62,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 151648: return 8804;
 		case 151722: return 8822;
 		case 151907: return 8810;
-		case 152203: return 60;
+		case 152203: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 60
 		case 153424: return 8723;
 		case 153609: return 956;
 		case 154386: return 8800;
@@ -133,7 +135,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 4196155: return 120083;
 		case 4198560: return 934;
 		case 4213619: return 936;
-		case 4222265: return 34;
+		case 4222265: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 34
 		case 4246808: return 120084;
 		case 4250693: return 174;
 		case 4293613: return 1056;
@@ -145,7 +147,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 4368057: return 8912;
 		case 4368464: return 8721;
 		case 4368575: return 8913;
-		case 4391330: return 9;
+		case 4391330: return 32; // 9, htab
 		case 4392033: return 932;
 		case 4394919: return 1058;
 		case 4398767: return 120087;
@@ -242,7 +244,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 5667719: return 8487;
 		case 5668681: return 8739;
 		case 5708826: return 8777;
-		case 5710359: return 160;
+		case 5710359: return 32; // 160, nbsp
 		case 5711897: return 1085;
 		case 5715745: return 120107;
 		case 5716633: return 8817;
@@ -275,7 +277,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 5832998: return 10927;
 		case 5834515: return 968;
 		case 5867704: return 120110;
-		case 5888185: return 34;
+		case 5888185: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 34
 		case 5914509: return 1088;
 		case 5916581: return 174;
 		case 5918357: return 120111;
@@ -417,7 +419,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 155527742: return 295;
 		case 155712524: return 8473;
 		case 155897783: return 119979;
-		case 156223864: return 34;
+		case 156223864: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 34
 		case 156230943: return 8496;
 		case 157586685: return 8474;
 		case 157771944: return 119980;
@@ -479,7 +481,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 187510250: return 10660;
 		case 187573261: return 120146;
 		case 187614257: return 8779;
-		case 187623026: return 39;
+		case 187623026: return AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE; // 39
 		case 187715977: return 229;
 		case 187758520: return 119990;
 		case 187775022: return 10989;
@@ -611,7 +613,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 209895250: return 8230;
 		case 210063193: return 120158;
 		case 210248452: return 120002;
-		case 211283342: return 160;
+		case 211283342: return 32; // 160, nbsp
 		case 211309353: return 10819;
 		case 211336733: return 10818;
 		case 211517478: return 8817;
@@ -666,7 +668,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 217438440: return 10596;
 		case 217559837: return 120162;
 		case 217745096: return 120006;
-		case 217862904: return 34;
+		case 217862904: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 34
 		case 218722155: return 10217;
 		case 218726832: return 187;
 		case 218728038: return 8594;
@@ -963,7 +965,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 1047835430: return 180;
 		case 1049634022: return 10672;
 		case 1051898073: return 8850;
-		case 1054677733: return 160;
+		case 1054677733: return 32; // 160, nbsp
 		case 1061322297: return 1028;
 		case 1082198727: return 10574;
 		case 1092266291: return 8814;
@@ -1043,7 +1045,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 1404341498: return 216;
 		case 1406078201: return 213;
 		case 1411445380: return 8831;
-		case 1413033097: return 10;
+		case 1413033097: return 32; // 10, linefeed
 		case 1417455523: return 10233;
 		case 1431343253: return 10861;
 		case 1438236476: return 10877;

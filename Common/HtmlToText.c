@@ -5,12 +5,9 @@
 #include "HtmlRefs.h"
 #include "Trim.h"
 
-#include "HtmlToText.h"
+#include "HtmlPlaceholders.h"
 
-#define AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK 0x01
-#define AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE 0x02
-#define AEM_HTMLTOTEXT_PLACEHOLDER_GT 0x03
-#define AEM_HTMLTOTEXT_PLACEHOLDER_LT 0x04
+#include "HtmlToText.h"
 
 #define AEM_CHAR_LNK_START 0x11
 #define AEM_CHAR_LNK_END   0x12
@@ -332,8 +329,10 @@ void lowercaseHtmlTags(char * const text, const size_t len) {
 }
 
 void htmlToText(char * const text, size_t * const len) {
+	removeControlChars((unsigned char*)text, len);
 	lfToSpace(text, *len);
 	removeHtmlComments(text, len);
+	decodeHtmlRefs((unsigned char*)text, len);
 
 	// Remove content before body tag
 	const char * const body = memmem(text, *len, "<body", 5);
@@ -389,10 +388,10 @@ void htmlToText(char * const text, size_t * const len) {
 	processImages(text, len);
 	removeStyle(text, len);
 	removeHtml(text, len);
-	decodeHtmlRefs((unsigned char*)text, len);
 
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK, '\n');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE, '\'');
+	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE, '"');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_GT, '>');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LT, '<');
 }
