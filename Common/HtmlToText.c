@@ -350,7 +350,6 @@ void htmlToText(char * const text, size_t * const len) {
 	filterText(text, len, "<br>", 4, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK);
 	filterText(text, len, "<br/>", 5, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK);
 	filterText(text, len, "<br />", 6, AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK);
-	text[*len] = '\0';
 
 	placeLinebreak(text, *len, "<table");
 	placeLinebreak(text, *len, "</table");
@@ -394,4 +393,6 @@ void htmlToText(char * const text, size_t * const len) {
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE, '"');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_GT, '>');
 	convertChar(text, *len, AEM_HTMLTOTEXT_PLACEHOLDER_LT, '<');
+
+	text[*len] = '\0';
 }
