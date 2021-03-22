@@ -296,7 +296,7 @@ static void removeHtml(char * const text, size_t * const len) {
 	}
 }
 
-void removeStyle(char * const text, size_t * const len) {
+static void removeStyle(char * const text, size_t * const len) {
 	char * const begin = memmem(text, *len, "<style", 6);
 	if (begin == NULL) return;
 
@@ -308,7 +308,7 @@ void removeStyle(char * const text, size_t * const len) {
 	*len -= diff;
 }
 
-void lowercaseHtmlTags(char * const text, const size_t len) {
+static void lowercaseHtmlTags(char * const text, const size_t len) {
 	char *c = memchr(text, '<', len);
 
 	while (c != NULL) {
