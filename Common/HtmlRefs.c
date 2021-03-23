@@ -6,6 +6,8 @@
 
 #include "ref2codepoint.h"
 
+#include "HtmlPlaceholders.h"
+
 static size_t utf8char(unsigned char * const text, const unsigned int codepoint) {
 	if (codepoint == 9 || codepoint == 10) { // Tab/Linefeed -> Space
 		text[0] = ' ';
@@ -15,7 +17,15 @@ static size_t utf8char(unsigned char * const text, const unsigned int codepoint)
 	if (codepoint < 32 || codepoint == 127) return 0; // Control characters
 
 	if (codepoint <= 0x007F) {
-		text[0] = codepoint;
+		switch (codepoint) {
+			case '\n': text[0] = AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK; break;
+			case '\'': text[0] = AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE; break;
+			case '"':  text[0] = AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; break;
+			case '<':  text[0] = AEM_HTMLTOTEXT_PLACEHOLDER_LT; break;
+			case '>':  text[0] = AEM_HTMLTOTEXT_PLACEHOLDER_GT; break;
+			default:   text[0] = codepoint; break;
+		}
+
 		return 1;
 	}
 

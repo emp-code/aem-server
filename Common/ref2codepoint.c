@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#include "HtmlPlaceholders.h"
-
 #include "ref2codepoint.h"
 
 static uint32_t cpHash(const unsigned char * const str) {
@@ -18,18 +16,18 @@ static uint32_t cpHash(const unsigned char * const str) {
 
 unsigned int ref2codepoint(const unsigned char * const ref) {
 	switch (cpHash(ref)) {
-		case 0x00000743: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 0x0003E;
-		case 0x000007c0: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 0x0003C;
-		case 0x00000a83: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 0x0003E;
-		case 0x00000b00: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 0x0003C;
+		case 0x00000743: return 0x0003E;
+		case 0x000007c0: return 0x0003C;
+		case 0x00000a83: return 0x0003E;
+		case 0x00000b00: return 0x0003C;
 		case 0x0000a686: return 0x00026;
 		case 0x0000ace3: return 0x02145;
 		case 0x0000b0f1: return 0x000D0;
-		case 0x0000b5c6: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 0x0003E;
+		case 0x0000b5c6: return 0x0003E;
 		case 0x0000b7a1: return 0x022D9;
 		case 0x0000b8e6: return 0x0226B;
 		case 0x0000bd19: return 0x02111;
-		case 0x0000c1fb: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 0x0003C;
+		case 0x0000c1fb: return 0x0003C;
 		case 0x0000c453: return 0x022D8;
 		case 0x0000c51b: return 0x0226A;
 		case 0x0000c7a5: return 0x0039C;
@@ -55,7 +53,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x0001058f: return 0x02265;
 		case 0x000105c1: return 0x0226B;
 		case 0x0001063e: return 0x02277;
-		case 0x00010706: return AEM_HTMLTOTEXT_PLACEHOLDER_GT; // 0x0003E;
+		case 0x00010706: return 0x0003E;
 		case 0x00010a3f: return 0x02063;
 		case 0x00010ad5: return 0x02148;
 		case 0x00010b52: return 0x02208;
@@ -64,7 +62,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x000111c4: return 0x02264;
 		case 0x000111f6: return 0x02276;
 		case 0x00011273: return 0x0226A;
-		case 0x0001133b: return AEM_HTMLTOTEXT_PLACEHOLDER_LT; // 0x0003C;
+		case 0x0001133b: return 0x0003C;
 		case 0x00011548: return 0x02213;
 		case 0x000115c5: return 0x003BC;
 		case 0x000116a6: return 0x02260;
@@ -137,7 +135,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x0014108f: return 0x0041F;
 		case 0x00141733: return 0x1D513;
 		case 0x00141b34: return 0x003A6;
-		case 0x00142769: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 0x00022;
+		case 0x00142769: return 0x00022;
 		case 0x0014360f: return 0x003A8;
 		case 0x00143c81: return 0x000AE;
 		case 0x0014543c: return 0x1D514;
@@ -281,7 +279,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x001bd45a: return 0x02AAF;
 		case 0x001bd72f: return 0x003C8;
 		case 0x001bf55c: return 0x1D52E;
-		case 0x001c19e9: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 0x00022;
+		case 0x001c19e9: return 0x00022;
 		case 0x001c2bc1: return 0x00440;
 		case 0x001c2ee1: return 0x000AE;
 		case 0x001c3265: return 0x1D52F;
@@ -399,7 +397,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x01f272f7: return 0x1D546;
 		case 0x01f3488a: return 0x1D4AA;
 		case 0x01f3da70: return 0x000D6;
-		case 0x01f7d97c: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 0x00022;
+		case 0x01f7d97c: return 0x00022;
 		case 0x01f868d8: return 0x02119;
 		case 0x01f93e6b: return 0x1D4AB;
 		case 0x01fe5eb9: return 0x0211A;
@@ -456,7 +454,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x025d69ae: return 0x029A4;
 		case 0x025dbcc9: return 0x1D552;
 		case 0x025de889: return 0x0224B;
-		case 0x025df8a6: return AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE; // 0x00027;
+		case 0x025df8a6: return 0x00027;
 		case 0x025e63c1: return 0x000E5;
 		case 0x025e925c: return 0x1D4B6;
 		case 0x025f2442: return 0x000E4;
@@ -633,7 +631,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x02bba91f: return 0x02A0C;
 		case 0x02bd1ad9: return 0x1D562;
 		case 0x02bdf06c: return 0x1D4C6;
-		case 0x02be87fc: return AEM_HTMLTOTEXT_PLACEHOLDER_DOUBLEQUOTE; // 0x00022;
+		case 0x02be87fc: return 0x00022;
 		case 0x02bfb573: return 0x027E9;
 		case 0x02bfbe58: return 0x000BB;
 		case 0x02bfc04a: return 0x02192;
@@ -2000,7 +1998,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0xdcb486e4: return 0x025FB;
 		case 0xdcb6c807: return 0x000E7;
 		case 0xdcebcaf1: return 0x025EC;
-		case 0xdd1de6d5: return AEM_HTMLTOTEXT_PLACEHOLDER_LINEBREAK;
+		case 0xdd1de6d5: return 0x000A0;
 		case 0xdd648a53: return 0x02191;
 		case 0xdd92394d: return 0x022B5;
 		case 0xddb7dc3d: return 0x022EB;
