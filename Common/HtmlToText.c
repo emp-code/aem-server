@@ -332,6 +332,7 @@ void htmlToText(char * const text, size_t * const len) {
 	removeControlChars((unsigned char*)text, len);
 	lfToSpace(text, *len);
 	removeHtmlComments(text, len);
+	text[*len] = '\0';
 	decodeHtmlRefs((unsigned char*)text, len);
 
 	// Remove content before body tag
