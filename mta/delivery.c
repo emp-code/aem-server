@@ -52,10 +52,16 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	if (email->lenGreet > 63) email->lenGreet = 63;
 	if (email->lenRvDns > 63) email->lenRvDns = 63;
 
-	const size_t lenUncomp = email->dkim[0].lenDomain + email->dkim[1].lenDomain + email->dkim[2].lenDomain + email->dkim[3].lenDomain + email->dkim[4].lenDomain + email->dkim[5].lenDomain + email->dkim[6].lenDomain
-		+ email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns
-		+ email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct
-		+ email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+	size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+
+	if (email->dkimCount > 7) email->dkimCount = 7;
+	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain;
+	if (email->dkimCount > 5) lenUncomp += email->dkim[5].lenDomain;
+	if (email->dkimCount > 4) lenUncomp += email->dkim[4].lenDomain;
+	if (email->dkimCount > 3) lenUncomp += email->dkim[3].lenDomain;
+	if (email->dkimCount > 2) lenUncomp += email->dkim[2].lenDomain;
+	if (email->dkimCount > 1) lenUncomp += email->dkim[1].lenDomain;
+	if (email->dkimCount > 0) lenUncomp += email->dkim[0].lenDomain;
 
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
@@ -108,7 +114,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	free(uncomp);
 
 	// Create the ExtMsg
-	const size_t lenContent = 22 + ((email->dkimCount & 7) * 3) + lenComp;
+	const size_t lenContent = 22 + (email->dkimCount * 3) + lenComp;
 	unsigned char * const content = calloc(lenContent, 1);
 	if (content == NULL) {
 		free(comp);
@@ -125,7 +131,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	content[11] = email->tlsInfo;
 
 	// The 8 InfoBytes
-	content[12] = ((email->dkimCount & 7) << 5) | (email->attachCount & 31);
+	content[12] = (email->dkimCount << 5) | (email->attachCount & 31);
 
 	content[13] = email->ccBytes[0];
 	if (email->protocolEsmtp)     content[13] |= 128;
@@ -153,7 +159,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 	// DKIM
 	offset = 22;
-	for (int i = 0; i < (email->dkimCount & 7); i++) {
+	for (int i = 0; i < email->dkimCount; i++) {
 		if (email->dkim[i].algoRsa)    content[offset] |= 128;
 		if (email->dkim[i].algoSha256) content[offset] |=  64;
 		if (email->dkim[i].dnsFlag_s)  content[offset] |=  32;
