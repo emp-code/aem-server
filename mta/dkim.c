@@ -279,6 +279,8 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	char dkim_selector[256];
 	char copyHeaders[256];
 
+	bool delSig = false;
+
 	while(1) {
 		size_t o, lenVal;
 		char val[1024];
@@ -296,24 +298,30 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 		switch (key) {
 			case 'v': { // Version
-				if (lenVal != 1 || *val != '1') return 0;
+				if (lenVal != 1 || *val != '1') delSig = true;
 			break;}
 
 			case 'a': { // Algo
 				// TODO: EdDSA, RSA-SHA support
-				if (lenVal != 10 || strncmp(val, "rsa-sha256", 10) != 0) return 0;
+				if (lenVal != 10 || strncmp(val, "rsa-sha256", 10) != 0) delSig = true;
 			break;}
 
 			case 'd': { // Domain
-				if (lenVal > 67) return 0;
-				memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
-				email->dkim[email->dkimCount].lenDomain = lenVal;
+				if (lenVal > 67) {
+					delSig = trus;
+				} else {
+					memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
+					email->dkim[email->dkimCount].lenDomain = lenVal;
+				}
 			break;}
 
 			case 's': { // Selector
-				if (lenVal > 255) return 0;
-				memcpy(dkim_selector, val, lenVal);
-				dkim_selector[lenVal] = '\0';
+				if (lenVal > 255) {
+					delSig = true;
+				} else {
+					memcpy(dkim_selector, val, lenVal);
+					dkim_selector[lenVal] = '\0';
+				}
 			break;}
 
 			case 'c': break; // Canon. method; ignored
@@ -327,7 +335,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'q': { // Query method
-				if (lenVal != 7 || strncmp(val, "dns/txt", 7) != 0) return 0;
+				if (lenVal != 7 || strncmp(val, "dns/txt", 7) != 0) delSig = true;
 			break;}
 
 			case 't': { // Timestamp
@@ -341,9 +349,12 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'i': { // Identifier
-				if (lenVal > 255) return 0;
-				memcpy(userId, val, lenVal);
-				lenUserId = lenVal;
+				if (lenVal > 255) {
+					delSig = true;
+				} else {
+					memcpy(userId, val, lenVal);
+					lenUserId = lenVal;
+				}
 			break;}
 
 			case 'x': { // Expiry
@@ -356,22 +367,31 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'h': { // Headers signed
-				if (lenVal > 255) return 0;
-				memcpy(copyHeaders, val, lenVal);
-				copyHeaders[lenVal] = '\0';
+				if (lenVal > 255) {
+					delSig = true;
+				} else {
+					memcpy(copyHeaders, val, lenVal);
+					copyHeaders[lenVal] = '\0';
+				}
 			break;}
 
 			case 'H': { // bodyhash
-				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
+				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
+					delSig = true;
+				}
 			break;}
 
 			case 'b': { // Signature
-				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
+				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
+					delSig = true;
+				}
 			break;}
 
 			default: syslog(LOG_WARNING, "Unsupported DKIM param: %c", key);
 		}
 	}
+
+	if (delSig) return offset;
 
 	if (lenUserId > 0 && (
 	   (lenUserId == email->lenEnvFr && memcmp(email->envFr, userId, lenUserId) == 0)
