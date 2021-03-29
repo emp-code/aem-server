@@ -308,7 +308,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 			case 'd': { // Domain
 				if (lenVal > 67) {
-					delSig = trus;
+					delSig = true;
 				} else {
 					memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
 					email->dkim[email->dkimCount].lenDomain = lenVal;
