@@ -33,7 +33,7 @@ static char getValuePair_dns(const char * const src, size_t * const offset, char
 static char getValuePair_header(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
 	if (strncasecmp(src, "bh=", 3) == 0) {
 		const char * const end = strchr(src + 3, ';');
-		if (end == NULL) return 0;
+		if (end == NULL) return 0; // TODO
 		*offset = end - src;
 		*lenResult = *offset - 3;
 		memcpy(result, src + 3, *lenResult);
@@ -44,21 +44,13 @@ static char getValuePair_header(const char * const src, size_t * const offset, c
 	if (t == '\0') return 0;
 	if (src[1] != '=') return 0;
 
-	const char *end;
+	const char *end = strchr(src + 2, ';');
+	const char *end2 = strchr(src + 2, '\n');
 
-	if (t == 'b') {
-		end = strchr(src + 2, '\n');
-		if (end == NULL) return 0;
-		while (end[1] == ' ' || end[1] == '\t') {
-			end = strchr(end + 1, '\n');
-			if (end == NULL) return 0;
-		}
+	while (end2 != NULL && isspace(end2[1])) end2 = strchr(end2 + 1, '\n');
 
-		end--;
-	} else {
-		end = strchr(src + 2, ';');
-		if (end == NULL) end = src + strlen(src);
-	}
+	if (end2 != NULL && (end == NULL || end2 < end)) end = end2;
+	else if (end == NULL) return 0;
 
 	*offset = end - src;
 	*lenResult = *offset - 2;
@@ -164,6 +156,7 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 
 	char *h = strtok(copyHeaders, ":");
 	while (h != NULL) {
+		while (isspace(*h)) h++;
 		const size_t lenH = strlen(h);
 
 		if      (strcasecmp(h, "Date")       == 0) email->dkim[email->dkimCount].sgnDate    = true;
@@ -286,7 +279,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	char dkim_selector[256];
 	char copyHeaders[256];
 
-	while (finalOff == 0) {
+	while(1) {
 		size_t o, lenVal;
 		char val[1024];
 		const char key = getValuePair_header((char*)dkimHeader + offset, &o, val, &lenVal);
@@ -298,6 +291,8 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		while (isspace(dkimHeader[offset])) offset++;
 
 		if (lenVal < 1) continue;
+
+		finalOff = o;
 
 		switch (key) {
 			case 'v': { // Version
@@ -370,9 +365,8 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
 			break;}
 
-			case 'b': { // Signature - end
+			case 'b': { // Signature
 				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return 0;
-				finalOff = o;
 			break;}
 
 			default: syslog(LOG_WARNING, "Unsupported DKIM param: %c", key);
@@ -436,6 +430,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		}
 
 		if (lenTrunc > lenRelaxed) lenTrunc = 0;
+
 		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) {
 			email->dkimFailed = true;
 			return offset;
@@ -449,7 +444,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 
-	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff, &email->dkim[email->dkimCount].headSimple)) {
+	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff + 1, &email->dkim[email->dkimCount].headSimple)) {
 		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
 		(email->dkimCount)++;
 	}
