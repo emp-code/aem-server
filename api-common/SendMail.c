@@ -9,6 +9,7 @@
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
+#include "Error.h"
 #include "../Common/aes.h"
 #include "../Global.h"
 
@@ -249,26 +250,26 @@ static void closeTls(const int sock) {
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
 	int sock = makeSocket(email->ip);
-	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_SENDMAIL_ERR_MISC;}
+	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 	useTls = false;
 
 	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
-	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_GREET;}
+	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;}
 	memmove(info->greeting, info->greeting + 4, lenGreeting - 6); // Between '220 ' and '\r\n'
 	info->greeting[lenGreeting - 6] = '\0';
 
-	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
+	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 
 	char buf[513];
 	bzero(buf, 513);
 	ssize_t len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
+	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 
 	if (strcasestr(buf, "STARTTLS") != NULL) {
-		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_STLS;}
+		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
 		len = smtp_recv(sock, buf, 512);
-		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_SENDMAIL_ERR_RECV_STLS;}
+		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
 		mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
 		mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -278,57 +279,54 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
 				closeTls(sock);
-				return AEM_SENDMAIL_ERR_MISC;
+				return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
 			}
 		}
 
+		useTls = true;
 		info->tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(&ssl));
 		info->tls_version = getTlsVersion(&ssl);
 
-		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); /*closeTls(sock); return AEM_SENDMAIL_ERR_MISC;*/}
+//		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
+//		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
-		useTls = true;
-
-		if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_SENDMAIL_ERR_SEND_EHLO;}
+		if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 
 		len = smtp_recv(sock, buf, 512);
-		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_EHLO;}
+		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 	} else {
 		closeTls(sock);
-		return AEM_SENDMAIL_ERR_NOTLS;
+		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;
 	}
 
 	// From
 	sprintf(buf, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
-	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_MAIL;}
+	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;}
 	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_MAIL;} 
+	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;}
 
 	// To
 	sprintf(buf, "RCPT TO: <%s>\r\n", email->addrTo);
-	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_RCPT;}
+	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;}
 	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_RCPT;} 
+	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;}
 
 	// Data
-	if (smtp_send(sock, "DATA\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_DATA;}
+	if (smtp_send(sock, "DATA\r\n", 6) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;}
 	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_DATA;} 
+	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;}
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(upk, userLevel, email, &lenMsg);
-	if (msg == NULL) {closeTls(sock); return AEM_SENDMAIL_ERR_MISC;}
-	if (smtp_send(sock, msg, lenMsg) < 0) {free(msg); closeTls(sock); return AEM_SENDMAIL_ERR_SEND_BODY;}
+	if (msg == NULL) {closeTls(sock); return AEM_API_ERR_INTERNAL;}
+	if (smtp_send(sock, msg, lenMsg) < 0) {free(msg); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
 	free(msg);
 
 	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_SENDMAIL_ERR_RECV_BODY;}
+	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
 
 	// Quit
-	if (smtp_send(sock, "QUIT\r\n", 6) < 0) {closeTls(sock); return AEM_SENDMAIL_ERR_SEND_QUIT;}
-	len = smtp_recv(sock, buf, 512);
+	if (smtp_send(sock, "QUIT\r\n", 6) < 0) len = smtp_recv(sock, buf, 512);
 	closeTls(sock);
-
-	return (len > 3 || memcmp(buf, "221 ", 4) == 0) ? 0 : AEM_SENDMAIL_ERR_RECV_QUIT;
+	return 0;
 }

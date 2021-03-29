@@ -134,7 +134,7 @@ static void shortResponse(const unsigned char * const data, const unsigned char 
 	unsigned char clr[33];
 	bzero(clr, 33);
 	clr[0] = len;
-	if (data != NULL && len > 0 && len <= 32) memcpy(clr + 1, data, len);
+	if (data != NULL && len <= 32) memcpy(clr + 1, data, len);
 
 	const int ret = crypto_box_easy(response + AEM_LEN_SHORTRESPONSE_HEADERS + crypto_box_NONCEBYTES, clr, 33, response + AEM_LEN_SHORTRESPONSE_HEADERS, upk, ssk);
 	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE_HEADERS + 33 + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
@@ -173,7 +173,7 @@ static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], con
 
 static void account_browse(void) {
 	if (lenDecrypted != 1) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -222,7 +222,7 @@ static void account_browse(void) {
 
 static void account_create(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -257,7 +257,7 @@ static void account_create(void) {
 
 static void account_delete(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -296,7 +296,7 @@ static void account_delete(void) {
 
 static void account_update(void) {
 	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -329,7 +329,7 @@ static void account_update(void) {
 
 static void address_create(void) {
 	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -364,7 +364,7 @@ static void address_create(void) {
 
 static void address_delete(void) {
 	if (lenDecrypted != 8) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -391,7 +391,7 @@ static void address_lookup(void) {
 
 static void address_update(void) {
 	if (lenDecrypted % 9 != 0) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -448,7 +448,7 @@ static void message_browse(void) {
 	if (lenDecrypted == 17)
 		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
 	else if (lenDecrypted != 1) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -693,7 +693,7 @@ static bool isValidFrom(const char * const src) { // Only allow sending from val
 
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(upk);
-	if (userLevel < AEM_MINLEVEL_SENDEMAIL) return;
+	if (userLevel < AEM_MINLEVEL_SENDEMAIL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_MINLEVEL);
 
 	struct outEmail email;
 	bzero(&email, sizeof(email));
@@ -705,22 +705,22 @@ static void message_create_ext(void) {
 	// Address From
 	const unsigned char *p = decrypted + 1;
 	const unsigned char * const end = decrypted + lenDecrypted;
-	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL || !addrOwned(email.addrFrom)) return;
-	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return;
-	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return;
-	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return;
+	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL || !addrOwned(email.addrFrom)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_FROM);
+	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_TO);
+	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_REPLYID);
+	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_SUBJECT);
 
-	if (strchr(email.replyId, ' ') != NULL) return;
-	if (!isValidFrom(email.addrFrom)) return;
-	if (!isValidEmail(email.addrTo)) return;
+	if (strchr(email.replyId, ' ') != NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_REPLYID);
+	if (!isValidFrom(email.addrFrom))       return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_FROM);
+	if (!isValidEmail(email.addrTo))        return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO);
 
 	// Body
 	const size_t lenBody = end - p;
-	if (lenBody < 15 || lenBody > 99999) return;
-	if (!isValidUtf8((unsigned char*)p, lenBody)) return;
+	if (lenBody < 15 || lenBody > 99999)          return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_SIZE);
+	if (!isValidUtf8((unsigned char*)p, lenBody)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_UTF8);
 
 	email.body = malloc(lenBody + 1000);
-	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	email.lenBody = 0;
 	size_t lineLength = 0;
@@ -731,23 +731,26 @@ static void message_create_ext(void) {
 			lineLength = 0;
 		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) { // Control characters
 			free(email.body);
-			return;
+			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_CONTROL);
 		} else if (p[copied] > 127) { // UTF-8
 			// TODO - Forbid for now
 			free(email.body);
-			return;
+			return shortResponse(NULL, AEM_API_ERR_TODO);
 		} else { // ASCII
 			lineLength++;
 			if (lineLength > 998) {
 				free(email.body);
-				return;
+				return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_LINE_TOOLONG);
 			}
 
 			email.body[email.lenBody] = p[copied];
 			email.lenBody++;
 		}
 
-		if (email.lenBody > lenBody + 950) {free(email.body); return;}
+		if (email.lenBody > lenBody + 950) {
+			free(email.body);
+			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_FORMAT);
+		}
 	}
 
 	while (email.lenBody > 0 && isspace(email.body[email.lenBody - 1]))
@@ -756,14 +759,17 @@ static void message_create_ext(void) {
 	memcpy(email.body + email.lenBody, "\r\n", 2);
 	email.lenBody += 2;
 
-	if (email.lenBody < 15) {free(email.body); return;}
+	if (email.lenBody < 15) {
+		free(email.body);
+		return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_TOOSHORT);
+	}
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) return; // @a.bc
+	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_TODOMAIN); // 5=@a.bc
 
 	const int sock = enquirySocket(AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	int lenMxDomain = 0;
 	email.ip = 0;
@@ -776,10 +782,8 @@ static void message_create_ext(void) {
 	|| recv(sock, &email.mxDomain, lenMxDomain, 0) != lenMxDomain
 	) {
 		close(sock);
-		unsigned char x[32]; // Errcode + max 31 bytes
-		x[0] = UINT8_MAX;
-		shortResponse(x, 1);
-		return;
+		free(email.body);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	email.mxDomain[lenMxDomain] = '\0';
@@ -791,10 +795,10 @@ static void message_create_ext(void) {
 
 	if (ret == 0) {
 		shortResponse(NULL, 0);
+	} else if (ret > 32) {
+		shortResponse(NULL, ret);
 	} else {
-		unsigned char x[32]; // Errcode + max 31 bytes
-		x[0] = ret;
-		shortResponse(x, 1);
+		shortResponse(NULL, AEM_API_ERR_FIXME);
 	}
 
 	free(email.body);
@@ -815,12 +819,12 @@ static void message_create_int(void) {
 	const bool fromShield  = (infoByte &  8) > 0;
 	const bool toShield    = (infoByte &  4) > 0;
 
-	if (lenDecrypted < (isEncrypted? 106 : 96)) return; // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (pubkey/ts): 96/106
+	if (lenDecrypted < (isEncrypted? 106 : 96)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TOOSHORT); // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (pubkey/ts): 96/106
 
 	unsigned char ts_sender[4];
 	if (isEncrypted) {
 		memcpy(ts_sender, decrypted + 1 + crypto_kx_PUBLICKEYBYTES, 4);
-		if (!ts_valid(ts_sender)) return;
+		if (!ts_valid(ts_sender)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TS_INVALID);
 	} else {
 		const uint32_t ts = (uint32_t)time(NULL);
 		memcpy(ts_sender, &ts, 4);
@@ -830,16 +834,16 @@ static void message_create_int(void) {
 	const size_t lenData = lenDecrypted - crypto_kx_PUBLICKEYBYTES - 5;
 
 	const unsigned char lenSubj = msgData[20 + crypto_kx_PUBLICKEYBYTES];
-	if (lenSubj > 127) return;
+	if (lenSubj > 127) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_SUBJECT_SIZE);
 
 	const unsigned char * const fromAddr32 = msgData;
 	const unsigned char * const toAddr32   = msgData + 10;
 
-	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return;
+	if (!addr32OwnedByPubkey(upk, fromAddr32, fromShield)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_ADDR_NOTOWN);
 
 	// Get receiver's pubkey
 	int sock = accountSocket(AEM_API_INTERNAL_ADRPK, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	unsigned char buf[11];
 	buf[0] = toShield? 'S' : 'N';
@@ -847,20 +851,20 @@ static void message_create_int(void) {
 	if (send(sock, buf, 11, 0) != 11) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	unsigned char toPubKey[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, toPubKey, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	close(sock);
 
 	// Forbid messaging oneself (pointless; not designed for it)
-	if (memcmp(upk, toPubKey, crypto_box_PUBLICKEYBYTES) == 0) return;
+	if (memcmp(upk, toPubKey, crypto_box_PUBLICKEYBYTES) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);
 
 	// Create message
 	const size_t lenContent = 6 + lenData;
@@ -873,7 +877,10 @@ static void message_create_int(void) {
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
 	sodium_memzero(content, lenContent);
-	if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); return;}
+	if (enc == NULL) {
+		syslog(LOG_ERR, "Failed creating encrypted message");
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	}
 
 	// Store message
 	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
@@ -882,13 +889,21 @@ static void message_create_int(void) {
 	memcpy(sockMsg + 2, toPubKey, crypto_box_PUBLICKEYBYTES);
 
 	sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) {free(enc); return;}
+	if (sock < 0) {
+		free(enc);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	}
 
 	const ssize_t sentBytes = send(sock, enc, lenEnc, 0);
 	free(enc);
 
 	unsigned char resp;
-	if (sentBytes != (ssize_t)(lenEnc) || recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); return;}
+	if (sentBytes != (ssize_t)(lenEnc) || recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {
+		syslog(LOG_ERR, "Failed communicating with Storage");
+		close(sock);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	}
+
 	close(sock);
 
 	deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
@@ -901,7 +916,7 @@ static void message_create(void) {
 
 static void message_delete(void) {
 	if (lenDecrypted % 16 != 0) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -927,7 +942,7 @@ static void message_delete(void) {
 
 static void message_public(void) {
 	if (getUserLevel(upk) != AEM_USERLEVEL_MAX || lenDecrypted < 59) { // 59 = 177-48-64-5-1
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -995,7 +1010,7 @@ static void message_public(void) {
 
 static void private_update(void) {
 	if (lenDecrypted != AEM_LEN_PRIVATE) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
@@ -1014,7 +1029,7 @@ static void private_update(void) {
 
 static void setting_limits(void) {
 	if (lenDecrypted != 12) {
-		shortResponse(NULL, AEM_API_ERR_IN_FORMAT);
+		shortResponse(NULL, AEM_API_ERR_FORMAT);
 		return;
 	}
 
