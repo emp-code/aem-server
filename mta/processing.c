@@ -212,7 +212,7 @@ static void decodeEncodedWord(unsigned char * const data, size_t * const lenData
 		} else break;
 
 		size_t lenUtf8 = 0;
-		unsigned char *utf8 = toUtf8(ewText, lenEwText, &lenUtf8, cs);
+		unsigned char *utf8 = toUtf8((char*)ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
 		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
@@ -277,7 +277,7 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 	return new;
 }
 
-static void convertToUtf8(unsigned char ** const src, size_t * const lenSrc, const char * const charset) {
+static void convertToUtf8(char ** const src, size_t * const lenSrc, const char * const charset) {
 	if (src == NULL || *src == NULL || charset == NULL || isUtf8(charset)) return;
 
 	size_t lenUtf8;
@@ -419,7 +419,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 
 		if (isText) {
 			char * const cs = getCharset(ct);
-			convertToUtf8(&new, &lenNew, cs);
+			convertToUtf8((char**)&new, &lenNew, cs);
 			if (cs != NULL) free(cs);
 
 			if (isHtml) {
@@ -563,7 +563,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 
 		if (strncasecmp(ct, "text/", 5) == 0 || lenCt < 2) {
 			char * const cs = getCharset(ct);
-			convertToUtf8(&email->body, &email->lenBody, cs);
+			convertToUtf8((char**)&email->body, &email->lenBody, cs);
 			if (cs != NULL) free(cs);
 
 			removeControlChars(email->body, &email->lenBody);
