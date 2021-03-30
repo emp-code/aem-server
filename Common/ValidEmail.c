@@ -6,11 +6,11 @@
 #include "ValidEmail.h"
 
 bool isValidEmail(const char * const email) {
-	const int lenEmail = strlen(email);
+	const size_t lenEmail = strlen(email);
 	if (lenEmail < 6 || lenEmail > 127) return false;
 
 	// Local part
-	int lenLocal = 0;
+	size_t lenLocal = 0;
 
 	for (;lenLocal < lenEmail; lenLocal++) {
 		if (isalnum(email[lenLocal])) continue;
