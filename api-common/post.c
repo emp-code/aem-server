@@ -375,24 +375,19 @@ static void address_update(void) {
 static void message_browse(void) {
 	unsigned char sockMsg[crypto_box_PUBLICKEYBYTES + 17];
 	memcpy(sockMsg, upk, crypto_box_PUBLICKEYBYTES);
-
-	if (lenDecrypted == 17)
-		memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
-	else if (lenDecrypted != 1) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted == 17) memcpy(sockMsg + crypto_box_PUBLICKEYBYTES, decrypted, lenDecrypted);
+	else if (lenDecrypted != 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	// Data to boxed
 	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999);
-	if (clr == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (clr == NULL) {syslog(LOG_ERR, "Failed allocation"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	ssize_t lenClr = 0;
 
 	// User info, if requested
 	if (decrypted[0] & AEM_FLAG_UINFO) {
 		const int sock = accountSocket(AEM_API_INTERNAL_UINFO, upk, crypto_box_PUBLICKEYBYTES);
-		if (sock < 0) {sodium_free(clr); return;}
+		if (sock < 0) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 		const ssize_t rbytes = recv(sock, clr, 9000, MSG_WAITALL);
 		close(sock);
@@ -400,7 +395,7 @@ static void message_browse(void) {
 		if (rbytes < 5) {
 			syslog(LOG_ERR, "Failed receiving data from Account");
 			sodium_free(clr);
-			return;
+			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 
 		lenClr += rbytes;
@@ -408,11 +403,11 @@ static void message_browse(void) {
 
 	// Message data
 	const int sock = storageSocket(AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((lenDecrypted == 17) ? lenDecrypted : 0));
-	if (sock < 0) {sodium_free(clr); return;}
+	if (sock < 0) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	const ssize_t lenRcv = recv(sock, clr + lenClr, AEM_MAXLEN_MSGDATA, MSG_WAITALL);
 	close(sock);
-	if (lenRcv < 1) {sodium_free(clr); return;}
+	if (lenRcv < 1) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	lenClr += lenRcv;
 
 	if (lenClr <= 32) return shortResponse(clr, lenClr);
@@ -437,7 +432,7 @@ static void message_browse(void) {
 	const size_t lenHeaders = strlen((char*)response);
 
 	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) {sodium_free(clr); return;}
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	sodium_free(clr);
 
 	lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
