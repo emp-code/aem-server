@@ -371,7 +371,7 @@ static void address_lookup(void) {
 }
 
 static void address_update(void) {
-	if (lenDecrypted != 9) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	if (lenDecrypted % 9 != 0) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const unsigned char resp = accountMessage(AEM_API_ADDRESS_UPDATE);
 	if (resp == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
