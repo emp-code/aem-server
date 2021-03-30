@@ -437,7 +437,10 @@ static void api_address_delete(const int sock, const int num) {
 		}
 	}
 
-	if (delNum < 0) return;
+	if (delNum < 0) {
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
+		return;
+	}
 
 	if (delNum < (addrCount - 1)) {
 		for (int i = delNum; i < addrCount - 1; i++) {
@@ -458,17 +461,21 @@ static void api_address_update(const int sock, const int num) {
 	const ssize_t len = recv(sock, buf, 8192, 0);
 	if (len < 1 || len % 9 != 0) return;
 
+	bool addressFound = false;
+
 	const int addrCount = user[num].info >> 3;
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
 				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+				addressFound = true;
 				break;
 			}
 		}
 	}
 
 	saveUser();
+	send(sock, (unsigned char[]){addressFound? AEM_INTERNAL_RESPONSE_OK : AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
 }
 
 static void api_private_update(const int sock, const int num) {
