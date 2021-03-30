@@ -140,6 +140,16 @@ static void shortResponse(const unsigned char * const data, const unsigned char 
 	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE_HEADERS + 33 + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
 }
 
+static unsigned char getUserLevel(const unsigned char * const pubkey) {
+	const int sock = accountSocket(AEM_API_INTERNAL_LEVEL, pubkey, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return 0;
+
+	unsigned char ret;
+	recv(sock, &ret, 1, 0);
+	close(sock);
+	return ret;
+}
+
 static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], const unsigned char * const msgContent, const size_t lenMsgContent) {
 	// Create message
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -173,6 +183,7 @@ static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], con
 
 static void account_browse(void) {
 	if (lenDecrypted != 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
@@ -525,16 +536,6 @@ static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsign
 
 	close(sock);
 	return isOk;
-}
-
-static unsigned char getUserLevel(const unsigned char * const pubkey) {
-	const int sock = accountSocket(AEM_API_INTERNAL_LEVEL, pubkey, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return 0;
-
-	unsigned char ret;
-	recv(sock, &ret, 1, 0);
-	close(sock);
-	return ret;
 }
 
 static int getAddr32(unsigned char target[10], const char * const src, const size_t lenSrc, bool * const isShield) {
@@ -941,10 +942,8 @@ static void message_delete(void) {
 }
 
 static void message_public(void) {
-	if (getUserLevel(upk) != AEM_USERLEVEL_MAX || lenDecrypted < 59) { // 59 = 177-48-64-5-1
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted < 59) return shortResponse(NULL, AEM_API_ERR_FORMAT); // 59 = 177-48-64-5-1
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return;
