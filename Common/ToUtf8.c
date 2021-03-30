@@ -16,11 +16,11 @@ bool isUtf8(const char * const charset) {
 	));
 }
 
-unsigned char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
+char *toUtf8(const char * const input, const size_t lenInput, size_t * const lenOut, const char * const charset) {
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset)) {
-		unsigned char * const new = malloc(lenInput + 1);
+		char * const new = malloc(lenInput + 1);
 		if (new == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 		memcpy(new, input, lenInput);
 		new[lenInput] = '\0';
@@ -42,5 +42,5 @@ unsigned char *toUtf8(const char * const input, const size_t lenInput, size_t * 
 	}
 
 	*lenOut = newLen;
-	return (unsigned char*)buf;
+	return buf;
 }

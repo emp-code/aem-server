@@ -212,7 +212,7 @@ static void decodeEncodedWord(unsigned char * const data, size_t * const lenData
 		} else break;
 
 		size_t lenUtf8 = 0;
-		unsigned char *utf8 = toUtf8((char*)ewText, lenEwText, &lenUtf8, cs);
+		char * const utf8 = toUtf8((char*)ewText, lenEwText, &lenUtf8, cs);
 		if (utf8 == NULL) break;
 
 		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
@@ -281,7 +281,7 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	if (src == NULL || *src == NULL || charset == NULL || isUtf8(charset)) return;
 
 	size_t lenUtf8;
-	unsigned char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
+	char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
 	if (utf8 == NULL) return;
 
 	free(*src);
