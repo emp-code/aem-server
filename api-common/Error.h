@@ -12,6 +12,7 @@
 #define AEM_API_ERR_FIXME     0x26
 
 #define AEM_API_ERR_NOTEXIST  0x2A
+#define AEM_API_ERR_EXIST     0x2B
 
 // 0xE0-0xEF	Message/Create
 #define AEM_API_ERR_MESSAGE_CREATE_EXT_MINLEVEL        0xE0

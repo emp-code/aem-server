@@ -235,11 +235,18 @@ static void account_create(void) {
 	recv(sock, &resp, 1, 0);
 	close(sock);
 
-	if (resp == AEM_INTERNAL_RESPONSE_OK) {
-		shortResponse(NULL, 0);
-		systemMessage(decrypted, AEM_WELCOME, AEM_WELCOME_LEN);
-	} else {
-		shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	switch (resp) {
+		case AEM_INTERNAL_RESPONSE_OK:
+			systemMessage(decrypted, AEM_WELCOME, AEM_WELCOME_LEN);
+			shortResponse(NULL, 0);
+		break;
+
+		case AEM_INTERNAL_RESPONSE_EXIST:
+			shortResponse(NULL, AEM_API_ERR_EXIST);
+		break;
+
+		default:
+			shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 }
 

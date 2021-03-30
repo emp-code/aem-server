@@ -308,7 +308,10 @@ static void api_account_create(const int sock, const int num) {
 	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
 	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
 
-	if (userNumFromPubkey(pubkey_new) >= 0) return;
+	if (userNumFromPubkey(pubkey_new) >= 0) {
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
+		return;
+	}
 
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
 	if (user2 == NULL) {syslog(LOG_ERR, "Failed allocaction"); return;}
