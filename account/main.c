@@ -585,7 +585,11 @@ static void takeConnections(void) {
 
 		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_API) == 0) {
 			const int num = userNumFromPubkey(req + 1);
-			if (num < 0) {close(sockClient); continue;}
+			if (num < 0) {
+				send(sockClient, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
+				close(sockClient);
+				continue;
+			}
 
 			switch (req[0]) {
 				case AEM_API_ACCOUNT_BROWSE: api_account_browse(sockClient, num); break;

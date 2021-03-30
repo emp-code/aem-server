@@ -1028,24 +1028,23 @@ static void setting_limits(void) {
 }
 
 int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
-	if (sealEnc == NULL) return -1;
+	if (sealEnc == NULL) return AEM_INTERNAL_RESPONSE_ERR;
 	keepAlive = ka;
 
 	unsigned char sealDec[AEM_API_SEALBOX_SIZE - crypto_box_SEALBYTES];
-	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return -1;
+	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return AEM_INTERNAL_RESPONSE_ERR;
 
 	postCmd = sealDec[0];
 	memcpy(postNonce, sealDec + 1, crypto_box_NONCEBYTES);
 	memcpy(upk, sealDec + 1 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return -1;
+	if (sock < 0) return AEM_INTERNAL_RESPONSE_ERR;
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return -1;}
+	unsigned char resp = AEM_INTERNAL_RESPONSE_ERR;
+	recv(sock, &resp, 1, 0);
 	close(sock);
-
-	return (resp == AEM_INTERNAL_RESPONSE_OK) ? 0 : -1;
+	return resp;
 }
 
 __attribute__((warn_unused_result))
