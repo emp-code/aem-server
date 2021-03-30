@@ -27,9 +27,6 @@
 
 #define AEM_API_HTTP
 
-#define AEM_API_ERROR -1
-#define AEM_API_NOCONTENT 0
-
 static bool keepAlive;
 static int postCmd;
 static unsigned char postNonce[crypto_box_NONCEBYTES];
@@ -37,7 +34,7 @@ static unsigned char postNonce[crypto_box_NONCEBYTES];
 static unsigned char upk[crypto_box_PUBLICKEYBYTES];
 static unsigned char *response = NULL;
 static unsigned char *decrypted = NULL;
-static int lenResponse = AEM_API_ERROR;
+static int lenResponse;
 static uint32_t lenDecrypted;
 
 static unsigned char spk[crypto_box_PUBLICKEYBYTES];
@@ -1050,7 +1047,7 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 	lenDecrypted = lenBox - crypto_box_MACBYTES;
 
 	sodium_mprotect_readonly(decrypted);
-	lenResponse = -1;
+	lenResponse = AEM_API_ERR_MISC;
 
 	switch (postCmd) {
 		case AEM_API_ACCOUNT_BROWSE: account_browse(); break;
@@ -1075,9 +1072,6 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 
 	clearDecrypted();
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
-
-	if (lenResponse < 0) shortResponse(NULL, AEM_API_ERR_MISC);
-	if (lenResponse < 0) return -1;
 
 	*response_p = response;
 	return lenResponse;
