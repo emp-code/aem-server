@@ -59,7 +59,19 @@ void respondClient(int sock) {
 		if (lenPost < AEM_API_SEALBOX_SIZE) break;
 
 		ret = aem_api_prepare(buf, keepAlive);
-		if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {
+		if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) {
+			sendData(&ssl,
+				"HTTP/1.1 400 aem\r\n"
+				"Tk: N\r\n"
+				"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+				"Expect-CT: enforce, max-age=99999999\r\n"
+				"Content-Length: 0\r\n"
+				"Access-Control-Allow-Origin: *\r\n"
+				"Connection: close\r\n"
+				"\r\n",
+				208);
+			break;
+		} else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {
 			sendData(&ssl,
 				"HTTP/1.1 403 aem\r\n"
 				"Tk: N\r\n"

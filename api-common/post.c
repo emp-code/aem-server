@@ -1032,7 +1032,7 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	keepAlive = ka;
 
 	unsigned char sealDec[AEM_API_SEALBOX_SIZE - crypto_box_SEALBYTES];
-	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return AEM_INTERNAL_RESPONSE_ERR;
+	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return AEM_INTERNAL_RESPONSE_CRYPTOFAIL;
 
 	postCmd = sealDec[0];
 	memcpy(postNonce, sealDec + 1, crypto_box_NONCEBYTES);
