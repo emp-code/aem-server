@@ -142,7 +142,7 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 			lenRef++; // Include semicolon
 		} else { // Named reference
 			lenRef = strspn((char*)c + 1, "12345678ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz"); // All alphanumerics except '0' and '9' occur in names
-			if (lenRef < 2) {c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + 1 + lenRef)); continue;} // Invalid
+			if (lenRef < 2 || lenRef > 31) {c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + 1 + lenRef)); continue;} // Invalid
 			if (c[lenRef + 1] == ';') lenRef++;
 
 			unsigned char ref[lenRef + 1];
