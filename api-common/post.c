@@ -304,26 +304,22 @@ static void account_update(void) {
 }
 
 static void address_create(void) {
-	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed sending data to Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	if (lenDecrypted == 8) { // Normal
 		unsigned char ret;
 		recv(sock, &ret, 1, 0);
 		close(sock);
-		if (ret == AEM_INTERNAL_RESPONSE_OK) shortResponse(NULL, 0);
-		return;
+		if (ret == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
 	}
 
 	// Shield
@@ -331,34 +327,36 @@ static void address_create(void) {
 	if (recv(sock, data, 18, 0) != 18) {
 		syslog(LOG_ERR, "Failed receiving data from Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	close(sock);
 	shortResponse(data, 18);
 }
 
-static void address_delete(void) {
-	if (lenDecrypted != 8) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
-
-	const int sock = accountSocket(AEM_API_ADDRESS_DELETE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+static unsigned char accountMessage(const unsigned char command) {
+	const int sock = accountSocket(command, upk, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return AEM_INTERNAL_RESPONSE_NONE;
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return AEM_INTERNAL_RESPONSE_NONE;
 	}
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) == 1 && resp == AEM_INTERNAL_RESPONSE_OK) {
-		shortResponse(NULL, 0);
-	}
-
+	unsigned char resp = AEM_INTERNAL_RESPONSE_NONE;
+	if (recv(sock, &resp, 1, 0) != 1) syslog(LOG_ERR, "Failed communicating with Account");
 	close(sock);
+	return resp;
+}
+
+static void address_delete(void) {
+	if (lenDecrypted != 8) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+
+	const unsigned char resp = accountMessage(AEM_API_ADDRESS_DELETE);
+	if (resp == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
+	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_NOTEXIST);
+	return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
 
 static void address_lookup(void) {
@@ -366,22 +364,12 @@ static void address_lookup(void) {
 }
 
 static void address_update(void) {
-	if (lenDecrypted % 9 != 0) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != 9) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
-	const int sock = accountSocket(AEM_API_ADDRESS_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
-
-	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
-		syslog(LOG_ERR, "Failed communicating with Account");
-		close(sock);
-		return;
-	}
-
-	close(sock);
-	shortResponse(NULL, 0);
+	const unsigned char resp = accountMessage(AEM_API_ADDRESS_UPDATE);
+	if (resp == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
+	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_NOTEXIST);
+	return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
 
 static void message_browse(void) {
