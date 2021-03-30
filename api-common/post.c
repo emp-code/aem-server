@@ -294,9 +294,7 @@ static void account_update(void) {
 	close(sock);
 
 	if (resp == AEM_INTERNAL_RESPONSE_OK) {
-		char sysMsg[100];
-		sprintf(sysMsg, "Account level set to %d\nYour account level has been set to %d.", decrypted[0], decrypted[0]);
-		systemMessage(decrypted + 1, (unsigned char*)sysMsg, strlen(sysMsg));
+		systemMessage(decrypted + 1, (const unsigned char[]){'A','c','c','o','u','n','t',' ','l','e','v','e','l',' ','s','e','t',' ','t','o',' ','0' + decrypted[0],'\n','Y','o','u','r',' ','a','c','c','o','u','n','t',' ','l','e','v','e','l',' ','h','a','s',' ','b','e','e','n',' ','s','e','t',' ','t','o',' ','0' + decrypted[0],'.'}, 60);
 		shortResponse(NULL, 0);
 	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		shortResponse(NULL, AEM_API_ERR_ADMINONLY);
