@@ -8,6 +8,8 @@
 
 #include "HtmlPlaceholders.h"
 
+#include "HtmlRefs.h"
+
 static size_t utf8char(unsigned char * const text, const unsigned int codepoint) {
 	if (codepoint == 9 || codepoint == 10) { // Tab/Linefeed -> Space
 		text[0] = ' ';

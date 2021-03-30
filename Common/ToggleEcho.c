@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <unistd.h>
 
+#include "ToggleEcho.h"
+
 void toggleEcho(const bool on) {
 	struct termios t;
 	if (tcgetattr(STDIN_FILENO, &t) != 0) return;
