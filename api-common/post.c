@@ -389,39 +389,6 @@ static void address_update(void) {
 	shortResponse(NULL, 0);
 }
 
-static void message_upload(void) {
-	const uint32_t ts = (uint32_t)time(NULL);
-
-	unsigned char * const msg = malloc(5 + lenDecrypted);
-	if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
-
-	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
-	memcpy(msg + 1, &ts, 4);
-	memcpy(msg + 5, decrypted, lenDecrypted);
-
-	size_t lenEnc;
-	unsigned char * const enc = msg_encrypt(upk, msg, 5 + lenDecrypted, &lenEnc);
-	free(msg);
-	if (enc == NULL) return;
-
-	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
-	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-	memcpy(sockMsg, &u, 2);
-	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
-
-	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) {free(enc); return;}
-
-	if (send(sock, enc, lenEnc, 0) != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
-
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); close(sock); return;}
-	close(sock);
-
-	shortResponse(enc, 16);
-	free(enc);
-}
-
 static void message_browse(void) {
 	unsigned char sockMsg[crypto_box_PUBLICKEYBYTES + 17];
 	memcpy(sockMsg, upk, crypto_box_PUBLICKEYBYTES);
@@ -975,6 +942,39 @@ static void message_public(void) {
 	free(pubKeys);
 	sodium_memzero(content, lenContent);
 	shortResponse(msgId, 16);
+}
+
+static void message_upload(void) {
+	const uint32_t ts = (uint32_t)time(NULL);
+
+	unsigned char * const msg = malloc(5 + lenDecrypted);
+	if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
+	msg[0] = msg_getPadAmount(5 + lenDecrypted) | 32;
+	memcpy(msg + 1, &ts, 4);
+	memcpy(msg + 5, decrypted, lenDecrypted);
+
+	size_t lenEnc;
+	unsigned char * const enc = msg_encrypt(upk, msg, 5 + lenDecrypted, &lenEnc);
+	free(msg);
+	if (enc == NULL) return;
+
+	unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
+	const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+	memcpy(sockMsg, &u, 2);
+	memcpy(sockMsg + 2, upk, crypto_box_PUBLICKEYBYTES);
+
+	const int sock = storageSocket(AEM_API_MESSAGE_UPLOAD, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) {free(enc); return;}
+
+	if (send(sock, enc, lenEnc, 0) != (ssize_t)lenEnc) {syslog(LOG_ERR, "Failed communicating with Storage"); close(sock); free(enc); return;}
+
+	unsigned char resp;
+	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Failed communicating with Storage"); free(enc); close(sock); return;}
+	close(sock);
+
+	shortResponse(enc, 16);
+	free(enc);
 }
 
 static void private_update(void) {
