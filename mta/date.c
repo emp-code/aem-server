@@ -5,7 +5,7 @@
 
 #include "date.h"
 
-int monthFromName(const char * const c) {
+static int monthFromName(const char * const c) {
 	if (strncasecmp(c, "Jan", 3) == 0) return 0;
 	if (strncasecmp(c, "Feb", 3) == 0) return 1;
 	if (strncasecmp(c, "Mar", 3) == 0) return 2;
@@ -69,6 +69,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (*end != ':') return 0;
 	b = end;
 	offset = 1;
+
 	while (b[offset] == ' ') offset++;
 
 	const int sec = strtol(b + offset, &end, 10);
