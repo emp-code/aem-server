@@ -27,11 +27,6 @@
 
 #define AEM_API_HTTP
 
-#define AEM_VIOLATION_ACCOUNT_CREATE 0x72436341
-#define AEM_VIOLATION_ACCOUNT_DELETE 0x65446341
-#define AEM_VIOLATION_ACCOUNT_UPDATE 0x70556341
-#define AEM_VIOLATION_SETTING_LIMITS 0x694c6553
-
 #define AEM_API_ERROR -1
 #define AEM_API_NOCONTENT 0
 
@@ -88,11 +83,6 @@ static void clearDecrypted(void) {
 }
 
 #include "../Common/Message.c"
-
-static void userViolation(const int violation) {
-	syslog(LOG_WARNING, "Violation");
-	// ...
-}
 
 static void shortResponse(const unsigned char * const data, const unsigned char len) {
 #ifndef AEM_IS_ONION
@@ -232,109 +222,89 @@ static void account_browse(void) {
 }
 
 static void account_create(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_CREATE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
-
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1 || resp != AEM_INTERNAL_RESPONSE_OK) {
-		close(sock);
-		return;
-	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
-		userViolation(AEM_VIOLATION_ACCOUNT_CREATE);
-		close(sock);
-		return;
-	}
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
-	resp = 0;
+	unsigned char resp = 0;
 	recv(sock, &resp, 1, 0);
 	close(sock);
 
 	if (resp == AEM_INTERNAL_RESPONSE_OK) {
 		shortResponse(NULL, 0);
 		systemMessage(decrypted, AEM_WELCOME, AEM_WELCOME_LEN);
+	} else {
+		shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 }
 
 static void account_delete(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	int sock = accountSocket(AEM_API_ACCOUNT_DELETE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	unsigned char resp;
 	if (recv(sock, &resp, 1, 0) != 1) {
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
 		close(sock);
-		userViolation(AEM_VIOLATION_ACCOUNT_DELETE);
-//		shortResponse((unsigned char*)"Violation", 9);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 	} else if (resp != AEM_INTERNAL_RESPONSE_OK) {
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	close(sock);
 	shortResponse(NULL, 0);
 
 	sock = storageSocket(AEM_API_INTERNAL_ERASE, decrypted, lenDecrypted);
-	if (sock < 0) return;
+	if (sock < 0) return; // TODO
 	close(sock);
 }
 
 static void account_update(void) {
-	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != crypto_box_PUBLICKEYBYTES + 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return;}
+	unsigned char resp = 0;
+	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	close(sock);
 
 	if (resp == AEM_INTERNAL_RESPONSE_OK) {
 		char sysMsg[100];
 		sprintf(sysMsg, "Account level set to %d\nYour account level has been set to %d.", decrypted[0], decrypted[0]);
 		systemMessage(decrypted + 1, (unsigned char*)sysMsg, strlen(sysMsg));
-
 		shortResponse(NULL, 0);
 	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
-		userViolation(AEM_VIOLATION_ACCOUNT_UPDATE);
-//		shortResponse((unsigned char*)"Violation", 9);
+		shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 	} else {
-		// No response from Account
+		shortResponse(NULL, AEM_API_ERR_FIXME);
 	}
 }
 
@@ -1027,31 +997,20 @@ static void private_update(void) {
 }
 
 static void setting_limits(void) {
-	if (lenDecrypted != 12) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != 12) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {
-		close(sock);
-		return;
-	} else if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
-		userViolation(AEM_VIOLATION_SETTING_LIMITS);
-		close(sock);
-		return;
-	} else if (resp != AEM_INTERNAL_RESPONSE_OK) {
-		close(sock);
-		return;
-	}
+	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (resp != AEM_INTERNAL_RESPONSE_OK) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	close(sock);

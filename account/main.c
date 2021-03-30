@@ -298,13 +298,7 @@ static void api_account_browse(const int sock, const int num) {
 }
 
 static void api_account_create(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
-		return;
-	}
-
-	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
+	if ((user[num].info & 3) != 3) return;
 
 	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
 	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
@@ -490,13 +484,7 @@ static void api_private_update(const int sock, const int num) {
 }
 
 static void api_setting_limits(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) {
-		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
-		return;
-	}
-
-	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
+	if ((user[num].info & 3) != 3) return;
 
 	unsigned char buf[12];
 	if (recv(sock, buf, 12, 0) != 12) return;
@@ -504,6 +492,8 @@ static void api_setting_limits(const int sock, const int num) {
 	memcpy(limits, buf, 12);
 
 //	saveSettings(); // TODO
+
+	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
 }
 
 static void api_internal_level(const int sock, const int num) {
