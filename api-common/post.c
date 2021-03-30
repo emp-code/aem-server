@@ -790,8 +790,8 @@ static void message_create_int(void) {
 
 	close(sock);
 
-	// Forbid messaging oneself (pointless; not designed for it)
-	if (memcmp(upk, toPubKey, crypto_box_PUBLICKEYBYTES) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);
+	if (memcmp(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);
+	if (memcmp(toPubKey, upk, crypto_box_PUBLICKEYBYTES) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF); // Forbid messaging oneself (pointless; not designed for it)
 
 	// Create message
 	const size_t lenContent = 6 + lenData;
