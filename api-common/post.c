@@ -714,7 +714,7 @@ static void message_create_ext(void) {
 	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
 	|| lenMxDomain < 4
 	|| lenMxDomain > 255
-	|| recv(sock, &email.mxDomain, lenMxDomain, 0) != lenMxDomain
+	|| recv(sock, email.mxDomain, lenMxDomain, 0) != lenMxDomain
 	) {
 		close(sock);
 		free(email.body);
