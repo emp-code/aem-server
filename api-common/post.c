@@ -415,6 +415,9 @@ static void message_browse(void) {
 	if (lenRcv < 1) {sodium_free(clr); return;}
 	lenClr += lenRcv;
 
+	if (lenClr <= 32) return shortResponse(clr, lenClr);
+
+	// Long response
 	const char * const kaStr = keepAlive ? "Connection: keep-alive\r\nKeep-Alive: timeout=30\r\n" : "";
 
 	// Prepare and send response
