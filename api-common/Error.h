@@ -3,7 +3,7 @@
 
 // Server-side error code range: 0x21-0xFF (33-255)
 
-// 0x20-0x2F	Generic
+// 0x21-0x2F	Generic
 #define AEM_API_ERR_FORMAT    0x21
 #define AEM_API_ERR_ADMINONLY 0x22
 #define AEM_API_ERR_MISC      0x23
