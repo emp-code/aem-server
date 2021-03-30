@@ -326,7 +326,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
 
 	// Quit
-	if (smtp_send(sock, "QUIT\r\n", 6) < 0) len = smtp_recv(sock, buf, 512);
+	if (smtp_send(sock, "QUIT\r\n", 6) < 0) smtp_recv(sock, buf, 512);
 	closeTls(sock);
 	return 0;
 }
