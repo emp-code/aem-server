@@ -391,9 +391,9 @@ static void api_address_create(const int sock, const int num) {
 		if (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) return; // Forbid addresses ending with 'administrator'
 
 		hash = addressToHash(addr32, true);
-		if (hash == 0) return;
+		if (hash == 0 || hash == UINT64_MAX) return;
 	} else if (len == 8) {
-		if (hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return;
+		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return;
 
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
