@@ -991,18 +991,15 @@ static void message_upload(void) {
 }
 
 static void private_update(void) {
-	if (lenDecrypted != AEM_LEN_PRIVATE) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != AEM_LEN_PRIVATE) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const int sock = accountSocket(AEM_API_PRIVATE_UPDATE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
-		return;
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	close(sock);
