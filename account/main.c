@@ -331,8 +331,7 @@ static void api_account_delete(const int sock, const int num) {
 
 	// Users can only delete themselves
 	if ((user[num].info & 3) != 3 && delNum != num) {
-		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_VIOLATION}, 1, 0);
 		return;
 	}
 
