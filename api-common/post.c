@@ -172,25 +172,22 @@ static void systemMessage(unsigned char toPubKey[crypto_box_PUBLICKEYBYTES], con
 }
 
 static void account_browse(void) {
-	if (lenDecrypted != 1) {
-		shortResponse(NULL, AEM_API_ERR_FORMAT);
-		return;
-	}
+	if (lenDecrypted != 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const int sock = accountSocket(AEM_API_ACCOUNT_BROWSE, upk, crypto_box_PUBLICKEYBYTES);
-	if (sock < 0) return;
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	int userCount;
-	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return;}
-	if (userCount < 1 || userCount > 65535) {close(sock); return;}
+	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (userCount < 1 || userCount >= UINT16_MAX) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	unsigned char * const clr = malloc(userCount * 35);
-	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return;}
+	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	const ssize_t lenClr = recv(sock, clr, userCount * 35, MSG_WAITALL);
 	close(sock);
 
-	if (lenClr < 10) {free(clr); return;}
+	if (lenClr < 10) {free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
@@ -214,8 +211,11 @@ static void account_browse(void) {
 	const size_t lenHeaders = strlen((char*)response);
 
 	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) == 0)
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) == 0) {
 		lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
+	} else {
+		shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	}
 
 	free(clr);
 }
