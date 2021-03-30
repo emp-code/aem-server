@@ -41,36 +41,20 @@ void respondClient(const int sock) {
 		if (lenPost < AEM_API_SEALBOX_SIZE) break;
 
 		ret = aem_api_prepare(buf, keepAlive);
-		
-		if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) {
-			send(sock,
-				"HTTP/1.1 400 aem\r\n"
-				"Tk: N\r\n"
-				"Content-Length: 0\r\n"
-				"Access-Control-Allow-Origin: *\r\n"
-				"Connection: close\r\n"
-				"\r\n",
-				97, 0);
-			break;
-		} else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {
-			send(sock,
-				"HTTP/1.1 403 aem\r\n"
-				"Tk: N\r\n"
-				"Content-Length: 0\r\n"
-				"Access-Control-Allow-Origin: *\r\n"
-				"Connection: close\r\n"
-				"\r\n",
-				97, 0);
-			break;
-		} else if (ret != AEM_INTERNAL_RESPONSE_OK) {
-			send(sock,
+		if (ret != AEM_INTERNAL_RESPONSE_OK) {
+			char txt[] =
 				"HTTP/1.1 500 aem\r\n"
 				"Tk: N\r\n"
 				"Content-Length: 0\r\n"
 				"Access-Control-Allow-Origin: *\r\n"
 				"Connection: close\r\n"
-				"\r\n",
-				97, 0);
+				"\r\n"
+			;
+
+			if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) txt[9] = '4'; // 400
+			else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {txt[9] = '4'; txt[11] = '3';} // 403
+
+			send(sock, txt, 97, 0);
 			break;
 		}
 
