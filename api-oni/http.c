@@ -43,34 +43,34 @@ void respondClient(const int sock) {
 		ret = aem_api_prepare(buf, keepAlive);
 		
 		if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) {
-			sendData(&ssl,
+			send(sock,
 				"HTTP/1.1 400 aem\r\n"
 				"Tk: N\r\n"
 				"Content-Length: 0\r\n"
 				"Access-Control-Allow-Origin: *\r\n"
 				"Connection: close\r\n"
 				"\r\n",
-				97);
+				97, 0);
 			break;
 		} else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {
-			sendData(&ssl,
+			send(sock,
 				"HTTP/1.1 403 aem\r\n"
 				"Tk: N\r\n"
 				"Content-Length: 0\r\n"
 				"Access-Control-Allow-Origin: *\r\n"
 				"Connection: close\r\n"
 				"\r\n",
-				97);
+				97, 0);
 			break;
 		} else if (ret != AEM_INTERNAL_RESPONSE_OK) {
-			sendData(&ssl,
+			send(sock,
 				"HTTP/1.1 500 aem\r\n"
 				"Tk: N\r\n"
 				"Content-Length: 0\r\n"
 				"Access-Control-Allow-Origin: *\r\n"
 				"Connection: close\r\n"
 				"\r\n",
-				97);
+				97, 0);
 			break;
 		}
 
