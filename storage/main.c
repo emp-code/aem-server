@@ -529,11 +529,12 @@ static void takeConnections(void) {
 					const ssize_t lenIds = recv(sock, ids, 8192, 0);
 					if (lenIds % 16 != 0) {
 						syslog(LOG_ERR, "Message/Delete: Invalid data received");
-						send(sock, (unsigned char[]){'\0'}, 1, 0);
+						send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_ERR}, 1, 0);
 						break;
 					}
 
 					unsigned char resp = AEM_INTERNAL_RESPONSE_ERR;
+
 					for (int i = 0; i < lenIds / 16; i++) {
 						if (storage_delete(clr + 1, ids + i * 16) == 0) resp = AEM_INTERNAL_RESPONSE_OK;
 					}
