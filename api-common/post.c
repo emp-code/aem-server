@@ -262,21 +262,13 @@ static void account_delete(void) {
 		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {
-		close(sock);
-		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	}
-
-	if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) {
-		close(sock);
-		return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
-	} else if (resp != AEM_INTERNAL_RESPONSE_OK) {
-		close(sock);
-		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	}
-
+	unsigned char resp = 0;
+	recv(sock, &resp, 1, 0);
 	close(sock);
+
+	if (resp == AEM_INTERNAL_RESPONSE_VIOLATION) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
+	if (resp != AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+
 	shortResponse(NULL, 0);
 
 	sock = storageSocket(AEM_API_INTERNAL_ERASE, decrypted, lenDecrypted);
