@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
@@ -477,7 +478,8 @@ static void takeConnections(void) {
 
 					char path[77];
 					getMsgPath(path, clr + 1);
-					unlink(path);
+					int unlinkRet = unlink(path);
+					if (unlinkRet == -1 && errno == ENOENT) unlinkRet = 0; // Treat file not existing (no message data to delete) as success
 
 					int delNum = -1;
 					for (int i = 0; i < stindexCount; i++) {
@@ -497,7 +499,7 @@ static void takeConnections(void) {
 						saveStindex();
 					}
 
-					if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed send");
+					if (send(sock, (unsigned char[]){(unlinkRet == 0) ? AEM_INTERNAL_RESPONSE_OK : AEM_INTERNAL_RESPONSE_ERR}, 1, 0) != 1) syslog(LOG_ERR, "Failed send");
 				break;}
 
 				case AEM_API_MESSAGE_BROWSE: {
