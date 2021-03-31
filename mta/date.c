@@ -21,6 +21,8 @@ static int monthFromName(const char * const c) {
 	return -1;
 }
 
+// Tue, 19 Oct 2012 09:59:39 -0700
+// Mon, 15 Sep 2008 11:30:55
 time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (b == NULL || b[0] == '\0') return 0;
 
@@ -60,12 +62,14 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	while (b[offset] == ' ') offset++;
 
 	const long hour = strtol(b + offset, &end, 10);
+	if (hour < 0 || hour > 23) return 0;
 	if (*end != ':') return 0;
 	b = end;
 	offset = 1;
 	while (b[offset] == ' ') offset++;
 
 	const long min = strtol(b + offset, &end, 10);
+	if (min < 0 || min > 59) return 0;
 	if (*end != ':') return 0;
 	b = end;
 	offset = 1;
@@ -73,6 +77,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	while (b[offset] == ' ') offset++;
 
 	const long sec = strtol(b + offset, &end, 10);
+	if (sec < 0 || sec > 59) return 0;
 	if (*end != ' ') return 0;
 	b = end;
 	offset = 0;
