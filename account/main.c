@@ -378,35 +378,51 @@ static void api_account_update(const int sock, const int num) {
 
 static void api_address_create(const int sock, const int num) {
 	int addrCount = user[num].info >> 3;
-	if (addrCount >= AEM_ADDRESSES_PER_USER) return;
+	if (addrCount >= AEM_ADDRESSES_PER_USER) {
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
+		return;
+	}
 
-	unsigned char addr32[10];
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+
 	uint64_t hash;
-
 	const ssize_t len = recv(sock, &hash, 8, 0);
 	const bool isShield = (len == 6 && memcmp(&hash, "SHIELD", 6) == 0);
 
+	unsigned char addr32[10];
 	if (isShield) {
 		randombytes_buf(addr32, 10);
-		if (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) return; // Forbid addresses ending with 'administrator'
+		hash = (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
 
-		hash = addressToHash(addr32, true);
-		if (hash == 0 || hash == UINT64_MAX) return;
+		if (hash == 0 || hash == UINT64_MAX) {
+			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
+			return;
+		}
 	} else if (len == 8) {
-		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return;
-
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
 			for (unsigned int i = 0; i < AEM_HASH_ADMIN_COUNT; i++) {
-				if (hash == AEM_HASH_ADMIN[i]) return;
+				if (hash == AEM_HASH_ADMIN[i]) {
+					hash = 0;
+					break;
+				}
 			}
+		}
+
+		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) {
+			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
+			return;
 		}
 	} else {
 		syslog(LOG_ERR, "Failed receiving data from API");
 		return;
 	}
 
-	if (hashToUserNum(hash, isShield, NULL) >= 0) return; // Address in use
+	if (hashToUserNum(hash, isShield, NULL) >= 0) {
+		// Address in use
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
+		return;
+	}
 
 	user[num].addrHash[addrCount] = hash;
 	user[num].addrFlag[addrCount] = isShield? (AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD) : AEM_ADDR_FLAGS_DEFAULT;
@@ -463,21 +479,26 @@ static void api_address_update(const int sock, const int num) {
 	const ssize_t len = recv(sock, buf, 8192, 0);
 	if (len < 1 || len % 9 != 0) return;
 
-	bool addressFound = false;
+	int found = 0;
 
 	const int addrCount = user[num].info >> 3;
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
 				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
-				addressFound = true;
+				found++;
 				break;
 			}
 		}
 	}
 
 	saveUser();
-	send(sock, (unsigned char[]){addressFound? AEM_INTERNAL_RESPONSE_OK : AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
+
+	unsigned char resp = AEM_INTERNAL_RESPONSE_NOTEXIST;
+	if (found == len / 9) resp = AEM_INTERNAL_RESPONSE_OK;
+	else if (found > 0) resp = AEM_INTERNAL_RESPONSE_PARTIAL;
+
+	send(sock, &resp, 1, 0);
 }
 
 static void api_private_update(const int sock, const int num) {

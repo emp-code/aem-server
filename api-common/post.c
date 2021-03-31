@@ -316,6 +316,11 @@ static void address_create(void) {
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
+	unsigned char ret;
+	if (recv(sock, &ret, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (ret == AEM_INTERNAL_RESPONSE_LIMIT) {close(sock); return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);}
+	if (ret != AEM_INTERNAL_RESPONSE_OK) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed sending data to Account");
 		close(sock);
@@ -323,22 +328,23 @@ static void address_create(void) {
 	}
 
 	if (lenDecrypted == 8) { // Normal
-		unsigned char ret;
-		recv(sock, &ret, 1, 0);
+		if (recv(sock, &ret, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 		close(sock);
 		if (ret == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
+		if (ret == AEM_INTERNAL_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	// Shield
 	unsigned char data[18];
-	if (recv(sock, data, 18, 0) != 18) {
-		syslog(LOG_ERR, "Failed receiving data from Account");
-		close(sock);
-		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	}
-
+	const ssize_t lenData = recv(sock, data, 18, 0);
 	close(sock);
-	shortResponse(data, 18);
+
+	if (lenData == 1 && data[0] == AEM_INTERNAL_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
+	if (lenData == 18) return shortResponse(data, 18);
+
+	syslog(LOG_ERR, "Failed receiving data from Account");
+	shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
 
 static unsigned char accountMessage(const unsigned char command) {
@@ -362,7 +368,8 @@ static void address_delete(void) {
 
 	const unsigned char resp = accountMessage(AEM_API_ADDRESS_DELETE);
 	if (resp == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
-	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_NOTEXIST);
+	if (resp == AEM_INTERNAL_RESPONSE_PARTIAL) return shortResponse(NULL, AEM_API_ERR_ADDRESS_DELETE_SOMEFOUND);
+	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_DELETE_NONEFOUND);
 	return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
 
@@ -375,7 +382,8 @@ static void address_update(void) {
 
 	const unsigned char resp = accountMessage(AEM_API_ADDRESS_UPDATE);
 	if (resp == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
-	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_NOTEXIST);
+	if (resp == AEM_INTERNAL_RESPONSE_PARTIAL) return shortResponse(NULL, AEM_API_ERR_ADDRESS_UPDATE_SOMEFOUND);
+	if (resp == AEM_INTERNAL_RESPONSE_NOTEXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_UPDATE_NONEFOUND);
 	return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
 
