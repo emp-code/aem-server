@@ -496,6 +496,8 @@ static void takeConnections(void) {
 						stindexCount--;
 						saveStindex();
 					}
+
+					if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed send");
 				break;}
 
 				case AEM_API_MESSAGE_BROWSE: {

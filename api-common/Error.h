@@ -12,6 +12,9 @@
 #define AEM_API_ERR_FIXME     0x26
 #define AEM_API_ERR_EXIST     0x2A
 
+// 0x30-0x3F	Misc
+#define AEM_API_ERR_ACCOUNT_DELETE_NOSTORAGE 0x30
+
 // 0xDA-0xDF	Address/Create|Delete|Update
 #define AEM_API_ERR_ADDRESS_CREATE_INUSE     0xDA
 #define AEM_API_ERR_ADDRESS_CREATE_ATLIMIT   0xDB
