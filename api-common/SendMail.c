@@ -19,8 +19,6 @@
 
 #define AEM_API_SMTP
 
-static bool useTls;
-
 static unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
 static unsigned char msgId_aesKey[32];
 
@@ -216,16 +214,12 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 }
 
 static int smtp_recv(const int sock, char * const buf, const size_t len) {
-	if (!useTls) return recv(sock, buf, len, 0);
-
 	int ret;
 	do {ret = mbedtls_ssl_read(&ssl, (unsigned char*)buf, len);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 	return ret;
 }
 
 static int smtp_send(const int sock, const char * const data, const size_t lenData) {
-	if (!useTls) return (send(sock, data, lenData, 0) == (ssize_t)lenData) ? 0 : -1;
-
 	size_t sent = 0;
 
 	while (sent < lenData) {
@@ -240,18 +234,14 @@ static int smtp_send(const int sock, const char * const data, const size_t lenDa
 }
 
 static void closeTls(const int sock) {
-	if (useTls) {
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_session_reset(&ssl);
-	}
-
+	mbedtls_ssl_close_notify(&ssl);
+	mbedtls_ssl_session_reset(&ssl);
 	close(sock);
 }
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
-	const int sock = makeSocket(email->ip);
+	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
-	useTls = false;
 
 	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
 	if (lenGreeting < 6 || memcmp(info->greeting, "220 ", 4 || memcmp(info->greeting + lenGreeting - 2, "\r\n", 2)) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;}
@@ -265,39 +255,38 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	ssize_t len = smtp_recv(sock, buf, 512);
 	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 
-	if (strcasestr(buf, "STARTTLS") != NULL) {
-		if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
-
-		len = smtp_recv(sock, buf, 512);
-		if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
-
-		mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
-		mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
-
-		int ret;
-		while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
-				closeTls(sock);
-				return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
-			}
-		}
-
-		useTls = true;
-		info->tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(&ssl));
-		info->tls_version = getTlsVersion(&ssl);
-
-//		const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-//		if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
-
-		if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
-
-		len = smtp_recv(sock, buf, 512);
-		if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
-	} else {
-		closeTls(sock);
+	if (strcasestr(buf, "STARTTLS") == NULL) {
+		close(sock);
 		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;
 	}
+
+	if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+
+	len = smtp_recv(sock, buf, 512);
+	if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+
+	mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
+	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+
+	int ret;
+	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
+		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
+			syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
+			closeTls(sock);
+			return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
+		}
+	}
+
+	info->tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(&ssl));
+	info->tls_version = getTlsVersion(&ssl);
+
+//	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
+//	if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+
+	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
+
+	len = smtp_recv(sock, buf, 512);
+	if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
 
 	// From
 	sprintf(buf, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
