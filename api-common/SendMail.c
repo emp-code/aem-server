@@ -249,7 +249,7 @@ static void closeTls(const int sock) {
 }
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
-	int sock = makeSocket(email->ip);
+	const int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 	useTls = false;
 
