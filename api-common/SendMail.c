@@ -43,7 +43,11 @@ static int makeSocket(const uint32_t ip) {
 	mxAddr.sin_port = htons(25);
 	mxAddr.sin_addr.s_addr = ip;
 
-	if (connect(sock, (struct sockaddr*)&mxAddr, sizeof(struct sockaddr_in)) != 0) {syslog(LOG_ERR, "Failed connect(): %m"); close(sock); return -1;}
+	if (connect(sock, (struct sockaddr*)&mxAddr, sizeof(struct sockaddr_in)) != 0) {
+		syslog(LOG_ERR, "Failed connect(): %m");
+		close(sock);
+		return -1;
+	}
 
 	return sock;
 }
