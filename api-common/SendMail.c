@@ -316,6 +316,9 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 
 	// Quit
 	if (smtp_send(sock, "QUIT\r\n", 6) < 0) smtp_recv(sock, buf, 512);
+	len = smtp_recv(sock, buf, 512);
+//	if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+
 	closeTls(sock);
 	return 0;
 }
