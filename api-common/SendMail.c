@@ -254,7 +254,7 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	useTls = false;
 
 	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
-	if (lenGreeting < 4 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;}
+	if (lenGreeting < 6 || memcmp(info->greeting, "220 ", 4) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;}
 	memmove(info->greeting, info->greeting + 4, lenGreeting - 6); // Between '220 ' and '\r\n'
 	info->greeting[lenGreeting - 6] = '\0';
 
