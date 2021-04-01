@@ -177,8 +177,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL), sig, crypto_sign_BYTES, sodium_base64_VARIANT_ORIGINAL);
 */
 
-// RSA
-
+// RSA-SHA256
 	unsigned char headHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(headHash, (unsigned char*)final, lenFinal) != 0) {free(final); return NULL;}
 
@@ -319,9 +318,10 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
 
 	// Quit
-	if (smtp_send(sock, "QUIT\r\n", 6) < 0) smtp_recv(sock, buf, 512);
-	len = smtp_recv(sock, buf, 512);
-//	if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+	if (smtp_send(sock, "QUIT\r\n", 6) == 6) {
+		len = smtp_recv(sock, buf, 512);
+//		if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+	}
 
 	closeTls(sock);
 	return 0;
