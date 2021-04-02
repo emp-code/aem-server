@@ -148,7 +148,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 				// Unused headers
 				"Cc:"
 				"Content-Type:"
-				"Mime-Version:"
+				"MIME-Version:"
 				"Reply-To:"
 				"Sender;"
 			" bh=%s;"
