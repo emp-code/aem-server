@@ -721,10 +721,10 @@ static void message_create_ext(void) {
 
 	// Deliver
 	const unsigned char ret = sendMail(upk, userLevel, &email, &info);
-	deliveryReport_ext(&email, &info);
 
 	if (ret == 0) {
 		shortResponse(NULL, 0);
+		deliveryReport_ext(&email, &info);
 	} else if (ret > 32) {
 		shortResponse(NULL, ret);
 	} else {
