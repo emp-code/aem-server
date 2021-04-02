@@ -279,9 +279,6 @@ static bool smtpCommand(const int sock, const bool useTls, char * const buf, siz
 }
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
-	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
-	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
-
 	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 
@@ -315,6 +312,9 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 
 //	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
 //	if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+
+	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
+	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
 
 	if (!smtpCommand(sock, true, buf, &lenBuf, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
 	if (!smtpCommand(sock, true, buf, &lenBuf, send_fr,                 strlen(send_fr),    "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
