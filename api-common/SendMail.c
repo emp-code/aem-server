@@ -216,15 +216,20 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	return final;
 }
 
-static int smtp_recv(const int sock, char * const buf, const size_t len) {
+static int smtp_recv(const int sock, const bool useTls, char * const buf) {
+	if (!useTls) return recv(sock, buf, 1024, 0);
+
 	int ret;
-	do {ret = mbedtls_ssl_read(&ssl, (unsigned char*)buf, len);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
+	do {ret = mbedtls_ssl_read(&ssl, (unsigned char*)buf, 1024);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
 	return ret;
 }
 
-static int smtp_send(const int sock, const char * const data, const size_t lenData) {
-	size_t sent = 0;
+static int smtp_send(const int sock, const bool useTls, const char * const data, const size_t lenData) {
+	if (lenData == 0) return 0;
 
+	if (!useTls) return send(sock, data, lenData, 0);
+
+	size_t sent = 0;
 	while (sent < lenData) {
 		int ret;
 		do {ret = mbedtls_ssl_write(&ssl, (const unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
@@ -236,37 +241,60 @@ static int smtp_send(const int sock, const char * const data, const size_t lenDa
 	return sent;
 }
 
-static void closeTls(const int sock) {
-	mbedtls_ssl_close_notify(&ssl);
-	mbedtls_ssl_session_reset(&ssl);
+static void smtp_quit(const int sock, const bool useTls) {
+	if (smtp_send(sock, useTls, "QUIT\r\n", 6) == 6) {
+		char buf[1024];
+		smtp_recv(sock, useTls, buf);
+		// if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+	}
+
+	if (useTls) {
+		mbedtls_ssl_close_notify(&ssl);
+		mbedtls_ssl_session_reset(&ssl);
+	}
+
 	close(sock);
 }
 
+static bool smtpCommand(const int sock, const bool useTls, char * const buf, size_t * const lenBuf, const char * const sendText, const size_t lenSendText, const char * const expectedResponse) {
+	if (smtp_send(sock, useTls, sendText, lenSendText) != (int)lenSendText) {
+		if (useTls) {
+			mbedtls_ssl_close_notify(&ssl);
+			mbedtls_ssl_session_reset(&ssl);
+		}
+
+		close(sock);
+		return false;
+	}
+
+	const int len = smtp_recv(sock, useTls, buf);
+	if (len < 6 || memcmp(buf, expectedResponse, strlen(expectedResponse)) != 0 || memcmp(buf + len - 2, "\r\n", 2) != 0) {
+		smtp_quit(sock, useTls);
+		return false;
+	}
+
+	*lenBuf = len;
+	buf[len] = '\0';
+	return true;
+}
+
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
+	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
+	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
+
 	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 
-	const ssize_t lenGreeting = smtp_recv(sock, info->greeting, 256);
-	if (lenGreeting < 6 || memcmp(info->greeting, "220 ", 4 || memcmp(info->greeting + lenGreeting - 2, "\r\n", 2)) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;}
-	memmove(info->greeting, info->greeting + 4, lenGreeting - 6); // Between '220 ' and '\r\n'
-	info->greeting[lenGreeting - 6] = '\0';
+	char buf[1025];
+	size_t lenBuf;
+	if (!smtpCommand(sock, false, buf, &lenBuf, NULL, 0, "220 ")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;
 
-	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
+	memcpy(info->greeting, buf + 4, lenBuf - 6); // Between '220 ' and '\r\n'
+	info->greeting[lenBuf - 6] = '\0';
 
-	char buf[513];
-	bzero(buf, 513);
-	ssize_t len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
-
-	if (strcasestr(buf, "STARTTLS") == NULL) {
-		close(sock);
-		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;
-	}
-
-	if (smtp_send(sock, "STARTTLS\r\n", 10) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
-
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "220", 3) != 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+	if (!smtpCommand(sock, false, buf, &lenBuf, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, false); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
+	if (!smtpCommand(sock, false, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
 
 	mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
 	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -275,7 +303,9 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
 		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 			syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
-			closeTls(sock);
+			mbedtls_ssl_close_notify(&ssl);
+			mbedtls_ssl_session_reset(&ssl);
+			close(sock);
 			return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
 		}
 	}
@@ -286,43 +316,24 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 //	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
 //	if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
-	if (smtp_send(sock, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN) < 0) {close(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
-
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250", 3) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;}
-
-	// From
-	sprintf(buf, "MAIL FROM: <%s@"AEM_DOMAIN">\r\n", email->addrFrom);
-	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;}
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;}
-
-	// To
-	sprintf(buf, "RCPT TO: <%s>\r\n", email->addrTo);
-	if (smtp_send(sock, buf, strlen(buf)) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;}
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;}
-
-	// Data
-	if (smtp_send(sock, "DATA\r\n", 6) < 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;}
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "354 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;}
+	if (!smtpCommand(sock, true, buf, &lenBuf, "EHLO "AEM_DOMAIN"\r\n", 7 + AEM_DOMAIN_LEN, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, true, buf, &lenBuf, send_fr,                 strlen(send_fr),    "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
+	if (!smtpCommand(sock, true, buf, &lenBuf, send_to,                 strlen(send_to),    "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
+	if (!smtpCommand(sock, true, buf, &lenBuf, "DATA\r\n",              6,                  "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(upk, userLevel, email, &lenMsg);
-	if (msg == NULL) {closeTls(sock); return AEM_API_ERR_INTERNAL;}
-	if (smtp_send(sock, msg, lenMsg) < 0) {free(msg); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
-	free(msg);
-
-	len = smtp_recv(sock, buf, 512);
-	if (len < 4 || memcmp(buf, "250 ", 4) != 0) {closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;}
-
-	// Quit
-	if (smtp_send(sock, "QUIT\r\n", 6) == 6) {
-		len = smtp_recv(sock, buf, 512);
-//		if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+	if (msg == NULL) {
+		smtp_quit(sock, true);
+		return AEM_API_ERR_INTERNAL;
 	}
 
-	closeTls(sock);
+	if (!smtpCommand(sock, true, buf, &lenBuf, msg, lenMsg, "250")) {
+		free(msg);
+		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;
+	}
+
+	free(msg);
+	smtp_quit(sock, true);
 	return 0;
 }
