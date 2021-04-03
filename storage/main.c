@@ -400,20 +400,22 @@ static int storage_read(unsigned char * const msgData, const int stindexNum, con
 			if (stopIndex == -1) {close(fdMsg); return -1;} // matchId not found
 			filePos = lseek(fdMsg, 0, SEEK_END);
 		} else { // older
-			filePos = lseek(fdMsg, 0, SEEK_SET);
-			if (filePos != 0) {close(fdMsg); return -1;}
+			startIndex = 0;
 
-			for (int i = 0; i < stindex[stindexNum].msgCount - 1; i++) {
+			const off_t startFilePos = (stindex[stindexNum].msg[0] + AEM_MSG_MINBLOCKS) * 16;
+			filePos = lseek(fdMsg, startFilePos, SEEK_SET);
+			if (filePos != startFilePos) {close(fdMsg); return -1;}
+
+			for (int i = 1; i < stindex[stindexNum].msgCount; i++) {
 				if (storage_idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
-					startIndex = i;
-					filePos += (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+					startIndex = i - 1;
 					break;
 				}
 
 				filePos += (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 			}
 
-			if (startIndex == 0 || startIndex == stindex[stindexNum].msgCount - 1) {close(fdMsg); return -1;} // matchId not found, or is the oldest
+			if (startIndex == 0) {close(fdMsg); return -1;} // matchId not found, or is the oldest
 		}
 	}
 
