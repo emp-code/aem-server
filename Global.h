@@ -69,16 +69,20 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 
-// Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
-// Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
-// ExtMsg: 29/146; 31B .. 1M + 46B
-// UplMsg: 46/163; 14B .. 1M + 29B
-// IntMsg: 54/171: 6B ..
-// OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
-// 12 * 16 = 192 (-15 --> 177 min)
+/*
+	Max message size: ((2^16 - 1) + 12) * 16 = 1048752; 1M + 176B
+	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.
+	Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
+	ExtMsg: 29/146; 31B .. 1M + 30B
+	UplMsg: 17/134; 43B .. 1M + 42B = 1048618 (Attachment, body + filename)
+	UplMsg: 41/158; 19B .. 1M + 18B = 1048594 (Upload, body + filename)
+	IntMsg: 54/171: 6B ..
+	OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
+	12 * 16 = 192 (-15 --> 177 min)
+*/
 #define AEM_MSG_MINBLOCKS 12
 
-#define AEM_API_BOX_SIZE_MAX ((UINT16_MAX + AEM_MSG_MINBLOCKS) * 16)
+#define AEM_API_BOX_SIZE_MAX 1048635 // (((2^16 - 1) + 12) * 16) - 117
 #define AEM_API_SEALBOX_SIZE (1 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
 
 #define AEM_PATH_HOME "/var/lib/allears"
