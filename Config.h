@@ -20,3 +20,10 @@
 // DNSBL; see https://en.wikipedia.org/wiki/Comparison_of_DNS_blacklists
 #define AEM_MTA_DNSBL_LEN 15
 #define AEM_MTA_DNSBL "dnsbl.sorbs.net"
+
+// Network
+#define AEM_BACKLOG 25
+#define AEM_TLS_TIMEOUT 30
+
+// Misc
+#define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB

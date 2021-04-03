@@ -69,8 +69,6 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 
-#define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
-
 // Minimum block count: treat zero as this number. Covers overhead, allows larger messages.
 // Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
 // ExtMsg: 29/146; 31B .. 1M + 46B
@@ -86,9 +84,6 @@ enum aem_internal_enquiry {
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
 #define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
-
-#define AEM_BACKLOG 25
-#define AEM_TLS_TIMEOUT 30
 
 #define AEM_TIMEOUT_MANAGER_RCV 3
 #define AEM_TIMEOUT_MANAGER_SND 3
