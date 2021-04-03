@@ -26,4 +26,4 @@
 #define AEM_TLS_TIMEOUT 30
 
 // Misc
-#define AEM_MAXLEN_MSGDATA 4194304 // 4 MiB
+#define AEM_MAXLEN_MSGDATA 1048768 // Minimum: 1048768 (1 MiB plus 12*16=192 bytes)
