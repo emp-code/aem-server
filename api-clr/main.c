@@ -19,6 +19,7 @@
 #include "../Common/SetCaps.h"
 
 #include "https.h"
+#include "../api-common/MessageId.h"
 #include "../api-common/post.h"
 
 #define AEM_LOGNAME "AEM-API"
@@ -61,6 +62,7 @@ static int pipeLoadKeys(void) {
 
 	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
 	setApiKey(buf);
+	setMsgIdKey(buf);
 
 	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
 	setSigKey(buf);

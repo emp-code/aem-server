@@ -501,6 +501,23 @@ static void api_address_update(const int sock, const int num) {
 	send(sock, &resp, 1, 0);
 }
 
+static void api_message_sender(const int sock, const int num) {
+	if ((user[num].info & 3) != 3) return;
+
+	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
+
+	const size_t lenResponse = userCount * crypto_box_PUBLICKEYBYTES;
+	unsigned char * const response = malloc(lenResponse);
+	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
+	for (int i = 0; i < userCount; i++) {
+		memcpy(response + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+	}
+
+	send(sock, response, lenResponse, 0);
+	free(response);
+}
+
 static void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
@@ -628,6 +645,7 @@ static void takeConnections(void) {
 //				case AEM_API_ADDRESS_LOOKUP: api_address_lookup(sockClient, num); break;
 				case AEM_API_ADDRESS_UPDATE: api_address_update(sockClient, num); break;
 
+				case AEM_API_MESSAGE_SENDER: api_message_sender(sockClient, num); break;
 				case AEM_API_PRIVATE_UPDATE: api_private_update(sockClient, num); break;
 				case AEM_API_SETTING_LIMITS: api_setting_limits(sockClient, num); break;
 

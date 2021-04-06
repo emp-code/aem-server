@@ -21,6 +21,7 @@
 #include "../Data/welcome.h"
 
 #include "Error.h"
+#include "MessageId.h"
 #include "SendMail.h"
 
 #include "post.h"
@@ -65,7 +66,6 @@ void aem_api_free(void) {
 	sodium_memzero(ssk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
 	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
-	sm_clearKeys();
 	sodium_free(decrypted);
 	sodium_free(response);
 	decrypted = NULL;
@@ -956,6 +956,49 @@ static void message_public(void) {
 	shortResponse(msgId, 16);
 }
 
+static void message_sender(void) {
+	if (lenDecrypted != 52) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
+
+	const int sock = accountSocket(AEM_API_MESSAGE_SENDER, upk, crypto_box_PUBLICKEYBYTES);
+	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+
+	int userCount;
+	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (userCount < 1 || userCount >= UINT16_MAX) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+
+	const size_t lenUpkList = userCount * crypto_box_PUBLICKEYBYTES;
+	unsigned char * const upkList = malloc(lenUpkList);
+	if (upkList == NULL) {syslog(LOG_ERR, "Failed malloc()"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	const ssize_t lenRecv = recv(sock, upkList, lenUpkList, MSG_WAITALL);
+	close(sock);
+
+	if (lenRecv != lenUpkList) {free(upkList); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+
+	uint32_t ts;
+	memcpy(&ts, decrypted + 48, 4);
+
+	unsigned char tmp[48];
+	int result = -1;
+
+	for (int i = 0; i < (lenUpkList / crypto_box_PUBLICKEYBYTES); i++) {
+		genMsgId(tmp, ts, upkList + (i * crypto_box_PUBLICKEYBYTES), false);
+
+		if (memcmp(tmp, decrypted, 48) == 0) {
+			result = i;
+			break;
+		}
+	}
+
+	if (result == -1) {
+		shortResponse(NULL, 0);
+	} else {
+		shortResponse(upk + (result * crypto_box_PUBLICKEYBYTES), crypto_box_PUBLICKEYBYTES);
+	}
+
+	free(upkList);
+}
+
 static void message_upload(void) {
 	const uint32_t ts = (uint32_t)time(NULL);
 
@@ -1085,6 +1128,7 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 		case AEM_API_MESSAGE_CREATE: message_create(); break;
 		case AEM_API_MESSAGE_DELETE: message_delete(); break;
 		case AEM_API_MESSAGE_PUBLIC: message_public(); break;
+		case AEM_API_MESSAGE_SENDER: message_sender(); break;
 		case AEM_API_MESSAGE_UPLOAD: message_upload(); break;
 
 		case AEM_API_PRIVATE_UPDATE: private_update(); break;

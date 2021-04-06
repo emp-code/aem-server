@@ -9,9 +9,9 @@
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
-#include "Error.h"
-#include "../Common/aes.h"
 #include "../Global.h"
+#include "Error.h"
+#include "MessageId.h"
 
 #include "SendMail.h"
 
@@ -19,20 +19,7 @@
 
 #define AEM_API_SMTP
 
-static unsigned char msgId_hashKey[crypto_generichash_KEYBYTES];
-static unsigned char msgId_aesKey[32];
-
 #include "../Common/tls_setup.c"
-
-void setMsgIdKeys(const unsigned char * const src) {
-	crypto_kdf_derive_from_key(msgId_hashKey, crypto_generichash_KEYBYTES, 1, "AEM-MsId", src);
-	crypto_kdf_derive_from_key(msgId_aesKey, 32, 2, "AEM-MsId", src);
-}
-
-void sm_clearKeys(void) {
-	sodium_memzero(msgId_hashKey, crypto_generichash_KEYBYTES);
-	sodium_memzero(msgId_aesKey, 32);
-}
 
 static int makeSocket(const uint32_t ip) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -70,24 +57,6 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 	return sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
 }
 
-static void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk) {
-	unsigned char hash_src[36];
-	memcpy(hash_src, &ts, 4); // Timestamp for uniqueness
-	memcpy(hash_src + 4, upk, 32);
-
-	unsigned char hash[48]; // 384-bit
-	crypto_generichash(hash, 48, hash_src, 36, msgId_hashKey, crypto_generichash_KEYBYTES);
-
-	struct AES_ctx aes;
-	AES_init_ctx(&aes, msgId_aesKey);
-	AES_ECB_encrypt(&aes, hash);
-	AES_ECB_encrypt(&aes, hash + 16);
-	AES_ECB_encrypt(&aes, hash + 32);
-	sodium_memzero(&aes, sizeof(struct AES_ctx));
-
-	sodium_bin2base64(out, 65, hash, 48, sodium_base64_VARIANT_URLSAFE);
-}
-
 static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, size_t * const lenOut) {
 	unsigned char bodyHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)email->body, email->lenBody) != 0) return NULL;
@@ -98,9 +67,9 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 	const uint32_t ts = (uint32_t)time(NULL);
 
 	char msgId[65];
-	genMsgId(msgId, ts, upk);
+	genMsgId(msgId, ts, upk, true);
 
-	const time_t msgTime = ts - 1 - randombytes_uniform(15);
+	const time_t msgTime = ts;
 	struct tm ourTime;
 	if (localtime_r(&msgTime, &ourTime) == NULL) return NULL;
 	char rfctime[64];
