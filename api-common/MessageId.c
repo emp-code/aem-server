@@ -19,8 +19,6 @@ The full UPK and timestamp are used to calculate the hash:
 
 #include "MessageId.h"
 
-#include <syslog.h>
-
 static unsigned char msgid_derivkey[crypto_kdf_KEYBYTES];
 
 void setMsgIdKey(const unsigned char * const src) {
