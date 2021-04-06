@@ -25,9 +25,6 @@ struct outInfo {
 	char info[257];
 };
 
-void setDkimAdm(const unsigned char * const seed);
-void setDkimUsr(const unsigned char * const seed);
-void setMsgIdKeys(const unsigned char * const src);
 void sm_clearKeys(void);
 
 int tlsSetup_sendmail(void);
