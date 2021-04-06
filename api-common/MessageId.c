@@ -25,6 +25,10 @@ void setMsgIdKey(const unsigned char * const src) {
 	crypto_kdf_derive_from_key(msgid_derivkey, crypto_kdf_KEYBYTES, 0, "AEM-MIDr", src);
 }
 
+void delMsgIdKey(void) {
+	sodium_memzero(msgid_derivkey, crypto_kdf_KEYBYTES);
+}
+
 void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk, const bool b64) {
 	// Generate the Blake2-384 hash
 	unsigned char hashSrc[20];

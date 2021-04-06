@@ -100,6 +100,7 @@ int main(void) {
 	acceptClients();
 
 	aem_api_free();
+	delMsgIdKey();
 	tlsFree();
 
 	return EXIT_SUCCESS;

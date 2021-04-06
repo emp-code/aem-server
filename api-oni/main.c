@@ -95,6 +95,7 @@ int main(void) {
 	if (aem_api_init() == 0) {
 		acceptClients();
 		aem_api_free();
+		delMsgIdKey();
 	} else syslog(LOG_ERR, "Terminating: Failed initializing API");
 
 	return EXIT_SUCCESS;

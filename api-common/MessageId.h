@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 void setMsgIdKey(const unsigned char * const src);
+void delMsgIdKey(void);
 void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk, const bool b64);
 
 #endif
