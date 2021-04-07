@@ -242,7 +242,7 @@ static void account_create(void) {
 		break;
 
 		case AEM_INTERNAL_RESPONSE_EXIST:
-			shortResponse(NULL, AEM_API_ERR_EXIST);
+			shortResponse(NULL, AEM_API_ERR_ACCOUNT_CREATE_EXIST);
 		break;
 
 		default:
