@@ -10,6 +10,7 @@
 #define AEM_API_ERR_INTERNAL  0x24
 #define AEM_API_ERR_TODO      0x25
 #define AEM_API_ERR_FIXME     0x26
+#define AEM_API_ERR_CMD       0x27
 #define AEM_API_ERR_EXIST     0x2A
 
 // 0x30-0x3F	Misc

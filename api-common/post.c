@@ -1133,6 +1133,8 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 
 		case AEM_API_PRIVATE_UPDATE: private_update(); break;
 		case AEM_API_SETTING_LIMITS: setting_limits(); break;
+
+		default: shortResponse(NULL, AEM_API_ERR_CMD);
 	}
 
 	clearDecrypted();
