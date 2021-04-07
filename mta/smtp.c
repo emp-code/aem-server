@@ -283,8 +283,8 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 		}
 	}
 
-	if (
-	   (addrChars == 6 && memcmp(addr, "system", 6) == 0)
+	if (addrChars < 1 || addrChars > 16
+	|| (addrChars == 6 && memcmp(addr, "system", 6) == 0)
 	|| (addrChars == 6 && memcmp(addr, "public", 6) == 0)
 	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
 	) return -1;
