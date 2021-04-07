@@ -51,51 +51,49 @@ static int getKey(void) {
 
 static int dropBounds(void) {
 	return (
-	   cap_drop_bound(CAP_AUDIT_CONTROL) == 0
-	&& cap_drop_bound(CAP_AUDIT_READ) == 0
-	&& cap_drop_bound(CAP_AUDIT_WRITE) == 0
-	&& cap_drop_bound(CAP_BLOCK_SUSPEND) == 0
-	&& cap_drop_bound(CAP_CHOWN) == 0
-	&& cap_drop_bound(CAP_DAC_OVERRIDE) == 0
-	&& cap_drop_bound(CAP_DAC_READ_SEARCH) == 0
-	&& cap_drop_bound(CAP_FOWNER) == 0
-	&& cap_drop_bound(CAP_FSETID) == 0
-	&& cap_drop_bound(CAP_IPC_LOCK) == 0
-	&& cap_drop_bound(CAP_IPC_OWNER) == 0
-	&& cap_drop_bound(CAP_KILL) == 0
-	&& cap_drop_bound(CAP_LEASE) == 0
-	&& cap_drop_bound(CAP_LINUX_IMMUTABLE) == 0
-	&& cap_drop_bound(CAP_MAC_ADMIN) == 0
-	&& cap_drop_bound(CAP_MAC_OVERRIDE) == 0
-	&& cap_drop_bound(CAP_MKNOD) == 0
-	&& cap_drop_bound(CAP_NET_ADMIN) == 0
+	   cap_drop_bound(CAP_AUDIT_CONTROL)    == 0
+	&& cap_drop_bound(CAP_AUDIT_READ)       == 0
+	&& cap_drop_bound(CAP_AUDIT_WRITE)      == 0
+	&& cap_drop_bound(CAP_BLOCK_SUSPEND)    == 0
+	&& cap_drop_bound(CAP_CHOWN)            == 0
+	&& cap_drop_bound(CAP_DAC_OVERRIDE)     == 0
+	&& cap_drop_bound(CAP_DAC_READ_SEARCH)  == 0
+	&& cap_drop_bound(CAP_FOWNER)           == 0
+	&& cap_drop_bound(CAP_FSETID)           == 0
+	&& cap_drop_bound(CAP_IPC_LOCK)         == 0
+	&& cap_drop_bound(CAP_IPC_OWNER)        == 0
+	&& cap_drop_bound(CAP_KILL)             == 0
+	&& cap_drop_bound(CAP_LEASE)            == 0
+	&& cap_drop_bound(CAP_LINUX_IMMUTABLE)  == 0
+	&& cap_drop_bound(CAP_MAC_ADMIN)        == 0
+	&& cap_drop_bound(CAP_MAC_OVERRIDE)     == 0
+	&& cap_drop_bound(CAP_MKNOD)            == 0
+	&& cap_drop_bound(CAP_NET_ADMIN)        == 0
 	&& cap_drop_bound(CAP_NET_BIND_SERVICE) == 0
-	&& cap_drop_bound(CAP_NET_BROADCAST) == 0
-	&& cap_drop_bound(CAP_NET_RAW) == 0
-	&& cap_drop_bound(CAP_SETGID) == 0
-	&& cap_drop_bound(CAP_SETFCAP) == 0
-	&& cap_drop_bound(CAP_SETPCAP) == 0
-	&& cap_drop_bound(CAP_SETUID) == 0
-	&& cap_drop_bound(CAP_SYS_ADMIN) == 0
-	&& cap_drop_bound(CAP_SYS_BOOT) == 0
-	&& cap_drop_bound(CAP_SYS_CHROOT) == 0
-	&& cap_drop_bound(CAP_SYS_MODULE) == 0
-	&& cap_drop_bound(CAP_SYS_NICE) == 0
-	&& cap_drop_bound(CAP_SYS_PACCT) == 0
-	&& cap_drop_bound(CAP_SYS_PTRACE) == 0
-	&& cap_drop_bound(CAP_SYS_RAWIO) == 0
-	&& cap_drop_bound(CAP_SYS_RESOURCE) == 0
-	&& cap_drop_bound(CAP_SYS_TIME) == 0
-	&& cap_drop_bound(CAP_SYS_TTY_CONFIG) == 0
-	&& cap_drop_bound(CAP_SYSLOG) == 0
-	&& cap_drop_bound(CAP_WAKE_ALARM) == 0
+	&& cap_drop_bound(CAP_NET_BROADCAST)    == 0
+	&& cap_drop_bound(CAP_NET_RAW)          == 0
+	&& cap_drop_bound(CAP_SETFCAP)          == 0
+	&& cap_drop_bound(CAP_SETGID)           == 0
+	&& cap_drop_bound(CAP_SETPCAP)          == 0
+	&& cap_drop_bound(CAP_SETUID)           == 0
+	&& cap_drop_bound(CAP_SYSLOG)           == 0
+	&& cap_drop_bound(CAP_SYS_ADMIN)        == 0
+	&& cap_drop_bound(CAP_SYS_BOOT)         == 0
+	&& cap_drop_bound(CAP_SYS_CHROOT)       == 0
+	&& cap_drop_bound(CAP_SYS_MODULE)       == 0
+	&& cap_drop_bound(CAP_SYS_NICE)         == 0
+	&& cap_drop_bound(CAP_SYS_PACCT)        == 0
+	&& cap_drop_bound(CAP_SYS_PTRACE)       == 0
+	&& cap_drop_bound(CAP_SYS_RAWIO)        == 0
+	&& cap_drop_bound(CAP_SYS_RESOURCE)     == 0
+	&& cap_drop_bound(CAP_SYS_TIME)         == 0
+	&& cap_drop_bound(CAP_SYS_TTY_CONFIG)   == 0
+	&& cap_drop_bound(CAP_WAKE_ALARM)       == 0
 	) ? 0 : -1;
 }
 
 static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
-
-	const cap_value_t capInherit[6] = {CAP_SYS_ADMIN, CAP_SYS_CHROOT, CAP_SETPCAP, CAP_NET_BIND_SERVICE, CAP_NET_RAW, CAP_IPC_LOCK};
 
 	const cap_value_t capMain[16] = {
 		CAP_CHOWN, // Allow chown on any file
@@ -108,27 +106,32 @@ static int setCaps(void) {
 		CAP_NET_BIND_SERVICE, // Bind to port #<1024
 		CAP_NET_RAW, // Bind to specific interfaces
 		CAP_SETGID, // Set group IDs
-		CAP_SETUID, // Set user ID
 		CAP_SETPCAP, // Allow capability/secbit changes
+		CAP_SETUID, // Set user ID
 		CAP_SYS_ADMIN, // Various, including mount()
 		CAP_SYS_CHROOT, // Allow chroot
 		CAP_SYS_NICE, // Allow raising process priorities
 		CAP_SYS_RESOURCE // Allow changing resource limits
 	};
 
+	const cap_value_t capInherit[6] = {
+		CAP_IPC_LOCK,
+		CAP_NET_BIND_SERVICE,
+		CAP_NET_RAW,
+		CAP_SETPCAP,
+		CAP_SYS_ADMIN,
+		CAP_SYS_CHROOT,
+	};
+
 	cap_t caps = cap_get_proc();
 
 	return (
 	   cap_clear(caps) == 0
-
 	&& cap_set_flag(caps, CAP_INHERITABLE, 6, capInherit, CAP_SET) == 0
-
 	&& cap_set_flag(caps, CAP_PERMITTED, 16, capMain, CAP_SET) == 0
 	&& cap_set_flag(caps, CAP_EFFECTIVE, 16, capMain, CAP_SET) == 0
-
 	&& cap_set_proc(caps) == 0
 	&& cap_free(caps) == 0
-
 	&& prctl(PR_SET_SECUREBITS, SECBIT_KEEP_CAPS | SECBIT_NOROOT | SECURE_NOROOT_LOCKED | SECBIT_NO_SETUID_FIXUP_LOCKED) == 0
 	) ? 0 : -1;
 }
@@ -138,10 +141,10 @@ static int setLimits(void) {
 	rlim.rlim_cur = 0;
 	rlim.rlim_max = 0;
 
-	if (setrlimit(RLIMIT_CORE, &rlim) != 0) return -1;
-	if (setrlimit(RLIMIT_MSGQUEUE, &rlim) != 0) return -1;
-
-	return 0;
+	return (
+	   setrlimit(RLIMIT_CORE,     &rlim) == 0
+	|| setrlimit(RLIMIT_MSGQUEUE, &rlim) == 0
+	) ? 0 : -1;
 }
 
 static bool ptraceDisabled(void) {
@@ -152,9 +155,10 @@ static bool ptraceDisabled(void) {
 	if (read(fd, &val, 1) != 1) {close(fd); return false;}
 
 	if (val != '3') {
-		val = '3';
-		if (pwrite(fd, &val, 1, 0) != 1) {close(fd); return false;}
-		if (pread(fd, &val, 1, 0) != 1) {close(fd); return false;}
+		if (
+		   pwrite(fd, (char[]){3}, 1, 0) != 1
+		|| pread(fd, &val, 1, 0) != 1
+		)  {close(fd); return false;}
 	}
 
 	close(fd);
