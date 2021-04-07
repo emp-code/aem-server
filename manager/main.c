@@ -120,7 +120,7 @@ static int setCaps(void) {
 		CAP_NET_RAW,
 		CAP_SETPCAP,
 		CAP_SYS_ADMIN,
-		CAP_SYS_CHROOT,
+		CAP_SYS_CHROOT
 	};
 
 	cap_t caps = cap_get_proc();
