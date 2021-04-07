@@ -4,7 +4,7 @@
 
 #include "ValidDomain.h"
 
-bool isValidDomain(const char * const domain, const int lenDomain) {
+bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	if (domain == NULL
 	|| lenDomain < 4
 	|| lenDomain > 127
