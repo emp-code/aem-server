@@ -73,6 +73,7 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 		case 'w': decrypted[1] = AEM_PROCESSTYPE_WEB_ONI; break;
 		case 'A': decrypted[1] = AEM_PROCESSTYPE_API_CLR; break;
 		case 'a': decrypted[1] = AEM_PROCESSTYPE_API_ONI; break;
+		default: return -1;
 	}
 
 	memcpy(decrypted + 2, &comNum, 4);
