@@ -20,7 +20,7 @@ All-Ears uses several process types, divided into three tiers. The design minimi
 
 The top-tier process, Manager, has full access to all data, but only has one purpose: to start the other processes and give them the data they need at startup.
 
-The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through a local Unix socket requiring an Access Key.
+The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through a local Unix socket requiring an Access Key. Enquiry functions similarly, but doesn't deal with user data.
 
 The bottom-tier processes, API and MTA, are publically accessible, but have no direct access to user data. They can only request the middle-tier processes to perform specific functions needed for their operation. The final process type of this tier is Web, which is completely isolated from all other processes.
 
@@ -181,7 +181,7 @@ All messages are encrypted one more time by Storage before being written to disk
 
 Manager loads these files from `/etc/allears`. All are encrypted with libsodium's Secret Box using the Master Key.
 
-* bin: Folder containing the All-Ears binaries
+* bin: Folder containing the encrypted All-Ears binaries
 * API.key: Asymmetric key used by API to securely communicate with clients
 * Account.key: Symmetric key used by Account to encrypt user data prior to storage
 * Manager.key: Symmetric key used by Manager to communicate with ManagerClient
