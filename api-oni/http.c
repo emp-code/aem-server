@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <syslog.h>
 
-#define AEM_MAXLEN_REQ 550
+#define AEM_MAXLEN_REQ 500
 
 #include "../Global.h"
 #include "../api-common/isRequestValid.h"
