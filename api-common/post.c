@@ -1003,7 +1003,7 @@ static void message_sender(void) {
 	if (result == -1) {
 		shortResponse(NULL, 0);
 	} else {
-		shortResponse(upk + (result * crypto_box_PUBLICKEYBYTES), crypto_box_PUBLICKEYBYTES);
+		shortResponse(upkList + (result * crypto_box_PUBLICKEYBYTES), crypto_box_PUBLICKEYBYTES);
 	}
 
 	free(upkList);
