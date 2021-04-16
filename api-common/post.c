@@ -523,7 +523,7 @@ static void deliveryReport_store(const unsigned char * const enc, const size_t l
 	if (sentBytes != (ssize_t)(lenEnc)) {syslog(LOG_ERR, "Failed communicating with Storage"); return;}
 }
 
-static void deliveryReport_ext(const struct outEmail * const email, const struct outInfo * const info) {
+static size_t deliveryReport_ext(const struct outEmail * const email, const struct outInfo * const info, unsigned char ** const output, unsigned char * msgId) {
 	const size_t lenSubject  = strlen(email->subject);
 	const size_t lenAddressT = strlen(email->addrTo);
 	const size_t lenAddressF = strlen(email->addrFrom);
@@ -531,43 +531,45 @@ static void deliveryReport_ext(const struct outEmail * const email, const struct
 	const size_t lenGreeting = strlen(info->greeting);
 	const size_t lenBody     = strlen(email->body);
 
-	const size_t lenContent = 18 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
-	unsigned char * const content = sodium_malloc(lenContent);
-	if (content == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	const size_t lenOutput = 18 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
+	*output = sodium_malloc(lenOutput);
+	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
 
 	const uint16_t cs16 = (info->tls_ciphersuite > UINT16_MAX || info->tls_ciphersuite < 0) ? 1 : info->tls_ciphersuite;
 
-	content[0] = msg_getPadAmount(lenContent) | 48; // 48=OutMsg
-	memcpy(content + 1, &(info->timestamp), 4);
-	content[5] = lenSubject;
+	(*output)[0] = msg_getPadAmount(lenOutput) | 48; // 48=OutMsg
+	memcpy((*output) + 1, &(info->timestamp), 4);
+	(*output)[5] = lenSubject;
 
-	memcpy(content + 6, &(email->ip), 4);
-	memcpy(content + 10, &cs16, 2);
-	content[12] = ((info->tls_version & 7) << 5) | 0 /*attachments*/;
-	content[13] = info->tls_info;
-	content[14] = lenAddressT;
-	content[15] = lenAddressF;
-	content[16] = lenMxDomain;
-	content[17] = lenGreeting;
+	memcpy((*output) + 6, &(email->ip), 4);
+	memcpy((*output) + 10, &cs16, 2);
+	(*output)[12] = ((info->tls_version & 7) << 5) | 0 /*attachments*/;
+	(*output)[13] = info->tls_info;
+	(*output)[14] = lenAddressT;
+	(*output)[15] = lenAddressF;
+	(*output)[16] = lenMxDomain;
+	(*output)[17] = lenGreeting;
 
 	size_t offset = 18;
-	memcpy(content + offset, email->addrTo,   lenAddressT); offset += lenAddressT;
-	memcpy(content + offset, email->addrFrom, lenAddressF); offset += lenAddressF;
-	memcpy(content + offset, email->mxDomain, lenMxDomain); offset += lenMxDomain;
-	memcpy(content + offset, info->greeting,  lenGreeting); offset += lenGreeting;
-	memcpy(content + offset, email->subject,  lenSubject);  offset += lenSubject;
-	memcpy(content + offset, email->body,     lenBody);
+	memcpy((*output) + offset, email->addrTo,   lenAddressT); offset += lenAddressT;
+	memcpy((*output) + offset, email->addrFrom, lenAddressF); offset += lenAddressF;
+	memcpy((*output) + offset, email->mxDomain, lenMxDomain); offset += lenMxDomain;
+	memcpy((*output) + offset, info->greeting,  lenGreeting); offset += lenGreeting;
+	memcpy((*output) + offset, email->subject,  lenSubject);  offset += lenSubject;
+	memcpy((*output) + offset, email->body,     lenBody);
 
 	size_t lenEnc;
-	unsigned char * const enc = msg_encrypt(upk, content, lenContent, &lenEnc);
-	sodium_free(content);
-	if (enc == NULL) {
+	unsigned char * const enc = msg_encrypt(upk, *output, lenOutput, &lenEnc);
+	if (*enc == NULL) {
+		sodium_free(*output);
 		syslog(LOG_ERR, "Failed creating encrypted message");
-		return;
+		return 0;
 	}
 
 	deliveryReport_store(enc, lenEnc);
+	memcpy(msgId, enc, 16);
 	free(enc);
+	return lenOutput;
 }
 
 static void deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte) {
@@ -723,8 +725,49 @@ static void message_create_ext(void) {
 	const unsigned char ret = sendMail(upk, userLevel, &email, &info);
 
 	if (ret == 0) {
-		shortResponse(NULL, 0);
-		deliveryReport_ext(&email, &info);
+		unsigned char msgId[16];
+		unsigned char *report = NULL;
+		const size_t lenReport = deliveryReport_ext(&email, &info, &report, msgId);
+		if (lenReport == 0 || report == NULL) {
+			return shortResponse(NULL, 0); // TODO
+		}
+
+		const size_t lenFinal = 16 + lenReport;
+		unsigned char * const final = sodium_malloc(lenFinal);
+		if (final == NULL) {sodium_free(report); return;}
+		memcpy(final, msgId, 16);
+		memcpy(final + 16, report, lenReport);
+		sodium_free(report);
+
+		sprintf((char*)response,
+			"HTTP/1.1 200 aem\r\n"
+			"Tk: N\r\n"
+#ifndef AEM_IS_ONION
+			"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+			"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
+			"Content-Length: %zu\r\n"
+			"Access-Control-Allow-Origin: *\r\n"
+			"Cache-Control: no-store, no-transform\r\n"
+			"%s"
+			"\r\n",
+		lenFinal + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
+			"Connection: keep-alive\r\n"
+			"Keep-Alive: timeout=30\r\n"
+		:
+			"Connection: close\r\n"
+		);
+
+		const size_t lenHeaders = strlen((char*)response);
+
+		randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
+		if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, final, lenFinal, response + lenHeaders, upk, ssk) == 0) {
+			lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenFinal;
+		} else {
+			shortResponse(NULL, 0); // TODO
+		}
+
+		sodium_free(final);
 	} else if (ret > 32) {
 		shortResponse(NULL, ret);
 	} else {
