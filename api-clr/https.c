@@ -5,7 +5,6 @@
 #define AEM_MAXLEN_REQ 500
 
 #include "../Common/tls_common.h"
-#include "../Data/domain.h"
 #include "../Global.h"
 #include "../api-common/isRequestValid.h"
 #include "../api-common/post.h"

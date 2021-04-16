@@ -6,7 +6,6 @@
 
 #define AEM_MAXLEN_REQ 550
 
-#include "../Data/domain.h"
 #include "../Global.h"
 #include "../api-common/isRequestValid.h"
 #include "../api-common/post.h"
