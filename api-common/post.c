@@ -81,7 +81,7 @@ static void clearDecrypted(void) {
 
 #include "../Common/Message.c"
 
-static void shortResponse(const unsigned char * const data, const unsigned char len) {
+static void shortResponse(const unsigned char * const data, const unsigned char lenData) {
 #ifndef AEM_IS_ONION
 	#define AEM_LEN_SHORTRESPONSE_HEADERS 277
 #else
@@ -120,11 +120,41 @@ static void shortResponse(const unsigned char * const data, const unsigned char 
 
 	unsigned char clr[33];
 	bzero(clr, 33);
-	clr[0] = len;
-	if (data != NULL && len <= 32) memcpy(clr + 1, data, len);
+	clr[0] = lenData;
+	if (data != NULL && lenData <= 32) memcpy(clr + 1, data, lenData);
 
 	const int ret = crypto_box_easy(response + AEM_LEN_SHORTRESPONSE_HEADERS + crypto_box_NONCEBYTES, clr, 33, response + AEM_LEN_SHORTRESPONSE_HEADERS, upk, ssk);
 	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE_HEADERS + 33 + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
+}
+
+static void longResponse(const unsigned char * const data, const size_t lenData) {
+	sprintf((char*)response,
+		"HTTP/1.1 200 aem\r\n"
+		"Tk: N\r\n"
+#ifndef AEM_IS_ONION
+		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
+		"Expect-CT: enforce, max-age=99999999\r\n"
+#endif
+		"Content-Length: %zu\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"Cache-Control: no-store, no-transform\r\n"
+		"%s"
+		"\r\n",
+	lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
+		"Connection: keep-alive\r\n"
+		"Keep-Alive: timeout=30\r\n"
+	:
+		"Connection: close\r\n"
+	);
+
+	const size_t lenHeaders = strlen((char*)response);
+
+	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
+	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, data, lenData, response + lenHeaders, upk, ssk) == 0) {
+		lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenData;
+	} else {
+		shortResponse(NULL, AEM_API_ERR_ENC_RESP);
+	}
 }
 
 static unsigned char getUserLevel(const unsigned char * const pubkey) {
@@ -185,36 +215,12 @@ static void account_browse(void) {
 	const ssize_t lenClr = recv(sock, clr, userCount * 35, MSG_WAITALL);
 	close(sock);
 
-	if (lenClr < 10) {free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-
-	sprintf((char*)response,
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-#ifndef AEM_IS_ONION
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-#endif
-		"Content-Length: %zu\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"%s"
-		"\r\n",
-	lenClr + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
-		"Connection: keep-alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-	:
-		"Connection: close\r\n"
-	);
-
-	const size_t lenHeaders = strlen((char*)response);
-
-	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) == 0) {
-		lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
-	} else {
-		shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	if (lenClr < 10) {
+		free(clr);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
+	longResponse(clr, lenClr);
 	free(clr);
 }
 
@@ -420,32 +426,13 @@ static void message_browse(void) {
 	if (lenRcv < 1) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	lenClr += lenRcv;
 
-	if (lenClr <= 32) return shortResponse(clr, lenClr);
+	if (lenClr <= 32) {
+		shortResponse(clr, lenClr);
+	} else {
+		longResponse(clr, lenClr);
+	}
 
-	// Long response
-	const char * const kaStr = keepAlive ? "Connection: keep-alive\r\nKeep-Alive: timeout=30\r\n" : "";
-
-	// Prepare and send response
-	sprintf((char*)response,
-		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
-#ifndef AEM_IS_ONION
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Expect-CT: enforce, max-age=99999999\r\n"
-#endif
-		"Content-Length: %zd\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
-		"%s"
-		"\r\n"
-	, crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr, kaStr);
-	const size_t lenHeaders = strlen((char*)response);
-
-	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, clr, lenClr, response + lenHeaders, upk, ssk) != 0) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	sodium_free(clr);
-
-	lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenClr;
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
@@ -739,34 +726,7 @@ static void message_create_ext(void) {
 		memcpy(final + 16, report, lenReport);
 		sodium_free(report);
 
-		sprintf((char*)response,
-			"HTTP/1.1 200 aem\r\n"
-			"Tk: N\r\n"
-#ifndef AEM_IS_ONION
-			"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-			"Expect-CT: enforce, max-age=99999999\r\n"
-#endif
-			"Content-Length: %zu\r\n"
-			"Access-Control-Allow-Origin: *\r\n"
-			"Cache-Control: no-store, no-transform\r\n"
-			"%s"
-			"\r\n",
-		lenFinal + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
-			"Connection: keep-alive\r\n"
-			"Keep-Alive: timeout=30\r\n"
-		:
-			"Connection: close\r\n"
-		);
-
-		const size_t lenHeaders = strlen((char*)response);
-
-		randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
-		if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, final, lenFinal, response + lenHeaders, upk, ssk) == 0) {
-			lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenFinal;
-		} else {
-			shortResponse(NULL, 0); // TODO
-		}
-
+		longResponse(final, lenFinal);
 		sodium_free(final);
 	} else if (ret > 32) {
 		shortResponse(NULL, ret);

@@ -11,6 +11,7 @@
 #define AEM_API_ERR_TODO      0x25
 #define AEM_API_ERR_FIXME     0x26
 #define AEM_API_ERR_CMD       0x27
+#define AEM_API_ERR_ENC_RESP  0x28
 
 // 0x30-0x3F	Misc
 #define AEM_API_ERR_ACCOUNT_CREATE_EXIST     0x30
