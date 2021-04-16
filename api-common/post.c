@@ -83,34 +83,30 @@ static void clearDecrypted(void) {
 
 static void shortResponse(const unsigned char * const data, const unsigned char lenData) {
 #ifndef AEM_IS_ONION
-	#define AEM_LEN_SHORTRESPONSE_HEADERS 277
+	#define AEM_LEN_SHORTRESPONSE_HEADERS 231
 #else
-	#define AEM_LEN_SHORTRESPONSE_HEADERS 166
+	#define AEM_LEN_SHORTRESPONSE_HEADERS 120
 #endif
 
 	memcpy(response, keepAlive?
 		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
 #ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
 #endif
 		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: keep-alive\r\n"
 		"Keep-Alive: timeout=30\r\n"
 		"\r\n"
 	:
 		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
 #ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
 #endif
 		"Content-Length: 73\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: close\r\n"
 		"Padding-Ignore: abcdefghijk\r\n"
 		"\r\n"
@@ -139,23 +135,21 @@ static int numDigits(const size_t x) {
 
 static void longResponse(const unsigned char * const data, const size_t lenData) {
 #ifndef AEM_IS_ONION
-	#define AEM_LEN_LONGRESPONSE_HEADERS 241
+	#define AEM_LEN_LONGRESPONSE_HEADERS 195
 #else
-	#define AEM_LEN_LONGRESPONSE_HEADERS 130
+	#define AEM_LEN_LONGRESPONSE_HEADERS 84
 #endif
 
 	const size_t lenEnc = lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
 
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
-		"Tk: N\r\n"
 #ifndef AEM_IS_ONION
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Expect-CT: enforce, max-age=99999999\r\n"
 #endif
 		"Content-Length: %zu\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
-		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: %s\r\n"
 		"\r\n",
 	lenEnc, keepAlive ? "keep-alive\r\nKeep-Alive: timeout=30" : "close");
