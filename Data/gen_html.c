@@ -225,6 +225,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"gyroscope"                       "=(),"
 			"hid"                             "=(),"
 			"idle-detection"                  "=(),"
+			"interest-cohort"                 "=(),"
 			"magnetometer"                    "=(),"
 			"microphone"                      "=(),"
 			"midi"                            "=(),"
