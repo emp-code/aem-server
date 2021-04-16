@@ -138,14 +138,9 @@ static void longResponse(const unsigned char * const data, const size_t lenData)
 		"Content-Length: %zu\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"Cache-Control: no-store, no-transform\r\n"
-		"%s"
+		"Connection: %s\r\n"
 		"\r\n",
-	lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ?
-		"Connection: keep-alive\r\n"
-		"Keep-Alive: timeout=30\r\n"
-	:
-		"Connection: close\r\n"
-	);
+	lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ? "keep-alive\r\nKeep-Alive: timeout=30" : "close");
 
 	const size_t lenHeaders = strlen((char*)response);
 
