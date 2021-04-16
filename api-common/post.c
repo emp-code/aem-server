@@ -127,7 +127,25 @@ static void shortResponse(const unsigned char * const data, const unsigned char 
 	if (ret == 0) lenResponse = AEM_LEN_SHORTRESPONSE_HEADERS + 33 + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
 }
 
+static int numDigits(const size_t x) {
+	return
+	(x < 100 ? 2 :
+	(x < 1000 ? 3 :
+	(x < 10000 ? 4 :
+	(x < 100000 ? 5 :
+	(x < 1000000 ? 6 :
+	7)))));
+}
+
 static void longResponse(const unsigned char * const data, const size_t lenData) {
+#ifndef AEM_IS_ONION
+	#define AEM_LEN_LONGRESPONSE_HEADERS 241
+#else
+	#define AEM_LEN_LONGRESPONSE_HEADERS 130
+#endif
+
+	const size_t lenEnc = lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
+
 	sprintf((char*)response,
 		"HTTP/1.1 200 aem\r\n"
 		"Tk: N\r\n"
@@ -140,13 +158,13 @@ static void longResponse(const unsigned char * const data, const size_t lenData)
 		"Cache-Control: no-store, no-transform\r\n"
 		"Connection: %s\r\n"
 		"\r\n",
-	lenData + crypto_box_NONCEBYTES + crypto_box_MACBYTES, keepAlive ? "keep-alive\r\nKeep-Alive: timeout=30" : "close");
+	lenEnc, keepAlive ? "keep-alive\r\nKeep-Alive: timeout=30" : "close");
 
-	const size_t lenHeaders = strlen((char*)response);
+	const size_t lenHeaders = AEM_LEN_LONGRESPONSE_HEADERS + numDigits(lenEnc) + (keepAlive? 34 : 5);
 
 	randombytes_buf(response + lenHeaders, crypto_box_NONCEBYTES);
 	if (crypto_box_easy(response + lenHeaders + crypto_box_NONCEBYTES, data, lenData, response + lenHeaders, upk, ssk) == 0) {
-		lenResponse = lenHeaders + crypto_box_NONCEBYTES + crypto_box_MACBYTES + lenData;
+		lenResponse = lenHeaders + lenEnc;
 	} else {
 		shortResponse(NULL, AEM_API_ERR_ENC_RESP);
 	}
