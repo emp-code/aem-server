@@ -11,9 +11,9 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	|| (lenDomain == 11 && memcmp(domain, "example.", 8) == 0 && ((memcmp(domain + 8, "com", 3) == 0) || (memcmp(domain + 8, "net", 3) == 0) || (memcmp(domain + 8, "org", 3) == 0)))
 	) return false;
 
-	int lastDot = 0;
+	size_t lastDot = 0;
 
-	for (int i = 0; i < lenDomain; i++) {
+	for (size_t i = 0; i < lenDomain; i++) {
 		if (domain[i] == '.') lastDot = i;
 
 		if (islower(domain[i]) || isdigit(domain[i]) ||
