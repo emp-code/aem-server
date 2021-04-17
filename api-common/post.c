@@ -988,7 +988,7 @@ static void message_sender(void) {
 	uint32_t ts;
 	memcpy(&ts, decrypted + 48, 4);
 
-	unsigned char tmp[48];
+	char tmp[48];
 	int result = -1;
 
 	for (int i = 0; i < (lenUpkList / crypto_box_PUBLICKEYBYTES); i++) {
