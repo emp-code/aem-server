@@ -554,7 +554,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(upk, *output, lenOutput, &lenEnc);
-	if (*enc == NULL) {
+	if (enc == NULL) {
 		sodium_free(*output);
 		syslog(LOG_ERR, "Failed creating encrypted message");
 		return 0;
