@@ -155,8 +155,9 @@ static bool ptraceDisabled(void) {
 	if (read(fd, &val, 1) != 1) {close(fd); return false;}
 
 	if (val != '3') {
+		val = '3';
 		if (
-		   pwrite(fd, (char[]){3}, 1, 0) != 1
+		   pwrite(fd, &val, 1, 0) != 1
 		|| pread(fd, &val, 1, 0) != 1
 		)  {close(fd); return false;}
 	}
