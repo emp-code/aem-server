@@ -977,7 +977,7 @@ static void message_sender(void) {
 	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	if (userCount < 1 || userCount >= UINT16_MAX) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-	const size_t lenUpkList = userCount * crypto_box_PUBLICKEYBYTES;
+	const ssize_t lenUpkList = userCount * crypto_box_PUBLICKEYBYTES;
 	unsigned char * const upkList = malloc(lenUpkList);
 	if (upkList == NULL) {syslog(LOG_ERR, "Failed malloc()"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	const ssize_t lenRecv = recv(sock, upkList, lenUpkList, MSG_WAITALL);
