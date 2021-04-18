@@ -19,7 +19,6 @@
 #include "ClientHandler.h"
 #include "IO.h"
 
-#define AEM_ACCOUNT
 #define AEM_LOGNAME "AEM-Acc"
 #define AEM_PIPEFD 1
 

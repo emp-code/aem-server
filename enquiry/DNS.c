@@ -22,8 +22,6 @@
 
 #include "DNS.h"
 
-#define AEM_ENQUIRY
-
 #define AEM_DNS_BUFLEN 512
 
 static int connectSocket(void) {
