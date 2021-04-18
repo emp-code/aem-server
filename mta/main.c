@@ -21,6 +21,7 @@
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 #include "../Common/UnixSocketClient.h"
+#include "../Common/ValidIp.h"
 
 #define AEM_LOGNAME "AEM-MTA"
 #define AEM_PIPEFD 2
@@ -68,30 +69,6 @@ static int pipeLoadKeys(void) {
 	return 0;
 }
 
-static bool ipInvalid(const uint32_t ip) {
-	const uint8_t b1 = ip & 0xFF;
-	const uint8_t b2 = (ip >>  8) & 0xFF;
-	const uint8_t b3 = (ip >> 16) & 0xFF;
-//	const uint8_t b4 = (ip >> 24) & 0xFF;
-
-	return (
-	   (b1 == 0)
-	|| (b1 == 10)
-	|| (b1 == 100 && b2 >= 64 && b2 <= 127)
-	|| (b1 == 127)
-	|| (b1 == 169 && b2 == 254)
-	|| (b1 == 172 && b2 >= 16 && b2 <= 31)
-	|| (b1 == 192 && b2 == 0  && b3 == 0)
-	|| (b1 == 192 && b2 == 0  && b3 == 2)
-	|| (b1 == 192 && b2 == 88 && b3 == 99)
-	|| (b1 == 192 && b2 == 168)
-	|| (b1 == 198 && b2 >= 18 && b2 <= 19)
-	|| (b1 == 198 && b2 == 51 && b3 == 100)
-	|| (b1 == 203 && b2 == 0  && b3 == 113)
-	|| (b1 >= 224)
-	);
-}
-
 static void acceptClients(void) {
 	const int sock = createSocket(AEM_PORT_MTA, false, 10, 10);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
@@ -105,7 +82,7 @@ static void acceptClients(void) {
 	while (!terminate) {
 		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
 		if (newSock < 0) continue;
-		if (!ipInvalid(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
+		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
 		close(newSock);
 	}
 
