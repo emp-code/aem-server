@@ -1,3 +1,9 @@
+static bool terminate = false;
+
+void tc_term(void) {
+	terminate = true;
+}
+
 static bool peerOk(const int sock) {
 	struct ucred peer;
 	unsigned int lenUc = sizeof(struct ucred);

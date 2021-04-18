@@ -17,13 +17,7 @@
 #include "ClientHandler.h"
 
 #define AEM_SOCKPATH AEM_SOCKPATH_ACCOUNT
-#include "../Common/tier2_common.c"
-
-static bool terminate = false;
-
-void tc_term(void) {
-	terminate = true;
-}
+#include "../Common/ClientHandler_common.c"
 
 void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
