@@ -1,12 +1,35 @@
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <syslog.h>
+#include <unistd.h>
+
+#include <sodium.h>
+
+#include "../Data/internal.h"
+#include "../Global.h"
+#include "ClientAction.h"
+
+#include "ClientHandler.h"
+
 #ifdef AEM_ACCOUNT
+	#define AEM_SOCK_MAXLEN (2 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+	#define AEM_SOCK_MINLEN (1 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 	#define AEM_SOCKPATH AEM_SOCKPATH_ACCOUNT
 	#define AEM_ACCESSKEY_API AEM_KEY_ACCESS_ACCOUNT_API
 	#define AEM_ACCESSKEY_MTA AEM_KEY_ACCESS_ACCOUNT_MTA
 #elif defined(AEM_ENQUIRY)
+	#define AEM_SOCK_MAXLEN (65 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+	#define AEM_SOCK_MINLEN (5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 	#define AEM_SOCKPATH AEM_SOCKPATH_ENQUIRY
 	#define AEM_ACCESSKEY_API AEM_KEY_ACCESS_ENQUIRY_API
 	#define AEM_ACCESSKEY_MTA AEM_KEY_ACCESS_ENQUIRY_MTA
 #elif defined(AEM_STORAGE)
+	#define AEM_SOCK_MAXLEN (65 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+	#define AEM_SOCK_MINLEN (2 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 	#define AEM_SOCKPATH AEM_SOCKPATH_STORAGE
 	#define AEM_ACCESSKEY_API AEM_KEY_ACCESS_STORAGE_API
 	#define AEM_ACCESSKEY_MTA AEM_KEY_ACCESS_STORAGE_MTA
@@ -31,9 +54,6 @@ static int bindSocket(const int sock) {
 	memcpy(addr.sun_path, AEM_SOCKPATH, AEM_SOCKPATH_LEN);
 	return bind(sock, (struct sockaddr*)&addr, sizeof(addr.sun_family) + AEM_SOCKPATH_LEN);
 }
-
-static void conn_api(const int sock, const unsigned char * const dec, const size_t lenDec);
-static void conn_mta(const int sock, const unsigned char * const dec, const size_t lenDec);
 
 void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
