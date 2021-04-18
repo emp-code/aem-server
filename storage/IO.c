@@ -28,10 +28,10 @@ struct aem_stindex {
 static struct aem_stindex *stindex;
 static uint16_t stindexCount;
 
-static void getStorageKey(unsigned char * const target, const unsigned char * const pubkey, const uint16_t sze) {
+static void getStorageKey(unsigned char * const target, const unsigned char * const upk, const uint16_t sze) {
 	uint64_t keyId;
 	memcpy(&keyId, &sze, 2);
-	memcpy((unsigned char*)&keyId + 2, pubkey, 6);
+	memcpy((unsigned char*)&keyId + 2, upk, 6);
 
 	crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
 }
@@ -108,7 +108,7 @@ static bool idMatch(const int fdMsg, const int stindexNum, const int sze, const 
 }
 
 // Encrypts pubkey to obscure file-owner connection
-static void getMsgPath(char path[77], const unsigned char pubkey[crypto_box_PUBLICKEYBYTES]) {
+static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICKEYBYTES]) {
 	unsigned char aesKey[32];
 	struct AES_ctx aes;
 
@@ -117,7 +117,7 @@ static void getMsgPath(char path[77], const unsigned char pubkey[crypto_box_PUBL
 	sodium_memzero(aesKey, 32);
 
 	unsigned char pkEnc[32];
-	memcpy(pkEnc, pubkey, 32);
+	memcpy(pkEnc, upk, 32);
 	AES_ECB_encrypt(&aes, pkEnc);
 	AES_ECB_encrypt(&aes, pkEnc + 16);
 
@@ -168,10 +168,10 @@ int storage_erase(const unsigned char * const upk) {
 	return unlinkRet;
 }
 
-int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
+int storage_delete(const unsigned char upk[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
 	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
 			stindexNum = i;
 			break;
 		}
@@ -236,9 +236,9 @@ int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const 
 	return doneDelete ? 0 : -100;
 }
 
-int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const uint16_t sze) {
+int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const uint16_t sze) {
 	char path[77];
-	getMsgPath(path, pubkey);
+	getMsgPath(path, upk);
 
 	const int fdMsg = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
 	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return -1;}
@@ -248,7 +248,7 @@ int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigne
 
 	// Encrypt & Write
 	unsigned char aesKey[32];
-	getStorageKey(aesKey, pubkey, sze);
+	getStorageKey(aesKey, upk, sze);
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
 	sodium_memzero(aesKey, 32);
@@ -263,7 +263,7 @@ int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigne
 	// Stindex
 	int num = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(pubkey, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
 			num = i;
 			break;
 		}
@@ -281,7 +281,7 @@ int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigne
 		stindex = stindex2;
 
 		num = stindexCount - 1;
-		memcpy(stindex[num].pubkey, pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(stindex[num].pubkey, upk, crypto_box_PUBLICKEYBYTES);
 		stindex[num].msgCount = 0;
 		stindex[num].msg = malloc(2);
 		if (stindex[num].msg == NULL) {
@@ -402,6 +402,7 @@ int storage_read(const unsigned char * const upk, const unsigned char * const ma
 }
 
 // Setup/free-up functions
+
 static int loadStindex(void) {
 	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return -1;
