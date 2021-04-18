@@ -40,13 +40,13 @@ void takeConnections(void) {
 			continue;
 		}
 
-		unsigned char enc[crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 64];
-		const ssize_t lenEnc = recv(sock, enc, crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 64, 0);
-		if (lenEnc < crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1) {close(sock); continue;}
-		const size_t lenClr = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+		unsigned char enc[crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 65];
+		const ssize_t lenEnc = recv(sock, enc, crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 65, 0);
+		if (lenEnc < crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 2) {close(sock); continue;}
+		const size_t lenClr = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES - 1;
 
 		unsigned char clr[lenClr];
-		if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_API) == 0) {
+		if (enc[0] == 'A' && crypto_secretbox_open_easy(clr, enc + 1 + crypto_secretbox_NONCEBYTES, lenClr + crypto_secretbox_MACBYTES, enc + 1, AEM_KEY_ACCESS_STORAGE_API) == 0) {
 			switch (clr[0]) {
 				case AEM_API_INTERNAL_ERASE: {
 					if (lenClr != crypto_box_PUBLICKEYBYTES + 1) break;
@@ -104,7 +104,7 @@ void takeConnections(void) {
 
 				default: syslog(LOG_ERR, "Invalid API command");
 			}
-		} else if (crypto_secretbox_open_easy(clr, enc + crypto_secretbox_NONCEBYTES, lenEnc - crypto_secretbox_NONCEBYTES, enc, AEM_KEY_ACCESS_STORAGE_MTA) == 0) {
+		} else if (enc[0] == 'M' && crypto_secretbox_open_easy(clr, enc + 1 + crypto_secretbox_NONCEBYTES, lenEnc - 1 - crypto_secretbox_NONCEBYTES, enc + 1, AEM_KEY_ACCESS_STORAGE_MTA) == 0) {
 			if (clr[0] == AEM_MTA_INSERT) {
 				uint16_t sze;
 				while(1) {

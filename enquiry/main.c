@@ -30,8 +30,8 @@
 #define AEM_LOGNAME "AEM-Enq"
 #define AEM_SOCK_QUEUE 50
 
-#define AEM_MAXLEN_ENQUIRY_ENC (64 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
-#define AEM_MINLEN_ENQUIRY_ENC (4 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+#define AEM_MAXLEN_ENQUIRY_ENC (65 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
+#define AEM_MINLEN_ENQUIRY_ENC (5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
 static bool terminate = false;
 
@@ -87,9 +87,9 @@ void takeConnections(void) {
 			continue;
 		}
 
-		const size_t lenDec = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+		const size_t lenDec = lenEnc - 1 - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 		unsigned char dec[lenDec];
-		if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_API) == 0) {
+		if (enc[0] == 'A' && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_KEY_ACCESS_ENQUIRY_API) == 0) {
 			switch (dec[0]) {
 				case AEM_ENQUIRY_MX: {
 					if (!isValidDomain((char*)dec + 1, lenDec - 1)) break;
@@ -108,7 +108,7 @@ void takeConnections(void) {
 
 				default: syslog(LOG_ERR, "Invalid command: %u", dec[0]);
 			}
-		} else if (crypto_secretbox_open_easy(dec, enc + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ENQUIRY_MTA) == 0) {
+		} else if (enc[0] == 'M' && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_KEY_ACCESS_ENQUIRY_MTA) == 0) {
 			switch (dec[0]) {
 				case AEM_ENQUIRY_IP: {
 					if (lenDec != 5) break;

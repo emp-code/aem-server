@@ -40,20 +40,20 @@ void takeConnections(void) {
 			continue;
 		}
 
-		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1 + crypto_box_PUBLICKEYBYTES;
+		const size_t encLen = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 2 + crypto_box_PUBLICKEYBYTES;
 		unsigned char enc[encLen];
 
 		ssize_t reqLen = recv(sockClient, enc, encLen, 0);
-		if (reqLen < crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1) {
+		if (reqLen <= crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES) {
 			syslog(LOG_WARNING, "Invalid connection");
 			close(sockClient);
 			continue;
 		}
 
-		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES);
+		reqLen -= (crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 1);
 		unsigned char req[reqLen];
 
-		if (reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_API) == 0) {
+		if (enc[0] == 'A' && reqLen == 1 + crypto_box_PUBLICKEYBYTES && crypto_secretbox_open_easy(req, enc + 1 + crypto_secretbox_NONCEBYTES, 1 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_MACBYTES, enc + 1, AEM_KEY_ACCESS_ACCOUNT_API) == 0) {
 			const int num = userNumFromPubkey(req + 1);
 			if (num < 0) {
 				send(sockClient, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
@@ -88,7 +88,7 @@ void takeConnections(void) {
 
 			close(sockClient);
 			continue;
-		} else if (reqLen == 11 && crypto_secretbox_open_easy(req, enc + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc, AEM_KEY_ACCESS_ACCOUNT_MTA) == 0) {
+		} else if (enc[0] == 'M' && reqLen == 11 && crypto_secretbox_open_easy(req, enc + 1 + crypto_secretbox_NONCEBYTES, 11 + crypto_secretbox_MACBYTES, enc + 1, AEM_KEY_ACCESS_ACCOUNT_MTA) == 0) {
 			switch(req[0]) {
 				case AEM_MTA_ADREXISTS_SHIELD: mta_shieldExist(sockClient, req + 1); break;
 				case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sockClient, req + 1, false); break;

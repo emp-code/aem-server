@@ -53,21 +53,28 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	clear[0] = command;
 	if (msg != NULL) memcpy(clear + 1, msg, lenMsg);
 
-	const ssize_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
-	unsigned char encrypted[lenEncrypted];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+	const ssize_t lenFinal = 1 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
+	unsigned char final[lenFinal];
+#ifdef AEM_API
+	final[0] = 'A';
+#elif defined(AEM_MTA)
+	final[0] = 'M';
+#else
+	final[0] = '?';
+#endif
+	randombytes_buf(final + 1, crypto_secretbox_NONCEBYTES);
 
 #ifdef AEM_API
-	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_API);
-	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_API);
-	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_API);
+	if      (pid == pid_account) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ACCOUNT_API);
+	else if (pid == pid_storage) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_STORAGE_API);
+	else if (pid == pid_enquiry) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ENQUIRY_API);
 #elif defined(AEM_MTA)
-	if      (pid == pid_account) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ACCOUNT_MTA);
-	else if (pid == pid_storage) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_STORAGE_MTA);
-	else if (pid == pid_enquiry) crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, clear, lenClear, encrypted, AEM_KEY_ACCESS_ENQUIRY_MTA);
+	if      (pid == pid_account) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ACCOUNT_MTA);
+	else if (pid == pid_storage) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_STORAGE_MTA);
+	else if (pid == pid_enquiry) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ENQUIRY_MTA);
 #endif
 
-	if (send(sock, encrypted, lenEncrypted, 0) != lenEncrypted) {
+	if (send(sock, final, lenFinal, 0) != lenFinal) {
 		syslog(LOG_ERR, "Failed sending data to %s", path);
 		close(sock);
 		return -1;
