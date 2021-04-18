@@ -7,13 +7,13 @@ aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c -lsodium -lcap
 
 aem-account: account/*.c
-	$(CC) $(CFLAGS) -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c -lsodium -lcap
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
+	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
 
 aem-storage: storage/*.c
-	$(CC) $(CFLAGS) -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_CLR -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
