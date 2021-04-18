@@ -237,10 +237,7 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 		}
 
 		// Deliver
-		unsigned char sockMsg[2 + crypto_box_PUBLICKEYBYTES];
-		memcpy(sockMsg, upk, crypto_box_PUBLICKEYBYTES);
-
-		const int stoSock = storageSocket(AEM_MTA_INSERT, sockMsg, 2 + crypto_box_PUBLICKEYBYTES);
+		const int stoSock = storageSocket(AEM_MTA_INSERT, upk, crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 			if (send(stoSock, &u, 2, 0) != 2) {

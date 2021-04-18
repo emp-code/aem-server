@@ -19,12 +19,13 @@
 void conn_api(const int sock, const unsigned char * const dec, const size_t lenDec) {
 	switch (dec[0]) {
 		case AEM_API_INTERNAL_ERASE: {
-			if (lenDec != crypto_box_PUBLICKEYBYTES + 1) break;
+			if (lenDec != crypto_box_PUBLICKEYBYTES + 1) return;
+
 			if (send(sock, (unsigned char[]){(storage_erase(dec + 1) == 0) ? AEM_INTERNAL_RESPONSE_OK : AEM_INTERNAL_RESPONSE_ERR}, 1, 0) != 1) syslog(LOG_ERR, "Failed send");
 		break;}
 
 		case AEM_API_MESSAGE_BROWSE: {
-			if (lenDec != 1 + crypto_box_PUBLICKEYBYTES && lenDec != 1 + crypto_box_PUBLICKEYBYTES + 17) {syslog(LOG_ERR, "Message/Browse: Wrong length: %ld", lenDec); break;}
+			if (lenDec != 1 + crypto_box_PUBLICKEYBYTES && lenDec != 1 + crypto_box_PUBLICKEYBYTES + 17) return;
 
 			unsigned char *msgData = NULL;
 			const int sz = storage_read(dec + 1, (lenDec == 1 + crypto_box_PUBLICKEYBYTES + 17) ? dec + 1 + crypto_box_PUBLICKEYBYTES : NULL, &msgData);
@@ -38,6 +39,8 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 		break;}
 
 		case AEM_API_MESSAGE_DELETE: {
+			if (lenDec != 1 + crypto_box_PUBLICKEYBYTES) return;
+
 			unsigned char ids[8192];
 
 			const ssize_t lenIds = recv(sock, ids, 8192, 0);
@@ -57,6 +60,8 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 		break;}
 
 		case AEM_API_MESSAGE_UPLOAD: {
+			if (lenDec != 3 + crypto_box_PUBLICKEYBYTES) return;
+
 			uint16_t sze;
 			memcpy(&sze, dec + 1, 2);
 
@@ -77,6 +82,8 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 }
 
 void conn_mta(const int sock, const unsigned char * const dec, const size_t lenDec) {
+	if (lenDec != 1 + crypto_box_PUBLICKEYBYTES) return;
+
 	if (dec[0] == AEM_MTA_INSERT) {
 		uint16_t sze;
 		while(1) {
