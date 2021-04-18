@@ -16,10 +16,6 @@
 
 #include "ClientHandler.h"
 
-#define AEM_ACCESSKEY_API AEM_KEY_ACCESS_ACCOUNT_API
-#define AEM_ACCESSKEY_MTA AEM_KEY_ACCESS_ACCOUNT_MTA
-#define AEM_SOCKPATH AEM_SOCKPATH_ACCOUNT
-#define AEM_SOCK_QUEUE 50
 #define AEM_SOCK_MAXLEN (2 + crypto_box_PUBLICKEYBYTES + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 #define AEM_SOCK_MINLEN (1 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
