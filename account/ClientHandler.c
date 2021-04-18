@@ -42,9 +42,9 @@ static void conn_api(const int sock, const unsigned char * const dec, const size
 		case AEM_API_PRIVATE_UPDATE: api_private_update(sock, num); break;
 		case AEM_API_SETTING_LIMITS: api_setting_limits(sock, num); break;
 
-		// Internal functions
+		// Internal
 		case AEM_API_INTERNAL_ADRPK: api_internal_adrpk(sock, num); break;
-		case AEM_API_INTERNAL_EXIST: send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0); break; // existence verified by userNumFromPubkey()
+		case AEM_API_INTERNAL_EXIST: send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0); break; // Existence verified by userNumFromPubkey()
 		case AEM_API_INTERNAL_LEVEL: api_internal_level(sock, num); break;
 		case AEM_API_INTERNAL_MYADR: api_internal_myadr(sock, num); break;
 		case AEM_API_INTERNAL_UINFO: api_internal_uinfo(sock, num); break;
