@@ -25,13 +25,7 @@
 #define AEM_MAXLEN_ENQUIRY_ENC (65 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 #define AEM_MINLEN_ENQUIRY_ENC (5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 
-#include "../Common/tier2_common.c"
-
-static bool terminate = false;
-
-void tc_term(void) {
-	terminate = true;
-}
+#include "../Common/ClientHandler_common.c"
 
 void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
