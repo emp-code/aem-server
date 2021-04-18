@@ -566,37 +566,34 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	return lenOutput;
 }
 
-static void deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte) {
-	const size_t lenContent = (isEncrypted? (27 + crypto_kx_PUBLICKEYBYTES) : 27) + lenSubj + lenBody;
-	unsigned char * const content = sodium_malloc(lenContent);
-	if (content == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+static size_t deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte, unsigned char ** const output, unsigned char * const msgId) {
+	const size_t lenOutput = (isEncrypted? (27 + crypto_kx_PUBLICKEYBYTES) : 27) + lenSubj + lenBody;
+	*output = sodium_malloc(lenOutput);
+	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
 
-	content[0] = msg_getPadAmount(lenContent) | 48; // 48=OutMsg (DeliveryReport)
-	memcpy(content + 1, ts, 4);
-	content[5] = lenSubj | 128; // 128 = IntMsg
-	content[6] = infoByte;
-	memcpy(content + 7, fromAddr32, 10);
-	memcpy(content + 17, toAddr32, 10);
+	(*output)[0] = msg_getPadAmount(lenOutput) | 48; // 48=OutMsg (DeliveryReport)
+	memcpy((*output) + 1, ts, 4);
+	(*output)[5] = lenSubj | 128; // 128 = IntMsg
+	(*output)[6] = infoByte;
+	memcpy((*output) + 7, fromAddr32, 10);
+	memcpy((*output) + 17, toAddr32, 10);
 
 	if (isEncrypted) {
-		memcpy(content + 27, recvPubKey, crypto_kx_PUBLICKEYBYTES);
-		memcpy(content + 27 + crypto_kx_PUBLICKEYBYTES, subj, lenSubj);
-		memcpy(content + 27 + crypto_kx_PUBLICKEYBYTES + lenSubj, body, lenBody);
+		memcpy((*output) + 27, recvPubKey, crypto_kx_PUBLICKEYBYTES);
+		memcpy((*output) + 27 + crypto_kx_PUBLICKEYBYTES, subj, lenSubj);
+		memcpy((*output) + 27 + crypto_kx_PUBLICKEYBYTES + lenSubj, body, lenBody);
 	} else {
-		memcpy(content + 27, subj, lenSubj);
-		memcpy(content + 27 + lenSubj, body, lenBody);
+		memcpy((*output) + 27, subj, lenSubj);
+		memcpy((*output) + 27 + lenSubj, body, lenBody);
 	}
 
 	size_t lenEnc;
-	unsigned char * const enc = msg_encrypt(upk, content, lenContent, &lenEnc);
-	sodium_free(content);
-	if (enc == NULL) {
-		syslog(LOG_ERR, "Failed creating encrypted message");
-		return;
-	}
-
+	unsigned char * const enc = msg_encrypt(upk, *output, lenOutput, &lenEnc);
+	if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); return 0;}
+	memcpy(msgId, enc, 16);
 	deliveryReport_store(enc, lenEnc);
 	free(enc);
+	return lenOutput;
 }
 
 static bool isValidFrom(const char * const src) { // Only allow sending from valid, reasonably normal looking addresses
@@ -846,8 +843,22 @@ static void message_create_int(void) {
 
 	close(sock);
 
-	deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte);
-	shortResponse(NULL, 0);
+	unsigned char msgId[16];
+	unsigned char *report = NULL;
+	const size_t lenReport = deliveryReport_int(decrypted + 1, ts_sender, fromAddr32, toAddr32, msgData + 21 + crypto_kx_PUBLICKEYBYTES, lenSubj, msgData + 21 + crypto_kx_PUBLICKEYBYTES + lenSubj, lenData - 21 - crypto_kx_PUBLICKEYBYTES - lenSubj, isEncrypted, infoByte, &report, msgId);
+	if (lenReport == 0 || report == NULL) {
+		return shortResponse(NULL, 0); // TODO
+	}
+
+	const size_t lenFinal = 16 + lenReport;
+	unsigned char * const final = sodium_malloc(lenFinal);
+	if (final == NULL) {sodium_free(report); return;}
+	memcpy(final, msgId, 16);
+	memcpy(final + 16, report, lenReport);
+	sodium_free(report);
+
+	longResponse(final, lenFinal);
+	sodium_free(final);
 }
 
 static void message_create(void) {
