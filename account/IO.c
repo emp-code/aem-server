@@ -517,7 +517,7 @@ void api_setting_limits(const int sock, const int num) {
 
 //	saveSettings(); // TODO
 
-	if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) return;
+	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 
 void api_internal_level(const int sock, const int num) {
