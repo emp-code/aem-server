@@ -231,13 +231,34 @@ void api_internal_pubks(const int sock, const int num) {
 	free(response);
 }
 
+size_t getUserStorage(unsigned char ** const out) {
+	const int stoSock = storageSocket(AEM_ACC_STORAGE_AMOUNT, NULL, 0);
+	if (stoSock < 0) return 0;
+
+	const size_t lenOut = userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
+	*out = malloc(lenOut + 1);
+	if (out == NULL) {close(stoSock); return 0;}
+	if (recv(stoSock, *out, lenOut + 1, 0) != (ssize_t)lenOut) {
+		free(*out);
+		close(stoSock);
+		return 0;
+	}
+
+	close(stoSock);
+	return lenOut;
+}
+
 void api_account_browse(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) return;
 
 	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
 
+	unsigned char *storage = NULL;
+	const size_t lenStorage = getUserStorage(&storage);
+	if (storage == NULL || lenStorage == 0) return;
+
 	unsigned char * const response = malloc(userCount * 35);
-	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); free(storage); return;}
 
 	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
 	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
@@ -253,7 +274,15 @@ void api_account_browse(const int sock, const int num) {
 	for (int i = 0; i < userCount; i++) {
 		if (i == num) continue; // Skip own user
 
-		const int mib = 1000 +i; // TODO
+		if (memcmp(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES) != 0) {
+			free(response);
+			free(storage);
+			return;
+		}
+
+		uint32_t storageBytes;
+		memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
+		const uint32_t mib = storageBytes / 1048576;
 
 /* Stores: Level=0-3, Normal=0-31, Shield=0-31, MiB=0-4095
 	Bytes 0-1:
@@ -273,6 +302,7 @@ void api_account_browse(const int sock, const int num) {
 
 	send(sock, response, len, 0);
 	free(response);
+	free(storage);
 }
 
 void api_account_create(const int sock, const int num) {

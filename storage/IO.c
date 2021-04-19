@@ -34,6 +34,24 @@ void updateLimits(const unsigned char * const newLimits) {
 	memcpy(limits, newLimits, 4);
 }
 
+size_t getStorageAmounts(unsigned char ** const out) {
+	const size_t outSize = stindexCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
+	*out = malloc(outSize);
+	if (*out == NULL) return 0;
+
+	for (int i = 0; i < stindexCount; i++) {
+		uint32_t total = 0;
+		for (int j = 0; j < stindex[i].msgCount; j++) {
+			total += stindex[i].msg[j] * 16;
+		}
+
+		memcpy(*out + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (unsigned char*)&total, sizeof(uint32_t));
+		memcpy(*out + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].pubkey, crypto_box_PUBLICKEYBYTES);
+	}
+
+	return outSize;
+}
+
 static void getStorageKey(unsigned char * const target, const unsigned char * const upk, const uint16_t sze) {
 	uint64_t keyId;
 	memcpy(&keyId, &sze, 2);

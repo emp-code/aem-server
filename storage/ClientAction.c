@@ -21,7 +21,11 @@ void conn_acc(const int sock, const unsigned char * const dec, const size_t lenD
 		updateLimits(dec + 1);
 		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 	} else if (dec[0] == AEM_ACC_STORAGE_AMOUNT) {
-		// TODO
+		unsigned char *out = NULL;
+		const size_t lenOut = getStorageAmounts(&out);
+		if (lenOut == 0 || out == NULL) return;
+		send(sock, out, lenOut, 0);
+		free(out);
 	}
 }
 

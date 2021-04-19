@@ -2,6 +2,7 @@
 #define AEM_STORAGE_IO_H
 
 void updateLimits(const unsigned char * const newLimits);
+size_t getStorageAmounts(unsigned char ** const out);
 
 int storage_erase(const unsigned char * const upk);
 int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id);
