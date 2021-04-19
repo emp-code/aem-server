@@ -43,11 +43,6 @@ enum aem_internal_enquiry {
 
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 
-#define AEM_IDENTIFIER_INV 0x00
-#define AEM_IDENTIFIER_ACC 0xAA
-#define AEM_IDENTIFIER_API 0xBB
-#define AEM_IDENTIFIER_MTA 0xCC
-
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
