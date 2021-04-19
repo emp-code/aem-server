@@ -301,7 +301,7 @@ size_t getUserStorage(unsigned char ** const out) {
 
 	const size_t lenOut = userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
 	*out = malloc(lenOut + 1);
-	if (out == NULL) {close(stoSock); return 0;}
+	if (*out == NULL) {close(stoSock); return 0;}
 	if (recv(stoSock, *out, lenOut + 1, 0) != (ssize_t)lenOut) {
 		free(*out);
 		close(stoSock);
