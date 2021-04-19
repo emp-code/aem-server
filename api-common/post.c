@@ -1086,18 +1086,16 @@ static void setting_limits(void) {
 	const int sock = accountSocket(AEM_API_SETTING_LIMITS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
-	unsigned char resp;
-	if (recv(sock, &resp, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-	if (resp != AEM_INTERNAL_RESPONSE_OK) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed communicating with Account");
 		close(sock);
 		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
+	unsigned char resp = 0;
+	recv(sock, &resp, 1, 0);
 	close(sock);
-	shortResponse(NULL, 0);
+	shortResponse(NULL, (resp == AEM_INTERNAL_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 
 int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {

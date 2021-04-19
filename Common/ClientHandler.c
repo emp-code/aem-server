@@ -31,6 +31,7 @@
 	#define AEM_SOCK_MAXLEN (65 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 	#define AEM_SOCK_MINLEN (2 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)
 	#define AEM_SOCKPATH AEM_SOCKPATH_STORAGE
+	#define AEM_ACCESSKEY_ACC AEM_KEY_ACCESS_STORAGE_ACC
 	#define AEM_ACCESSKEY_API AEM_KEY_ACCESS_STORAGE_API
 	#define AEM_ACCESSKEY_MTA AEM_KEY_ACCESS_STORAGE_MTA
 #endif
@@ -76,12 +77,17 @@ void takeConnections(void) {
 		const size_t lenDec = lenEnc - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES - 1;
 		unsigned char dec[lenDec];
 
-		if        (enc[0] == 'A' && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_ACCESSKEY_API) == 0) {
+#ifdef AEM_STORAGE
+		if        (enc[0] == AEM_IDENTIFIER_ACC && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_ACCESSKEY_ACC) == 0) {
+			conn_acc(sock, dec, lenDec);
+		} else
+#endif
+		if        (enc[0] == AEM_IDENTIFIER_API && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_ACCESSKEY_API) == 0) {
 			conn_api(sock, dec, lenDec);
-		} else if (enc[0] == 'M' && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_ACCESSKEY_MTA) == 0) {
+		} else if (enc[0] == AEM_IDENTIFIER_MTA && crypto_secretbox_open_easy(dec, enc + 1 + crypto_secretbox_NONCEBYTES, lenDec + crypto_secretbox_MACBYTES, enc + 1, AEM_ACCESSKEY_MTA) == 0) {
 			conn_mta(sock, dec, lenDec);
 		} else {
-			syslog(LOG_WARNING, "Failed decrypting message from peer (%zd bytes)", lenEnc);
+			syslog(LOG_WARNING, "Failed decrypting message from peer (ID=%.2x; %zd bytes)", enc[0], lenEnc);
 		}
 
 		close(sock);

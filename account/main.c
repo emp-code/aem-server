@@ -15,6 +15,7 @@
 
 #include "../Global.h"
 #include "../Common/SetCaps.h"
+#include "../Common/UnixSocketClient.h"
 
 #include "ClientHandler.h"
 #include "IO.h"
@@ -37,11 +38,13 @@ static void sigTerm(const int sig) {
 #include "../Common/main_all.c"
 
 static int setupIo(void) {
+	pid_t storagePid;
 	unsigned char accountKey[AEM_LEN_KEY_ACC];
 	unsigned char saltShield[AEM_LEN_SLT_SHD];
 
 	if (
-	   read(AEM_PIPEFD, accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+	   read(AEM_PIPEFD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
+	|| read(AEM_PIPEFD, accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
 	|| read(AEM_PIPEFD, saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
 	) {
 		sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
@@ -52,6 +55,7 @@ static int setupIo(void) {
 
 	close(AEM_PIPEFD);
 	if (ioSetup(accountKey, saltShield) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
+	setStoragePid(storagePid);
 	sodium_memzero(accountKey, AEM_LEN_KEY_ACC);
 	sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
 	return 0;

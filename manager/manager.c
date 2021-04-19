@@ -382,7 +382,8 @@ static int process_spawn(const int type) {
 	switch(type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			fail = (
-			   write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+			   write(fd[1], &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
 			|| write(fd[1], slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
 			);
 		break;
@@ -523,9 +524,9 @@ int receiveConnections(void) {
 
 	if ( // pipefd=1
 	   sockMain < 0
-	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
 	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
+	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
 	) {wipeKeys(); return EXIT_FAILURE;}
 
 	bzero(aemPid, sizeof(aemPid));

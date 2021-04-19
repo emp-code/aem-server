@@ -25,8 +25,14 @@ struct aem_stindex {
 	uint16_t *msg;
 };
 
+static unsigned char limits[] = {0,0,0,0}; // +1, in MiB
+
 static struct aem_stindex *stindex;
 static uint16_t stindexCount;
+
+void updateLimits(const unsigned char * const newLimits) {
+	memcpy(limits, newLimits, 4);
+}
 
 static void getStorageKey(unsigned char * const target, const unsigned char * const upk, const uint16_t sze) {
 	uint64_t keyId;

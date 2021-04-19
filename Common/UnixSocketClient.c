@@ -11,13 +11,17 @@
 #include "../Global.h"
 #include "../Data/internal.h"
 
+#if defined(AEM_API) || defined(AEM_MTA)
 static pid_t pid_account = 0;
-static pid_t pid_storage = 0;
 static pid_t pid_enquiry = 0;
+#endif
+static pid_t pid_storage = 0;
 
+#if defined(AEM_API) || defined(AEM_MTA)
 void setAccountPid(const pid_t pid) {pid_account = pid;}
-void setStoragePid(const pid_t pid) {pid_storage = pid;}
 void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
+#endif
+void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 static bool peerOk(const int sock, const pid_t pid) {
 	struct ucred peer;
@@ -55,16 +59,20 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 
 	const ssize_t lenFinal = 1 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char final[lenFinal];
-#ifdef AEM_API
-	final[0] = 'A';
+#ifdef AEM_ACCOUNT
+	final[0] = AEM_IDENTIFIER_ACC;
+#elif defined(AEM_API)
+	final[0] = AEM_IDENTIFIER_API;
 #elif defined(AEM_MTA)
-	final[0] = 'M';
+	final[0] = AEM_IDENTIFIER_MTA;
 #else
-	final[0] = '?';
+	final[0] = AEM_IDENTIFIER_INV;
 #endif
 	randombytes_buf(final + 1, crypto_secretbox_NONCEBYTES);
 
-#ifdef AEM_API
+#ifdef AEM_ACCOUNT
+	if      (pid == pid_storage) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_STORAGE_ACC);
+#elif defined(AEM_API)
 	if      (pid == pid_account) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ACCOUNT_API);
 	else if (pid == pid_storage) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_STORAGE_API);
 	else if (pid == pid_enquiry) crypto_secretbox_easy(final + 1 + crypto_secretbox_NONCEBYTES, clear, lenClear, final + 1, AEM_KEY_ACCESS_ENQUIRY_API);
@@ -83,14 +91,16 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 	return sock;
 }
 
+#if defined(AEM_API) || defined(AEM_MTA)
 int accountSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ACCOUNT, pid_account, command, msg, lenMsg);
 }
 
-int storageSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
-	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
-}
-
 int enquirySocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
 	return getUnixSocket(AEM_SOCKPATH_ENQUIRY, pid_enquiry, command, msg, lenMsg);
+}
+#endif
+
+int storageSocket(const unsigned char command, const unsigned char * const msg, const size_t lenMsg) {
+	return getUnixSocket(AEM_SOCKPATH_STORAGE, pid_storage, command, msg, lenMsg);
 }

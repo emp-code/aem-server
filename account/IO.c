@@ -9,8 +9,9 @@
 
 #include <sodium.h>
 
-#include "../Global.h"
+#include "../Common/UnixSocketClient.h"
 #include "../Data/address.h"
+#include "../Global.h"
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64/32/16/8/4 unused
@@ -513,10 +514,14 @@ void api_setting_limits(const int sock, const int num) {
 	unsigned char buf[12];
 	if (recv(sock, buf, 12, 0) != 12) return;
 
-	memcpy(limits, buf, 12);
+	const int stoSock = storageSocket(AEM_ACC_SETTING_LIMITS, (unsigned char[]){buf[0], buf[3], buf[6], buf[9]}, 4);
+	if (stoSock < 0) return;
+	if (recv(stoSock, buf, 1, 0) != 1 || *buf != AEM_INTERNAL_RESPONSE_OK) {close(stoSock); return;}
+	close(stoSock);
 
 //	saveSettings(); // TODO
 
+	memcpy(limits, buf, 12);
 	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
 

@@ -16,6 +16,15 @@
 
 #include "ClientAction.h"
 
+void conn_acc(const int sock, const unsigned char * const dec, const size_t lenDec) {
+	if (dec[0] == AEM_ACC_SETTING_LIMITS && lenDec == 5) {
+		updateLimits(dec + 1);
+		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	} else if (dec[0] == AEM_ACC_STORAGE_AMOUNT) {
+		// TODO
+	}
+}
+
 void conn_api(const int sock, const unsigned char * const dec, const size_t lenDec) {
 	switch (dec[0]) {
 		case AEM_API_INTERNAL_ERASE: {
