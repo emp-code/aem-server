@@ -184,6 +184,8 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"frame-ancestors" " 'none';"
 			"manifest-src"    " 'none';"
 			"prefetch-src"    " 'none';"
+			"script-src-attr" " 'none';"
+			"style-src-attr"  " 'none';"
 			"worker-src"      " 'none';"
 
 			"block-all-mixed-content;"
