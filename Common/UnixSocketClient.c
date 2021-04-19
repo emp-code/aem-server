@@ -11,6 +11,8 @@
 #include "../Global.h"
 #include "../Data/internal.h"
 
+#include "UnixSocketClient.h"
+
 #if defined(AEM_API) || defined(AEM_MTA)
 static pid_t pid_account = 0;
 static pid_t pid_enquiry = 0;
