@@ -149,7 +149,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
 
 	// Headers
-	char headers[2500];
+	char headers[4096];
 	sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 
@@ -167,12 +167,14 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		// CSP
 		"Content-Security-Policy: "
 			"connect-src"     " http%s:302/api data:;"
-			"frame-src"       " blob:;" // PDF (Chrome)
+			"frame-src"       " blob:;"
 			"img-src"         " blob: data:;"
 			"media-src"       " blob:;"
-			"object-src"      " blob:;" // PDF
+			"object-src"      " blob:;"
+			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.9/dist/browsers/sodium.js 'unsafe-eval';"
 			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.9/dist/browsers/sodium.js 'unsafe-eval';"
-			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // Inline: For displaying PDF/HTML files
+			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // Inline: For displaying PDF/HTML files
+			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';"
 
 			"base-uri"        " 'none';"
 			"child-src"       " 'none';"
