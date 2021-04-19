@@ -128,7 +128,8 @@ enum aem_mta_commands {
 };
 
 enum aem_acc_commands {
-	AEM_ACC_SETTING_LIMITS,
+	AEM_ACC_STORAGE_LEVELS,
+	AEM_ACC_STORAGE_LIMITS,
 	AEM_ACC_STORAGE_AMOUNT
 };
 

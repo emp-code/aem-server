@@ -24,10 +24,10 @@
 #define AEM_LIMIT_SHD 2
 
 static unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
-//	 MiB  Nrm Shd | MiB = value + 1; 1-256 MiB
-	{31,  0,  5},
-	{63,  3,  10},
-	{127, 10, AEM_ADDRESSES_PER_USER}, // AEM_ADDRESSES_PER_USER = max
+// MiB, Nrm, Shd
+	{0, 0, 0},
+	{0, 0, 0},
+	{0, 0, 0},
 	{255, AEM_ADDRESSES_PER_USER, AEM_ADDRESSES_PER_USER} // Admin
 };
 
@@ -44,6 +44,48 @@ static int userCount = 0;
 
 static unsigned char accountKey[AEM_LEN_KEY_ACC];
 static unsigned char saltShield[AEM_LEN_SLT_SHD];
+
+static int saveSettings(void) {
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 12;
+	unsigned char * const encrypted = malloc(lenEncrypted);
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
+
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)limits, 12, encrypted, accountKey);
+
+	const int fd = open("Settings.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0) {
+		free(encrypted);
+		syslog(LOG_ERR, "Failed opening Settings.aem");
+		return -1;
+	}
+
+	const ssize_t ret = write(fd, encrypted, lenEncrypted);
+	free(encrypted);
+
+	close(fd);
+	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
+}
+
+static int loadSettings(void) {
+	const int fd = open("Settings.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0) return -1;
+
+	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
+	const off_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
+	if (lenDecrypted != 12) {syslog(LOG_WARNING, "Failed loading Settings.aem - invalid size"); close(fd); return -1;}
+
+	unsigned char encrypted[lenEncrypted];
+	if (pread(fd, encrypted, lenEncrypted, 0) != lenEncrypted) {
+		close(fd);
+		syslog(LOG_WARNING, "Failed loading Settings.aem - failed read");
+		return -1;
+	}
+	close(fd);
+
+	if (crypto_secretbox_open_easy((unsigned char*)limits, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) return -1;
+	return 0;
+}
 
 static int saveUser(void) {
 	if (userCount <= 0) return -1;
@@ -130,10 +172,32 @@ static int loadUser(void) {
 	return 0;
 }
 
+static int updateStorageLevels(void) {
+	const int stoSock = storageSocket(AEM_ACC_STORAGE_LEVELS, NULL, 0);
+	if (stoSock < 0) return -1;
+
+	const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
+	unsigned char * const data = malloc(lenData);
+	for (int i = 0; i < userCount; i++) {
+		data[i * (crypto_box_PUBLICKEYBYTES + 1)] = user[i].info & AEM_USERLEVEL_MAX;
+		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+	}
+
+	send(stoSock, data, lenData, 0);
+
+	unsigned char resp = 0;
+	recv(stoSock, &resp, 1, 0);
+	close(stoSock);
+	free(data);
+	return (resp == AEM_INTERNAL_RESPONSE_OK) ? 0 : -1;
+}
+
 int ioSetup(const unsigned char * const newAccountKey, const unsigned char * const newSaltShield) {
 	memcpy(accountKey, newAccountKey, AEM_LEN_KEY_ACC);
 	memcpy(saltShield, newSaltShield, AEM_LEN_SLT_SHD);
-	return loadUser();
+	if (loadUser() != 0) return -1;
+	loadSettings(); // Ignore errors
+	return updateStorageLevels();
 }
 
 void ioFree(void) {
@@ -260,11 +324,7 @@ void api_account_browse(const int sock, const int num) {
 	unsigned char * const response = malloc(userCount * 35);
 	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); free(storage); return;}
 
-	response[0] = limits[0][0]; response[1]  = limits[0][1]; response[2]  = limits[0][2];
-	response[3] = limits[1][0]; response[4]  = limits[1][1]; response[5]  = limits[1][2];
-	response[6] = limits[2][0]; response[7]  = limits[2][1]; response[8]  = limits[2][2];
-	response[9] = limits[3][0]; response[10] = limits[3][1]; response[11] = limits[3][2];
-
+	memcpy(response, (unsigned char*)limits, 12);
 	int len = 12;
 
 	const uint32_t u32 = userCount - 1;
@@ -380,6 +440,7 @@ void api_account_update(const int sock, const int num) {
 
 	user[updateNum].info = (user[updateNum].info & 252) | (buf[0] & 3);
 	saveUser();
+	updateStorageLevels();
 
 	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 }
@@ -544,15 +605,17 @@ void api_setting_limits(const int sock, const int num) {
 	unsigned char buf[12];
 	if (recv(sock, buf, 12, 0) != 12) return;
 
-	const int stoSock = storageSocket(AEM_ACC_SETTING_LIMITS, (unsigned char[]){buf[0], buf[3], buf[6], buf[9]}, 4);
+	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){buf[0], buf[3], buf[6], buf[9]}, 4);
 	if (stoSock < 0) return;
-	if (recv(stoSock, buf, 1, 0) != 1 || *buf != AEM_INTERNAL_RESPONSE_OK) {close(stoSock); return;}
+
+	unsigned char resp = 0;
+	recv(stoSock, &resp, 1, 0);
 	close(stoSock);
+	if (resp != AEM_INTERNAL_RESPONSE_OK) return;
 
-//	saveSettings(); // TODO
-
-	memcpy(limits, buf, 12);
 	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	memcpy((unsigned char*)limits, buf, 12);
+	saveSettings();
 }
 
 void api_internal_level(const int sock, const int num) {

@@ -17,7 +17,7 @@
 #include "ClientAction.h"
 
 void conn_acc(const int sock, const unsigned char * const dec, const size_t lenDec) {
-	if (dec[0] == AEM_ACC_SETTING_LIMITS && lenDec == 5) {
+	if (dec[0] == AEM_ACC_STORAGE_LIMITS && lenDec == 5) {
 		updateLimits(dec + 1);
 		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 	} else if (dec[0] == AEM_ACC_STORAGE_AMOUNT) {
@@ -26,6 +26,17 @@ void conn_acc(const int sock, const unsigned char * const dec, const size_t lenD
 		if (lenOut == 0 || out == NULL) return;
 		send(sock, out, lenOut, 0);
 		free(out);
+	} else if (dec[0] == AEM_ACC_STORAGE_LEVELS) {
+		const uint16_t userCount = getStindexCount();
+		const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
+		unsigned char *data = malloc(lenData + 1);
+		if (recv(sock, data, lenData + 1, 0) != lenData) {
+			free(data);
+			return;
+		}
+
+		if (updateLevels(data, lenData) == 0) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+		free(data);
 	}
 }
 

@@ -68,12 +68,12 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1110; nr_inodes = 9; break;
 
-		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
-
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI: fsmode = 1110; nr_inodes = 12; break;
 
-		case AEM_PROCESSTYPE_ACCOUNT: fsmode = 1770; nr_inodes = 10; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
+
+		case AEM_PROCESSTYPE_ACCOUNT:
 		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 11; break;
 
 		default: return -1;
@@ -118,6 +118,7 @@ int createMount(const int type) {
 
 		case AEM_PROCESSTYPE_ACCOUNT:
 			if (bindMount(AEM_PATH_HOME"/Account.aem", AEM_PATH_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0) return -1;
+			if (bindMount(AEM_PATH_HOME"/Settings.aem", AEM_PATH_MOUNTDIR"/Settings.aem", AEM_MOUNT_ISFILE) != 0) return -1;
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:

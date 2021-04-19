@@ -54,8 +54,8 @@ static int setupIo(void) {
 	}
 
 	close(AEM_PIPEFD);
-	if (ioSetup(accountKey, saltShield) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
 	setStoragePid(storagePid);
+	if (ioSetup(accountKey, saltShield) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
 	sodium_memzero(accountKey, AEM_LEN_KEY_ACC);
 	sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
 	return 0;
@@ -70,6 +70,7 @@ int main(void) {
 	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
 	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 
+	sleep(1);
 	if (setupIo() != 0) return EXIT_FAILURE;
 	syslog(LOG_INFO, "Ready");
 	takeConnections();

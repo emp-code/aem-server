@@ -22,13 +22,31 @@ static unsigned char storageKey[AEM_LEN_KEY_STO];
 struct aem_stindex {
 	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
 	uint16_t msgCount;
+	uint8_t level;
 	uint16_t *msg;
 };
 
-static unsigned char limits[] = {0,0,0,0}; // +1, in MiB
+static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 
 static struct aem_stindex *stindex;
 static uint16_t stindexCount;
+
+uint16_t getStindexCount(void) {
+	return stindexCount;
+}
+
+int updateLevels(const unsigned char * const data, const size_t lenData) {
+	if (lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) return -1;
+	if (lenData / (crypto_box_PUBLICKEYBYTES + 1) != stindexCount) return -1;
+
+	for (int i = 0; i < stindexCount; i++) {
+		if (data[i * (crypto_box_PUBLICKEYBYTES + 1)] > AEM_USERLEVEL_MAX) return -1;
+		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) != 0) return -1;
+		stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
+	}
+
+	return 0;
+}
 
 void updateLimits(const unsigned char * const newLimits) {
 	memcpy(limits, newLimits, 4);
@@ -265,6 +283,18 @@ int storage_delete(const unsigned char upk[crypto_box_PUBLICKEYBYTES], const uns
 }
 
 int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const uint16_t sze) {
+	// Stindex
+	int num = -1;
+	for (int i = 0; i < stindexCount; i++) {
+		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+			num = i;
+			break;
+		}
+	}
+
+	if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) {syslog(LOG_INFO, "%zu >= %d", getUserStorageAmount(num), (limits[stindex[num].level & 3]) * 1048576);return -1;} // Over storage limit
+	syslog(LOG_INFO, "%zu < %d", getUserStorageAmount(num), (limits[stindex[num].level & 3]) * 1048576);
+
 	char path[77];
 	getMsgPath(path, upk);
 
@@ -287,15 +317,6 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
 	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return -1;}
-
-	// Stindex
-	int num = -1;
-	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
-			num = i;
-			break;
-		}
-	}
 
 	if (num == -1) {
 		stindexCount++;
@@ -460,6 +481,8 @@ static int loadStindex(void) {
 	if (stindex == NULL) return -1;
 
 	for (int i = 0; i < stindexCount; i++) {
+		stindex[i].level = 0;
+
 		memcpy(stindex[i].pubkey, data + skip, crypto_box_PUBLICKEYBYTES);
 		skip += crypto_box_PUBLICKEYBYTES;
 
