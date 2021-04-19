@@ -40,17 +40,17 @@ int main(void) {
 
 	printKey("AEM_KEY_ACCESS_ACCOUNT_API", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_ACCOUNT_MTA", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_ACCESS_STORAGE_API", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_ACCESS_STORAGE_MTA", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_ENQUIRY_API", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_ACCESS_ENQUIRY_MTA", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_ACCESS_STORAGE_API", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_ACCESS_STORAGE_MTA", crypto_box_SECRETKEYBYTES);
 
 	puts("");
 
 	puts("#define AEM_SOCKPATH_LEN 108");
 	printAbstract("AEM_SOCKPATH_ACCOUNT");
-	printAbstract("AEM_SOCKPATH_STORAGE");
 	printAbstract("AEM_SOCKPATH_ENQUIRY");
+	printAbstract("AEM_SOCKPATH_STORAGE");
 
 	puts("");
 	puts("#endif");
