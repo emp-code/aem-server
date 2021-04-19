@@ -25,13 +25,17 @@ void setEnquiryPid(const pid_t pid) {pid_enquiry = pid;}
 #endif
 void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
-static int setSocketTimeout(const int sock) {
+static int setSockOpts(const int sock) {
 	struct timeval tv;
 	tv.tv_sec = 0;
 	tv.tv_usec = 500000; // 0.5s
 
+	const int intTrue = 1;
+
 	return (
-	   setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval)) == 0
+	   setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, &intTrue, sizeof(int)) == 0
+	&& setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, &intTrue, sizeof(int)) == 0
+	&& setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval)) == 0
 	&& setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) == 0
 	) ? 0 : -1;
 }
@@ -48,7 +52,7 @@ static int getUnixSocket(const char * const path, const pid_t pid, const unsigne
 
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_WARNING, "Failed creating Unix socket: %m"); return -1;}
-	setSocketTimeout(sock);
+	setSockOpts(sock);
 
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
