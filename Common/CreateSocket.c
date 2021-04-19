@@ -32,7 +32,9 @@ int createSocket(const int port, const bool loopback, const time_t rcvTimeout, c
 	servAddr.sin_port = htons(port);
 
 	const int intTrue = 1;
+#ifndef AEM_MANAGER
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT,   (const void*)&intTrue, sizeof(int)) != 0) return -1;
+#endif
 	if (setsockopt(sock, SOL_SOCKET, SO_LOCK_FILTER, (const void*)&intTrue, sizeof(int)) != 0) return -1;
 
 	if (loopback) {
