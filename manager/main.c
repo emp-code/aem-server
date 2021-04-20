@@ -219,17 +219,16 @@ static int setCgroup(void) {
 	close(fdFile);
 
 	// Put Manager into the root of the _aem group
-	const int fdProcs = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdProcs < 0) {printf("Failed opening cgroup.procs: %m\n"); close(fdDir); close(fdAem); return -1;}
-
-	const pid_t pid_num = getpid();
 	char pid_txt[32];
-	sprintf(pid_txt, "%d", pid_num);
-	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdDir); close(fdAem); close(fdProcs); return -1;}
+	sprintf(pid_txt, "%d", getpid());
+
+	fdFile = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	if (fdFile < 0) {printf("Failed opening cgroup.procs: %m\n"); close(fdDir); close(fdAem); return -1;}
+	if (write(fdFile, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
 
 	close(fdDir);
 	close(fdAem);
-	close(fdProcs);
+	close(fdFile);
 	return 0;
 }
 
