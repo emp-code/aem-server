@@ -29,9 +29,11 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 			unsigned char mxDomain[256];
 			int lenMxDomain = 0;
 			const uint32_t ip = queryDns(dec + 1, lenDec - 1, mxDomain, &lenMxDomain);
+			const uint16_t cc = getCountryCode(ip);
 
 			if (lenMxDomain > 4 && lenMxDomain < 256) {
 				send(sock, &ip, 4, 0);
+				send(sock, &cc, 2, 0);
 				send(sock, &lenMxDomain, sizeof(int), 0);
 				send(sock, mxDomain, lenMxDomain, 0);
 			}

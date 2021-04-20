@@ -6,6 +6,7 @@
 
 struct outEmail {
 	uint32_t ip;
+	unsigned char cc[2];
 	char mxDomain[256];
 	char replyId[256];
 	char addrFrom[256];

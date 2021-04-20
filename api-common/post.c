@@ -525,7 +525,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	const size_t lenGreeting = strlen(info->greeting);
 	const size_t lenBody     = strlen(email->body);
 
-	const size_t lenOutput = 18 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
+	const size_t lenOutput = 19 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
 	*output = sodium_malloc(lenOutput);
 	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
 
@@ -538,13 +538,14 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	memcpy((*output) + 6, &(email->ip), 4);
 	memcpy((*output) + 10, &cs16, 2);
 	(*output)[12] = ((info->tls_version & 7) << 5) | 0 /*attachments*/;
-	(*output)[13] = info->tls_info;
-	(*output)[14] = lenAddressT;
-	(*output)[15] = lenAddressF;
-	(*output)[16] = lenMxDomain;
-	(*output)[17] = lenGreeting;
+	(*output)[13] = email->cc[0];
+	(*output)[14] = email->cc[1];
+	(*output)[15] = lenAddressT;
+	(*output)[16] = lenAddressF;
+	(*output)[17] = lenMxDomain;
+	(*output)[18] = lenGreeting;
 
-	size_t offset = 18;
+	size_t offset = 19;
 	memcpy((*output) + offset, email->addrTo,   lenAddressT); offset += lenAddressT;
 	memcpy((*output) + offset, email->addrFrom, lenAddressF); offset += lenAddressF;
 	memcpy((*output) + offset, email->mxDomain, lenMxDomain); offset += lenMxDomain;
@@ -699,6 +700,7 @@ static void message_create_ext(void) {
 	if (
 	   recv(sock, &(email.ip), 4, 0) != 4
 	|| email.ip <= 1
+	|| recv(sock, email.cc, 2, 0) != 2
 	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
 	|| lenMxDomain < 4
 	|| lenMxDomain > 255
