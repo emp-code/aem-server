@@ -439,7 +439,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (toCount >= AEM_SMTP_MAX_TO - 1) {
-				if (!smtp_respond(sock, tls, '4', '5', '2')) { // Too many recipients
+				if (!smtp_respond(sock, tls, '4', '5', '1')) { // Too many recipients
 					smtp_fail(clientAddr, 104);
 					break;
 				}
