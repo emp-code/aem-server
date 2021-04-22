@@ -197,6 +197,15 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 	memcpy(saltShield, newSaltShield, AEM_LEN_SLT_SHD);
 	if (loadUser() != 0) return -1;
 	loadSettings(); // Ignore errors
+
+	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4);
+	if (stoSock < 0) return -1;
+
+	unsigned char resp = 0;
+	recv(stoSock, &resp, 1, 0);
+	close(stoSock);
+	if (resp != AEM_INTERNAL_RESPONSE_OK) return -1;
+
 	return updateStorageLevels();
 }
 
