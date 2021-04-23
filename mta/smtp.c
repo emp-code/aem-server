@@ -326,8 +326,8 @@ static void tlsClose(mbedtls_ssl_context * const tls) {
 	mbedtls_ssl_session_reset(tls);
 }
 
-static void smtp_fail(const struct sockaddr_in * const clientAddr, const int code) {
-	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %s)", code, inet_ntoa(clientAddr->sin_addr));
+static void smtp_fail(const int code) {
+	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %u.%u.%u.%u)", code, ((uint8_t*)&email.ip)[0], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[3]);
 }
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
@@ -336,13 +336,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
 
-	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(clientAddr, 0);
+	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(0);
 
 	unsigned char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
-	if (bytes < 7) return smtp_fail(clientAddr, 1); // HELO \r\n
+	if (bytes < 7) return smtp_fail(1); // HELO \r\n
 
-	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(clientAddr, 2);
+	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(2);
 
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
@@ -356,7 +356,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	const mbedtls_x509_crt *clientCert = NULL;
 
 	if (bytes >= 8 && strncasecmp((char*)buf, "STARTTLS", 8) == 0) {
-		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(clientAddr, 110);
+		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(110);
 
 		tls = &ssl;
 		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -394,6 +394,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		clientCert = mbedtls_ssl_get_peer_cert(tls);
 		email.tlsInfo = getCertType(clientCert) | getTlsVersion(tls);
+		getCertName(clientCert);
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -408,7 +409,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	for (int roundsDone = 0;; roundsDone++) {
 		if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
 			smtp_respond(sock, tls, '4', '2', '1');
-			smtp_fail(clientAddr, 200);
+			smtp_fail(200);
 			break;
 		}
 
@@ -420,7 +421,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		if (bytes > 10 && strncasecmp((char*)buf, "MAIL FROM:", 10) == 0) {
 			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {
-				smtp_fail(clientAddr, 100);
+				smtp_fail(100);
 				break;
 			}
 		}
@@ -430,7 +431,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(clientAddr, 101);
+					smtp_fail(101);
 					break;
 				}
 
@@ -440,7 +441,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (toCount >= AEM_SMTP_MAX_TO - 1) {
 				if (!smtp_respond(sock, tls, '4', '5', '1')) { // Too many recipients
-					smtp_fail(clientAddr, 104);
+					smtp_fail(104);
 					break;
 				}
 
@@ -450,7 +451,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (smtp_addr_our(buf + 8, bytes - 8, to[toCount]) != 0) {
 				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					smtp_fail(clientAddr, 103);
+					smtp_fail(103);
 					break;
 				}
 
@@ -472,7 +473,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			email.rareCommands = true;
 
 			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				smtp_fail(clientAddr, 105);
+				smtp_fail(105);
 				break;
 			}
 
@@ -490,7 +491,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				email.protocolViolation = true;
 
 				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(clientAddr, 106);
+					smtp_fail(106);
 					break;
 				}
 
@@ -499,7 +500,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				smtp_fail(clientAddr, 107);
+				smtp_fail(107);
 				break;
 			}
 
@@ -507,7 +508,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (source == NULL) {
 				smtp_respond(sock, tls, '4', '2', '1');
 				syslog(LOG_ERR, "Failed allocation");
-				smtp_fail(clientAddr, 999);
+				smtp_fail(999);
 				break;
 			}
 
@@ -533,7 +534,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (!smtp_respond(sock, tls, '2', '5', '0')) {
 				sodium_memzero(source, lenSource);
 				free(source);
-				smtp_fail(clientAddr, 150);
+				smtp_fail(150);
 				break;
 			}
 
@@ -573,7 +574,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			getIpInfo();
 			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
 			email.ipBlacklisted = isIpBlacklisted(clientAddr->sin_addr.s_addr);
-			getCertName(clientCert);
 
 			deliverMessage(to, toCount, &email);
 
@@ -605,7 +605,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			// Unsupported commands
 			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				smtp_fail(clientAddr, 108);
+				smtp_fail(108);
 				break;
 			}
 
@@ -614,7 +614,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			smtp_fail(clientAddr, 150);
+			smtp_fail(150);
 			break;
 		}
 
