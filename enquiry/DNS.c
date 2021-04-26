@@ -45,10 +45,7 @@ static int connectSocket(void) {
 static bool checkDnsLength(const unsigned char * const src, const int len) {
 	if (len < 1) return false;
 
-	uint16_t u;
-	memcpy((unsigned char*)&u + 0, src + 1, 1);
-	memcpy((unsigned char*)&u + 1, src + 0, 1);
-
+	const uint16_t u = *((uint16_t*)(uint8_t[]){src[1], src[0]});
 	if (len != (int)u + 2) {
 		syslog(LOG_INFO, "DNS length mismatch: %d/%u", len, u + 2);
 		return false;
