@@ -204,6 +204,9 @@ static int setCgroup(void) {
 	close(fdDir);
 	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
 
+	char pid_txt[32];
+	sprintf(pid_txt, "%d", getpid());
+
 	// Setup cgroups
 	if ((mkdirat(fdAem, "limited", 0755) != 0 && errno != EEXIST)
 	|| 0 != writeFile(fdAem, "cgroup.max.depth", "1", 1)
@@ -214,16 +217,12 @@ static int setCgroup(void) {
 	|| 0 != writeFile(fdAem, "limited/cgroup.subtree_control", "+pids", 5)
 	|| 0 != writeFile(fdAem, "limited/cgroup.type", "threaded", 8)
 	|| 0 != writeFile(fdAem, "limited/pids.max", "0", 1)
+	|| 0 != writeFile(fdAem, "cgroup.procs", pid_txt, strlen(pid_txt))
 	) {
 		printf("Failed creating cgroup files: %m\n");
 		close(fdAem);
 		return -1;
 	}
-
-	// Put Manager into the root of the _aem group
-	char pid_txt[32];
-	sprintf(pid_txt, "%d", getpid());
-	writeFile(fdAem, "cgroup.procs", pid_txt, strlen(pid_txt));
 
 	close(fdAem);
 	return 0;
