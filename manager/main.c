@@ -192,30 +192,30 @@ static int setCgroup(void) {
 	if (fdDir < 0) {printf("Failed opening /sys/fs/cgroup: %m\n"); return -1;}
 
 	if (mkdirat(fdDir, "_aem", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
-
 	const int fdAem = openat(fdDir, "_aem", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
+	close(fdDir);
 	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
 
 	// Enable pids controller, create limited cgroup
 	int fdFile = openat(fdAem, "cgroup.subtree_control", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (write(fdFile, "+pids", 5) != 5) {printf("Failed writing to cgroup.subtree_control: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
+	if (write(fdFile, "+pids", 5) != 5) {printf("Failed writing to cgroup.subtree_control: %m\n"); close(fdAem); close(fdFile); return -1;}
 	close(fdFile);
 
 	if (mkdirat(fdAem, "limited", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem/limited: %m"); return -1;}
 
 	fdFile = openat(fdAem, "limited/cgroup.subtree_control", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdFile < 0) {syslog(LOG_ERR, "Failed opening cgroup.subtree_control: %m"); return -1;}
-	if (write(fdFile, "+pids", 5) != 5) {printf("Failed writing to cgroup.subtree_control: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
+	if (write(fdFile, "+pids", 5) != 5) {printf("Failed writing to cgroup.subtree_control: %m\n"); close(fdAem); close(fdFile); return -1;}
 	close(fdFile);
 
 	fdFile = openat(fdAem, "limited/cgroup.type", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdFile < 0) {syslog(LOG_ERR, "Failed opening cgroup.type: %m"); return -1;}
-	if (write(fdFile, "threaded", 8) != 8) {printf("Failed writing to cgroup.type: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
+	if (write(fdFile, "threaded", 8) != 8) {printf("Failed writing to cgroup.type: %m\n"); close(fdAem); close(fdFile); return -1;}
 	close(fdFile);
 
 	fdFile = openat(fdAem, "limited/pids.max", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdFile < 0) {syslog(LOG_ERR, "Failed opening pids.max: %m"); return -1;}
-	if (write(fdFile, "0", 1) != 1) {printf("Failed writing to pids.max: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
+	if (write(fdFile, "0", 1) != 1) {printf("Failed writing to pids.max: %m\n"); close(fdAem); close(fdFile); return -1;}
 	close(fdFile);
 
 	// Put Manager into the root of the _aem group
@@ -223,10 +223,9 @@ static int setCgroup(void) {
 	sprintf(pid_txt, "%d", getpid());
 
 	fdFile = openat(fdAem, "cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdFile < 0) {printf("Failed opening cgroup.procs: %m\n"); close(fdDir); close(fdAem); return -1;}
-	if (write(fdFile, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdDir); close(fdAem); close(fdFile); return -1;}
+	if (fdFile < 0) {printf("Failed opening cgroup.procs: %m\n"); close(fdAem); return -1;}
+	if (write(fdFile, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {printf("Failed writing to cgroup.procs: %m\n"); close(fdAem); close(fdFile); return -1;}
 
-	close(fdDir);
 	close(fdAem);
 	close(fdFile);
 	return 0;
