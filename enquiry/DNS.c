@@ -43,7 +43,7 @@ static int connectSocket(void) {
 }
 
 static bool checkDnsLength(const unsigned char * const src, const int len) {
-	if (len < 1) return false;
+	if (len < 1 || len > UINT16_MAX) return false;
 
 	const uint16_t u = *((uint16_t*)(uint8_t[]){src[1], src[0]});
 	if (len != (int)u + 2) {
