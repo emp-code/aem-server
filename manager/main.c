@@ -206,7 +206,11 @@ static int setCgroup(void) {
 
 	// Setup cgroups
 	if ((mkdirat(fdAem, "limited", 0755) != 0 && errno != EEXIST)
+	|| 0 != writeFile(fdAem, "cgroup.max.depth", "1", 1)
+	|| 0 != writeFile(fdAem, "cgroup.max.descendants", "1", 1)
 	|| 0 != writeFile(fdAem, "cgroup.subtree_control", "+pids", 5)
+	|| 0 != writeFile(fdAem, "limited/cgroup.max.depth", "0", 1)
+	|| 0 != writeFile(fdAem, "limited/cgroup.max.descendants", "0", 1)
 	|| 0 != writeFile(fdAem, "limited/cgroup.subtree_control", "+pids", 5)
 	|| 0 != writeFile(fdAem, "limited/cgroup.type", "threaded", 8)
 	|| 0 != writeFile(fdAem, "limited/pids.max", "0", 1)
