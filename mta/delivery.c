@@ -202,8 +202,8 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	return encrypted;
 }
 
-void deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
-	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return;}
+int deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
+	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
@@ -213,7 +213,7 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 		size_t lenToAddr = 0;
 		for (size_t j = 0; j < strlen(to[i]); j++) {
 			if (isalnum(to[i][j])) {
-				if (lenToAddr > 15) {syslog(LOG_ERR, "Address overlong"); return;}
+				if (lenToAddr > 15) {syslog(LOG_ERR, "Address too long"); return SMTP_STORE_INERROR;}
 				toAddr[lenToAddr] = tolower(to[i][j]);
 				lenToAddr++;
 			}
@@ -290,4 +290,6 @@ void deliverMessage(char to[][32], const int toCount, struct emailInfo * const e
 			close(stoSock);
 		}
 	}
+
+	return 0;
 }

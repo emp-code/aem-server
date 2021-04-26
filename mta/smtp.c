@@ -192,7 +192,6 @@ static int recv_aem(const int sock, mbedtls_ssl_context * const tls, unsigned ch
 	return -1;
 }
 
-__attribute__((warn_unused_result))
 static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
 	if (data == NULL || lenData < 1) return false;
 
@@ -213,10 +212,6 @@ static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char
 	if (sock > 0) return (send(sock, data, lenData, 0) == (ssize_t)lenData);
 
 	return false;
-}
-
-static bool smtp_respond(const int sock, mbedtls_ssl_context * const tls, const char code1, const char code2, const char code3) {
-	return send_aem(sock, tls, (const char[]){code1, code2, code3, ' ', 'a', 'e', 'm', '\r', '\n'}, 9);
 }
 
 __attribute__((warn_unused_result))
@@ -246,38 +241,43 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 	return 0;
 }
 
+#define AEM_SMTP_ERROR_ADDR_OUR_INTERNAL (-1)
+#define AEM_SMTP_ERROR_ADDR_OUR_SYNTAX   (-2)
+#define AEM_SMTP_ERROR_ADDR_OUR_USER     (-3)
+#define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
+
 __attribute__((warn_unused_result))
 static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32]) {
-	if (buf == NULL || len < 1) return -1;
+	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	size_t skipBytes = 0;
 	while (skipBytes < len && isspace(buf[skipBytes])) skipBytes++;
-	if (skipBytes >= len) return -1;
+	if (skipBytes >= len) return AEM_SMTP_ERROR_ADDR_OUR_SYNTAX;
 
-	if (buf[skipBytes] != '<') return -1;
+	if (buf[skipBytes] != '<') return AEM_SMTP_ERROR_ADDR_OUR_SYNTAX;
 	skipBytes++;
 
 	const int max = len - skipBytes - 1;
 	int lenAddr = 0;
 	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
 
-	if (lenAddr < 1) return -1;
+	if (lenAddr < 1) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	char addr[AEM_MAXLEN_ADDR32];
 	int addrChars = 0;
 	int toChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
 		if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp((char*)buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return -1;
+			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp((char*)buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
 			break;
 		}
 
-		if (toChars >= 31) return -1;
+		if (toChars >= 31) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 		to[toChars] = buf[skipBytes + i];
 		toChars++;
 
 		if (isalnum(buf[skipBytes + i])) {
-			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return -1;
+			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 			addr[addrChars] = tolower(buf[skipBytes + i]);
 			addrChars++;
 		}
@@ -287,7 +287,7 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	|| (addrChars == 6 && memcmp(addr, "system", 6) == 0)
 	|| (addrChars == 6 && memcmp(addr, "public", 6) == 0)
 	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
-	) return -1;
+	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	if (addrChars == 16) { // Shield addresses: check if exists
 		unsigned char addr32[10];
@@ -298,7 +298,7 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 			unsigned char tmp;
 			const ssize_t ret = recv(sock, &tmp, 1, 0);
 			close(sock);
-			if (ret != 1) return -1;
+			if (ret != 1) return AEM_SMTP_ERROR_ADDR_OUR_USER; // TODO: distinction between failure and non-existence
 		}
 	}
 
@@ -330,6 +330,60 @@ static void smtp_fail(const int code) {
 	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %u.%u.%u.%u)", code, ((uint8_t*)&email.ip)[0], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[3]);
 }
 
+static void prepareEmail(unsigned char * const source, size_t lenSource) {
+	convertLineDots(source, &lenSource);
+	getIpInfo();
+	email.greetingIpMatch = greetingDomainMatchesIp(email.ip);
+	email.ipBlacklisted = isIpBlacklisted(email.ip);
+
+	// Add final CRLF for DKIM
+	source[lenSource + 0] = '\r';
+	source[lenSource + 1] = '\n';
+	source[lenSource + 2] = '\0';
+	lenSource += 2;
+
+	for (int i = 0; i < 7; i++) {
+		const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
+		if (headersEnd == NULL) break;
+
+		unsigned char *start = (unsigned char*)strcasestr((char*)source, "\nDKIM-Signature:");
+		if (start == NULL || start > headersEnd) break;
+		start++;
+		const int offset = verifyDkim(&email, start, (source + lenSource) - start);
+		if (offset == 0) break;
+
+		// Delete the signature from the headers
+		memmove(start, start + offset, (source + lenSource) - (start + offset));
+		lenSource -= offset;
+		source[lenSource] = '\0';
+	}
+
+	// Remove final CRLF
+	lenSource -= 2;
+	source[lenSource] = '\0';
+
+	processEmail(source, &lenSource, &email);
+}
+
+static void clearEmail(void) {
+	if (email.head != NULL) {
+		sodium_memzero(email.head, email.lenHead);
+		free(email.head);
+	}
+
+	if (email.body != NULL) {
+		sodium_memzero(email.body, email.lenBody);
+		free(email.body);
+	}
+
+	for (int i = 0; i < email.attachCount; i++) {
+		if (email.attachment[i] == NULL) break;
+		free(email.attachment[i]);
+	}
+
+	sodium_memzero(&email, sizeof(struct emailInfo));
+}
+
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
@@ -350,13 +404,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (email.lenGreet > 63) email.lenGreet = 63;
 	memcpy(email.greet, buf + 5, email.lenGreet);
 
-	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
+	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, MSG_PEEK);
 
 	mbedtls_ssl_context *tls = NULL;
-	const mbedtls_x509_crt *clientCert = NULL;
 
 	if (bytes >= 8 && strncasecmp((char*)buf, "STARTTLS", 8) == 0) {
-		if (!smtp_respond(sock, NULL, '2', '2', '0')) return smtp_fail(110);
+		bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0); // Remove the MSG_PEEK'd message from the queue
+		if (!send_aem(sock, NULL, "220 Ok\r\n", 8)) return smtp_fail(110);
 
 		tls = &ssl;
 		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -366,6 +420,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
 				syslog(LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %x", -ret);
 				tlsClose(tls);
+				send_aem(sock, NULL, "421 4.7.0 TLS handshake failed\r\n", 32);
 				return;
 			}
 		}
@@ -377,11 +432,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		} else if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) {
 			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
-			smtp_respond(sock, tls, '2', '2', '1');
+			send_aem(sock, tls, "221 Bye\r\n", 9);
 			tlsClose(tls);
 			return;
 		} else if (bytes < 4 || (strncasecmp((char*)buf, "EHLO", 4) != 0 && strncasecmp((char*)buf, "HELO", 4) != 0)) {
 			syslog(LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
+			send_aem(sock, tls, "421 5.5.1 EHLO/HELO required after STARTTLS\r\n", 45);
 			tlsClose(tls);
 			return;
 		}
@@ -392,12 +448,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
-		clientCert = mbedtls_ssl_get_peer_cert(tls);
+		const mbedtls_x509_crt *clientCert = mbedtls_ssl_get_peer_cert(tls);
 		email.tlsInfo = getCertType(clientCert) | getTlsVersion(tls);
 		getCertName(clientCert);
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
-
-		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
 
 	size_t toCount = 0;
@@ -407,106 +461,71 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	size_t lenSource = 0;
 
 	for (int roundsDone = 0;; roundsDone++) {
-		if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
-			smtp_respond(sock, tls, '4', '2', '1');
-			smtp_fail(200);
-			break;
-		}
+		bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 
 		if (bytes < 4) {
 			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			break;
-		}
-
-		if (bytes > 10 && strncasecmp((char*)buf, "MAIL FROM:", 10) == 0) {
-			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {
-				smtp_fail(100);
-				break;
-			}
-		}
-
-		else if (bytes > 8 && strncasecmp((char*)buf, "RCPT TO:", 8) == 0) {
+		} else if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
+			send_aem(sock, tls, "421 4.7.0 Too many requests\r\n", 29);
+			smtp_fail(200);
+			break;
+		} else if (bytes > 10 && strncasecmp((char*)buf, "MAIL FROM:", 10) == 0) {
+			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {smtp_fail(100); break;}
+			if (!send_aem(sock, tls, "250 2.1.0 Sender address ok\r\n", 29)) {smtp_fail(101); break;}
+		} else if (bytes > 8 && strncasecmp((char*)buf, "RCPT TO:", 8) == 0) {
 			if (email.lenEnvFr < 1) {
 				email.protocolViolation = true;
-
-				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(101);
-					break;
-				}
-
-				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
+				if (!send_aem(sock, tls, "503 5.5.1 Need sender address first\r\n", 37)) {smtp_fail(102); break;}
 				continue;
 			}
 
 			if (toCount >= AEM_SMTP_MAX_TO - 1) {
-				if (!smtp_respond(sock, tls, '4', '5', '1')) { // Too many recipients
-					smtp_fail(104);
-					break;
-				}
-
-				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
+				if (!send_aem(sock, tls, "451 4.5.3 Too many recipients\r\n", 31)) {smtp_fail(103); break;}
 				continue;
 			}
 
-			if (smtp_addr_our(buf + 8, bytes - 8, to[toCount]) != 0) {
-				if (!smtp_respond(sock, tls, '5', '5', '0')) {
-					smtp_fail(103);
-					break;
-				}
-
-				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-				continue;
+			bool retOk;
+			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount])) {
+				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
+				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
+				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
+				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
+				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
+			if (!retOk) {smtp_fail(104); break;}
 
 			toCount++;
-		}
-
-		else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
+		} else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
 			email.rareCommands = true;
-
 			email.lenEnvFr = 0;
 			toCount = 0;
-		}
-
-		else if (strncasecmp((char*)buf, "VRFY", 4) == 0) {
+			if (!send_aem(sock, tls, "250 Reset\r\n", 11)) {smtp_fail(150); break;}
+		} else if (strncasecmp((char*)buf, "VRFY", 4) == 0) {
 			email.rareCommands = true;
-
-			if (!smtp_respond(sock, tls, '2', '5', '2')) { // 252 = Cannot VRFY user, but will accept message and attempt delivery
-				smtp_fail(105);
-				break;
-			}
-
-			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-			continue;
-		}
-
-		else if (strncasecmp((char*)buf, "QUIT", 4) == 0) {
-			smtp_respond(sock, tls, '2', '2', '1');
+			if (!send_aem(sock, tls, "252 Not verified\r\n", 18)) {smtp_fail(105); break;}
+		} else if (strncasecmp((char*)buf, "QUIT", 4) == 0) {
+			send_aem(sock, tls, "221 Bye\r\n", 9);
 			break;
-		}
-
-		else if (strncasecmp((char*)buf, "DATA", 4) == 0) {
+		} else if (strncasecmp((char*)buf, "DATA", 4) == 0) {
 			if (email.lenEnvFr < 1 || toCount < 1) {
 				email.protocolViolation = true;
 
-				if (!smtp_respond(sock, tls, '5', '0', '3')) {
-					smtp_fail(106);
-					break;
-				}
+				bool retOk;
+				if (email.lenEnvFr < 1 && toCount < 1) {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient and sender addresses first\r\n", 53);}
+				else if (email.lenEnvFr < 1)           {retOk = send_aem(sock, tls, "503 5.5.1 Need sender address first\r\n", 37);}
+				else                                   {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient address first\r\n", 40);}
+				if (!retOk) {smtp_fail(106); break;}
 
-				bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 				continue;
 			}
 
-			if (!smtp_respond(sock, tls, '3', '5', '4')) {
-				smtp_fail(107);
-				break;
-			}
+			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); break;}
 
 			source = malloc(AEM_SMTP_MAX_SIZE_BODY + 5);
 			if (source == NULL) {
-				smtp_respond(sock, tls, '4', '2', '1');
+				send_aem(sock, tls, "421 4.3.0 Internal server error\r\n", 33);
 				syslog(LOG_ERR, "Failed allocation");
 				smtp_fail(999);
 				break;
@@ -531,94 +550,28 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				if (lenSource >= AEM_SMTP_MAX_SIZE_BODY) break;
 			}
 
-			if (!smtp_respond(sock, tls, '2', '5', '0')) {
-				sodium_memzero(source, lenSource);
-				free(source);
-				smtp_fail(150);
-				break;
-			}
+			prepareEmail(source, lenSource);
+			const int deliveryStatus = deliverMessage(to, toCount, &email);
 
-			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-			if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) email.quitReceived = true;
-
-			convertLineDots(source, &lenSource);
-
-			// Add final CRLF for DKIM
-			source[lenSource + 0] = '\r';
-			source[lenSource + 1] = '\n';
-			source[lenSource + 2] = '\0';
-			lenSource += 2;
-
-			for (int i = 0; i < 7; i++) {
-				const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
-				if (headersEnd == NULL) break;
-
-				unsigned char *start = (unsigned char*)strcasestr((char*)source, "\nDKIM-Signature:");
-				if (start == NULL || start > headersEnd) break;
-				start++;
-				const int offset = verifyDkim(&email, start, (source + lenSource) - start);
-				if (offset == 0) break;
-
-				// Delete the signature from the headers
-				memmove(start, start + offset, (source + lenSource) - (start + offset));
-				lenSource -= offset;
-				source[lenSource] = '\0';
-			}
-
-			// Remove final CRLF
-			lenSource -= 2;
-			source[lenSource] = '\0';
-
-			processEmail(source, &lenSource, &email);
-
-			getIpInfo();
-			email.greetingIpMatch = greetingDomainMatchesIp(clientAddr->sin_addr.s_addr);
-			email.ipBlacklisted = isIpBlacklisted(clientAddr->sin_addr.s_addr);
-
-			deliverMessage(to, toCount, &email);
-
-			sodium_memzero(email.head, email.lenHead);
-			sodium_memzero(email.body, email.lenBody);
-			free(email.head);
-			free(email.body);
-
-			for (int i = 0; i < email.attachCount; i++) {
-				if (email.attachment[i] == NULL) break;
-				free(email.attachment[i]);
-			}
-
-			sodium_memzero(&email, sizeof(struct emailInfo));
-
+			clearEmail();
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
 			toCount = 0;
 
-			if (bytes < 1) break;
-			continue;
-		}
-
-		else if (strncasecmp((char*)buf, "NOOP", 4) == 0) {
-			email.rareCommands = true;
-		}
-
-		else {
-			email.invalidCommands = true;
-
-			// Unsupported commands
-			if (!smtp_respond(sock, tls, '5', '0', '0')) {
-				smtp_fail(108);
-				break;
+			bool retOk;
+			switch (deliveryStatus) {
+				case SMTP_STORE_INERROR: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33); break;
+				case SMTP_STORE_USRFULL: retOk = send_aem(sock, tls, "552 5.2.2 Recipient mailbox full\r\n", 34); break;
+				case SMTP_STORE_MSGSIZE: retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
+				default: retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23);
 			}
-
-			bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-			continue;
+			if (!retOk) {smtp_fail(108); break;}
+		} else if (strncasecmp((char*)buf, "NOOP", 4) == 0) {
+			email.rareCommands = true;
+			if (!send_aem(sock, tls, "250 Ok\r\n", 8)) {smtp_fail(150); break;}
+		} else { // Unsupported commands
+			email.invalidCommands = true;
+			if (!send_aem(sock, tls, "500 5.5.1 Command unsupported\r\n", 31)) {smtp_fail(109); break;}
 		}
-
-		if (!smtp_respond(sock, tls, '2', '5', '0')) {
-			smtp_fail(150);
-			break;
-		}
-
-		bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 	}
 
 	tlsClose(tls);
