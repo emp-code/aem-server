@@ -191,7 +191,7 @@ static int setCgroup(void) {
 	const int fdDir = open(AEM_PATH_HOME"/cgroup", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
 	if (fdDir < 0) {printf("Failed opening /sys/fs/cgroup: %m\n"); return -1;}
 
-	if (mkdirat(fdDir, "_aem", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); return -1;}
+	if (mkdirat(fdDir, "_aem", 0755) != 0 && errno != EEXIST) {syslog(LOG_ERR, "Failed creating _aem: %m"); close(fdDir); return -1;}
 	const int fdAem = openat(fdDir, "_aem", O_CLOEXEC | O_DIRECTORY | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_PATH);
 	close(fdDir);
 	if (fdAem < 0) {syslog(LOG_ERR, "Failed opening _aem: %m"); return -1;}
