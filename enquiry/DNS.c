@@ -48,7 +48,13 @@ static bool checkDnsLength(const unsigned char * const src, const int len) {
 	uint16_t u;
 	memcpy((unsigned char*)&u + 0, src + 1, 1);
 	memcpy((unsigned char*)&u + 1, src + 0, 1);
-	return (len == (int)u + 2);
+
+	if (len != (int)u + 2) {
+		syslog(LOG_INFO, "DNS length mismatch: %d/%u", len, u + 2);
+		return false;
+	}
+
+	return true;
 }
 
 uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) {
@@ -70,11 +76,7 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 	unsigned char res[AEM_DNS_BUFLEN];
 	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
-
-	if (!checkDnsLength(res, ret)) {
-		syslog(LOG_INFO, "DNS length mismatch");
-		return 0;
-	}
+	if (!checkDnsLength(res, ret)) return 0;
 
 	const uint32_t ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
 	return ip;
@@ -105,11 +107,7 @@ void queryDns_dkim(const unsigned char * const selector, const size_t lenSelecto
 	unsigned char res[1024];
 	ret = recv(sock, res, 1024, 0);
 	close(sock);
-
-	if (!checkDnsLength(res, ret)) {
-		syslog(LOG_INFO, "DNS length mismatch");
-		return;
-	}
+	if (!checkDnsLength(res, ret)) return;
 
 	dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, dkimDomain, lenDkimDomain, dkimRecord, lenDkimRecord, AEM_DNS_RECORDTYPE_TXT);
 }
@@ -133,12 +131,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 
 	unsigned char res[AEM_DNS_BUFLEN];
 	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-
-	if (!checkDnsLength(res, ret)) {
-		syslog(LOG_INFO, "DNS length mismatch");
-		close(sock);
-		return 0;
-	}
+	if (!checkDnsLength(res, ret)) {close(sock); return 0;}
 
 	uint32_t ip = 0;
 	if (dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, domain, lenDomain, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 && *lenMxDomain > 4) { // a.bc
@@ -148,12 +141,7 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 
 		ret = send(sock, req, reqLen, 0);
 		ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-
-		if (!checkDnsLength(res, ret)) {
-			syslog(LOG_INFO, "DNS length mismatch");
-			close(sock);
-			return 0;
-		}
+		if (!checkDnsLength(res, ret)) {close(sock); return 0;}
 
 		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 	}
@@ -185,11 +173,7 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	unsigned char res[AEM_DNS_BUFLEN];
 	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
-
-	if (!checkDnsLength(res, ret)) {
-		syslog(LOG_INFO, "DNS length mismatch");
-		return -1;
-	}
+	if (!checkDnsLength(res, ret)) return -1;
 
 	return dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, reqDomain, lenReqDomain, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
 }
