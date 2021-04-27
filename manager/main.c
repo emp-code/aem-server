@@ -150,7 +150,7 @@ static int setLimits(void) {
 
 static bool ptraceDisabled(void) {
 	const int fd = open("/proc/sys/kernel/yama/ptrace_scope", O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 1 || !validFd(fd, S_IFREG)) return false;
+	if (fd < 1 || !validFd(fd)) return false;
 
 	char val;
 	if (read(fd, &val, 1) != 1) {close(fd); return false;}
@@ -187,7 +187,7 @@ static int setSignals(void) {
 
 static int writeFile(const int fdDir, const char * const path, const char * const data, const ssize_t lenData) {
 	const int fdFile = openat(fdDir, path, O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdFile < 0 || !validFd(fdFile, S_IFREG)) {printf("Failed opening file: %m\n"); return -1;}
+	if (fdFile < 0 || !validFd(fdFile)) {printf("Failed opening file: %m\n"); return -1;}
 
 	const ssize_t ret = write(fdFile, data, lenData);
 	close(fdFile);

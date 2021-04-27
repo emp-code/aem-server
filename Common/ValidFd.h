@@ -4,6 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-bool validFd(const int fd, const unsigned int fileType);
+bool validFd(const int fd);
 
 #endif
