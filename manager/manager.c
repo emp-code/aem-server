@@ -22,6 +22,7 @@
 #include <sodium.h>
 
 #include "../Common/CreateSocket.h"
+#include "../Common/ValidFd.h"
 #include "../Global.h"
 
 #include "mount.h"
@@ -148,7 +149,7 @@ void killAll(int sig) {
 
 static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
 	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
+	if (fd < 0 || !validFd(fd, S_IFREG)) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
 
 	off_t bytes = lseek(fd, 0, SEEK_END);
 	if (bytes < 1 || lseek(fd, 0, SEEK_SET) != 0 || bytes > maxLen - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
@@ -317,15 +318,15 @@ static int dropRoot(void) {
 }
 
 static int cgroupMove(void) {
-	const int fdProcs = open(AEM_PATH_HOME"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
-	if (fdProcs < 0) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
+	const int fd = open(AEM_PATH_HOME"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
+	if (fd < 0 || !validFd(fd, S_IFREG)) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
 
 	const pid_t pid_num = getpid();
 	char pid_txt[32];
 	sprintf(pid_txt, "%d", pid_num);
-	if (write(fdProcs, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to limited/cgroup.procs: %m"); close(fdProcs); return -1;}
+	if (write(fd, pid_txt, strlen(pid_txt)) != (ssize_t)strlen(pid_txt)) {syslog(LOG_ERR, "Failed writing to limited/cgroup.procs: %m"); close(fd); return -1;}
 
-	close(fdProcs);
+	close(fd);
 	return 0;
 }
 
