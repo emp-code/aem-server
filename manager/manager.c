@@ -227,16 +227,25 @@ static int setCaps(const int type) {
 	cap[1] = CAP_SYS_CHROOT;
 	int numCaps;
 
-	if (type == AEM_PROCESSTYPE_STORAGE || type == AEM_PROCESSTYPE_ACCOUNT || type == AEM_PROCESSTYPE_ENQUIRY) {
-		cap[2] = CAP_IPC_LOCK;
-		numCaps = 3;
-	} else if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_MTA) {
-		cap[2] = CAP_NET_BIND_SERVICE;
-		cap[3] = CAP_NET_RAW;
-		numCaps = 4;
-	} else {
-		cap[2] = CAP_NET_BIND_SERVICE;
-		numCaps = 3;
+	switch (type) {
+		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_STORAGE:
+			cap[2] = CAP_IPC_LOCK;
+			numCaps = 3;
+		break;
+
+		case AEM_PROCESSTYPE_WEB_CLR:
+		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_MTA:
+			cap[2] = CAP_NET_BIND_SERVICE;
+			cap[3] = CAP_NET_RAW;
+			numCaps = 4;
+		break;
+
+		default: return -1;
 	}
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[0], 0, 0) != 0) return -1;
