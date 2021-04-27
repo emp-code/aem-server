@@ -204,16 +204,14 @@ static int loadExec(void) {
 }
 
 int loadFiles(void) {
-	if (
-	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) != 0
-	|| loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) != 0
-	|| loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) != 0
-	|| loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) != 0
-	|| loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) != 0
-	|| loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SLT_SHD, AEM_LEN_FILE_MAX) != 0
-	) return -1;
-
-	return loadExec();
+	return (
+	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
+	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SLT_SHD, AEM_LEN_FILE_MAX) == 0
+	) ? loadExec() : -1;
 }
 
 static int setCaps(const int type) {
