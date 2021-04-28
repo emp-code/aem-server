@@ -352,20 +352,20 @@ void api_account_browse(const int sock, const int num) {
 
 		uint32_t storageBytes;
 		memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
-		const uint32_t mib = round(storageBytes / 1048576);
+		const uint32_t kib64 = round(storageBytes / 65536);
 
-/* Stores: Level=0-3, Normal=0-31, Shield=0-31, MiB=0-4095
+/* Stores: Level=0-3, Normal=0-31, Shield=0-31, kib64=0-4095
 	Bytes 0-1:
 		1..2: Level
 		4..64: Normal
 		128..2048: Shield
-		4096..32768: MiB (bits 256..2048)
+		4096..32768: Storage (bits 256..2048)
 	Byte 2:
-		MiB (bits 1..128)
+		Storage (bits 1..128)
 */
-		const uint16_t u16 = (user[i].info & 3) | ((numAddresses(i, false) & 31) << 2) | ((numAddresses(i, true) & 31) << 7) | ((mib & 3840) << 4);
+		const uint16_t u16 = (user[i].info & 3) | ((numAddresses(i, false) & 31) << 2) | ((numAddresses(i, true) & 31) << 7) | ((kib64 & 3840) << 4);
 		memcpy(response + len, &u16, 2);
-		response[len + 2] = mib & 255;
+		response[len + 2] = kib64 & 255;
 		memcpy(response + len + 3, user[i].pubkey, 32);
 		len += 35;
 	}
