@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -351,7 +352,7 @@ void api_account_browse(const int sock, const int num) {
 
 		uint32_t storageBytes;
 		memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
-		const uint32_t mib = storageBytes / 1048576;
+		const uint32_t mib = round(storageBytes / 1048576);
 
 /* Stores: Level=0-3, Normal=0-31, Shield=0-31, MiB=0-4095
 	Bytes 0-1:
