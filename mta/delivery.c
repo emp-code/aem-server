@@ -213,7 +213,7 @@ int deliverMessage(char to[][32], const int toCount, struct emailInfo * const em
 		size_t lenToAddr = 0;
 		for (size_t j = 0; j < strlen(to[i]); j++) {
 			if (isalnum(to[i][j])) {
-				if (lenToAddr > 15) {syslog(LOG_ERR, "Address too long"); return SMTP_STORE_INERROR;}
+				if (lenToAddr > 15) {syslog(LOG_ERR, "Address too long"); sodium_memzero(upk, crypto_box_PUBLICKEYBYTES); return SMTP_STORE_INERROR;}
 				toAddr[lenToAddr] = tolower(to[i][j]);
 				lenToAddr++;
 			}
@@ -291,5 +291,6 @@ int deliverMessage(char to[][32], const int toCount, struct emailInfo * const em
 		}
 	}
 
+	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 	return 0;
 }
