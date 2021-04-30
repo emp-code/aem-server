@@ -79,7 +79,16 @@ static void getStorageKey(unsigned char * const target, const unsigned char * co
 	memcpy(&keyId, &sze, 2);
 	memcpy((unsigned char*)&keyId + 2, upk, 6);
 
-	crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+	// Uses random key for 'Trash'; the extra kdf/random is to resist timing attacks
+	unsigned char zero[crypto_box_PUBLICKEYBYTES];
+	bzero(zero, crypto_box_PUBLICKEYBYTES);
+	if (memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+		randombytes_buf(target, 32);
+	} else {
+		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+		randombytes_buf(zero, crypto_box_PUBLICKEYBYTES);
+	}
 }
 
 static int saveStindex(void) {
@@ -169,8 +178,16 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
-	memcpy(path, "MessageData/", 12);
 	sodium_bin2hex(path + 12, 65, pkEnc, 32);
+
+	unsigned char zero[crypto_box_PUBLICKEYBYTES];
+	bzero(zero, crypto_box_PUBLICKEYBYTES);
+
+	if (memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+		strcpy(path, "MessageData/Trash");
+	} else {
+		memcpy(path, "MessageData/", 12);
+	}
 }
 
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
@@ -293,12 +310,11 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 	}
 
 	if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) {syslog(LOG_INFO, "%zu >= %d", getUserStorageAmount(num), (limits[stindex[num].level & 3]) * 1048576);return -1;} // Over storage limit
-	syslog(LOG_INFO, "%zu < %d", getUserStorageAmount(num), (limits[stindex[num].level & 3]) * 1048576);
 
 	char path[77];
 	getMsgPath(path, upk);
 
-	const int fdMsg = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | ((path[12] == 'T') ? O_TRUNC : O_APPEND), S_IRUSR | S_IWUSR | S_ISVTX);
 	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return -1;}
 
 	const off_t oldFilesize = lseek(fdMsg, 0, SEEK_END);
@@ -317,6 +333,12 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
 	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return -1;}
+
+	if (path[12] == 'T') {
+		close(fdMsg);
+		saveStindex();
+		return 0;
+	}
 
 	if (num == -1) {
 		stindexCount++;

@@ -651,7 +651,9 @@ void api_internal_adrpk(const int sock, const int num) {
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
 	if (userNum < 0 || ((user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0)) {
-		send(sock, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32, 0);
+		unsigned char empty[crypto_box_PUBLICKEYBYTES];
+		bzero(empty, crypto_box_PUBLICKEYBYTES);
+		send(sock, empty, crypto_box_PUBLICKEYBYTES, 0);
 		return;
 	}
 
@@ -673,7 +675,12 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) return;
+	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {
+		unsigned char empty[crypto_box_PUBLICKEYBYTES];
+		bzero(empty, crypto_box_PUBLICKEYBYTES);
+		send(sock, empty, crypto_box_PUBLICKEYBYTES, 0);
+		return;
+	}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
 }

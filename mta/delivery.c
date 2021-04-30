@@ -194,7 +194,13 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	free(comp);
 
 	// Encrypt into the final form
-	unsigned char * const encrypted = msg_encrypt(upk, content, lenContent, lenOut);
+	unsigned char throwaway[crypto_box_PUBLICKEYBYTES];
+	randombytes_buf(throwaway, crypto_box_PUBLICKEYBYTES);
+
+	unsigned char zero[crypto_box_PUBLICKEYBYTES];
+	bzero(zero, crypto_box_PUBLICKEYBYTES);
+
+	unsigned char * const encrypted = msg_encrypt((memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) ? throwaway : upk, content, lenContent, lenOut);
 	free(content);
 
 	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
@@ -223,7 +229,7 @@ int deliverMessage(char to[][32], const int toCount, struct emailInfo * const em
 		addr32_store(toAddr32, toAddr, lenToAddr);
 
 		const int ret = getPublicKey(toAddr32, (lenToAddr == 16));
-		if (ret != 0) continue;
+		if (ret != 0) {syslog(LOG_ERR, "Failed getting UPK"); continue;}
 
 		email->lenEnvTo = strlen(to[i]);
 		if (email->lenEnvTo > 31) email->lenEnvTo = 31;
