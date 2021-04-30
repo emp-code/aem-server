@@ -135,7 +135,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 	content[13] = email->ccBytes[0];
 	if (email->protocolEsmtp)     content[13] |= 128;
-	if (email->quitReceived)      content[13] |=  64;
+	// [13] & 64 unused
 	if (email->protocolViolation) content[13] |=  32;
 
 	content[14] = email->ccBytes[1];

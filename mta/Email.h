@@ -53,7 +53,6 @@ struct emailInfo {
 	// SMTP protocol info
 	bool protocolEsmtp;
 	bool protocolViolation;
-	bool quitReceived;
 	bool invalidCommands;
 	bool rareCommands; // NOOP/RSET/etc
 
