@@ -24,19 +24,19 @@
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
 #define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
-#define AEM_SMTP_MAX_SIZE_BODY 1048576 // 1 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
+#define AEM_SMTP_MAX_SIZE_BODY 4194304 // 4 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 #define AEM_SMTP_MAX_ROUNDS 500
 
 #define AEM_EHLO_RESPONSE_LEN 60
 #define AEM_EHLO_RESPONSE \
-"\r\n250-SIZE 1048576" \
+"\r\n250-SIZE 4194304" \
 "\r\n250-STARTTLS" \
 "\r\n250-8BITMIME" \
 "\r\n250 SMTPUTF8"
 
 #define AEM_SHLO_RESPONSE_LEN 46
 #define AEM_SHLO_RESPONSE \
-"\r\n250-SIZE 1048576" \
+"\r\n250-SIZE 4194304" \
 "\r\n250-8BITMIME" \
 "\r\n250 SMTPUTF8"
 
