@@ -389,10 +389,14 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 			fn += 5;
 			while (isspace(*fn)) fn++;
 
-			if (*fn == '"' || *fn == '\'') fn++;
-			while (isspace(*fn)) fn++;
-
-			while (fn[lenFn] != '\0' && fn[lenFn] != '\'' && fn[lenFn] != '"') lenFn++;
+			if (*fn == '"' || *fn == '\'') {
+				const char * const end = strpbrk(fn + 1, (char[]){*fn, '\v', '\r', '\n', '\0'});
+				fn++;
+				if (end != NULL) lenFn = end - fn;
+			} else if (*fn != '\0') {
+				const char * const end = strpbrk(fn + 1, "; \t\v\r\n\0");
+				if (end != NULL) lenFn = end - fn;
+			}
 		}
 
 		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
