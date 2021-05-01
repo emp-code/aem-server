@@ -206,11 +206,8 @@ Other signals:
 
 ## Dependencies ##
 
-Several of the programs make use of:
 * [mbed TLS](https://tls.mbed.org) for TLS
 * [libsodium](https://libsodium.org) for cryptography
 * [Brotli](https://github.com/google/brotli) and [Zopfli](https://github.com/google/zopfli) for compression
-
-MTA:
-* Geolocates email senders thanks to [MaxMind](https://dev.maxmind.com/geoip/geoip2/downloadable/).
-* Converts text to Unicode with [ICU](http://site.icu-project.org/home)
+* [MaxMind GeoIP2](https://dev.maxmind.com/geoip/geoip2/downloadable/) for IP geolocation and ASN data
+* [ICU](http://site.icu-project.org/home) for converting text to UTF-8

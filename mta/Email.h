@@ -58,7 +58,7 @@ struct emailInfo {
 
 	// DNS/Host
 	bool ipBlacklisted;
-	bool greetingIpMatch;
+	bool ipMatchGreeting;
 	bool dnssec;
 	bool dane;
 
@@ -71,11 +71,13 @@ struct emailInfo {
 	uint8_t lenHdrTo;
 	uint8_t lenGreet;
 	uint8_t lenRvDns;
+	uint8_t lenAuSys;
 
 	unsigned char envTo[63];
 	unsigned char hdrTo[63];
 	unsigned char greet[63];
 	unsigned char rvDns[63];
+	unsigned char auSys[63];
 
 	// The five long-text fields
 	uint8_t lenEnvFr; // MAIL FROM

@@ -133,17 +133,23 @@ static void getIpInfo(void) {
 		return;
 	}
 
-	unsigned char ipInfo[129];
-	const int lenIpInfo = recv(sock, ipInfo, 129, 0);
+	unsigned char ipInfo[130];
+	int lenIpInfo = recv(sock, ipInfo, 130, 0);
 	close(sock);
-	if (lenIpInfo < 2) return;
+	if (lenIpInfo < 4) return;
 
 	memcpy(email.ccBytes, ipInfo, 2);
 
-	if (lenIpInfo > 2) {
-		email.lenRvDns = lenIpInfo - 2;
+	if (ipInfo[2] > 0) {
+		email.lenRvDns = ipInfo[2];
 		if (email.lenRvDns > 63) email.lenRvDns = 63;
-		memcpy(email.rvDns, ipInfo + 2, email.lenRvDns);
+		memcpy(email.rvDns, ipInfo + 4, email.lenRvDns);
+	}
+
+	if (ipInfo[3] > 0) {
+		email.lenAuSys = ipInfo[3];
+		if (email.lenAuSys > 63) email.lenAuSys = 63;
+		memcpy(email.auSys, ipInfo + 4 + email.lenRvDns, email.lenAuSys);
 	}
 }
 
@@ -333,7 +339,7 @@ static void smtp_fail(const int code) {
 static void prepareEmail(unsigned char * const source, size_t lenSource) {
 	convertLineDots(source, &lenSource);
 	getIpInfo();
-	email.greetingIpMatch = greetingDomainMatchesIp(email.ip);
+	email.ipMatchGreeting = greetingDomainMatchesIp(email.ip);
 	email.ipBlacklisted = isIpBlacklisted(email.ip);
 
 	// Add final CRLF for DKIM

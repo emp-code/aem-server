@@ -45,14 +45,13 @@ static int getPublicKey(const unsigned char * const addr32, const bool isShield)
 
 __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
-	if (email->lenBody > AEM_EXTMSG_BODY_MAXLEN) return NULL;
-
 	if (email->lenEnvTo > 31) email->lenEnvTo = 31;
 	if (email->lenHdrTo > 63) email->lenHdrTo = 63;
 	if (email->lenGreet > 63) email->lenGreet = 63;
 	if (email->lenRvDns > 63) email->lenRvDns = 63;
+	if (email->lenAuSys > 63) email->lenAuSys = 63;
 
-	size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+	size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenAuSys + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
 
 	if (email->dkimCount > 7) email->dkimCount = 7;
 	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain;
@@ -74,11 +73,12 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 		offset += email->dkim[i].lenDomain;
 	}
 
-	// The four short-text fields
+	// The five short-text fields
 	memcpy(uncomp + offset, email->envTo, email->lenEnvTo); offset += email->lenEnvTo;
 	memcpy(uncomp + offset, email->hdrTo, email->lenHdrTo); offset += email->lenHdrTo;
 	memcpy(uncomp + offset, email->greet, email->lenGreet); offset += email->lenGreet;
 	memcpy(uncomp + offset, email->rvDns, email->lenRvDns); offset += email->lenRvDns;
+	memcpy(uncomp + offset, email->auSys, email->lenAuSys); offset += email->lenAuSys;
 
 	// The five long-text fields
 	memcpy(uncomp + offset, email->envFr, email->lenEnvFr); offset += email->lenEnvFr; uncomp[offset] = '\n'; offset++;
@@ -114,7 +114,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	free(uncomp);
 
 	// Create the ExtMsg
-	const size_t lenContent = 22 + (email->dkimCount * 3) + lenComp;
+	const size_t lenContent = 23 + (email->dkimCount * 3) + lenComp;
 	unsigned char * const content = calloc(lenContent, 1);
 	if (content == NULL) {
 		free(comp);
@@ -130,35 +130,38 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	memcpy(content + 9, &email->tls_ciphersuite, 2);
 	content[11] = email->tlsInfo;
 
-	// The 8 InfoBytes
+	// The 9 InfoBytes
 	content[12] = (email->dkimCount << 5) | (email->attachCount & 31);
 
 	content[13] = email->ccBytes[0];
-	if (email->protocolEsmtp)     content[13] |= 128;
-	// [13] & 64 unused
-	if (email->protocolViolation) content[13] |=  32;
+	if (email->ipBlacklisted)   content[13] |= 128;
+	if (email->ipMatchGreeting) content[13] |=  64;
+	if (email->protocolEsmtp)   content[13] |=  32;
 
 	content[14] = email->ccBytes[1];
-	if (email->invalidCommands) content[14] |= 128;
-	if (email->rareCommands)    content[14] |=  64;
-	if (email->greetingIpMatch) content[14] |=  32;
+	if (email->invalidCommands)   content[14] |= 128;
+	if (email->protocolViolation) content[14] |=  63;
+	if (email->rareCommands)      content[14] |=  32;
 
-	content[15] = (email->spf   & 192) | (email->dkimFailed ? 32 : 0) | (email->lenEnvTo & 31);
+	content[15] = (email->spf   & 192) /*| (email-> ? 32 : 0)*/ | (email->lenEnvTo & 31);
 	content[16] = (email->dmarc & 192) | (email->lenHdrTo & 63);
 
 	content[17] = email->lenGreet & 63;
-	if (email->dane) content[17] |= 128;
+	if (email->dnssec) content[17] |= 128;
 
 	content[18] = email->lenRvDns & 63;
-	if (email->dnssec) content[18] |= 128;
+	if (email->dane) content[18] |= 128;
 
-	content[19] = email->hdrTz & 127;
-	if (email->ipBlacklisted) content[19] |= 128;
+	content[19] = email->lenAuSys & 63;
+	// [19] & 192 unused
 
-	memcpy(content + 20, &email->hdrTs, 2);
+	content[20] = email->hdrTz & 127;
+	if (email->dkimFailed) content[20] |= 128;
+
+	memcpy(content + 21, &email->hdrTs, 2);
 
 	// DKIM
-	offset = 22;
+	offset = 23;
 	for (int i = 0; i < email->dkimCount; i++) {
 		if (email->dkim[i].algoRsa)    content[offset] |= 128;
 		if (email->dkim[i].algoSha256) content[offset] |=  64;
@@ -202,7 +205,6 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 	unsigned char * const encrypted = msg_encrypt((memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) ? throwaway : upk, content, lenContent, lenOut);
 	free(content);
-
 	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
 
 	return encrypted;

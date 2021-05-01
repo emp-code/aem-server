@@ -50,14 +50,22 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 			const uint32_t ip = *((uint32_t*)(dec + 1));
 			if (validIp(ip) == 1) break;
 
-			unsigned char resp[129];
+			unsigned char resp[130]; // 2 + 2 + 63 + 63
 			const uint16_t cc = getCountryCode(ip);
 			memcpy(resp, &cc, 2);
 
 			int lenPtr = 0;
-			getPtr(ip, resp + 2, &lenPtr);
+			getPtr(ip, resp + 4, &lenPtr);
+			if (lenPtr < 0) lenPtr = 0;
 
-			send(sock, &resp, (lenPtr < 1) ? 2 : 2 + lenPtr, 0);
+			size_t lenAsn = 0;
+			getIpAsn(ip, resp + 4 + lenPtr, &lenAsn);
+			if (lenAsn > 63) lenAsn = 63;
+
+			resp[2] = lenPtr;
+			resp[3] = lenAsn;
+
+			send(sock, &resp, 4 + lenPtr + lenAsn, 0);
 		break;}
 
 		case AEM_ENQUIRY_A: {
