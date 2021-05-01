@@ -115,6 +115,11 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 
 	// Create the ExtMsg
 	const size_t lenContent = 23 + (email->dkimCount * 3) + lenComp;
+	if (lenContent + crypto_sign_BYTES + crypto_box_SEALBYTES > 1048752) { // ((2^16 - 1) + 12) * 16
+		free(comp);
+		return NULL;
+	}
+
 	unsigned char * const content = calloc(lenContent, 1);
 	if (content == NULL) {
 		free(comp);
