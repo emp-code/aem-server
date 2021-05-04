@@ -215,6 +215,7 @@ static void account_browse(void) {
 	int userCount;
 	if (recv(sock, &userCount, sizeof(int), 0) != sizeof(int)) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	if (userCount < 1 || userCount >= UINT16_MAX) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (userCount == 1) {close(sock); return shortResponse(NULL, 0);}
 
 	unsigned char * const clr = malloc(userCount * 35);
 	if (clr == NULL) {syslog(LOG_ERR, "Failed malloc()"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}

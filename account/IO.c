@@ -326,6 +326,7 @@ void api_account_browse(const int sock, const int num) {
 	if ((user[num].info & 3) != 3) return;
 
 	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
+	if (userCount <= 1) return;
 
 	unsigned char *storage = NULL;
 	const size_t lenStorage = getUserStorage(&storage);
