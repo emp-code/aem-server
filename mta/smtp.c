@@ -571,7 +571,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			if (original != NULL) free(original);
 			clearEmail();
-			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
+			sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
+			sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
+			sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
 			toCount = 0;
 
 			bool retOk;
