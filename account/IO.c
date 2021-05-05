@@ -126,22 +126,24 @@ static int saveUser(void) {
 }
 
 static int loadUser(void) {
-	if (userCount > 0) return -1;
+	if (userCount > 0) {syslog(LOG_ERR, "Account data already loaded"); return -1;}
 
 	const int fd = open("Account.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) return -1;
+	if (fd < 0) {syslog(LOG_ERR, "Failed opening Account.aem: %m"); return -1;}
 
 	const size_t lenBlock = sizeof(struct aem_user) * 1024;
 	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
 	const off_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
 	if (lenDecrypted < 1 || lenDecrypted % lenBlock != 4) {
 		close(fd);
+		syslog(LOG_ERR, "Invalid size for Account.aem");
 		return -1;
 	}
 
 	unsigned char encrypted[lenEncrypted];
 	if (pread(fd, encrypted, lenEncrypted, 0) != lenEncrypted) {
 		close(fd);
+		syslog(LOG_ERR, "Failed reading Account.aem");
 		return -1;
 	}
 	close(fd);
@@ -151,6 +153,7 @@ static int loadUser(void) {
 
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
 		sodium_free(decrypted);
+		syslog(LOG_ERR, "Failed decrypting Account.aem");
 		return -1;
 	}
 
@@ -160,11 +163,16 @@ static int loadUser(void) {
 	const size_t lenUserData = lenDecrypted - 4 - lenPadding;
 	if (lenUserData % sizeof(struct aem_user) != 0) {
 		sodium_free(decrypted);
+		syslog(LOG_ERR, "Invalid size for account data");
 		return -1;
 	}
 
 	user = malloc(lenUserData);
-	if (user == NULL) {sodium_free(decrypted); syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (user == NULL) {
+		sodium_free(decrypted);
+		syslog(LOG_ERR, "Failed allocation");
+		return -1;
+	}
 
 	memcpy(user, decrypted + 4, lenUserData);
 	sodium_free(decrypted);
@@ -175,7 +183,7 @@ static int loadUser(void) {
 
 static int updateStorageLevels(void) {
 	const int stoSock = storageSocket(AEM_ACC_STORAGE_LEVELS, NULL, 0);
-	if (stoSock < 0) return -1;
+	if (stoSock < 0) {syslog(LOG_ERR, "Failed creating Storage socket"); return -1;}
 
 	const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
 	unsigned char * const data = malloc(lenData);
@@ -190,7 +198,13 @@ static int updateStorageLevels(void) {
 	recv(stoSock, &resp, 1, 0);
 	close(stoSock);
 	free(data);
-	return (resp == AEM_INTERNAL_RESPONSE_OK) ? 0 : -1;
+
+	if (resp != AEM_INTERNAL_RESPONSE_OK) {
+		syslog(LOG_ERR, "updateStorageLevels: Invalid response from Storage");
+		return -1;
+	}
+
+	return 0;
 }
 
 int ioSetup(const unsigned char * const newAccountKey, const unsigned char * const newSaltShield) {
@@ -200,12 +214,12 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 	loadSettings(); // Ignore errors
 
 	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4);
-	if (stoSock < 0) return -1;
+	if (stoSock < 0) {syslog(LOG_ERR, "Failed creating Storage socket"); return -1;}
 
 	unsigned char resp = 0;
 	recv(stoSock, &resp, 1, 0);
 	close(stoSock);
-	if (resp != AEM_INTERNAL_RESPONSE_OK) return -1;
+	if (resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Invalid response from Storage"); return -1;}
 
 	return updateStorageLevels();
 }
@@ -676,6 +690,8 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
+	if (userNum < 0 && isShield) return;
+
 	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {
 		unsigned char empty[crypto_box_PUBLICKEYBYTES];
 		bzero(empty, crypto_box_PUBLICKEYBYTES);
@@ -684,9 +700,4 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-}
-
-void mta_shieldExist(const int sock, const unsigned char * const addr32) {
-	const uint64_t hash = addressToHash(addr32, true);
-	if (hash > 0 && hashToUserNum(hash, true, NULL) >= 0) send(sock, (unsigned char[]){0}, 1, 0);
 }
