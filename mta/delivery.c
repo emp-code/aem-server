@@ -273,15 +273,15 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 			// Store original, if requested
 			if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-				const size_t lenAtt = 22 + 5 + lenOriginal; //5=fn
+				const size_t lenAtt = 22 + 7 + lenOriginal; // 7 = Filename length
 				unsigned char * const att = malloc(lenAtt);
 				if (att != NULL) {
 					att[0] = msg_getPadAmount(lenAtt) | 32;
 					memcpy(att + 1, &(email->timestamp), 4);
-					att[5] = 4; //fn
+					att[5] = 6; // Filename length - 1
 					memcpy(att + 6, msgId, 16);
-					memcpy(att + 22, "x.eml", 5);
-					memcpy(att + 22 + 5, original, lenOriginal);
+					memcpy(att + 22, "src.eml", 7);
+					memcpy(att + 22 + 7, original, lenOriginal);
 				} else syslog(LOG_ERR, "Failed allocation");
 
 				enc = msg_encrypt(toUpk[i], att, 5 + lenAtt, &lenEnc);

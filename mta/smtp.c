@@ -561,7 +561,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			const size_t lenOriginal = lenSource - 1;
 			unsigned char *original = NULL;
-			if (storeOriginal && 17 + 5 + lenOriginal <= AEM_API_BOX_SIZE_MAX) { //5=fn
+			if (storeOriginal && 17 + 7 + lenOriginal <= AEM_API_BOX_SIZE_MAX) { // 7 = Filename length
 				original = malloc(lenOriginal);
 				memcpy(original, source + 1, lenOriginal);
 			}
