@@ -23,7 +23,6 @@
 #include "../Global.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
-#define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_MAX_SIZE_BODY 4194304 // 4 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 #define AEM_SMTP_MAX_ROUNDS 500
 
@@ -252,8 +251,20 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_USER     (-3)
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
 
+static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk) {
+	unsigned char addr32[10];
+	addr32_store(addr32, addr, addrChars);
+
+	const int sock = accountSocket((addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
+	if (sock < 0) return -1;
+
+	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
+	close(sock);
+	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
+}
+
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32]) {
+static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk) {
 	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	size_t skipBytes = 0;
@@ -295,22 +306,8 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
-	if (addrChars == 16) { // Shield addresses: check if exists
-		unsigned char addr32[10];
-		addr32_store(addr32, addr, addrChars);
-
-		const int sock = accountSocket(AEM_MTA_ADREXISTS_SHIELD, addr32, 10);
-		if (sock >= 0) {
-			unsigned char tmp;
-			const ssize_t ret = recv(sock, &tmp, 1, 0);
-			close(sock);
-			if (ret != 1) return AEM_SMTP_ERROR_ADDR_OUR_USER; // TODO: distinction between failure and non-existence
-		}
-	}
-
 	to[toChars] = '\0';
-
-	return 0;
+	return (getUpk(addr, addrChars, toUpk) == 0) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_USER;
 }
 
 __attribute__((warn_unused_result))
@@ -462,6 +459,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	size_t toCount = 0;
 	char to[AEM_SMTP_MAX_TO][32];
+	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
 
 	unsigned char *source = NULL;
 	size_t lenSource = 0;
@@ -493,7 +491,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bool retOk;
-			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount])) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount])) {
 				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
@@ -557,7 +555,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			prepareEmail(source, lenSource);
-			const int deliveryStatus = deliverMessage(to, toCount, &email);
+			const int deliveryStatus = deliverMessage(to, toUpk, toCount, &email);
 
 			clearEmail();
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);

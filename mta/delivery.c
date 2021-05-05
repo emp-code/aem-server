@@ -19,8 +19,6 @@
 
 #include "../Global.h"
 
-static unsigned char upk[crypto_box_PUBLICKEYBYTES];
-
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
 void setSignKey(const unsigned char * const seed) {
@@ -34,17 +32,8 @@ void delSignKey(void) {
 
 #include "../Common/Message.c"
 
-static int getPublicKey(const unsigned char * const addr32, const bool isShield) {
-	const int sock = accountSocket(isShield ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
-	if (sock < 0) return -1;
-
-	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
-	close(sock);
-	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
-}
-
 __attribute__((warn_unused_result))
-static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut) {
+static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut) {
 	if (email->lenEnvTo > 31) email->lenEnvTo = 31;
 	if (email->lenHdrTo > 63) email->lenHdrTo = 63;
 	if (email->lenGreet > 63) email->lenGreet = 63;
@@ -215,42 +204,25 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const 
 	return encrypted;
 }
 
-int deliverMessage(char to[][32], const int toCount, struct emailInfo * const email) {
+int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const int toCount, struct emailInfo * const email) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
 	for (int i = 0; i < toCount; i++) {
-		char toAddr[16];
-
-		size_t lenToAddr = 0;
-		for (size_t j = 0; j < strlen(to[i]); j++) {
-			if (isalnum(to[i][j])) {
-				if (lenToAddr > 15) {syslog(LOG_ERR, "Address too long"); sodium_memzero(upk, crypto_box_PUBLICKEYBYTES); return SMTP_STORE_INERROR;}
-				toAddr[lenToAddr] = tolower(to[i][j]);
-				lenToAddr++;
-			}
-		}
-
-		unsigned char toAddr32[10];
-		addr32_store(toAddr32, toAddr, lenToAddr);
-
-		const int ret = getPublicKey(toAddr32, (lenToAddr == 16));
-		if (ret != 0) {syslog(LOG_ERR, "Failed getting UPK"); continue;}
-
 		email->lenEnvTo = strlen(to[i]);
 		if (email->lenEnvTo > 31) email->lenEnvTo = 31;
 		memcpy(email->envTo, to[i], email->lenEnvTo);
 
 		size_t lenEnc = 0;
-		unsigned char *enc = makeExtMsg(email, &lenEnc);
+		unsigned char *enc = makeExtMsg(email, toUpk[i], &lenEnc);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			continue;
 		}
 
 		// Deliver
-		const int stoSock = storageSocket(AEM_MTA_INSERT, upk, crypto_box_PUBLICKEYBYTES);
+		const int stoSock = storageSocket(AEM_MTA_INSERT, toUpk[i], crypto_box_PUBLICKEYBYTES);
 		if (stoSock >= 0) {
 			uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 			if (send(stoSock, &u, 2, 0) != 2) {
@@ -281,7 +253,7 @@ int deliverMessage(char to[][32], const int toCount, struct emailInfo * const em
 				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
 				memcpy(att + 6, msgId, 16);
 
-				enc = msg_encrypt(upk, att, 5 + email->lenAttachment[j], &lenEnc);
+				enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
@@ -304,6 +276,5 @@ int deliverMessage(char to[][32], const int toCount, struct emailInfo * const em
 		}
 	}
 
-	sodium_memzero(upk, crypto_box_PUBLICKEYBYTES);
 	return 0;
 }

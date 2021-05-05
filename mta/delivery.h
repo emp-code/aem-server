@@ -10,6 +10,6 @@
 void setSignKey(const unsigned char * const seed);
 void delSignKey(void);
 
-int deliverMessage(char to[][32], const int toCount, struct emailInfo * const email);
+int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const int toCount, struct emailInfo * const email);
 
 #endif

@@ -52,7 +52,6 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 	if (lenDec != 11) return;
 
 	switch(dec[0]) {
-		case AEM_MTA_ADREXISTS_SHIELD: mta_shieldExist(sock, dec + 1); break;
 		case AEM_MTA_GETPUBKEY_NORMAL: mta_getPubKey(sock, dec + 1, false); break;
 		case AEM_MTA_GETPUBKEY_SHIELD: mta_getPubKey(sock, dec + 1, true);  break;
 	}
