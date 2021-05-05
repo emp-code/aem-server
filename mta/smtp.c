@@ -569,7 +569,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			prepareEmail(source, lenSource);
 			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal);
 
-			if (storeOriginal) free(original);
+			if (original != NULL) free(original);
 			clearEmail();
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
 			toCount = 0;
