@@ -204,7 +204,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const int toCount, struct emailInfo * const email) {
+int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
@@ -270,6 +270,37 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				if (enc != NULL) free(enc);
 			}
 
+			// Store original, if requested
+			if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
+				const size_t lenAtt = 22 + 5 + lenOriginal; //5=fn
+				unsigned char * const att = malloc(lenAtt);
+				if (att != NULL) {
+					att[0] = msg_getPadAmount(lenAtt) | 32;
+					memcpy(att + 1, &(email->timestamp), 4);
+					att[5] = 4; //fn
+					memcpy(att + 6, msgId, 16);
+					memcpy(att + 22, "x.eml", 5);
+					memcpy(att + 22 + 5, original, lenOriginal);
+				} else syslog(LOG_ERR, "Failed allocation");
+
+				enc = msg_encrypt(toUpk[i], att, 5 + lenAtt, &lenEnc);
+				free(att);
+
+				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
+					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+					if (send(stoSock, &u, 2, 0) != 2) {
+						syslog(LOG_ERR, "Failed sending to Storage (3)");
+						close(stoSock);
+						continue;
+					}
+
+					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
+				} else syslog(LOG_ERR, "Failed msg_encrypt()");
+
+				if (enc != NULL) free(enc);
+			}
+
+			// End
 			u = 0;
 			send(stoSock, &u, 2, 0);
 			close(stoSock);

@@ -251,7 +251,7 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_USER     (-3)
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
 
-static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk) {
+static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk, uint8_t * const addrFlags) {
 	unsigned char addr32[10];
 	addr32_store(addr32, addr, addrChars);
 
@@ -259,12 +259,14 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	if (sock < 0) return -1;
 
 	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
+	if (ret != crypto_box_PUBLICKEYBYTES) {close(sock); return -1;}
+	recv(sock, addrFlags, 1, 0);
 	close(sock);
-	return (ret == crypto_box_PUBLICKEYBYTES) ? 0 : -1;
+	return 0;
 }
 
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk) {
+static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, uint8_t * const addrFlags) {
 	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	size_t skipBytes = 0;
@@ -307,7 +309,7 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	to[toChars] = '\0';
-	return (getUpk(addr, addrChars, toUpk) == 0) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_USER;
+	return (getUpk(addr, addrChars, toUpk, addrFlags) == 0) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_USER;
 }
 
 __attribute__((warn_unused_result))
@@ -457,9 +459,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 	}
 
+	bool storeOriginal = false;
 	size_t toCount = 0;
 	char to[AEM_SMTP_MAX_TO][32];
 	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
+	uint8_t toFlags[AEM_SMTP_MAX_TO];
 
 	unsigned char *source = NULL;
 	size_t lenSource = 0;
@@ -491,7 +495,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bool retOk;
-			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount])) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount])) {
 				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
@@ -500,6 +504,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 			if (!retOk) {smtp_fail(104); break;}
 
+			if ((toFlags[toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
 			toCount++;
 		} else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
 			email.rareCommands = true;
@@ -554,9 +559,17 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				if (lenSource >= AEM_SMTP_MAX_SIZE_BODY) break;
 			}
 
-			prepareEmail(source, lenSource);
-			const int deliveryStatus = deliverMessage(to, toUpk, toCount, &email);
+			const size_t lenOriginal = lenSource - 1;
+			unsigned char *original = NULL;
+			if (storeOriginal && 17 + 5 + lenOriginal <= AEM_API_BOX_SIZE_MAX) { //5=fn
+				original = malloc(lenOriginal);
+				memcpy(original, source + 1, lenOriginal);
+			}
 
+			prepareEmail(source, lenSource);
+			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal);
+
+			if (storeOriginal) free(original);
 			clearEmail();
 			sodium_memzero(to, 32 * AEM_SMTP_MAX_TO);
 			toCount = 0;

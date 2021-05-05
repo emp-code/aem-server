@@ -14,12 +14,6 @@
 #include "../Data/address.h"
 #include "../Global.h"
 
-#define AEM_ADDR_FLAG_SHIELD 128
-// 64/32/16/8/4 unused
-#define AEM_ADDR_FLAG_ACCINT 2
-#define AEM_ADDR_FLAG_ACCEXT 1
-#define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
-
 #define AEM_LIMIT_MIB 0
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
@@ -579,7 +573,7 @@ void api_address_update(const int sock, const int num) {
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
-				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ORIGIN | AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				found++;
 				break;
 			}
@@ -700,4 +694,5 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	}
 
 	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+	send(sock, (uint8_t[]){flags & AEM_ADDR_FLAG_ORIGIN}, 1, 0);
 }

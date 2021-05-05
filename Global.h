@@ -43,6 +43,13 @@ enum aem_internal_enquiry {
 
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 
+#define AEM_ADDR_FLAG_SHIELD 128
+// 64/32/16/8 unused
+#define AEM_ADDR_FLAG_ORIGIN 4
+#define AEM_ADDR_FLAG_ACCINT 2
+#define AEM_ADDR_FLAG_ACCEXT 1
+#define AEM_ADDR_FLAGS_DEFAULT AEM_ADDR_FLAG_ACCEXT
+
 #define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
