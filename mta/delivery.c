@@ -284,7 +284,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 					memcpy(att + 22 + 7, original, lenOriginal);
 				} else syslog(LOG_ERR, "Failed allocation");
 
-				enc = msg_encrypt(toUpk[i], att, 5 + lenAtt, &lenEnc);
+				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
