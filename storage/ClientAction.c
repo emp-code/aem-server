@@ -28,10 +28,12 @@ void conn_acc(const int sock, const unsigned char * const dec, const size_t lenD
 		free(out);
 	} else if (dec[0] == AEM_ACC_STORAGE_LEVELS) {
 		const uint16_t userCount = getStindexCount();
-		const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
+		const ssize_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
 		unsigned char *data = malloc(lenData + 1);
-		if (recv(sock, data, lenData + 1, 0) != lenData) {
+		const ssize_t lenRecv = recv(sock, data, lenData + 1, 0);
+		if (lenRecv != lenData) {
 			free(data);
+			syslog(LOG_ERR, "Levels-Update: Invalid size received: %zd/%zd", lenRecv, lenData);
 			return;
 		}
 

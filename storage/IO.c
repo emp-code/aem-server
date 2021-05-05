@@ -39,7 +39,7 @@ int updateLevels(const unsigned char * const data, const size_t lenData) {
 	if ((lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) || (lenData / (crypto_box_PUBLICKEYBYTES + 1) != stindexCount)) {syslog(LOG_ERR, "updateLevels(): Invalid size"); return -1;}
 
 	for (int i = 0; i < stindexCount; i++) {
-		if (data[i * (crypto_box_PUBLICKEYBYTES + 1)] > AEM_USERLEVEL_MAX) return -1;
+		if (data[i * (crypto_box_PUBLICKEYBYTES + 1)] > AEM_USERLEVEL_MAX) {syslog(LOG_ERR, "updateLevels(): Max level exceeded: %u", data[i * (crypto_box_PUBLICKEYBYTES + 1)]); return -1;}
 		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) != 0) {syslog(LOG_ERR, "updateLevels(): Out of sync"); return -1;}
 		stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
 	}
