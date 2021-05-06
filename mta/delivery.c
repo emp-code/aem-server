@@ -223,90 +223,87 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 		// Deliver
 		const int stoSock = storageSocket(AEM_MTA_INSERT, toUpk[i], crypto_box_PUBLICKEYBYTES);
-		if (stoSock >= 0) {
-			uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-			if (send(stoSock, &u, 2, 0) != 2) {
-				syslog(LOG_ERR, "Failed sending to Storage (1)");
-				close(stoSock);
-				continue;
-			}
+		if (stoSock < 0) continue;
 
-			if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
-				syslog(LOG_ERR, "Failed sending to Storage (2)");
-				close(stoSock);
-				continue;
-			}
-
-			unsigned char msgId[16];
-			memcpy(msgId, enc, 16);
-			free(enc);
-
-			// Store attachments
-			for (int j = 0; j < email->attachCount; j++) {
-				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
-
-				unsigned char * const att = malloc(5 + email->lenAttachment[j]);
-				if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
-
-				att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
-				memcpy(att + 1, &(email->timestamp), 4);
-				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
-				memcpy(att + 6, msgId, 16);
-
-				enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
-				free(att);
-
-				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-					if (send(stoSock, &u, 2, 0) != 2) {
-						free(enc);
-						syslog(LOG_ERR, "Failed sending to Storage (3)");
-						close(stoSock);
-						continue;
-					}
-
-					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
-				} else syslog(LOG_ERR, "Failed msg_encrypt()");
-
-				if (enc != NULL) free(enc);
-			}
-
-			// Store original, if requested
-			if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-				const size_t lenAtt = 22 + 7 + lenOriginal; // 7 = Filename length
-				unsigned char * const att = malloc(lenAtt);
-				if (att != NULL) {
-					att[0] = msg_getPadAmount(lenAtt) | 32;
-					memcpy(att + 1, &(email->timestamp), 4);
-					att[5] = 6; // Filename length - 1
-					memcpy(att + 6, msgId, 16);
-					memcpy(att + 22, "src.eml", 7);
-					memcpy(att + 22 + 7, original, lenOriginal);
-				} else syslog(LOG_ERR, "Failed allocation");
-
-				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
-				free(att);
-
-				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-					if (send(stoSock, &u, 2, 0) != 2) {
-						free(enc);
-						syslog(LOG_ERR, "Failed sending to Storage (3)");
-						close(stoSock);
-						continue;
-					}
-
-					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
-				} else syslog(LOG_ERR, "Failed msg_encrypt()");
-
-				if (enc != NULL) free(enc);
-			}
-
-			// End
-			u = 0;
-			send(stoSock, &u, 2, 0);
+		uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+		if (
+		   send(stoSock, &u,  2,      0) != 2
+		|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
+		) {
+			syslog(LOG_ERR, "Failed sending to Storage");
 			close(stoSock);
+			continue;
 		}
+
+		unsigned char msgId[16];
+		memcpy(msgId, enc, 16);
+		free(enc);
+
+		// Store attachments
+		for (int j = 0; j < email->attachCount; j++) {
+			if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
+
+			unsigned char * const att = malloc(5 + email->lenAttachment[j]);
+			if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+
+			att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
+			memcpy(att + 1, &(email->timestamp), 4);
+			memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
+			memcpy(att + 6, msgId, 16);
+
+			enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
+			free(att);
+
+			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
+				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+				if (send(stoSock, &u, 2, 0) != 2) {
+					free(enc);
+					syslog(LOG_ERR, "Failed sending to Storage (3)");
+					close(stoSock);
+					continue;
+				}
+
+				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
+			} else syslog(LOG_ERR, "Failed msg_encrypt()");
+
+			if (enc != NULL) free(enc);
+		}
+
+		// Store original, if requested
+		if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
+			const size_t lenAtt = 22 + 7 + lenOriginal; // 7 = Filename length
+			unsigned char * const att = malloc(lenAtt);
+			if (att != NULL) {
+				att[0] = msg_getPadAmount(lenAtt) | 32;
+				memcpy(att + 1, &(email->timestamp), 4);
+				att[5] = 6; // Filename length - 1
+				memcpy(att + 6, msgId, 16);
+				memcpy(att + 22, "src.eml", 7);
+				memcpy(att + 22 + 7, original, lenOriginal);
+			} else syslog(LOG_ERR, "Failed allocation");
+
+			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
+			free(att);
+
+			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
+				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+				if (send(stoSock, &u, 2, 0) != 2) {
+					free(enc);
+					syslog(LOG_ERR, "Failed sending to Storage (3)");
+					close(stoSock);
+					continue;
+				}
+
+				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
+			} else syslog(LOG_ERR, "Failed msg_encrypt()");
+
+			if (enc != NULL) free(enc);
+		}
+
+		// End
+		u = 0;
+		send(stoSock, &u, 2, 0);
+		close(stoSock);
 	}
 
 	return 0;
