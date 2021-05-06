@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <sodium.h>
@@ -13,6 +14,9 @@
 #include "../Common/UnixSocketClient.h"
 #include "../Data/address.h"
 #include "../Global.h"
+
+#define AEM_FAKEFLAGS_HTSIZE 2048
+#define AEM_FAKEFLAGS_MAXTIME 2000000 // 23d
 
 #define AEM_LIMIT_MIB 0
 #define AEM_LIMIT_NRM 1
@@ -39,6 +43,7 @@ static int userCount = 0;
 
 static unsigned char accountKey[AEM_LEN_KEY_ACC];
 static unsigned char saltShield[AEM_LEN_SLT_SHD];
+static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 
 static int saveSettings(void) {
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + 12;
@@ -206,6 +211,7 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 	memcpy(saltShield, newSaltShield, AEM_LEN_SLT_SHD);
 	if (loadUser() != 0) return -1;
 	loadSettings(); // Ignore errors
+	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
 
 	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4);
 	if (stoSock < 0) {syslog(LOG_ERR, "Failed creating Storage socket"); return -1;}
@@ -686,13 +692,24 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	const int userNum = hashToUserNum(hash, isShield, &flags);
 	if (userNum < 0 && isShield) return;
 
-	if (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {
-		unsigned char empty[crypto_box_PUBLICKEYBYTES];
-		bzero(empty, crypto_box_PUBLICKEYBYTES);
-		send(sock, empty, crypto_box_PUBLICKEYBYTES, 0);
-		return;
+	// Prepare fake response
+	uint64_t htHash = 0;
+	crypto_shorthash((unsigned char*)&htHash, addr32, 10, saltShield);
+	if (time(NULL) > fakeFlag_expire[htHash & (AEM_FAKEFLAGS_HTSIZE - 1)]) {
+		fakeFlag_expire[htHash & (AEM_FAKEFLAGS_HTSIZE - 1)] = time(NULL) + randombytes_uniform(AEM_FAKEFLAGS_MAXTIME);
 	}
 
-	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-	send(sock, (uint8_t[]){flags & AEM_ADDR_FLAG_ORIGIN}, 1, 0);
+	uint64_t fakeHash = 0;
+	crypto_shorthash((unsigned char*)&fakeHash, (unsigned char*)&fakeFlag_expire[htHash & (AEM_FAKEFLAGS_HTSIZE - 1)], 4, saltShield);
+
+	unsigned char fakeFlags = 0;
+	if ((fakeHash & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ORIGIN; // 12.5% chance (1 in 8)
+
+	unsigned char empty[crypto_box_PUBLICKEYBYTES];
+	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
+
+	// Respond
+	const bool sendFake = (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0);
+	send(sock, sendFake ? empty : user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+	send(sock, sendFake ? &fakeFlags : (uint8_t[]){flags & AEM_ADDR_FLAG_ORIGIN}, 1, 0);
 }

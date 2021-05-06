@@ -79,14 +79,14 @@ static void getStorageKey(unsigned char * const target, const unsigned char * co
 	memcpy((unsigned char*)&keyId + 2, upk, 6);
 
 	// Uses random key for 'Trash'; the extra kdf/random is to resist timing attacks
-	unsigned char zero[crypto_box_PUBLICKEYBYTES];
-	bzero(zero, crypto_box_PUBLICKEYBYTES);
-	if (memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+	unsigned char empty[crypto_box_PUBLICKEYBYTES];
+	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
+	if (memcmp(empty, upk, crypto_box_PUBLICKEYBYTES) == 0) {
 		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
 		randombytes_buf(target, 32);
 	} else {
 		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
-		randombytes_buf(zero, crypto_box_PUBLICKEYBYTES);
+		randombytes_buf(empty, crypto_box_PUBLICKEYBYTES);
 	}
 }
 
@@ -179,10 +179,10 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 
 	sodium_bin2hex(path + 12, 65, pkEnc, 32);
 
-	unsigned char zero[crypto_box_PUBLICKEYBYTES];
-	bzero(zero, crypto_box_PUBLICKEYBYTES);
+	unsigned char empty[crypto_box_PUBLICKEYBYTES];
+	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
 
-	if (memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+	if (memcmp(empty, upk, crypto_box_PUBLICKEYBYTES) == 0) {
 		strcpy(path, "MessageData/Trash");
 	} else {
 		memcpy(path, "MessageData/", 12);
