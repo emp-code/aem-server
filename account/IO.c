@@ -471,20 +471,23 @@ void api_account_update(const int sock, const int num) {
 }
 
 void api_address_create(const int sock, const int num) {
+	uint64_t hash;
+	const ssize_t len = recv(sock, &hash, 8, 0);
+	const bool isShield = (len == 6 && memcmp(&hash, "SHIELD", 6) == 0);
+
 	int addrCount = user[num].info >> 3;
 	if (addrCount >= AEM_ADDRESSES_PER_USER) {
 		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
 		return;
 	}
 
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
-
-	uint64_t hash;
-	const ssize_t len = recv(sock, &hash, 8, 0);
-	const bool isShield = (len == 6 && memcmp(&hash, "SHIELD", 6) == 0);
-
 	unsigned char addr32[10];
 	if (isShield) {
+		if (numAddresses(num, true) >= limits[user[num].info & 3][AEM_LIMIT_SHD]) {
+			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
+			return;
+		}
+
 		randombytes_buf(addr32, 10);
 		hash = (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
 
@@ -492,7 +495,12 @@ void api_address_create(const int sock, const int num) {
 			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
 			return;
 		}
-	} else if (len == 8) {
+	} else if (len == 8) { // Normal
+		if (numAddresses(num, false) >= limits[user[num].info & 3][AEM_LIMIT_NRM]) {
+			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
+			return;
+		}
+
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
 			for (unsigned int i = 0; i < AEM_HASH_ADMIN_COUNT; i++) {

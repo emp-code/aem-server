@@ -325,33 +325,26 @@ static void address_create(void) {
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
-	unsigned char ret;
-	if (recv(sock, &ret, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-	if (ret == AEM_INTERNAL_RESPONSE_LIMIT) {close(sock); return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);}
-	if (ret != AEM_INTERNAL_RESPONSE_OK) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-
 	if (send(sock, decrypted, lenDecrypted, 0) != (ssize_t)lenDecrypted) {
 		syslog(LOG_ERR, "Failed sending data to Account");
 		close(sock);
 		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
-	if (lenDecrypted == 8) { // Normal
-		if (recv(sock, &ret, 1, 0) != 1) {close(sock); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
-		close(sock);
-		if (ret == AEM_INTERNAL_RESPONSE_OK) return shortResponse(NULL, 0);
-		if (ret == AEM_INTERNAL_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
-		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	unsigned char data[18];
+	const int ret = recv(sock, data, 18, 0);
+	close(sock);
+	if (ret < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+
+	if (ret == 1) {
+		if (data[0] == AEM_INTERNAL_RESPONSE_OK && lenDecrypted == 8) return shortResponse(NULL, 0); // Normal address OK
+		if (data[0] == AEM_INTERNAL_RESPONSE_LIMIT) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
+		if (data[0] == AEM_INTERNAL_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	}
 
-	// Shield
-	unsigned char data[18];
-	const ssize_t lenData = recv(sock, data, 18, 0);
-	close(sock);
+	if (ret == 18 && lenDecrypted == 6) return shortResponse(data, 18); // Shield address OK
 
-	if (lenData == 1 && data[0] == AEM_INTERNAL_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
-	if (lenData == 18) return shortResponse(data, 18);
-
+	// Error
 	syslog(LOG_ERR, "Failed receiving data from Account");
 	shortResponse(NULL, AEM_API_ERR_INTERNAL);
 }
