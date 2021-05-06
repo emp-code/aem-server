@@ -261,7 +261,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
 				) {
 					free(enc);
-					syslog(LOG_ERR, "Failed sending to Storage (3)");
+					syslog(LOG_ERR, "Failed sending to Storage");
 					close(stoSock);
 					continue;
 				}
@@ -293,7 +293,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
 				) {
 					free(enc);
-					syslog(LOG_ERR, "Failed sending to Storage (3)");
+					syslog(LOG_ERR, "Failed sending to Storage");
 					close(stoSock);
 					continue;
 				}
