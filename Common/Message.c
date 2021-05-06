@@ -16,6 +16,8 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 
 	*lenEncrypted = lenPadded + crypto_box_SEALBYTES;
 	unsigned char *encrypted = malloc(*lenEncrypted);
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); sodium_free(clear); return NULL;}
+
 	const int ret = crypto_box_seal(encrypted, clear, lenPadded, pk);
 	sodium_free(clear);
 
