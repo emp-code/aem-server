@@ -256,14 +256,15 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
 				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-				if (send(stoSock, &u, 2, 0) != 2) {
+				if (
+				   send(stoSock, &u,  2,      0) != 2
+				|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
+				) {
 					free(enc);
 					syslog(LOG_ERR, "Failed sending to Storage (3)");
 					close(stoSock);
 					continue;
 				}
-
-				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
 			} else syslog(LOG_ERR, "Failed msg_encrypt()");
 
 			if (enc != NULL) free(enc);
@@ -287,14 +288,15 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
 				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-				if (send(stoSock, &u, 2, 0) != 2) {
+				if (
+				   send(stoSock, &u,  2,      0) != 2
+				|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
+				) {
 					free(enc);
 					syslog(LOG_ERR, "Failed sending to Storage (3)");
 					close(stoSock);
 					continue;
 				}
-
-				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed sending to Storage (4)");
 			} else syslog(LOG_ERR, "Failed msg_encrypt()");
 
 			if (enc != NULL) free(enc);
