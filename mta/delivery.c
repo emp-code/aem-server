@@ -33,7 +33,16 @@ void delSignKey(void) {
 #include "../Common/Message.c"
 
 __attribute__((warn_unused_result))
-static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut) {
+static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut, const bool allVer) {
+	if (!allVer) { // Remove non-preferred variant(s) if requested
+		const unsigned char * const r = memchr(email->body, '\r', email->lenBody);
+		if (r != NULL) {
+			const size_t lenRem = (r + 1 - email->body);
+			memmove(email->body, r + 1, email->lenBody - lenRem);
+			email->lenBody -= lenRem;
+		}
+	}
+
 	if (email->lenEnvTo > 31) email->lenEnvTo = 31;
 	if (email->lenHdrTo > 63) email->lenHdrTo = 63;
 	if (email->lenGreet > 63) email->lenGreet = 63;
@@ -215,7 +224,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		memcpy(email->envTo, to[i], email->lenEnvTo);
 
 		size_t lenEnc = 0;
-		unsigned char *enc = makeExtMsg(email, toUpk[i], &lenEnc);
+		unsigned char *enc = makeExtMsg(email, toUpk[i], &lenEnc, (toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			continue;
