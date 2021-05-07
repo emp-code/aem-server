@@ -581,7 +581,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			bool retOk;
 			switch (deliveryStatus) {
 				case SMTP_STORE_INERROR: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33); break;
-				case SMTP_STORE_USRFULL: retOk = send_aem(sock, tls, "552 4.2.2 Recipient mailbox full\r\n", 34); break;
+				case SMTP_STORE_USRFULL: retOk = send_aem(sock, tls, "452 4.2.2 Recipient mailbox full\r\n", 34); break;
 				case SMTP_STORE_MSGSIZE: retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
 				default: retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23);
 			}
