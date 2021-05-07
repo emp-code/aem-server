@@ -250,6 +250,7 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_SYNTAX   (-2)
 #define AEM_SMTP_ERROR_ADDR_OUR_USER     (-3)
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
+#define AEM_SMTP_ERROR_ADDR_TLS_NEEDED   (-5)
 
 static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk, unsigned char * const addrFlags) {
 	unsigned char addr32[10];
@@ -268,7 +269,7 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 }
 
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags) {
+static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags, const bool usingTls) {
 	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	size_t skipBytes = 0;
@@ -311,7 +312,10 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	to[toChars] = '\0';
-	return (getUpk(addr, addrChars, toUpk, addrFlags) == 0) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_USER;
+	const int ret = getUpk(addr, addrChars, toUpk, addrFlags);
+	if (ret != 0) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (!usingTls && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) return AEM_SMTP_ERROR_ADDR_TLS_NEEDED;
+	return 0;
 }
 
 __attribute__((warn_unused_result))
@@ -497,11 +501,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bool retOk;
-			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount])) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount], tls != NULL)) {
 				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
+				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires secure transport (TLS)\r\n", 53); break;
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}
