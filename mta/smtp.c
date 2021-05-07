@@ -251,22 +251,24 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_USER     (-3)
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
 
-static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk, uint8_t * const addrFlags) {
+static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk, unsigned char * const addrFlags) {
 	unsigned char addr32[10];
 	addr32_store(addr32, addr, addrChars);
 
 	const int sock = accountSocket((addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
 	if (sock < 0) return -1;
 
-	const ssize_t ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
-	if (ret != crypto_box_PUBLICKEYBYTES) {close(sock); return -1;}
-	recv(sock, addrFlags, 1, 0);
+	const int ret = (
+	   recv(sock, upk,       crypto_box_PUBLICKEYBYTES, 0) == crypto_box_PUBLICKEYBYTES
+	&& recv(sock, addrFlags, 1,                         0) == 1
+	) ? 0 : -1;
+
 	close(sock);
-	return 0;
+	return ret;
 }
 
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, uint8_t * const addrFlags) {
+static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags) {
 	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	size_t skipBytes = 0;
@@ -463,7 +465,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	size_t toCount = 0;
 	char to[AEM_SMTP_MAX_TO][32];
 	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
-	uint8_t toFlags[AEM_SMTP_MAX_TO];
+	unsigned char toFlags[AEM_SMTP_MAX_TO];
 
 	unsigned char *source = NULL;
 	size_t lenSource = 0;

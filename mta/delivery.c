@@ -239,35 +239,37 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		memcpy(msgId, enc, 16);
 		free(enc);
 
-		// Store attachments
-		for (int j = 0; j < email->attachCount; j++) {
-			if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
+		// Store attachments, if requested
+		if ((toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
+			for (int j = 0; j < email->attachCount; j++) {
+				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
-			unsigned char * const att = malloc(5 + email->lenAttachment[j]);
-			if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+				unsigned char * const att = malloc(5 + email->lenAttachment[j]);
+				if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 
-			att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
-			memcpy(att + 1, &(email->timestamp), 4);
-			memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
-			memcpy(att + 6, msgId, 16);
+				att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
+				memcpy(att + 1, &(email->timestamp), 4);
+				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
+				memcpy(att + 6, msgId, 16);
 
-			enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
-			free(att);
+				enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
+				free(att);
 
-			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
-				if (
-				   send(stoSock, &u,  2,      0) != 2
-				|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
-				) {
-					free(enc);
-					syslog(LOG_ERR, "Failed sending to Storage");
-					close(stoSock);
-					continue;
-				}
-			} else syslog(LOG_ERR, "Failed msg_encrypt()");
+				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
+					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
+					if (
+						send(stoSock, &u,  2,      0) != 2
+					|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
+					) {
+						free(enc);
+						syslog(LOG_ERR, "Failed sending to Storage");
+						close(stoSock);
+						continue;
+					}
+				} else syslog(LOG_ERR, "Failed msg_encrypt()");
 
-			if (enc != NULL) free(enc);
+				if (enc != NULL) free(enc);
+			}
 		}
 
 		// Store original, if requested

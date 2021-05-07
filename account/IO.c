@@ -237,7 +237,7 @@ static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char
 				if (flagp != NULL) *flagp = user[userNum].addrFlag[addrNum];
 
 				if (isShield) {
-					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) > 0) ? userNum : -1;
+					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) != 0) ? userNum : -1;
 				} else {
 					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == 0) ? userNum : -1;
 				}
@@ -587,7 +587,7 @@ void api_address_update(const int sock, const int num) {
 	for (int i = 0; i < (len / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
 			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
-				user[num].addrFlag[j] = (buf[(i * 9) + 8] & (AEM_ADDR_FLAG_ORIGIN | AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ACCINT)) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+				user[num].addrFlag[j] = (buf[(i * 9) + 8] & 63) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				found++;
 				break;
 			}
@@ -699,6 +699,7 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
 	if (userNum < 0 && isShield) return;
+	flags &= (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
 
 	// Prepare fake response
 	uint64_t htHash = 0;
@@ -711,7 +712,10 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	crypto_shorthash((unsigned char*)&fakeHash, (unsigned char*)&fakeFlag_expire[htHash & (AEM_FAKEFLAGS_HTSIZE - 1)], 4, saltShield);
 
 	unsigned char fakeFlags = 0;
-	if ((fakeHash & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ORIGIN; // 12.5% chance (1 in 8)
+	if (((fakeHash >>  0) & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ALLVER; // 12.5% chance (1 in 8)
+	if (((fakeHash >>  8) & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ATTACH; // 12.5% chance (1 in 8)
+	if (((fakeHash >> 16) & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_SECURE; // 12.5% chance (1 in 8)
+	if (((fakeHash >> 24) & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ORIGIN; // 12.5% chance (1 in 8)
 
 	unsigned char empty[crypto_box_PUBLICKEYBYTES];
 	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
@@ -719,5 +723,5 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	// Respond
 	const bool sendFake = (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0);
 	send(sock, sendFake ? empty : user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-	send(sock, sendFake ? &fakeFlags : (uint8_t[]){flags & AEM_ADDR_FLAG_ORIGIN}, 1, 0);
+	send(sock, sendFake ? &fakeFlags : &flags, 1, 0);
 }
