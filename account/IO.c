@@ -233,14 +233,9 @@ void ioFree(void) {
 static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
 	for (int userNum = 0; userNum < userCount; userNum++) {
 		for (int addrNum = 0; addrNum < (user[userNum].info >> 3); addrNum++) {
-			if (hash == user[userNum].addrHash[addrNum]) {
+			if (hash == user[userNum].addrHash[addrNum] && (user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == (isShield? AEM_ADDR_FLAG_SHIELD : 0)) {
 				if (flagp != NULL) *flagp = user[userNum].addrFlag[addrNum];
-
-				if (isShield) {
-					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) != 0) ? userNum : -1;
-				} else {
-					return ((user[userNum].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == 0) ? userNum : -1;
-				}
+				return userNum;
 			}
 		}
 	}
