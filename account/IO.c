@@ -362,7 +362,7 @@ void api_account_browse(const int sock, const int num) {
 
 		uint32_t storageBytes;
 		memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
-		const uint32_t kib64 = round(storageBytes / 65536);
+		const uint32_t kib64 = round((double)storageBytes / 65536);
 
 /* Stores: Level=0-3, Normal=0-31, Shield=0-31, kib64=0-4095
 	Bytes 0-1:
