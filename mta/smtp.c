@@ -7,6 +7,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <brotli/encode.h>
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
@@ -566,15 +567,26 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				if (lenSource >= AEM_SMTP_MAX_SIZE_BODY) break;
 			}
 
-			const size_t lenOriginal = lenSource - 1;
+			bool brOriginal = false;
+			size_t lenOriginal = lenSource - 1;
 			unsigned char *original = NULL;
 			if (storeOriginal && 17 + 7 + lenOriginal <= AEM_API_BOX_SIZE_MAX) { // 7 = Filename length
 				original = malloc(lenOriginal);
-				memcpy(original, source + 1, lenOriginal);
+				if (original != NULL) {
+					size_t lenComp = lenOriginal;
+					if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenOriginal, source + 1, &lenComp, original) != BROTLI_FALSE) {
+						lenOriginal = lenComp;
+						brOriginal = true;
+						syslog(LOG_ERR, "Compression OK");
+					} else { // Compression failed
+						memcpy(original, source + 1, lenOriginal);
+						syslog(LOG_ERR, "Failed compression");
+					}
+				} else syslog(LOG_ERR, "Failed allocation");
 			}
 
 			prepareEmail(source, lenSource);
-			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal);
+			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal, brOriginal);
 
 			if (original != NULL) free(original);
 			clearEmail();

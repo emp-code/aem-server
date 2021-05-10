@@ -213,7 +213,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal) {
+int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
 	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
@@ -283,15 +283,18 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 		// Store original, if requested
 		if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			const size_t lenAtt = 22 + 7 + lenOriginal; // 7 = Filename length
+			const char * const fn = brOriginal? "src.eml.br" : "src.eml";
+			const size_t lenFn = brOriginal? 10 : 7;
+
+			const size_t lenAtt = 22 + lenFn + lenOriginal;
 			unsigned char * const att = malloc(lenAtt);
 			if (att != NULL) {
 				att[0] = msg_getPadAmount(lenAtt) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
-				att[5] = 6; // Filename length - 1
+				att[5] = lenFn - 1;
 				memcpy(att + 6, msgId, 16);
-				memcpy(att + 22, "src.eml", 7);
-				memcpy(att + 22 + 7, original, lenOriginal);
+				memcpy(att + 22, fn, lenFn);
+				memcpy(att + 22 + lenFn, original, lenOriginal);
 			} else syslog(LOG_ERR, "Failed allocation");
 
 			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
