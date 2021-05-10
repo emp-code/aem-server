@@ -577,8 +577,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenOriginal, source + 1, &lenComp, original) != BROTLI_FALSE) {
 						lenOriginal = lenComp;
 						brOriginal = true;
-						syslog(LOG_ERR, "Compression OK");
-					} else { // Compression failed
+					} else {
 						memcpy(original, source + 1, lenOriginal);
 						syslog(LOG_ERR, "Failed compression");
 					}
