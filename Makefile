@@ -7,7 +7,7 @@ aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c Common/ValidFd.c -lsodium -lcap
 
 aem-account: account/*.c
-	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/UnixSocketClient.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/UnixSocketClient.c -lsodium -lcap -lm
 
 aem-enquiry: enquiry/*.c
 	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
