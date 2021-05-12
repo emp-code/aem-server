@@ -529,6 +529,14 @@ static void respond_manager(void) {
 	cryptSend();
 }
 
+static bool verifyStatus(void) {
+	return (
+		   pid_account > 0
+		&& pid_enquiry > 0
+		&& pid_storage > 0
+	);
+}
+
 int receiveConnections(void) {
 	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND); // fd=0
 
@@ -543,6 +551,12 @@ int receiveConnections(void) {
 
 	while (!terminate) {
 		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC); // fd=1
+
+		if (!verifyStatus()) {
+			killAll(SIGUSR1);
+			return 100;
+		}
+
 		if (sockClient < 0) continue;
 		respond_manager(); // pipefd=2
 		close(sockClient);
