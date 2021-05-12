@@ -464,8 +464,6 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 }
 
 static void cryptSend(void) {
-	refreshPids();
-
 	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
@@ -526,6 +524,7 @@ static void respond_manager(void) {
 		default: {syslog(LOG_WARNING, "Invalid command"); return;}
 	}
 
+	refreshPids();
 	cryptSend();
 }
 
