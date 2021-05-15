@@ -186,7 +186,7 @@ static void bracketsInQuotes(char *text) {
 }
 
 // Needs bracketsInQuotes() and lfToSpace()
-// Replaces <a href="example"> with example
+// Replaces <a href="example"> with AEM_CHAR_LNK_START + example + AEM_CHAR_LNK_END
 static void processLinks(char *text, size_t *len) {
 	char *br1 = memmem(text, *len, "<a ", 3);
 	while (br1 != NULL) {
@@ -194,38 +194,20 @@ static void processLinks(char *text, size_t *len) {
 		if (br2 == NULL) break;
 
 		const char *url = memmem(br1, br2 - br1, "href=", 5);
-
 		if (url != NULL) {
-			url += 5;
+			const bool isQuot = (url[5] == '"');
+			url += isQuot? 6 : 5;
+			const char * const term = isQuot? memchr(url, '"', br2 - url) : strpbrk(url, " >");
 
-			const size_t lenOrig = br2 - br1;
-
-			if (*url == '"') {
-				url++;
-				const char * const term = memchr(url, '"', br2 - url);
-
-				if (term != NULL) {
-					const size_t lenUrl = term - url;
-					*br1 = AEM_CHAR_LNK_START;
-					memmove(br1 + 1, url, lenUrl);
-					*br2 = AEM_CHAR_LNK_END;
-					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl - 1);
-					br2 = br1 + lenUrl + 1;
-				} else {br1 = br2 + 1;}
-			} else {
-				const char * const term = strpbrk(url, " >");
-
-				if (term != NULL && term <= br2) {
-					const size_t lenUrl = term - url;
-					*br1 = AEM_CHAR_LNK_START;
-					memmove(br1 + 1, url, lenUrl);
-					*br2 = AEM_CHAR_LNK_END;
-					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl - 1);
-					br2 = br1 + lenUrl + 1;
-				} else br1 = br2 + 1;
-			}
+			if (term != NULL && (!isQuot || term <= br2)) {
+				const size_t lenUrl = term - url;
+				*br1 = AEM_CHAR_LNK_START;
+				memmove(br1 + 1, url, lenUrl);
+				*br2 = AEM_CHAR_LNK_END;
+				memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
+				*len -= ((br2 - br1) - lenUrl - 1);
+				br2 = br1 + lenUrl + 1;
+			} else br1 = br2 + 1;
 		} else br1 = br2 + 1;
 
 		br1 = memmem(br1, (text + *len) - br1, "<a ", 3);
@@ -233,7 +215,7 @@ static void processLinks(char *text, size_t *len) {
 }
 
 // Needs bracketsInQuotes() and lfToSpace()
-// Replaces <img src="example"> with example
+// Replaces <img src="example"> with AEM_CHAR_IMG_START + example + AEM_CHAR_IMG_END
 // TODO: Preserve title/alt/size
 static void processImages(char * const text, size_t * const len) {
 	char *br1 = memmem(text, *len, "<img ", 5);
@@ -242,38 +224,20 @@ static void processImages(char * const text, size_t * const len) {
 		if (br2 == NULL) break;
 
 		const char *url = memmem(br1, br2 - br1, "src=", 4);
-
 		if (url != NULL) {
-			url += 4;
+			const bool isQuot = (url[4] == '"');
+			url += isQuot? 5 : 4;
+			const char * const term = isQuot? memchr(url, '"', br2 - url) : strpbrk(url, " >");
 
-			const size_t lenOrig = br2 - br1;
-
-			if (*url == '"') {
-				url++;
-				const char * const term = memchr(url, '"', br2 - url);
-
-				if (term != NULL) {
-					const size_t lenUrl = term - url;
-					*br1 = AEM_CHAR_IMG_START;
-					memmove(br1 + 1, url, lenUrl);
-					*br2 = AEM_CHAR_IMG_END;
-					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl - 1);
-					br2 = br1 + lenUrl + 1;
-				} else {br1 = br2 + 1;}
-			} else {
-				const char * const term = strpbrk(url, " >");
-
-				if (term != NULL && term <= br2) {
-					const size_t lenUrl = term - url;
-					*br1 = AEM_CHAR_IMG_START;
-					memmove(br1 + 1, url, lenUrl);
-					*br2 = AEM_CHAR_IMG_END;
-					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
-					*len -= (lenOrig - lenUrl - 1);
-					br2 = br1 + lenUrl + 1;
-				} else br1 = br2 + 1;
-			}
+			if (term != NULL && (!isQuot || term <= br2)) {
+				const size_t lenUrl = term - url;
+				*br1 = AEM_CHAR_IMG_START;
+				memmove(br1 + 1, url, lenUrl);
+				*br2 = AEM_CHAR_IMG_END;
+				memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
+				*len -= ((br2 - br1) - lenUrl - 1);
+				br2 = br1 + lenUrl + 1;
+			} else br1 = br2 + 1;
 		} else br1 = br2 + 1;
 
 		br1 = memmem(br1, (text + *len) - br1, "<img ", 5);
