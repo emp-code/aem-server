@@ -109,16 +109,16 @@ static void bracketsInQuotes_single(const char * const br1, char ** const br2) {
 			if (*br2 == NULL) return;
 		}
 
-		char *c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
-		while (c != NULL) {
+		while(1) {
+			char * const c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
+			if (c == NULL) break;
 			*c = AEM_HTMLTOTEXT_PLACEHOLDER_LT;
-			c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		}
 
-		c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
-		while (c != NULL) {
+		while(1) {
+			char * const c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
+			if (c == NULL) break;
 			*c = AEM_HTMLTOTEXT_PLACEHOLDER_GT;
-			c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		}
 
 		// br2 is now beyond the quote character, look for next quote
@@ -132,27 +132,28 @@ static void bracketsInQuotes_double(const char * const br1, char ** const br2) {
 	while (qt1 != NULL && qt1 < *br2) {
 		const char * const qt2 = strchr(qt1 + 1, '"');
 		if (qt2 == NULL) break;
+
 		while (*br2 < qt2) {
 			*br2 = strchr(qt2 + 1, '>');
 			if (*br2 == NULL) return;
 		}
 
-		char *c = memchr(qt1 + 1, '\'', qt2 - (qt1 + 1));
-		while (c != NULL) {
+		while(1) {
+			char * const c = memchr(qt1 + 1, '\'', qt2 - (qt1 + 1));
+			if (c == NULL) break;
 			*c = AEM_HTMLTOTEXT_PLACEHOLDER_SINGLEQUOTE;
-			c = memchr(qt1 + 1, '\'', qt2 - (qt1 + 1));
 		}
 
-		c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
-		while (c != NULL) {
+		while(1) {
+			char * const c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
+			if (c == NULL) break;
 			*c = AEM_HTMLTOTEXT_PLACEHOLDER_LT;
-			c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
 		}
 
-		c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
-		while (c != NULL) {
+		while(1) {
+			char * const c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
+			if (c == NULL) break;
 			*c = AEM_HTMLTOTEXT_PLACEHOLDER_GT;
-			c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
 		}
 
 		// br2 is now beyond the quote character, look for next quote
