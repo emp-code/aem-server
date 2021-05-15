@@ -5,8 +5,7 @@
 
 __attribute__((warn_unused_result))
 int brotliCompress(unsigned char ** const holder, size_t * const lenData) {
-	size_t lenOut = *lenData;
-	if (lenOut < 100) lenOut += 100; // compressed version can be larger with very small files
+	size_t lenOut = *lenData + 100; // Compressed version can sometimes be slightly larger
 	unsigned char * const output = malloc(lenOut);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
