@@ -206,7 +206,6 @@ static void processLinks(char *text, size_t *len) {
 				*br2 = AEM_CHAR_LNK_END;
 				memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
 				*len -= ((br2 - br1) - lenUrl - 1);
-				br2 = br1 + lenUrl + 1;
 			} else br1 = br2 + 1;
 		} else br1 = br2 + 1;
 
@@ -236,7 +235,6 @@ static void processImages(char * const text, size_t * const len) {
 				*br2 = AEM_CHAR_IMG_END;
 				memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
 				*len -= ((br2 - br1) - lenUrl - 1);
-				br2 = br1 + lenUrl + 1;
 			} else br1 = br2 + 1;
 		} else br1 = br2 + 1;
 
