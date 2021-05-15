@@ -199,7 +199,7 @@ static void processLinks(char *text, size_t *len) {
 			url += isQuot? 6 : 5;
 			const char * const term = isQuot? memchr(url, '"', br2 - url) : strpbrk(url, " >");
 
-			if (term != NULL && (!isQuot || term <= br2)) {
+			if (term != NULL && (isQuot || term <= br2)) {
 				const size_t lenUrl = term - url;
 				*br1 = AEM_CHAR_LNK_START;
 				memmove(br1 + 1, url, lenUrl);
@@ -229,7 +229,7 @@ static void processImages(char * const text, size_t * const len) {
 			url += isQuot? 5 : 4;
 			const char * const term = isQuot? memchr(url, '"', br2 - url) : strpbrk(url, " >");
 
-			if (term != NULL && (!isQuot || term <= br2)) {
+			if (term != NULL && (isQuot || term <= br2)) {
 				const size_t lenUrl = term - url;
 				*br1 = AEM_CHAR_IMG_START;
 				memmove(br1 + 1, url, lenUrl);
