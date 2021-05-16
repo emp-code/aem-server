@@ -202,11 +202,13 @@ static void processLinks(char *text, size_t *len) {
 
 			if (term != NULL && (isQuot || term <= br2) && *url != '#') {
 				const size_t lenUrl = term - url;
-				*br1 = AEM_CHAR_LNK_START;
-				memmove(br1 + 1, url, lenUrl);
-				*br2 = AEM_CHAR_LNK_END;
-				memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
-				*len -= ((br2 - br1) - lenUrl - 1);
+				if (lenUrl < 11 || memcmp(url, "javascript:", 11) != 0) {
+					*br1 = AEM_CHAR_LNK_START;
+					memmove(br1 + 1, url, lenUrl);
+					*br2 = AEM_CHAR_LNK_END;
+					memmove(br1 + 1 + lenUrl, br2, (text + *len) - br2);
+					*len -= ((br2 - br1) - lenUrl - 1);
+				} else br1 = br2 + 1;
 			} else br1 = br2 + 1;
 		} else br1 = br2 + 1;
 
