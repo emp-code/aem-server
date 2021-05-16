@@ -258,13 +258,13 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	addr32_store(addr32, addr, addrChars);
 
 	const int sock = accountSocket((addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
-	if (sock < 0) return -1;
+	if (sock < 0) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
-	const int ret = (
-	   recv(sock, upk,       crypto_box_PUBLICKEYBYTES, 0) == crypto_box_PUBLICKEYBYTES
-	&& recv(sock, addrFlags, 1,                         0) == 1
-	) ? 0 : -1;
+	int ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
+	if (ret == 1 && *upk == AEM_INTERNAL_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (ret != crypto_box_PUBLICKEYBYTES) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
+	ret = (recv(sock, addrFlags, 1, 0) == 1) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_USER;
 	close(sock);
 	return ret;
 }
@@ -314,7 +314,7 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 
 	to[toChars] = '\0';
 	const int ret = getUpk(addr, addrChars, toUpk, addrFlags);
-	if (ret != 0) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (ret != 0) return ret;
 	if (!usingTls && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) return AEM_SMTP_ERROR_ADDR_TLS_NEEDED;
 	return 0;
 }

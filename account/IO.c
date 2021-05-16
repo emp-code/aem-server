@@ -693,7 +693,7 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 && isShield) return;
+	if (userNum < 0 && isShield) {send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0); return;}
 	flags &= (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
 
 	// Prepare fake response
