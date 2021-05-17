@@ -14,7 +14,7 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 1 < *len) && text[i] == 0xc2 && text[i + 1] == 0xa0) { // NBSP
+		if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
 			new[lenNew] = ' ';
 			lenNew++;
 			i++;
@@ -39,32 +39,31 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 void cleanText(unsigned char * const text, size_t * const len, const bool removeControl) {
 	if (text == NULL || len == NULL) return;
 
-	if (removeControl) removeControlChars(text, len);
-
 	unsigned char * const new = malloc(*len);
 	if (new == NULL) return;
 
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if (text[i] > 32 && text[i] != 127) { // 127=DEL
+		if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) {
+			if (lenNew > 0 && new[lenNew - 1] == '\n') {i++; continue;} // follows LF - skip
+			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // followed by SP/LF - skip
 			new[lenNew] = text[i];
-			lenNew++;
+			new[lenNew + 1] = text[i + 1];
+			lenNew += 2;
+			i++;
+			continue;
 		} else if (text[i] == ' ') {
 			if (lenNew > 0 && new[lenNew - 1] == '\n') continue; // follows LF - skip
 			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // followed by SP/LF - skip
-
-			new[lenNew] = ' ';
-			lenNew++;
 		} else if (text[i] == '\n') {
 			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // follows 2 LF - skip
-
-			new[lenNew] = '\n';
-			lenNew++;
-		} else if (!removeControl) {
-			new[lenNew] = text[i];
-			lenNew++;
+		} else if (removeControl && (text[i] < 32 || text[i] == 127)) { // 127=DEL
+			continue;
 		}
+
+		new[lenNew] = text[i];
+		lenNew++;
 	}
 
 	size_t skip = 0;
