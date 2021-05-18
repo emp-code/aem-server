@@ -194,6 +194,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		// PP
 		"Permissions-Policy: "
 			"clipboard-write"                 "=(self),"
+			"cross-origin-isolated"           "=(self),"
 			"focus-without-user-activation"   "=(self),"
 			"fullscreen"                      "=(self),"
 
@@ -221,7 +222,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"ch-width"                        "=(),"
 			"clipboard-read"                  "=(),"
 			"conversion-measurement"          "=(),"
-			"cross-origin-isolated"           "=(),"
 			"display-capture"                 "=(),"
 			"document-domain"                 "=(),"
 			"encrypted-media"                 "=(),"
