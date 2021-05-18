@@ -45,7 +45,10 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && text[i + 2] == 0x8C) {
+		if ((i + 2 < *len) && text[i] == 0xEF && text[i + 1] == 0xBB && text[i + 2] == 0xBF) { // BOM - useless in UTF-8
+			i += 2;
+			continue;
+		} else if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && text[i + 2] == 0x8C) { // ZWNJ
 			if (lenNew > 0 && new[lenNew - 1] == '\n') {i += 2; continue;} // Follows LF - skip
 			if ((i + 3 < *len) && (text[i + 3] == ' ' || text[i + 3] == '\n')) {i += 2; continue;} // Followed by SP/LF - skip
 			new[lenNew] = text[i];
