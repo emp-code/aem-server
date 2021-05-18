@@ -173,7 +173,8 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"object-src"      " blob:;"
 			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.9/dist/browsers/sodium.js 'unsafe-eval';"
 			"script-src"      " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.9/dist/browsers/sodium.js 'unsafe-eval';"
-			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // Inline: For displaying PDF/HTML files
+			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // inline for displaying HTML files
+			"style-src-attr"  " 'unsafe-inline';" // For displaying PDF files
 			"style-src"       " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';"
 
 			"base-uri"        " 'none';"
@@ -185,7 +186,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"manifest-src"    " 'none';"
 			"prefetch-src"    " 'none';"
 			"script-src-attr" " 'none';"
-			"style-src-attr"  " 'none';"
 			"worker-src"      " 'none';"
 
 			"block-all-mixed-content;"
