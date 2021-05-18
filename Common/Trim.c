@@ -45,9 +45,18 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) {
+		if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && text[i + 2] == 0x8C) {
+			if (lenNew > 0 && new[lenNew - 1] == '\n') {i += 2; continue;} // Follows LF - skip
+			if ((i + 3 < *len) && (text[i + 3] == ' ' || text[i + 3] == '\n')) {i += 2; continue;} // Followed by SP/LF - skip
+			new[lenNew] = text[i];
+			new[lenNew + 1] = text[i + 1];
+			new[lenNew + 2] = text[i + 2];
+			lenNew += 3;
+			i += 2;
+			continue;
+		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) {
 			if (lenNew > 0 && new[lenNew - 1] == '\n') {i++; continue;} // follows LF - skip
-			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // followed by SP/LF - skip
+			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // Followed by SP/LF - skip
 			new[lenNew] = text[i];
 			new[lenNew + 1] = text[i + 1];
 			lenNew += 2;
@@ -55,9 +64,9 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 			continue;
 		} else if (text[i] == ' ') {
 			if (lenNew > 0 && new[lenNew - 1] == '\n') continue; // follows LF - skip
-			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // followed by SP/LF - skip
+			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // Followed by SP/LF - skip
 		} else if (text[i] == '\n') {
-			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // follows 2 LF - skip
+			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // Follows 2 LF - skip
 		} else if (removeControl && (text[i] < 32 || text[i] == 127)) { // 127=DEL
 			continue;
 		}
