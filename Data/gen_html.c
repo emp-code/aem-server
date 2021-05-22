@@ -191,6 +191,36 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"block-all-mixed-content;"
 		"\r\n"
 
+		// DP
+		// https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/core/permissions_policy/document_policy_features.json5
+		"Document-Policy: "
+			"document-domain=?0,"
+			"document-write=?0,"
+			"font-display-late-swap=?0,"
+			"force-load-at-top,"
+			"js-profiling=?0,"
+			"layout-animations=?0,"
+			"sync-script,"
+			"sync-xhr=?0,"
+			"unsized-media"
+		"\r\n"
+
+		"Require-Document-Policy: "
+			"document-domain=?0,"
+			"document-write=?0,"
+			"font-display-late-swap=?0,"
+			"force-load-at-top,"
+			"js-profiling=?0,"
+			"layout-animations=?0,"
+			"lossless-images-max-bpp=0,"
+			"lossless-images-strict-max-bpp=0,"
+			"lossy-images-max-bpp=0,"
+			"oversized-images=0,"
+			"sync-script=?0,"
+			"sync-xhr=?0,"
+			"unsized-media=?0"
+		"\r\n"
+
 		// PP
 		"Permissions-Policy: "
 			"clipboard-write"                 "=(self),"
