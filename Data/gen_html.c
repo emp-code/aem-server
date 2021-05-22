@@ -222,6 +222,8 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		"\r\n"
 
 		// PP
+		// https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/core/permissions_policy/permissions_policy_features.json5
+		// https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/web_tests/webexposed/feature-policy-features-expected.txt
 		"Permissions-Policy: "
 			"clipboard-write"                 "=(self),"
 			"cross-origin-isolated"           "=(self),"
@@ -230,6 +232,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 
 			"accelerometer"                   "=(),"
 			"ambient-light-sensor"            "=(),"
+			"attribution-reporting"           "=(),"
 			"autoplay"                        "=(),"
 			"battery"                         "=(),"
 			"camera"                          "=(),"
@@ -238,6 +241,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"ch-dpr"                          "=(),"
 			"ch-ect"                          "=(),"
 			"ch-lang"                         "=(),"
+			"ch-prefers-color-scheme"         "=(),"
 			"ch-rtt"                          "=(),"
 			"ch-save-data"                    "=(),"
 			"ch-ua"                           "=(),"
@@ -273,11 +277,13 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"publickey-credentials-get"       "=(),"
 			"screen-wake-lock"                "=(),"
 			"serial"                          "=(),"
+			"shared-autofill"                 "=(),"
 			"speaker-selection"               "=(),"
 			"sync-xhr"                        "=(),"
 			"trust-token-redemption"          "=(),"
 			"usb"                             "=(),"
 			"web-share"                       "=(),"
+			"window-placement"                "=(),"
 			"xr-spatial-tracking"             "=()"
 		"\r\n"
 
