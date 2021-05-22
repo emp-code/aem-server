@@ -12,8 +12,7 @@
 
 int getKey(unsigned char * const master) {
 	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
+	fprintf(stderr, "Enter Master Key (hex) - will not echo\n");
 
 	char masterHex[crypto_secretbox_KEYBYTES * 2];
 	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
