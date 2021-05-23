@@ -504,7 +504,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			bool retOk;
 			const bool tlsIsSecure = (tls != NULL && getTlsVersion(tls) >= 2 && (
 				   email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
 				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
 				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
 				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 			));
