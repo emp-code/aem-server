@@ -502,12 +502,19 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bool retOk;
-			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount], tls != NULL)) {
+			const bool tlsIsSecure = (tls != NULL && getTlsVersion(tls) >= 2 && (
+				   email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+			));
+
+			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount], tlsIsSecure)) {
 				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
-				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires secure transport (TLS)\r\n", 53); break;
+				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires a secure connection (TLS 1.2)\r\n", 60); break;
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}
