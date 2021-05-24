@@ -114,7 +114,6 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 		uint16_t sze;
 		while(1) {
 			if (recv(sock, &sze, 2, MSG_WAITALL) != 2) {syslog(LOG_ERR, "MTA unclean end"); break;}
-			if (sze == 0) break;
 
 			unsigned char * const data = malloc((sze + AEM_MSG_MINBLOCKS) * 16);
 			if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
