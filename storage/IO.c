@@ -47,6 +47,7 @@ int updateLevels(const unsigned char * const data, const size_t lenData) {
 			stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
 		} else { // Out of sync
 			bool found = false;
+			stindex[i].level = 0;
 
 			for (int j = 0; j < recCount; j++) {
 				if (memcmp(data + (j * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
