@@ -87,9 +87,10 @@ enum aem_internal_enquiry {
 	UplMsg: 41/158; 19B .. 1M + 18B = 1048594 (Upload, body + filename)
 	IntMsg: 54/171: 6B ..
 	OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
-	12 * 16 = 192 (-15 --> 177 min)
 */
 #define AEM_MSG_MINBLOCKS 12
+#define AEM_MSG_MINSIZE (AEM_MSG_MINBLOCKS * 16) // 12 * 16 = 192 (-15 --> 177 min)
+#define AEM_MSG_MINSIZE_DEC (AEM_MSG_MINSIZE - crypto_box_SEALBYTES)
 
 #define AEM_API_BOX_SIZE_MAX 1048635 // (((2^16 - 1) + 12) * 16) - 117
 #define AEM_API_SEALBOX_SIZE (1 + crypto_box_PUBLICKEYBYTES + crypto_box_NONCEBYTES + crypto_box_SEALBYTES)
