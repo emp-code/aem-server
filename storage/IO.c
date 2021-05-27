@@ -36,12 +36,33 @@ uint16_t getStindexCount(void) {
 }
 
 int updateLevels(const unsigned char * const data, const size_t lenData) {
-	if ((lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) || (lenData / (crypto_box_PUBLICKEYBYTES + 1) != stindexCount)) {syslog(LOG_ERR, "updateLevels(): Invalid size"); return -1;}
+	if (lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) {syslog(LOG_ERR, "updateLevels(): Invalid format"); return -1;}
 
-	for (int i = 0; i < stindexCount; i++) {
-		if (data[i * (crypto_box_PUBLICKEYBYTES + 1)] > AEM_USERLEVEL_MAX) {syslog(LOG_ERR, "updateLevels(): Max level exceeded: %u", data[i * (crypto_box_PUBLICKEYBYTES + 1)]); return -1;}
-		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) != 0) {syslog(LOG_ERR, "updateLevels(): Out of sync"); return -1;}
-		stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
+	int recCount = lenData / (crypto_box_PUBLICKEYBYTES + 1);
+	if (recCount < stindexCount) {syslog(LOG_WARNING, "updateLevels(): Lower accounts than stindexCount");}
+	else if (recCount > stindexCount) recCount = stindexCount;
+
+	for (int i = 0; i < stindexCount && i < recCount; i++) {
+		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) { // In sync
+			stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
+		} else { // Out of sync
+			bool found = false;
+
+			for (int j = 0; j < recCount; j++) {
+				if (memcmp(data + (j * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+					found = true;
+					stindex[i].level = data[j * (crypto_box_PUBLICKEYBYTES + 1)];
+					break;
+				}
+			}
+
+			syslog(LOG_ERR, "updateLevels(): Out of sync (%d/%d), %s", i, recCount, found? "found" : "not found");
+		}
+
+		if (stindex[i].level > AEM_USERLEVEL_MAX) {
+			syslog(LOG_ERR, "updateLevels(): Max level exceeded: %u, setting to zero", stindex[i].level);
+			stindex[i].level = 0;
+		}
 	}
 
 	return 0;

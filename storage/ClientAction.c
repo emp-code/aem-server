@@ -31,12 +31,6 @@ void conn_acc(const int sock, const unsigned char * const dec, const size_t lenD
 		const ssize_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
 		unsigned char *data = malloc(lenData + 1);
 		const ssize_t lenRecv = recv(sock, data, lenData + 1, 0);
-		if (lenRecv != lenData) {
-			free(data);
-			syslog(LOG_ERR, "Levels-Update: Invalid size received: %zd/%zd", lenRecv, lenData);
-			return;
-		}
-
 		if (updateLevels(data, lenData) == 0) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 		free(data);
 	}
