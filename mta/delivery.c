@@ -229,7 +229,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 }
 
 int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
-	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
+	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
@@ -247,17 +247,21 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 
 		// Deliver
 		const int stoSock = storageSocket(AEM_MTA_INSERT, toUpk[i], crypto_box_PUBLICKEYBYTES);
-		if (stoSock < 0) continue;
+		if (stoSock < 0) {free(enc); continue;}
 
+		char ret = AEM_STORE_INERROR;
 		uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 		if (
-		   send(stoSock, &u,  2,      0) != 2
-		|| send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc
+		   send(stoSock, &u,   2,      0) != 2
+		|| send(stoSock, enc,  lenEnc, 0) != (ssize_t)lenEnc
+		|| recv(stoSock, &ret, 1,      0) != 1
 		) {
 			syslog(LOG_ERR, "Failed sending to Storage");
 			close(stoSock);
+			free(enc);
 			continue;
 		}
+		if (ret != 0) {close(stoSock); free(enc); return ret;}
 
 		unsigned char msgId[16];
 		memcpy(msgId, enc, 16);

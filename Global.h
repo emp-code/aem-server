@@ -78,6 +78,10 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 
+#define AEM_STORE_INERROR (-1)
+#define AEM_STORE_USRFULL (-2)
+#define AEM_STORE_MSGSIZE (-3)
+
 /*
 	Max message size: ((2^16 - 1) + 12) * 16 = 1048752; 1M + 176B
 	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.

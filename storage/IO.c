@@ -330,16 +330,16 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 		}
 	}
 
-	if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) {syslog(LOG_INFO, "%zu >= %d", getUserStorageAmount(num), (limits[stindex[num].level & 3]) * 1048576);return -1;} // Over storage limit
+	if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) return AEM_STORE_USRFULL; // Over storage limit
 
 	char path[77];
 	getMsgPath(path, upk);
 
 	const int fdMsg = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | ((path[12] == 'T') ? O_TRUNC : O_APPEND), S_IRUSR | S_IWUSR | S_ISVTX);
-	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return -1;}
+	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return AEM_STORE_INERROR;}
 
 	const off_t oldFilesize = lseek(fdMsg, 0, SEEK_END);
-	if (oldFilesize < 0) {syslog(LOG_ERR, "storage_write(): Failed lseek: %m"); return -1;}
+	if (oldFilesize < 0) {syslog(LOG_ERR, "storage_write(): Failed lseek: %m"); return AEM_STORE_INERROR;}
 
 	// Encrypt & Write
 	unsigned char aesKey[32];
@@ -353,7 +353,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 
 	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
-	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return -1;}
+	if (write(fdMsg, data, (sze + AEM_MSG_MINBLOCKS) * 16) != (sze + AEM_MSG_MINBLOCKS) * 16) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return AEM_STORE_INERROR;}
 
 	if (path[12] == 'T') {
 		close(fdMsg);
@@ -368,7 +368,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 			syslog(LOG_ERR, "Failed allocation");
 			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
 			close(fdMsg);
-			return -1;
+			return AEM_STORE_INERROR;
 		}
 		stindex = stindex2;
 
@@ -380,7 +380,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 			syslog(LOG_ERR, "Failed allocation");
 			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
 			close(fdMsg);
-			return -1;
+			return AEM_STORE_INERROR;
 		}
 	} else {
 		uint16_t * const newMsg = realloc(stindex[num].msg, (stindex[num].msgCount + 1) * 2);
@@ -388,7 +388,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 			syslog(LOG_ERR, "Failed allocation");
 			if (ftruncate(fdMsg, oldFilesize) != 0) syslog(LOG_ERR, "Failed ftruncate()");
 			close(fdMsg);
-			return -1;
+			return AEM_STORE_INERROR;
 		}
 		stindex[num].msg = newMsg;
 	}
