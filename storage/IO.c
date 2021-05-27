@@ -56,11 +56,11 @@ int updateLevels(const unsigned char * const data, const size_t lenData) {
 				}
 			}
 
-			syslog(LOG_ERR, "updateLevels(): Out of sync (%d/%d), %s", i, recCount, found? "found" : "not found");
+			syslog(LOG_WARNING, "updateLevels(): Out of sync (%d/%d), %s", i, recCount, found? "found" : "not found");
 		}
 
 		if (stindex[i].level > AEM_USERLEVEL_MAX) {
-			syslog(LOG_ERR, "updateLevels(): Max level exceeded: %u, setting to zero", stindex[i].level);
+			syslog(LOG_WARNING, "updateLevels(): Max level exceeded: %u, setting to zero", stindex[i].level);
 			stindex[i].level = 0;
 		}
 	}
