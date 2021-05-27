@@ -34,7 +34,7 @@ void delSignKey(void) {
 
 __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut, const bool allVer) {
-	if (!allVer) { // Remove non-preferred variant(s) if requested
+	if (!allVer && email->body != NULL && email->lenBody > 0) { // Remove non-preferred variant(s) if requested
 		const unsigned char * const r = memrchr(email->body, '\r', email->lenBody);
 		if (r != NULL) {
 			const size_t lenRem = (r + 1 - email->body);
@@ -49,7 +49,20 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	if (email->lenRvDns > 63) email->lenRvDns = 63;
 	if (email->lenAuSys > 63) email->lenAuSys = 63;
 
-	size_t lenUncomp = email->lenEnvTo + email->lenHdrTo + email->lenGreet + email->lenRvDns + email->lenAuSys + email->lenEnvFr + email->lenHdrFr + email->lenHdrRt + email->lenMsgId + email->lenSbjct + email->lenBody + 6 + (email->lenHead > 1 ? (email->lenHead - 1) : 0);
+	size_t lenUncomp =
+		email->lenEnvTo +
+		email->lenHdrTo +
+		email->lenGreet +
+		email->lenRvDns +
+		email->lenAuSys +
+		email->lenEnvFr +
+		email->lenHdrFr +
+		email->lenHdrRt +
+		email->lenMsgId +
+		email->lenSbjct +
+		email->lenBody +
+		((email->lenBody > 0) ? 6 : 5) +
+		(email->lenHead > 1 ? (email->lenHead - 1) : 0);
 
 	if (email->dkimCount > 7) email->dkimCount = 7;
 	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain;
@@ -91,9 +104,11 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 		offset += email->lenHead - 1;
 	}
 
-	uncomp[offset] = '\r';
-	offset++;
-	memcpy(uncomp + offset, email->body, email->lenBody);
+	if (email->lenBody > 0) {
+		uncomp[offset] = '\r';
+		offset++;
+		memcpy(uncomp + offset, email->body, email->lenBody);
+	}
 
 	// Compress the data
 	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
@@ -214,7 +229,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 }
 
 int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
-	if (to == NULL || toCount < 1 || email == NULL || email->body == NULL || email->lenBody < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
+	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return SMTP_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
