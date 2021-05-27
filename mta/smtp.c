@@ -122,6 +122,36 @@ static void getCertName(const mbedtls_x509_crt * const cert) {
 	}
 }
 
+static bool isIpBlacklisted(void) {
+	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
+	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&email.ip)[3], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[0]);
+
+	const int sock = enquirySocket(AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain));
+	if (sock < 0) {
+		syslog(LOG_ERR, "Failed connecting to Enquiry");
+		return false;
+	}
+
+	uint32_t dnsbl_ip = 0;
+	const int lenIpInfo = recv(sock, &dnsbl_ip, 4, 0);
+	close(sock);
+	return (lenIpInfo == sizeof(uint32_t) && dnsbl_ip == 1);
+}
+
+static bool greetingDomainMatchesIp(void) {
+	const int sock = enquirySocket(AEM_ENQUIRY_A, email.greet, email.lenGreet);
+	if (sock < 0) {
+		syslog(LOG_ERR, "Failed connecting to Enquiry");
+		return false;
+	}
+
+	uint32_t ip_greet;
+	const int lenRecv = recv(sock, &ip_greet, sizeof(uint32_t), 0);
+	close(sock);
+
+	return (lenRecv == sizeof(uint32_t) && ip_greet == email.ip);
+}
+
 static void getIpInfo(void) {
 	email.lenRvDns = 0;
 	email.ccBytes[0] |= 31;
@@ -151,36 +181,9 @@ static void getIpInfo(void) {
 		if (email.lenAuSys > 63) email.lenAuSys = 63;
 		memcpy(email.auSys, ipInfo + 4 + email.lenRvDns, email.lenAuSys);
 	}
-}
 
-static bool isIpBlacklisted(const uint32_t ip) {
-	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
-	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
-
-	const int sock = enquirySocket(AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain));
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed connecting to Enquiry");
-		return false;
-	}
-
-	uint32_t dnsbl_ip = 0;
-	const int lenIpInfo = recv(sock, &dnsbl_ip, 4, 0);
-	close(sock);
-	return (lenIpInfo == sizeof(uint32_t) && dnsbl_ip == 1);
-}
-
-static bool greetingDomainMatchesIp(const uint32_t ip_conn) {
-	const int sock = enquirySocket(AEM_ENQUIRY_A, email.greet, email.lenGreet);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed connecting to Enquiry");
-		return false;
-	}
-
-	uint32_t ip_greet;
-	const int lenRecv = recv(sock, &ip_greet, sizeof(uint32_t), 0);
-	close(sock);
-
-	return (lenRecv == sizeof(uint32_t) && ip_greet == ip_conn);
+	email.ipMatchGreeting = greetingDomainMatchesIp();
+	email.ipBlacklisted = isIpBlacklisted();
 }
 
 __attribute__((warn_unused_result))
@@ -344,9 +347,6 @@ static void smtp_fail(const int code) {
 
 static void prepareEmail(unsigned char * const source, size_t lenSource) {
 	convertLineDots(source, &lenSource);
-	getIpInfo();
-	email.ipMatchGreeting = greetingDomainMatchesIp(email.ip);
-	email.ipBlacklisted = isIpBlacklisted(email.ip);
 
 	// Add final CRLF for DKIM
 	source[lenSource + 0] = '\r';
@@ -472,6 +472,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
 	unsigned char toFlags[AEM_SMTP_MAX_TO];
 
+	bool haveIpInfo = false;
+	bool deliveryOk = false;
 	unsigned char *source = NULL;
 	size_t lenSource = 0;
 
@@ -501,6 +503,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
+			if (!haveIpInfo) {
+				getIpInfo();
+				haveIpInfo = true;
+			}
+
 			bool retOk;
 			const bool tlsIsSecure = (tls != NULL && getTlsVersion(tls) >= 2 && (
 				   email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
@@ -524,6 +531,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if ((toFlags[toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
 			toCount++;
 		} else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
+			if (!deliveryOk && toCount > 0) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 			email.rareCommands = true;
 			email.lenEnvFr = 0;
 			toCount = 0;
@@ -595,6 +603,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			prepareEmail(source, lenSource);
 			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal, brOriginal);
+			deliveryOk = true;
 
 			if (original != NULL) free(original);
 			clearEmail();
@@ -621,4 +630,5 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	}
 
 	tlsClose(tls);
+	if (!deliveryOk) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 }
