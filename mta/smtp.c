@@ -534,7 +534,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (!deliveryOk && toCount > 0) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 			email.rareCommands = true;
 			email.lenEnvFr = 0;
+
+			sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
+			sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
+			sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
 			toCount = 0;
+
 			if (!send_aem(sock, tls, "250 Reset\r\n", 11)) {smtp_fail(150); break;}
 		} else if (strncasecmp((char*)buf, "VRFY", 4) == 0) {
 			email.rareCommands = true;
@@ -630,5 +635,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	}
 
 	tlsClose(tls);
-	if (!deliveryOk) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
+	if (!deliveryOk) {
+		deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
+		sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
+		sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
+		sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
+		clearEmail();
+	}
 }
