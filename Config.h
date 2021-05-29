@@ -24,6 +24,7 @@
 // Network
 #define AEM_BACKLOG 25
 #define AEM_TLS_TIMEOUT 30
+#define AEM_API_TIMEOUT 5
 
 // Misc
 #define AEM_MAXLEN_MSGDATA 1048752 // Minimum: 1048752; 176 bytes over 1 MiB; ((2^16 - 1) + 12) * 16

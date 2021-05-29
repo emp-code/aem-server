@@ -1101,8 +1101,9 @@ int aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	unsigned char sealDec[AEM_API_SEALBOX_SIZE - crypto_box_SEALBYTES];
 	if (crypto_box_seal_open(sealDec, sealEnc, AEM_API_SEALBOX_SIZE, spk, ssk) != 0) return AEM_INTERNAL_RESPONSE_CRYPTOFAIL;
 
-	postCmd = sealDec[0];
 	memcpy(postNonce, sealDec + 1, crypto_box_NONCEBYTES);
+	if (abs((uint32_t)time(NULL) - *((uint32_t*)postNonce)) > AEM_API_TIMEOUT) return AEM_INTERNAL_RESPONSE_LIMIT;
+	postCmd = sealDec[0];
 	memcpy(upk, sealDec + 1 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 
 	const int sock = accountSocket(AEM_API_INTERNAL_EXIST, upk, crypto_box_PUBLICKEYBYTES);

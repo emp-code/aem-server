@@ -72,6 +72,7 @@ void respondClient(int sock) {
 
 			if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) txt[9] = '4'; // 400
 			else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {txt[9] = '4'; txt[11] = '3';} // 403
+			else if (ret == AEM_INTERNAL_RESPONSE_LIMIT) {txt[9] = '4'; txt[10] = '9'; txt[11] = '9';} // 499
 
 			sendData(&ssl, txt, 208);
 			break;
