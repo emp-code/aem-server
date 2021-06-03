@@ -337,12 +337,8 @@ void api_account_browse(const int sock, const int num) {
 	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
 	if (userCount <= 1) return;
 
-	unsigned char *storage = NULL;
-	const size_t lenStorage = getUserStorage(&storage);
-	if (storage == NULL || lenStorage == 0) return;
-
 	unsigned char * const response = malloc(userCount * 35);
-	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); free(storage); return;}
+	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	memcpy(response, (unsigned char*)limits, 12);
 	int len = 12;
@@ -351,18 +347,18 @@ void api_account_browse(const int sock, const int num) {
 	memcpy(response + len, &u32, 4);
 	len += 4;
 
+	unsigned char *storage = NULL;
+	const size_t lenStorage = getUserStorage(&storage);
+
 	for (int i = 0; i < userCount; i++) {
 		if (i == num) continue; // Skip own user
 
-		if (memcmp(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES) != 0) {
-			free(response);
-			free(storage);
-			return;
-		}
-
-		uint32_t storageBytes;
-		memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
-		const uint32_t kib64 = round((double)storageBytes / 65536);
+		uint32_t kib64;
+		if (storage != NULL && lenStorage > 0 && memcmp(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES) == 0) {
+			uint32_t storageBytes;
+			memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
+			kib64 = round((double)storageBytes / 65536);
+		} else kib64 = UINT32_MAX;
 
 /* Stores: Level=0-3, Normal=0-31, Shield=0-31, kib64=0-4095
 	Bytes 0-1:
@@ -382,7 +378,7 @@ void api_account_browse(const int sock, const int num) {
 
 	send(sock, response, len, 0);
 	free(response);
-	free(storage);
+	if (storage != NULL) free(storage);
 }
 
 void api_account_create(const int sock, const int num) {
