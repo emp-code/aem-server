@@ -473,6 +473,7 @@ static void cryptSend(void) {
 	}
 
 	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
+	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	if (crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_RESLEN_DECRYPTED, encrypted, key_mng) == 0) {
 		if (send(sockClient, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
 			syslog(LOG_WARNING, "Failed send");
