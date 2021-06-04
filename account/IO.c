@@ -320,8 +320,9 @@ size_t getUserStorage(unsigned char ** const out) {
 
 	const size_t lenOut = userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
 	*out = malloc(lenOut + 1);
-	if (*out == NULL) {close(stoSock); return 0;}
+	if (*out == NULL) {close(stoSock); syslog(LOG_ERR, "Failed allocation"); return 0;}
 	if (recv(stoSock, *out, lenOut + 1, 0) != (ssize_t)lenOut) {
+		syslog(LOG_WARNING, "getUserStorage: Out of sync", userCount);
 		free(*out);
 		*out = NULL;
 		close(stoSock);
