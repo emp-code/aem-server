@@ -35,37 +35,46 @@ uint16_t getStindexCount(void) {
 	return stindexCount;
 }
 
+// Recreate the Stindex with levels, reordered to be in sync with the received list
 int updateLevels(const unsigned char * const data, const size_t lenData) {
 	if (lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) {syslog(LOG_ERR, "updateLevels(): Invalid format"); return -1;}
 
-	int recCount = lenData / (crypto_box_PUBLICKEYBYTES + 1);
-	if (recCount < stindexCount) {syslog(LOG_WARNING, "updateLevels(): Lower accounts than stindexCount");}
-	else if (recCount > stindexCount) recCount = stindexCount;
+	const int recCount = lenData / (crypto_box_PUBLICKEYBYTES + 1);
+	struct aem_stindex *newStindex = malloc(sizeof(struct aem_stindex) * recCount);
+	if (newStindex == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
-	for (int i = 0; i < stindexCount && i < recCount; i++) {
+	for (int i = 0; i < recCount; i++) {
+		const size_t s = sizeof(struct aem_stindex);
+
 		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) { // In sync
-			stindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
+			memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + i * s, s);
 		} else { // Out of sync
-			bool found = false;
-			stindex[i].level = 0;
+			syslog(LOG_WARNING, "updateLevels: Out of sync");
 
-			for (int j = 0; j < recCount; j++) {
-				if (memcmp(data + (j * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+			// Determine which, if any, Stindex record matches received account
+			bool found = false;
+
+			for (int j = 0; j < stindexCount; j++) {
+				if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[j].pubkey, crypto_box_PUBLICKEYBYTES) == 0) { // Match
+					memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + j * s, s);
 					found = true;
-					stindex[i].level = data[j * (crypto_box_PUBLICKEYBYTES + 1)];
 					break;
 				}
 			}
 
-			syslog(LOG_WARNING, "updateLevels(): Out of sync (%d/%d), %s", i, recCount, found? "found" : "not found");
+			if (!found) {
+				memcpy(newStindex[i].pubkey, data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, crypto_box_PUBLICKEYBYTES);
+				newStindex[i].msgCount = 0;
+				newStindex[i].msg = NULL;
+			}
 		}
 
-		if (stindex[i].level > AEM_USERLEVEL_MAX) {
-			syslog(LOG_WARNING, "updateLevels(): Max level exceeded: %u, setting to zero", stindex[i].level);
-			stindex[i].level = 0;
-		}
+		newStindex[i].level = data[i * (crypto_box_PUBLICKEYBYTES + 1)];
 	}
 
+	free(stindex);
+	stindex = newStindex;
+	stindexCount = recCount;
 	return 0;
 }
 
