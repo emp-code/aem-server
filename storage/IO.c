@@ -31,10 +31,6 @@ static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 static struct aem_stindex *stindex;
 static uint16_t stindexCount;
 
-uint16_t getStindexCount(void) {
-	return stindexCount;
-}
-
 // Recreate the Stindex with levels, reordered to be in sync with the received list
 int updateLevels(const unsigned char * const data, const size_t lenData) {
 	if (lenData % (crypto_box_PUBLICKEYBYTES + 1) != 0) {syslog(LOG_ERR, "updateLevels(): Invalid format"); return -1;}

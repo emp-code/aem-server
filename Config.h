@@ -28,3 +28,4 @@
 
 // Misc
 #define AEM_MAXLEN_MSGDATA 1048752 // Minimum: 1048752; 176 bytes over 1 MiB; ((2^16 - 1) + 12) * 16
+#define AEM_MAXUSERS 9999

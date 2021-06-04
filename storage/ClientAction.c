@@ -27,9 +27,10 @@ void conn_acc(const int sock, const unsigned char * const dec, const size_t lenD
 		send(sock, out, lenOut, 0);
 		free(out);
 	} else if (dec[0] == AEM_ACC_STORAGE_LEVELS) {
-		const uint16_t userCount = getStindexCount();
-		const ssize_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
+		const ssize_t lenData = AEM_MAXUSERS * (crypto_box_PUBLICKEYBYTES + 1);
 		unsigned char *data = malloc(lenData + 1);
+		if (data == NULL) return;
+
 		const ssize_t lenRecv = recv(sock, data, lenData + 1, 0);
 		if (updateLevels(data, lenRecv) == 0) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 		free(data);

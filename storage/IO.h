@@ -1,7 +1,6 @@
 #ifndef AEM_STORAGE_IO_H
 #define AEM_STORAGE_IO_H
 
-uint16_t getStindexCount(void);
 int updateLevels(const unsigned char * const data, const size_t lenData);
 void updateLimits(const unsigned char * const newLimits);
 size_t getStorageAmounts(unsigned char ** const out);
