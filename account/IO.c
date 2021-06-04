@@ -323,6 +323,7 @@ size_t getUserStorage(unsigned char ** const out) {
 	if (*out == NULL) {close(stoSock); return 0;}
 	if (recv(stoSock, *out, lenOut + 1, 0) != (ssize_t)lenOut) {
 		free(*out);
+		*out = NULL;
 		close(stoSock);
 		return 0;
 	}
