@@ -106,24 +106,24 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 	if (lenDec != 1 + crypto_box_PUBLICKEYBYTES) return;
 
 	if (dec[0] == AEM_MTA_INSERT) {
-		uint16_t blockCount;
+		unsigned char * const data = malloc(AEM_MSG_MAXSIZE + 1);
+		if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
 		while(1) {
-			if (recv(sock, &blockCount, 2, MSG_WAITALL) != 2) {syslog(LOG_ERR, "MTA unclean end"); break;}
-			const size_t sze = (blockCount + AEM_MSG_MINBLOCKS) * 16;
+			int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, MSG_WAITALL);
+			char status = AEM_STORE_INERROR;
 
-			unsigned char * const data = malloc(sze);
-			if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
-
-			char ret;
-			if (recv(sock, data, sze, MSG_WAITALL) == sze) {
-				ret = storage_write(dec + 1, data, blockCount);
+			if (ret > AEM_MSG_MINSIZE && ret % 16 == 0) {
+				status = storage_write(dec + 1, data, ret / 16 - AEM_MSG_MINBLOCKS);
+			} else if (ret == 1 && *data == 0xFE) { // Final End
+				break;
 			} else {
-				syslog(LOG_ERR, "Failed receiving data from MTA");
-				ret = AEM_STORE_INERROR;
+				syslog(LOG_ERR, "Failed receiving data from MTA (%d)", ret);
 			}
 
-			free(data);
-			if (send(sock, &ret, 1, 0) != 1) {syslog(LOG_ERR, "Failed sending data to MTA"); break;}
+			if (send(sock, &status, 1, 0) != 1) {syslog(LOG_ERR, "Failed sending data to MTA"); break;}
 		}
+
+		free(data);
 	} else syslog(LOG_ERR, "Invalid MTA command");
 }

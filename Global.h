@@ -83,7 +83,6 @@ enum aem_internal_enquiry {
 #define AEM_STORE_MSGSIZE (-3)
 
 /*
-	Max message size: ((2^16 - 1) + 12) * 16 = 1048752; 1M + 176B
 	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.
 	Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
 	ExtMsg: 29/146; 31B .. 1M + 30B
@@ -92,6 +91,7 @@ enum aem_internal_enquiry {
 	IntMsg: 54/171: 6B ..
 	OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
 */
+#define AEM_MSG_MAXSIZE 1048752 // ((2^16 - 1) + 12) * 16 = 1048752; 1M + 176B
 #define AEM_MSG_MINBLOCKS 12
 #define AEM_MSG_MINSIZE (AEM_MSG_MINBLOCKS * 16) // 12 * 16 = 192 (-15 --> 177 min)
 #define AEM_MSG_MINSIZE_DEC (AEM_MSG_MINSIZE - crypto_box_SEALBYTES)
