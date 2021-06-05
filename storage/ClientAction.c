@@ -110,17 +110,14 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 		if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 		while(1) {
-			int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, 0);
-			char status = AEM_STORE_INERROR;
-
-			if (ret >= AEM_MSG_MINSIZE && ret % 16 == 0) {
-				status = storage_write(dec + 1, data, ret / 16 - AEM_MSG_MINBLOCKS);
-			} else if (ret == 1 && *data == 0xFE) { // Final End
-				break;
-			} else {
+			const int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, 0);
+			if (ret == 1 && *data == 0xFE) break; // Final End
+			if (ret < AEM_MSG_MINSIZE || ret % 16 != 0) {
 				syslog(LOG_ERR, "Failed receiving data from MTA (%d)", ret);
+				break;
 			}
 
+			const char status = storage_write(dec + 1, data, (ret / 16) - AEM_MSG_MINBLOCKS);
 			if (send(sock, &status, 1, 0) != 1) {syslog(LOG_ERR, "Failed sending data to MTA"); break;}
 		}
 
