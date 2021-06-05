@@ -264,8 +264,8 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	if (sock < 0) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	int ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
-	if (ret == 1 && *upk == AEM_INTERNAL_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-	if (ret != crypto_box_PUBLICKEYBYTES) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
+	if (ret == 1 && *upk == AEM_INTERNAL_RESPONSE_NOTEXIST) {close(sock); return AEM_SMTP_ERROR_ADDR_OUR_USER;}
+	if (ret != crypto_box_PUBLICKEYBYTES) {close(sock); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
 
 	ret = (recv(sock, addrFlags, 1, 0) == 1) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 	close(sock);
