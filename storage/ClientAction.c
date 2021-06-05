@@ -110,7 +110,7 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 		if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 		while(1) {
-			int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, MSG_WAITALL);
+			int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, 0);
 			char status = AEM_STORE_INERROR;
 
 			if (ret >= AEM_MSG_MINSIZE && ret % 16 == 0) {
