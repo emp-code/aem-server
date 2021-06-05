@@ -27,8 +27,8 @@ void setStoragePid(const pid_t pid) {pid_storage = pid;}
 
 static int setSockOpts(const int sock) {
 	struct timeval tv;
-	tv.tv_sec = 0;
-	tv.tv_usec = 500000; // 0.5s
+	tv.tv_sec = 1;
+	tv.tv_usec = 1;
 
 	const int intTrue = 1;
 
