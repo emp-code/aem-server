@@ -250,7 +250,6 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		if (stoSock < 0) {free(enc); continue;}
 
 		char ret = AEM_STORE_INERROR;
-		uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 		if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
 			syslog(LOG_ERR, "Failed sending to Storage");
 			close(stoSock);
@@ -280,7 +279,6 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-					u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
 						free(enc);
 						syslog(LOG_ERR, "Failed sending to Storage");
@@ -313,7 +311,6 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			free(att);
 
 			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-				u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
 				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
 					free(enc);
 					syslog(LOG_ERR, "Failed sending to Storage");
