@@ -113,7 +113,7 @@ void conn_mta(const int sock, const unsigned char * const dec, const size_t lenD
 			int ret = recv(sock, data, AEM_MSG_MAXSIZE + 1, MSG_WAITALL);
 			char status = AEM_STORE_INERROR;
 
-			if (ret > AEM_MSG_MINSIZE && ret % 16 == 0) {
+			if (ret >= AEM_MSG_MINSIZE && ret % 16 == 0) {
 				status = storage_write(dec + 1, data, ret / 16 - AEM_MSG_MINBLOCKS);
 			} else if (ret == 1 && *data == 0xFE) { // Final End
 				break;
