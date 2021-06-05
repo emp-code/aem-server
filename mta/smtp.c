@@ -635,7 +635,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	}
 
 	tlsClose(tls);
-	if (!deliveryOk) {
+	if (!deliveryOk && toCount > 0) {
 		deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 		sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
 		sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
