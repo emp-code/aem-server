@@ -256,7 +256,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			free(enc);
 			continue;
 		}
-		if (ret != 0) {close(stoSock); free(enc); return ret;}
+		if (ret != 0) {close(stoSock); free(enc); continue;}
 
 		unsigned char msgId[16];
 		memcpy(msgId, enc, 16);
@@ -279,12 +279,13 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				free(att);
 
 				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
+					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
+						close(stoSock);
 						free(enc);
 						syslog(LOG_ERR, "Failed sending to Storage");
-						close(stoSock);
 						continue;
 					}
+					if (ret != 0) {close(stoSock); free(enc); continue;}
 				} else syslog(LOG_ERR, "Failed msg_encrypt()");
 
 				if (enc != NULL) free(enc);
@@ -311,12 +312,13 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			free(att);
 
 			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
+				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
+					close(stoSock);
 					free(enc);
 					syslog(LOG_ERR, "Failed sending to Storage");
-					close(stoSock);
 					continue;
 				}
+				if (ret != 0) {close(stoSock); free(enc); continue;}
 			} else syslog(LOG_ERR, "Failed msg_encrypt()");
 
 			if (enc != NULL) free(enc);
