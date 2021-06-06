@@ -228,6 +228,22 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
+static int sendMsg(const int sock, unsigned char * const msg, const size_t lenMsg) {
+	if (sock < 0 || msg == NULL || lenMsg < AEM_MSG_MINSIZE || lenMsg % 16 != 0) {syslog(LOG_ERR, "sendMsg: Invalid data"); return AEM_STORE_INERROR;}
+
+	char ret = AEM_STORE_INERROR;
+	const bool sockOk = (send(sock, msg, lenMsg, 0) == (ssize_t)lenMsg && recv(sock, &ret, 1, 0) == 1);
+	free(msg);
+
+	if (sockOk) {
+		if (ret == 0) return 0;
+		send(sock, (unsigned char[]){0xFE}, 1, 0);
+	} else syslog(LOG_ERR, "Failed sending to Storage");
+
+	close(sock);
+	return ret;
+}
+
 int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
 	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
@@ -245,22 +261,15 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			continue;
 		}
 
+		unsigned char msgId[16];
+		memcpy(msgId, enc, 16);
+
 		// Deliver
 		const int stoSock = storageSocket(AEM_MTA_INSERT, toUpk[i], crypto_box_PUBLICKEYBYTES);
 		if (stoSock < 0) {free(enc); continue;}
 
-		char ret = AEM_STORE_INERROR;
-		if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
-			syslog(LOG_ERR, "Failed sending to Storage");
-			close(stoSock);
-			free(enc);
-			continue;
-		}
-		if (ret != 0) {close(stoSock); free(enc); continue;}
-
-		unsigned char msgId[16];
-		memcpy(msgId, enc, 16);
-		free(enc);
+		int ret = sendMsg(stoSock, enc, lenEnc);
+		if (ret != 0) {if (toCount > 1) continue; return ret;}
 
 		// Store attachments, if requested
 		if ((toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
@@ -278,17 +287,8 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
 				free(att);
 
-				if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-					if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
-						close(stoSock);
-						free(enc);
-						syslog(LOG_ERR, "Failed sending to Storage");
-						continue;
-					}
-					if (ret != 0) {close(stoSock); free(enc); continue;}
-				} else syslog(LOG_ERR, "Failed msg_encrypt()");
-
-				if (enc != NULL) free(enc);
+				ret = sendMsg(stoSock, enc, lenEnc);
+				if (ret != 0) {if (toCount > 1) continue; return ret;}
 			}
 		}
 
@@ -311,17 +311,8 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 			free(att);
 
-			if (enc != NULL && lenEnc > 0 && lenEnc % 16 == 0) {
-				if (send(stoSock, enc, lenEnc, 0) != (ssize_t)lenEnc || recv(stoSock, &ret, 1, 0) != 1) {
-					close(stoSock);
-					free(enc);
-					syslog(LOG_ERR, "Failed sending to Storage");
-					continue;
-				}
-				if (ret != 0) {close(stoSock); free(enc); continue;}
-			} else syslog(LOG_ERR, "Failed msg_encrypt()");
-
-			if (enc != NULL) free(enc);
+			ret = sendMsg(stoSock, enc, lenEnc);
+			if (ret != 0) {if (toCount > 1) continue; return ret;}
 		}
 
 		// Final End
