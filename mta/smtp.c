@@ -519,7 +519,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			));
 
 			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount], tlsIsSecure)) {
-				case 0: retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32); break;
+				case 0:
+					retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32);
+					if ((toFlags[toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
+					toCount++;
+					break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
@@ -527,9 +531,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}
-
-			if ((toFlags[toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
-			toCount++;
 		} else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
 			if (!deliveryOk && toCount > 0) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 			email.rareCommands = true;
