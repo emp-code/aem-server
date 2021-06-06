@@ -687,7 +687,7 @@ void api_internal_myadr(const int sock, const int num) {
 
 void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
 	const uint64_t hash = addressToHash(addr32, isShield);
-	if (hash == 0) return;
+	if (hash == 0) {send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_ERR}, 1, 0); return;}
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
