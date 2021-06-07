@@ -54,7 +54,7 @@ void setSigKey(const unsigned char * const seed) {
 int aem_api_init(void) {
 	if (tlsSetup_sendmail() != 0) return -1;
 
-	response = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999); // enough for headers and account data
+	response = sodium_malloc(AEM_MAXLEN_MSGDATA + AEM_MAXLEN_UINFO + 250); // 250: headers (236)
 	if (response == NULL) return -1;
 
 	decrypted = sodium_malloc(AEM_API_BOX_SIZE_MAX);
@@ -396,7 +396,7 @@ static void message_browse(void) {
 	else if (lenDecrypted != 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	// Data to boxed
-	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + 9999);
+	unsigned char * const clr = sodium_malloc(AEM_MAXLEN_MSGDATA + AEM_MAXLEN_UINFO);
 	if (clr == NULL) {syslog(LOG_ERR, "Failed allocation"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	ssize_t lenClr = 0;
@@ -406,16 +406,16 @@ static void message_browse(void) {
 		const int sock = accountSocket(AEM_API_INTERNAL_UINFO, upk, crypto_box_PUBLICKEYBYTES);
 		if (sock < 0) {sodium_free(clr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-		const ssize_t rbytes = recv(sock, clr, 9000, MSG_WAITALL);
+		const ssize_t lenRcv = recv(sock, clr, AEM_MAXLEN_UINFO, 0);
 		close(sock);
 
-		if (rbytes < 5) {
+		if (lenRcv < AEM_MINLEN_UINFO) {
 			syslog(LOG_ERR, "Failed receiving data from Account");
 			sodium_free(clr);
 			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 
-		lenClr += rbytes;
+		lenClr += lenRcv;
 	}
 
 	// Message data

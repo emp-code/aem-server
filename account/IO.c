@@ -281,7 +281,7 @@ static int numAddresses(const int num, const bool shield) {
 }
 
 void api_internal_uinfo(const int sock, const int num) {
-	unsigned char response[283 + AEM_LEN_PRIVATE];
+	unsigned char response[AEM_MAXLEN_UINFO];
 	size_t lenResponse = 4;
 
 	response[0] = user[num].info;

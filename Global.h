@@ -42,6 +42,8 @@ enum aem_internal_enquiry {
 #define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
 
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
+#define AEM_MINLEN_UINFO (4 + AEM_LEN_PRIVATE)
+#define AEM_MAXLEN_UINFO (AEM_MINLEN_UINFO + (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64 unused
