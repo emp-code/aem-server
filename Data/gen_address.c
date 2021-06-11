@@ -24,7 +24,7 @@ static uint64_t addressToHash(const unsigned char * const addr32) {
 }
 
 int main(void) {
-	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_ADDRESS_H");
 	puts("#define AEM_DATA_ADDRESS_H");
@@ -44,12 +44,12 @@ int main(void) {
 	printf("#define AEM_HASH_SYSTEM %lullu\n\n", addressToHash(AEM_ADDR32_SYSTEM));
 
 	const int fdTxt = open("Admin.adr.txt", O_RDONLY);
-	if (fdTxt < 0) {puts("Failed to open Admin.adr.txt"); return EXIT_FAILURE;}
+	if (fdTxt < 0) {fputs("Failed to open Admin.adr.txt", stderr); return EXIT_FAILURE;}
 
 	const off_t len = lseek(fdTxt, 0, SEEK_END);
-	if (len < 0) {puts("Failed to read Admin.adr.txt"); return EXIT_FAILURE;}
+	if (len < 0) {fputs("Failed to read Admin.adr.txt", stderr); return EXIT_FAILURE;}
 	unsigned char data[len];
-	if (pread(fdTxt, data, len, 0) != len) {puts("Failed read"); return EXIT_FAILURE;}
+	if (pread(fdTxt, data, len, 0) != len) {fputs("Failed read", stderr); return EXIT_FAILURE;}
 
 	unsigned int lineCount = 0;
 	for (off_t i = 0; i < len; i++) {

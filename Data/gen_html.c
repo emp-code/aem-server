@@ -40,7 +40,7 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	unsigned char key_sig[AEM_LEN_KEY_API]; loadKey(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, key_sig);
 
 	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {puts("API-Placeholder not found"); puts(src); return -1;}
+	if (placeholder == NULL) {fputs("API-Placeholder not found", stderr); return -1;}
 	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
 	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
 	char api_hex[65];
@@ -51,7 +51,7 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
 
 	placeholder = memmem(src, lenSrc, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {puts("Sig-Placeholder not found"); return -1;}
+	if (placeholder == NULL) {fputs("Sig-Placeholder not found", stderr); return -1;}
 	unsigned char sig_tmp[crypto_sign_SECRETKEYBYTES];
 	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
 	char sig_hex[65];
@@ -62,7 +62,7 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
 
 	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
-	if (placeholder == NULL) {puts("Slt-Placeholder not found"); return -1;}
+	if (placeholder == NULL) {fputs("Slt-Placeholder not found", stderr); return -1;}
 	char slt_hex[33];
 	sodium_bin2hex(slt_hex, 33, AEM_SLT_NRM, AEM_LEN_SLT_NRM);
 	memcpy(placeholder, slt_hex, AEM_LEN_SLT_NRM * 2);
@@ -73,7 +73,7 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 // Remove email domain placeholder (clearnet)
 static int html_remEmail(char * const src, size_t * const lenSrc) {
 	char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
-	if (placeholder == NULL) {puts("Email domain placeholder not found"); return -1;}
+	if (placeholder == NULL) {fputs("Email domain placeholder not found", stderr); return -1;}
 	memmove(placeholder, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
 	*lenSrc -= 32;
 
@@ -83,7 +83,7 @@ static int html_remEmail(char * const src, size_t * const lenSrc) {
 // Add email domain (onion service)
 static int html_addEmail(char * const src, size_t * const lenSrc) {
 	char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
-	if (placeholder == NULL) {puts("Email domain placeholder not found"); return -1;}
+	if (placeholder == NULL) {fputs("Email domain placeholder not found", stderr); return -1;}
 	memcpy(placeholder, AEM_DOMAIN, AEM_DOMAIN_LEN);
 	memmove(placeholder + AEM_DOMAIN_LEN, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
 	*lenSrc -= (32 - AEM_DOMAIN_LEN);
@@ -115,14 +115,14 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, (unsigned char*)src, lenSrc, &data, &lenData);
 		if (data == 0 || lenData < 1) {
 			free(src);
-			puts("Failed zopfli compression");
+			fputs("Failed zopfli compression", stderr);
 			return NULL;
 		}
 	} else { // Brotli (HTTPS only)
 		data = malloc(lenSrc);
 		if (data == NULL) {
 			free(src);
-			puts("Failed allocation");
+			fputs("Failed allocation", stderr);
 			return NULL;
 		}
 
@@ -132,14 +132,14 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		if (brotliCompress(&data, &lenData) != 0) {
 			free(data);
 			free(src);
-			puts("Failed brotli compression");
+			fputs("Failed brotli compression", stderr);
 			return NULL;
 		}
 	}
 	free(src);
 
 	unsigned char bodyHash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {puts("Hash failed"); return NULL;}
+	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {fputs("Hash failed", stderr); return NULL;}
 
 	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
 	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
@@ -363,9 +363,9 @@ static void printSts(void) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 2) {printf("Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
-	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
-	if (getKey(master) != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
+	if (argc != 2) {fprintf(stderr, "Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
+	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
+	if (getKey(master) != 0) {fputs("Terminating: Failed reading key", stderr); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_HTML_H");
 	puts("#define AEM_DATA_HTML_H");

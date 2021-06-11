@@ -45,7 +45,7 @@ static void printKey(const char * const def, unsigned char * const buf, const si
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 3) {printf("Usage: %s Admin.dkim Users.dkim\n", argv[0]); return 1;}
+	if (argc != 3) {fprintf(stderr, "Usage: %s Admin.dkim Users.dkim\n", argv[0]); return 1;}
 
 	off_t admSize = 0;
 	off_t usrSize = 0;
