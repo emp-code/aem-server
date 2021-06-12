@@ -30,8 +30,8 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 		}
 
 		if (i > 0 && (
-			   (domain[i] == '.' &&  isalnum(domain[i - 1]))
-			|| (domain[i] == '-' && (isalnum(domain[i - 1]) || domain[i - 1] == '-'))
+			   (domain[i] == '.' && (isdigit(domain[i - 1]) || islower(domain[i - 1])))
+			|| (domain[i] == '-' && (isdigit(domain[i - 1]) || islower(domain[i - 1]) || domain[i - 1] == '-'))
 		)) continue;
 
 		return false;
