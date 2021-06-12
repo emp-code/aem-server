@@ -4,6 +4,14 @@
 
 #include "ValidDomain.h"
 
+static bool hasAlpha(const char * const c, const size_t len) {
+	for (size_t i = 0; i < len; i++) {
+		if (islower(c[i])) return true;
+	}
+
+	return false;
+}
+
 bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	if (domain == NULL
 	|| lenDomain < 4
@@ -14,16 +22,20 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	size_t lastDot = 0;
 
 	for (size_t i = 0; i < lenDomain; i++) {
-		if (domain[i] == '.') lastDot = i;
+		if (islower(domain[i]) || isdigit(domain[i])) continue;
 
-		if (islower(domain[i]) || isdigit(domain[i]) ||
-			(i > 0 && (
-				   (domain[i] == '.' &&  isalnum(domain[i - 1]))
-				|| (domain[i] == '-' && (isalnum(domain[i - 1]) || domain[i - 1] == '-'))
-			))
-		) continue;
+		if (domain[i] == '.') {
+			if (!hasAlpha(domain + lastDot, i - lastDot)) return false;
+			lastDot = i;
+		}
+
+		if (i > 0 && (
+			   (domain[i] == '.' &&  isalnum(domain[i - 1]))
+			|| (domain[i] == '-' && (isalnum(domain[i - 1]) || domain[i - 1] == '-'))
+		)) continue;
+
 		return false;
 	}
 
-	return (lastDot > 0 && lastDot < lenDomain - 2); // (getTldLocation(domain, NULL) > 0)
+	return (lastDot > 0 && lastDot < lenDomain - 2 && hasAlpha(domain + lastDot, lenDomain - lastDot));
 }
