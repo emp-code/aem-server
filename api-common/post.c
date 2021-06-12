@@ -684,15 +684,22 @@ static void message_create_ext(void) {
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_TODOMAIN); // 5=@a.bc
+	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO); // 5=@a.bc
 
 	const int sock = enquirySocket(AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	int lenMxDomain = 0;
 	email.ip = 0;
+	const int rb = recv(sock, &email.ip, 4, 0);
+	if (rb == 1 && (((unsigned char*)&email)[0] == AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO || ((unsigned char*)&email)[0] == AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN)) {
+		close(sock);
+		free(email.body);
+		return shortResponse(NULL, ((unsigned char*)&email)[0]);
+	}
+
 	if (
-	   recv(sock, &(email.ip), 4, 0) != 4
+	   rb != 4
 	|| email.ip <= 1
 	|| recv(sock, email.cc, 2, 0) != 2
 	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)

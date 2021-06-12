@@ -14,6 +14,7 @@
 #include "../Data/domain.h"
 #include "../Data/internal.h"
 #include "../Global.h"
+#include "../api-common/Error.h"
 
 #include "Geo.h"
 #include "DNS.h"
@@ -23,8 +24,15 @@
 void conn_api(const int sock, const unsigned char * const dec, const size_t lenDec) {
 	switch (dec[0]) {
 		case AEM_ENQUIRY_MX: {
-			if (!isValidDomain((char*)dec + 1, lenDec - 1)) break;
-			if (lenDec - 1 == AEM_DOMAIN_LEN && memcmp(dec + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) break;
+			if (!isValidDomain((char*)dec + 1, lenDec - 1)) {
+				send(sock, (unsigned char[]){AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO}, 1, 0);
+				break;
+			}
+
+			if (lenDec - 1 == AEM_DOMAIN_LEN && memcmp(dec + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) {
+				send(sock, (unsigned char[]){AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN}, 1, 0);
+				break;
+			}
 
 			unsigned char mxDomain[256];
 			int lenMxDomain = 0;
