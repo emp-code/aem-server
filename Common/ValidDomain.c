@@ -25,5 +25,5 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 		return false;
 	}
 
-	return (lastDot < lenDomain - 2); // (getTldLocation(domain, NULL) > 0)
+	return (lastDot > 0 && lastDot < lenDomain - 2); // (getTldLocation(domain, NULL) > 0)
 }
