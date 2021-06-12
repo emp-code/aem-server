@@ -20,13 +20,15 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	) return false;
 
 	size_t lastDot = 0;
+	size_t firstCh = 0;
 
 	for (size_t i = 0; i < lenDomain; i++) {
 		if (islower(domain[i]) || isdigit(domain[i])) continue;
 
 		if (domain[i] == '.') {
-			if (!hasAlpha(domain + lastDot, i - lastDot)) return false;
+			if (i - firstCh > 63 || !hasAlpha(domain + firstCh, i - firstCh)) return false;
 			lastDot = i;
+			firstCh = i + 1;
 		}
 
 		if (i > 0 && (
@@ -37,5 +39,5 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 		return false;
 	}
 
-	return (lastDot > 0 && lastDot < lenDomain - 2 && hasAlpha(domain + lastDot, lenDomain - lastDot));
+	return (lastDot > 0 && lastDot < lenDomain - 2 && lenDomain - firstCh <= 63 && hasAlpha(domain + firstCh, lenDomain - firstCh));
 }
