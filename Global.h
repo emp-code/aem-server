@@ -86,9 +86,9 @@ enum aem_internal_enquiry {
 // 0x0A = LF
 #define AEM_CET_CHAR_SEP 0x0B // Separator (internal use)
 
-#define AEM_CET_CHAR_MLT 0x0C // mailto
-#define AEM_CET_CHAR_LNK 0x0D // a, frame, iframe (+1 = HTTPS)
-#define AEM_CET_CHAR_FIL 0x0F // img, audio, video, source, object, embed (+1 = HTTPS)
+#define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
+#define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
+#define AEM_CET_CHAR_MLT 0x10 // mailto
 
 // Conversion placeholders - avoid overlap with CET formatting
 #define AEM_HTML_PLACEHOLDER_LINEBREAK 0x1F
