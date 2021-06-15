@@ -10,8 +10,6 @@
 
 [![Code Inspector](https://www.code-inspector.com/project/5719/score/svg)](https://frontend.code-inspector.com/public/project/5719/aem/dashboard)
 
-[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6ImVtcC1jb2RlIiwicmVwbzEiOiJhZW0tc2VydmVyIiwiaW5jbHVkZUxpbnQiOmZhbHNlLCJhdXRob3JJZCI6MjIxMjgsImlhdCI6MTYwNTQzMTc0OX0.IzzqPqRCaaqDEojFAL7D6Wh-DGkrXl3dOMnwuq3SAvU)](https://www.deepcode.ai/app/gh/emp-code/aem-server/_/dashboard?utm_content=gh%2Femp-code%2Faem-server)
-
 ## Introduction ##
 
 All-Ears Mail is a private email solution. It was designed from the ground up to know the least amount of information about its users, and to keep that information private to the maximum extent. The other design goals are simplicity, reliability, and efficiency.
