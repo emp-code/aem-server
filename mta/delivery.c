@@ -35,7 +35,7 @@ void delSignKey(void) {
 __attribute__((warn_unused_result))
 static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut, const bool allVer) {
 	if (!allVer && email->body != NULL && email->lenBody > 0) { // Remove non-preferred variant(s) if requested
-		const unsigned char * const r = memrchr(email->body, '\r', email->lenBody);
+		const unsigned char * const r = memrchr(email->body, AEM_CET_CHAR_SEP, email->lenBody);
 		if (r != NULL) {
 			const size_t lenRem = (r + 1 - email->body);
 			memmove(email->body, r + 1, email->lenBody - lenRem);
@@ -105,7 +105,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	}
 
 	if (email->lenBody > 0) {
-		uncomp[offset] = '\r';
+		uncomp[offset] = AEM_CET_CHAR_SEP;
 		offset++;
 		memcpy(uncomp + offset, email->body, email->lenBody);
 	}

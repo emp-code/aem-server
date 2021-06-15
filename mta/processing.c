@@ -21,7 +21,7 @@
 #define MTA_PROCESSING_CTE_B64 1
 #define MTA_PROCESSING_CTE_QP 2
 
-// "abc" <def@ghj> --> abc\rdef@ghj
+// "abc" <def@ghj> --> abcAEM_CET_CHAR_SEPdef@ghj
 static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource) {
 	while(1) {
 		unsigned char *r = memchr(source, '\r', *lenSource);
@@ -67,7 +67,7 @@ static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource
 
 	unsigned char new[255];
 	memcpy(new, nameStart, lenName);
-	new[lenName] = '\r';
+	new[lenName] = AEM_CET_CHAR_SEP;
 	memcpy(new + lenName + 1, addrStart, lenAddr);
 
 	*lenSource = lenName + 1 + lenAddr;
@@ -444,7 +444,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 				out = out2;
 
-				out[*outLen] = '\r';
+				out[*outLen] = AEM_CET_CHAR_SEP;
 				memcpy(out + *outLen + 1, new, lenNew);
 				*outLen += lenNew + 1;
 			}
