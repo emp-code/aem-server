@@ -231,10 +231,10 @@ static int replaceLink(unsigned char * const pos1, unsigned char * const pos2, c
 static void extractLink(unsigned char *text, size_t *len, const char * const tag, const size_t lenTag, const char * const param, const size_t lenParam, const unsigned char linkChar) {
 	unsigned char *br1 = memmem(text, *len, tag, lenTag);
 	while (br1 != NULL) {
-		unsigned char *br2 = memchr(br1, '>', (text + *len) - br1);
+		unsigned char *br2 = memchr(br1 + 1, '>', (text + *len) - (br1 + 1));
 		if (br2 == NULL) break;
 
-		const unsigned char *url = memmem(br1, br2 - br1, param, lenParam);
+		const unsigned char *url = memmem(br1 + 1, br2 - (br1 + 1), param, lenParam);
 		if (url == NULL || replaceLink(br1, br2, linkChar, url + lenParam, text + *len, len) != 0) {
 			br2++;
 			const size_t lenRem = br2 - br1;
