@@ -185,8 +185,12 @@ static const unsigned char *pmin(const unsigned char * const a, const unsigned c
 }
 
 static int replaceLink(unsigned char * const pos1, unsigned char * const pos2, const unsigned char linkCharBase, const unsigned char * url, const unsigned char * const sourceEnd, size_t * const lenSource) {
+	if (sourceEnd - url < 3) return -1;
+	if (*url == ' ') url++;
+
 	const bool isQuot = (*url == '"');
 	if (isQuot) url++;
+	if (*url == ' ') url++;
 
 	const unsigned char * const term = isQuot? memchr(url, '"', pos2 - url) : pmin(memchr(url, ' ', pos2 - url), pos2);
 	if (term == NULL || !(isQuot || term <= pos2) || *url == '#') return -1;
