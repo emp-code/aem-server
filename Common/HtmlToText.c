@@ -122,7 +122,7 @@ static const unsigned char *pmin(const unsigned char * const a, const unsigned c
 
 static int extractLink(unsigned char * const br1, const unsigned char * const br2, const char * const param, const size_t lenParam, const unsigned char linkCharBase) {
 	const unsigned char *url = memmem(br1 + 1, br2 - (br1 + 1), param, lenParam);
-	if (url == NULL) return -1;
+	if (url == NULL) return 0; // param not found
 	url += lenParam;
 
 	while (*url == ' ') url++;
