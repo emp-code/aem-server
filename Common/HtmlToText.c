@@ -3,81 +3,17 @@
 #include <sys/types.h> // for ssize_t
 
 #include "../Global.h"
+#include "memeq.h"
 #include "HtmlRefs.h"
 #include "Trim.h"
 
 #include "HtmlToText.h"
-
-static void filterText(char * const text, size_t * const lenText, const char * const bad, const size_t lenBad, const char good) {
-	while(1) {
-		char * const c = memmem(text, *lenText, bad, lenBad);
-		if (c == NULL) break;
-		*c = good;
-
-		memmove(c + 1, c + lenBad, (text + *lenText) - (c + lenBad));
-		*lenText -= (lenBad - 1);
-	}
-}
-
-static void filterHr(char * const text, const size_t len) {
-	while(1) {
-		char * const c = memmem(text, len, "<hr>", 4);
-		if (c == NULL) break;
-		c[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-		c[1] = '-';
-		c[2] = '-';
-		c[3] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-	}
-
-	while(1) {
-		char * const c = memmem(text, len, "<hr/>", 5);
-		if (c == NULL) break;
-		c[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-		c[1] = '-';
-		c[2] = '-';
-		c[3] = '-';
-		c[4] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-	}
-
-	while(1) {
-		char * const c = memmem(text, len, "<hr />", 6);
-		if (c == NULL) break;
-		c[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-		c[1] = '-';
-		c[2] = '-';
-		c[3] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-		c[4] = '<'; // '<>' remains, and gets removed
-	}
-}
-
-static void placeLinebreak(char * const text, const size_t len, const char * const search) {
-	while(1) {
-		char * const c = memmem(text, len, search, strlen(search));
-		if (c == NULL) return;
-		c[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-		c[1] = '<';
-	}
-}
 
 static void convertChar(char * const text, const size_t lenText, const char from, const char to) {
 	while(1) {
 		char * const c = memchr(text, from, lenText);
 		if (c == NULL) return;
 		*c = to;
-	}
-}
-
-static void removeHtmlComments(char * const text, size_t * const len) {
-	while(1) {
-		char * const c = memmem(text, *len, "<!--", 4);
-		if (c == NULL) break;
-
-		const char * const end = memmem(c + 4, (text + *len) - (c + 4), "-->", 3);
-		if (end == NULL) return;
-
-		memmove(c, end + 3, (text + *len) - (end + 3));
-
-		*len -= (end + 3 - c);
 	}
 }
 
@@ -184,196 +120,171 @@ static const unsigned char *pmin(const unsigned char * const a, const unsigned c
 	return (a == NULL) ? b : ((b == NULL) ? a : ((a <= b) ? a : b));
 }
 
-static int replaceLink(unsigned char * const pos1, unsigned char * const pos2, const unsigned char linkCharBase, const unsigned char * url, const unsigned char * const sourceEnd, size_t * const lenSource) {
-	if (sourceEnd - url < 3) return -1;
-	if (*url == ' ') url++;
+static int extractLink(unsigned char * const br1, const unsigned char * const br2, const char * const param, const size_t lenParam, const unsigned char linkCharBase) {
+	const unsigned char *url = memmem(br1 + 1, br2 - (br1 + 1), param, lenParam);
+	if (url == NULL) return -1;
+	url += lenParam;
 
+	while (*url == ' ') url++;
 	const bool isQuot = (*url == '"');
 	if (isQuot) url++;
-	if (*url == ' ') url++;
+	if (*url == '\0') return -1;
 
-	const unsigned char * const term = isQuot? memchr(url, '"', pos2 - url) : pmin(memchr(url, ' ', pos2 - url), pos2);
-	if (term == NULL || !(isQuot || term <= pos2) || *url == '#') return -1;
+	const unsigned char * const term = isQuot? memchr(url, '"', br2 - url) : pmin(memchr(url, ' ', br2 - url), br2);
+	if (term == NULL || term >= br2) return -1;
 	size_t lenUrl = term - url;
 
 	unsigned char linkChar = linkCharBase + 1; // Secure by default
-	if (lenUrl >= 2 && memcmp(url, "//", 2) == 0) {
+	if (lenUrl >= 2 && memeq(url, "//", 2)) {
 		url += 2;
 		lenUrl -= 2;
-	} else if (lenUrl >= 8 && memcmp(url, "https://", 8) == 0) {
+	} else if (lenUrl >= 8 && memeq(url, "https://", 8)) {
 		url += 8;
 		lenUrl -= 8;
-	} else if (lenUrl >= 7 && memcmp(url, "http://", 7) == 0) {
+	} else if (lenUrl >= 7 && memeq(url, "http://", 7)) {
 		linkChar--;
 		url += 7;
 		lenUrl -= 7;
-	} else if (lenUrl >= 6 && memcmp(url, "ftp://", 6) == 0) {
+	} else if (lenUrl >= 6 && memeq(url, "ftp://", 6)) {
 		url += 6;
 		lenUrl -= 6;
-	} else if (lenUrl >= 8 && memcmp(url, "mailto://", 9) == 0) {
-		url += 9;
-		lenUrl -= 9;
+	} else if (lenUrl >= 8 && memeq(url, "mailto:", 7)) {
+		url += 7;
+		lenUrl -= 7;
 		linkChar = AEM_CET_CHAR_MLT;
-	} else return -1;
+	} // else: bare link with no protocol specified, assume HTTPS
 
 	// Replace the content
-	*pos1 = linkChar;
-	memmove(pos1 + 1, url, lenUrl); // TODO: Lowercase domain (until slash)
-	*pos2 = linkChar;
+	*br1 = linkChar;
+	memmove(br1 + 1, url, lenUrl); // TODO: Lowercase domain (until slash)
+	br1[1 + lenUrl] = linkChar;
 
-	// Move rest of the content to its new beginning
-	memmove(pos1 + 1 + lenUrl, pos2, sourceEnd - pos2);
-	*lenSource -= ((pos2 - pos1) - lenUrl - 1);
-	return 0;
-}
-
-// tag: include bracket and space, like "<a "; param: include equals-sign at end
-static void extractLink(unsigned char *text, size_t *len, const char * const tag, const size_t lenTag, const char * const param, const size_t lenParam, const unsigned char linkChar) {
-	unsigned char *br1 = memmem(text, *len, tag, lenTag);
-	while (br1 != NULL) {
-		unsigned char *br2 = memchr(br1 + 1, '>', (text + *len) - (br1 + 1));
-		if (br2 == NULL) break;
-
-		const unsigned char *url = memmem(br1 + 1, br2 - (br1 + 1), param, lenParam);
-		if (url == NULL || replaceLink(br1, br2, linkChar, url + lenParam, text + *len, len) != 0) {
-			br2++;
-			const size_t lenRem = br2 - br1;
-			memmove(br1, br2, (text + *len) - br2);
-			*len -= lenRem;
-		}
-
-		br1 = memmem(br1, (text + *len) - br1, tag, lenTag);
-	}
+	return 2 + lenUrl;
 }
 
 // Needs bracketsInQuotes() and lfToSpace()
-static void processLinks(unsigned char *text, size_t *len) {
-	extractLink(text, len, "<a ",      3, "href=", 5, AEM_CET_CHAR_LNK);
-	extractLink(text, len, "<frame ",  7, "src=",  4, AEM_CET_CHAR_LNK);
-	extractLink(text, len, "<iframe ", 8, "src=",  4, AEM_CET_CHAR_LNK);
+static void html2cet(unsigned char * const text, size_t * const lenText) {
+	text[*lenText] = '\0';
+	size_t begin = 0;
 
-	extractLink(text, len, "<audio ",  7, "src=",  4, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<embed ",  7, "src=",  4, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<img ",    5, "src=",  4, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<object ", 8, "data=", 5, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<source ", 8, "src=",  4, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<track ",  7, "src=",  4, AEM_CET_CHAR_FIL);
-	extractLink(text, len, "<video ",  7, "src=",  4, AEM_CET_CHAR_FIL);
-}
+	while (begin < *lenText) {
+		unsigned char *br1 = memchr(text + begin, '<', *lenText - begin);
+		if (br1 == NULL) return;
 
-static void removeHtml(char * const text, size_t * const len) {
-	char *br1 = memchr(text, '<', *len);
-
-	while (br1 != NULL) {
-		const char *br2 = memchr(br1 + 1, '>', (text + *len) - (br1 + 1));
+		const unsigned char *br2 = memchr(br1 + 1, '>', (text + *lenText) - (br1 + 1));
 		if (br2 == NULL) return;
 		br2++;
 
-		memmove(br1, br2, (text + *len) - br2);
-		*len -= (br2 - br1);
-		text[*len] = '\0';
+		int keep = 0;
+		switch (br1[1]) {
+			case '/':
+				if (
+				   memeq(br1 + 2, "table", 5)
+				|| memeq(br1 + 2, "td", 2)
+				|| memeq(br1 + 2, "tr", 2)
+				) {
+					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					keep = 1;
+				}
 
-		br1 = memchr(text, '<', *len);
-	}
-}
+				if (
+				   memeq(br1 + 2, "p>", 2)
+				|| memeq(br1 + 2, "p ", 2)
+				) {
+					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					keep = 2;
+				}
+			break;
 
-static void removeStyle(char * const text, size_t * const len) {
-	char * const begin = memmem(text, *len, "<style", 6);
-	if (begin == NULL) return;
+			case 'a':
+				if (br1[2] == ' ') {keep = extractLink(br1, br2, "href=", 5, AEM_CET_CHAR_LNK);}
+				else if (memeq(br1 + 1, "udio ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
+			break;
 
-	const char * const end = memmem(begin + 6, *len - ((begin + 6) - text), "</style>", 8);
-	if (end == NULL) return;
+			case 'b':
+				if (br1[2] == 'r' && (br1[3] == ' ' || br1[3] == '>')) {
+					*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					keep = 1;
+				}
+			break;
 
-	const size_t diff = (end + 8) - begin;
-	memmove(begin, end + 8, (text + *len) - (end + 8));
-	*len -= diff;
-}
+			case 'e':
+				if (memeq(br1 + 2, "mbed ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+			break;
 
-static void lowercaseHtmlTags(char * const text, const size_t len) {
-	char *c = memchr(text, '<', len);
+			case 'f':
+				if (memeq(br1 + 2, "rame ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+			break;
 
-	while (c != NULL) {
-		const char * const d = memchr(c, '>', (text + len) - c);
-		if (d == NULL) break;
+			case 'h':
+				if (br1[2] == 'r' && (br1[3] == ' ' || br1[3] == '>')) {
+					*br1 = AEM_CET_CHAR_HRB;
+					keep = 1;
+				}
+			break;
 
-		for (int i = 0; i < d - c; i++) {
-			if (isupper(c[i]))
-				c[i] = tolower(c[i]);
-			else if (c[i] == ' ' || c[i] == '\n')
-				break;
+			case 'i':
+				if (memeq(br1 + 2, "frame ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				else if (memeq(br1 + 2, "mg ", 3)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
+			break;
+
+			case 'o':
+				if (memeq(br1 + 2, "bject ", 6)) {keep = extractLink(br1, br2, "data=", 5, AEM_CET_CHAR_LNK);}
+			break;
+
+			case 'p':
+				if (br1[2] == '>' || br1[2] == ' ') {
+					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					keep = 2;
+				}
+			break;
+
+			case 's':
+				if (memeq(br1 + 2, "ource ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				else if (memeq(br1 + 2, "tyle", 4)) {
+					const unsigned char * const br3 = memmem(br2 + 1, (text + *lenText) - (br2 + 1), "</style>", 8);
+					if (br3 != NULL) br2 = br3 + 8;
+				}
+			break;
+
+			case 't':
+				if (memeq(br1 + 2, "rack ", 4)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				else if (
+				   memeq(br1 + 2, "able", 4)
+				|| memeq(br1 + 2, "d", 1)
+				|| memeq(br1 + 2, "r", 1)
+				) {*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK; keep = 1;}
+			break;
+
+			case 'v':
+				if (memeq(br1 + 2, "video ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+			break;
 		}
 
-		const ssize_t bytes = (text + len) - (d + 1);
-		if (bytes < 1) break;
-		c = memchr(d + 1, '<', bytes);
+		if (keep < 0) return;
+
+		br1 += keep;
+		begin = br1 - text;
+		const size_t lenRem = br2 - br1;
+
+		memmove(br1, br2, (text + *lenText) - br2);
+		*lenText -= lenRem;
 	}
 }
 
 void htmlToText(char * const text, size_t * const len) {
 	removeControlChars((unsigned char*)text, len);
 	lfToSpace(text, *len);
-	removeHtmlComments(text, len);
-	text[*len] = '\0';
-	decodeHtmlRefs((unsigned char*)text, len);
-
-	// Remove content before body tag
-	const char * const body = memmem(text, *len, "<body", 5);
-	if (body != NULL) {
-		const size_t rem = body - text;
-		*len -= rem;
-		memmove(text, body, *len);
-	}
-
-	text[*len] = '\0';
 	bracketsInQuotes(text);
-	lowercaseHtmlTags(text, *len);
 
-	filterHr(text, *len);
-	filterText(text, len, "<br>", 4, AEM_HTML_PLACEHOLDER_LINEBREAK);
-	filterText(text, len, "<br/>", 5, AEM_HTML_PLACEHOLDER_LINEBREAK);
-	filterText(text, len, "<br />", 6, AEM_HTML_PLACEHOLDER_LINEBREAK);
-
-	placeLinebreak(text, *len, "<table");
-	placeLinebreak(text, *len, "</table");
-	placeLinebreak(text, *len, "<tbody");
-	placeLinebreak(text, *len, "</tbody");
-	placeLinebreak(text, *len, "<thead");
-	placeLinebreak(text, *len, "</thead");
-	placeLinebreak(text, *len, "<div");
-	placeLinebreak(text, *len, "</div");
-	placeLinebreak(text, *len, "<p ");
-	placeLinebreak(text, *len, "<p>");
-	placeLinebreak(text, *len, "</p>");
-	placeLinebreak(text, *len, "<h1");
-	placeLinebreak(text, *len, "<h2");
-	placeLinebreak(text, *len, "<h3");
-	placeLinebreak(text, *len, "<h4");
-	placeLinebreak(text, *len, "<h5");
-	placeLinebreak(text, *len, "<h6");
-	placeLinebreak(text, *len, "</h1");
-	placeLinebreak(text, *len, "</h2");
-	placeLinebreak(text, *len, "</h3");
-	placeLinebreak(text, *len, "</h4");
-	placeLinebreak(text, *len, "</h5");
-	placeLinebreak(text, *len, "</h6");
-	placeLinebreak(text, *len, "<td");
-	placeLinebreak(text, *len, "</td");
-	placeLinebreak(text, *len, "<tr");
-	placeLinebreak(text, *len, "</tr");
-	placeLinebreak(text, *len, "<li");
-	placeLinebreak(text, *len, "</li");
-	placeLinebreak(text, *len, "<ul");
-	placeLinebreak(text, *len, "</ul");
-
-	processLinks((unsigned char*)text, len);
-	removeStyle(text, len);
-	removeHtml(text, len);
+	html2cet((unsigned char*)text, len);
+	decodeHtmlRefs((unsigned char*)text, len);
 
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_LINEBREAK, '\n');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_SINGLEQUOTE, '\'');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_DOUBLEQUOTE, '"');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_GT, '>');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_LT, '<');
-
-	text[*len] = '\0';
 }

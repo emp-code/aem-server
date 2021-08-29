@@ -90,6 +90,8 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
 #define AEM_CET_CHAR_MLT 0x10 // mailto
 
+#define AEM_CET_CHAR_HRB 0x11 // <hr>
+
 // Conversion placeholders - avoid overlap with CET formatting
 #define AEM_HTML_PLACEHOLDER_LINEBREAK 0x1F
 #define AEM_HTML_PLACEHOLDER_SINGLEQUOTE 0x1E
