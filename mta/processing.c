@@ -85,7 +85,7 @@ static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
 		if (colon == NULL) break;
 
 		for (int i = (colon + 1) - msg; i < ((next != NULL) ? next - msg : (int)lenMsg); i++) {
-			if (isspace(msg[i])) msg[i] = 127; else break; // 127=del
+			if (isspace(msg[i])) msg[i] = 127; else break; // 127=DEL
 		}
 
 		c = next;
@@ -102,7 +102,7 @@ static void unfoldHeaders(unsigned char * const data, const size_t lenData) {
 	while(1) {
 		char * const lfSp = memmem(data, lenData, (unsigned char[]){'\n',' '}, 2);
 		if (lfSp == NULL) break;
-		*lfSp = 127; // DEL
+		*lfSp = 127; // 127=DEL
 	}
 }
 
