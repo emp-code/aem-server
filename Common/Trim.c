@@ -79,13 +79,13 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 	}
 
 	size_t skip = 0;
-	while (skip < lenNew && isspace(new[skip])) skip++;
+	while (skip < lenNew && (new[skip] == '\n' || new[skip] == ' ')) skip++;
 
 	memcpy(text, new + skip, lenNew - skip);
 	free(new);
 	*len = lenNew - skip;
 
-	while (*len > 0 && isspace(text[*len - 1])) (*len)--;
+	while (*len > 0 && (text[*len - 1] == '\n' || text[*len - 1] == ' ')) (*len)--;
 }
 
 void convertLineDots(unsigned char * const text, size_t * const len) {
