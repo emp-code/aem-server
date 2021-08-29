@@ -15,6 +15,8 @@
 #include "../Data/address.h"
 #include "../Global.h"
 
+#include "aem_user.h"
+
 #define AEM_FAKEFLAGS_HTSIZE 2048
 #define AEM_FAKEFLAGS_MAXTIME 2000000 // 23d
 
@@ -28,14 +30,6 @@ static unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
 	{0, 0, 0},
 	{0, 0, 0},
 	{255, AEM_ADDRESSES_PER_USER, AEM_ADDRESSES_PER_USER} // Admin
-};
-
-struct aem_user {
-	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	unsigned char info; // & 3 = level; & 4 = unused; >> 3 = addresscount
-	unsigned char private[AEM_LEN_PRIVATE];
-	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
-	uint64_t addrHash[AEM_ADDRESSES_PER_USER];
 };
 
 static struct aem_user *user = NULL;

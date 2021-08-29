@@ -15,13 +15,7 @@
 
 #include "GetKey.h"
 
-struct aem_user {
-	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
-	unsigned char info; // & 3 = level; & 4 = unused; >> 3 = addresscount
-	unsigned char private[AEM_LEN_PRIVATE];
-	uint64_t addrHash[AEM_ADDRESSES_PER_USER];
-	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];
-};
+#include "../account/aem_user.h"
 
 static unsigned char key_account[crypto_secretbox_KEYBYTES];
 
