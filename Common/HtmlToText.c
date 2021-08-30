@@ -300,4 +300,6 @@ void htmlToText(char * const text, size_t * const len) {
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_DOUBLEQUOTE, '"');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_GT, '>');
 	convertChar(text, *len, AEM_HTML_PLACEHOLDER_LT, '<');
+
+	cleanText((unsigned char*)text, len, false);
 }
