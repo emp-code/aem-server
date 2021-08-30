@@ -152,7 +152,7 @@ static int extractLink(unsigned char * const br1, const unsigned char * const br
 		url += 7;
 		lenUrl -= 7;
 		linkChar = AEM_CET_CHAR_MLT;
-	} // else: bare link with no protocol specified, assume HTTPS
+	} else if (!isalnum(*url)) return 0; // otherwise, bare link with no protocol specified, assume HTTPS
 
 	if (lenUrl < 3) return 0;
 
