@@ -426,10 +426,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 			convertToUtf8((char**)&new, &lenNew, cs);
 			if (cs != NULL) free(cs);
 
-			if (isHtml) {
-				removeControlChars(email->body, &email->lenBody);
-				htmlToText((char*)new, &lenNew);
-			}
+			if (isHtml) htmlToText((char*)new, &lenNew);
 
 			cleanText(new, &lenNew, !isHtml);
 			new[lenNew] = '\0';
@@ -570,8 +567,11 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			convertToUtf8((char**)&email->body, &email->lenBody, cs);
 			if (cs != NULL) free(cs);
 
-			removeControlChars(email->body, &email->lenBody);
-			if (lenCt >= 9 && strncasecmp(ct + 5, "html", 4) == 0) htmlToText((char*)email->body, &email->lenBody);
+			if (lenCt >= 9 && strncasecmp(ct + 5, "html", 4) == 0)
+				htmlToText((char*)email->body, &email->lenBody);
+			else
+				removeControlChars(email->body, &email->lenBody);
+
 			cleanText(email->body, &email->lenBody, false);
 			email->body[email->lenBody] = '\0';
 		}
