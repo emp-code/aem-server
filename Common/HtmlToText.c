@@ -154,6 +154,8 @@ static int extractLink(unsigned char * const br1, const unsigned char * const br
 		linkChar = AEM_CET_CHAR_MLT;
 	} // else: bare link with no protocol specified, assume HTTPS
 
+	if (lenUrl < 3) return 0;
+
 	// Replace the content
 	*br1 = linkChar;
 	memmove(br1 + 1, url, lenUrl); // TODO: Lowercase domain (until slash)
