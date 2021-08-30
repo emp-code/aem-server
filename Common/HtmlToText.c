@@ -148,7 +148,7 @@ static int extractLink(unsigned char * const br1, const unsigned char * const br
 	} else if (lenUrl >= 6 && memeq(url, "ftp://", 6)) {
 		url += 6;
 		lenUrl -= 6;
-	} else if (lenUrl >= 8 && memeq(url, "mailto:", 7)) {
+	} else if (lenUrl >= 7 && memeq(url, "mailto:", 7)) {
 		url += 7;
 		lenUrl -= 7;
 		linkChar = AEM_CET_CHAR_MLT;
