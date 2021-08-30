@@ -121,7 +121,7 @@ static const unsigned char *pmin(const unsigned char * const a, const unsigned c
 }
 
 static int extractLink(unsigned char * const br1, const unsigned char * const br2, const char * const param, const size_t lenParam, const unsigned char linkCharBase) {
-	const unsigned char *url = memmem(br1 + 1, br2 - (br1 + 1), param, lenParam);
+	const unsigned char *url = memcasemem(br1 + 1, br2 - (br1 + 1), param, lenParam);
 	if (url == NULL) return 0; // param not found
 	url += lenParam;
 
@@ -138,17 +138,17 @@ static int extractLink(unsigned char * const br1, const unsigned char * const br
 	if (lenUrl >= 2 && memeq(url, "//", 2)) {
 		url += 2;
 		lenUrl -= 2;
-	} else if (lenUrl >= 8 && memeq(url, "https://", 8)) {
+	} else if (lenUrl >= 8 && memeq_anycase(url, "https://", 8)) {
 		url += 8;
 		lenUrl -= 8;
-	} else if (lenUrl >= 7 && memeq(url, "http://", 7)) {
+	} else if (lenUrl >= 7 && memeq_anycase(url, "http://", 7)) {
 		linkChar--;
 		url += 7;
 		lenUrl -= 7;
-	} else if (lenUrl >= 6 && memeq(url, "ftp://", 6)) {
+	} else if (lenUrl >= 6 && memeq_anycase(url, "ftp://", 6)) {
 		url += 6;
 		lenUrl -= 6;
-	} else if (lenUrl >= 7 && memeq(url, "mailto:", 7)) {
+	} else if (lenUrl >= 7 && memeq_anycase(url, "mailto:", 7)) {
 		url += 7;
 		lenUrl -= 7;
 		linkChar = AEM_CET_CHAR_MLT;
@@ -181,17 +181,17 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 		switch (br1[1]) {
 			case '/':
 				if (
-				   memeq(br1 + 2, "table", 5)
-				|| memeq(br1 + 2, "td", 2)
-				|| memeq(br1 + 2, "tr", 2)
+				   memeq_anycase(br1 + 2, "table", 5)
+				|| memeq_anycase(br1 + 2, "td", 2)
+				|| memeq_anycase(br1 + 2, "tr", 2)
 				) {
 					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
 					keep = 1;
 				}
 
 				if (
-				   memeq(br1 + 2, "p>", 2)
-				|| memeq(br1 + 2, "p ", 2)
+				   memeq_anycase(br1 + 2, "p>", 2)
+				|| memeq_anycase(br1 + 2, "p ", 2)
 				) {
 					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
 					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
@@ -199,42 +199,50 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 				}
 			break;
 
+			case 'A':
 			case 'a':
 				if (br1[2] == ' ') {keep = extractLink(br1, br2, "href=", 5, AEM_CET_CHAR_LNK);}
-				else if (memeq(br1 + 1, "udio ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
+				else if (memeq_anycase(br1 + 1, "udio ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
 			break;
 
+			case 'B':
 			case 'b':
-				if (br1[2] == 'r' && (br1[3] == ' ' || br1[3] == '>')) {
+				if ((br1[2] == 'R' || br1[2] == 'r') && (br1[3] == ' ' || br1[3] == '>')) {
 					*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK;
 					keep = 1;
 				}
 			break;
 
+			case 'E':
 			case 'e':
-				if (memeq(br1 + 2, "mbed ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				if (memeq_anycase(br1 + 2, "mbed ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
 			break;
 
+			case 'F':
 			case 'f':
-				if (memeq(br1 + 2, "rame ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				if (memeq_anycase(br1 + 2, "rame ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
 			break;
 
+			case 'H':
 			case 'h':
-				if (br1[2] == 'r' && (br1[3] == ' ' || br1[3] == '>')) {
+				if ((br1[2] == 'R' || br1[2] == 'r') && (br1[3] == ' ' || br1[3] == '>')) {
 					*br1 = AEM_CET_CHAR_HRB;
 					keep = 1;
 				}
 			break;
 
+			case 'I':
 			case 'i':
-				if (memeq(br1 + 2, "frame ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-				else if (memeq(br1 + 2, "mg ", 3)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
+				if (memeq_anycase(br1 + 2, "frame ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				else if (memeq_anycase(br1 + 2, "mg ", 3)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
 			break;
 
+			case 'O':
 			case 'o':
-				if (memeq(br1 + 2, "bject ", 6)) {keep = extractLink(br1, br2, "data=", 5, AEM_CET_CHAR_LNK);}
+				if (memeq_anycase(br1 + 2, "bject ", 6)) {keep = extractLink(br1, br2, "data=", 5, AEM_CET_CHAR_LNK);}
 			break;
 
+			case 'P':
 			case 'p':
 				if (br1[2] == '>' || br1[2] == ' ') {
 					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
@@ -243,25 +251,28 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 				}
 			break;
 
+			case 'S':
 			case 's':
-				if (memeq(br1 + 2, "ource ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-				else if (memeq(br1 + 2, "tyle", 4)) {
-					const unsigned char * const br3 = memmem(br2 + 1, (text + *lenText) - (br2 + 1), "</style>", 8);
+				if (memeq_anycase(br1 + 2, "ource ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				else if (memeq_anycase(br1 + 2, "tyle", 4)) {
+					const unsigned char * const br3 = memcasemem(br2 + 1, (text + *lenText) - (br2 + 1), "</style>", 8);
 					if (br3 != NULL) br2 = br3 + 8;
 				}
 			break;
 
+			case 'T':
 			case 't':
-				if (memeq(br1 + 2, "rack ", 4)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				if (memeq_anycase(br1 + 2, "rack ", 4)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
 				else if (
-				   memeq(br1 + 2, "able", 4)
-				|| memeq(br1 + 2, "d", 1)
-				|| memeq(br1 + 2, "r", 1)
+				   memeq_anycase(br1 + 2, "able", 4)
+				|| memeq_anycase(br1 + 2, "d", 1)
+				|| memeq_anycase(br1 + 2, "r", 1)
 				) {*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK; keep = 1;}
 			break;
 
+			case 'V':
 			case 'v':
-				if (memeq(br1 + 2, "video ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				if (memeq_anycase(br1 + 2, "ideo ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
 			break;
 		}
 
