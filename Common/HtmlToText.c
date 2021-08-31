@@ -287,10 +287,20 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 	}
 }
 
+static void text2space(char * const hay, const size_t lenHay, const char * const needle, const size_t lenNeedle) {
+	char *c;
+	while ((c = memmem(hay, lenHay, needle, lenNeedle)) != NULL) {
+		memset(c, ' ', lenNeedle);
+	}
+}
+
 void htmlToText(char * const text, size_t * const len) {
 	removeControlChars((unsigned char*)text, len);
 	lfToSpace(text, *len);
 	bracketsInQuotes(text);
+
+	text2space(text, *len, "<!--", 4);
+	text2space(text, *len, "-->", 3);
 
 	html2cet((unsigned char*)text, len);
 	decodeHtmlRefs((unsigned char*)text, len);
