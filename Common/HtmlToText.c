@@ -131,7 +131,7 @@ static int extractLink(unsigned char * const br1, const unsigned char * const br
 	if (*url == '\0') return -1;
 
 	const unsigned char * const term = isQuot? memchr(url, '"', br2 - url) : pmin(memchr(url, ' ', br2 - url), br2);
-	if (term == NULL || term >= br2) return -1;
+	if (term == NULL || term > br2) return -1;
 	size_t lenUrl = term - url;
 
 	unsigned char linkChar = linkCharBase + 1; // Secure by default
