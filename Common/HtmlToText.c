@@ -192,6 +192,8 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 				if (
 				   memeq_anycase(br1 + 2, "p>", 2)
 				|| memeq_anycase(br1 + 2, "p ", 2)
+				|| memeq_anycase(br1 + 2, "div>", 4)
+				|| memeq_anycase(br1 + 2, "div ", 4)
 				) {
 					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
 					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
@@ -210,6 +212,15 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 				if ((br1[2] == 'R' || br1[2] == 'r') && (br1[3] == ' ' || br1[3] == '>')) {
 					*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK;
 					keep = 1;
+				}
+			break;
+
+			case 'D':
+			case 'd':
+				if ((br1[2] == 'I' || br1[2] == 'i') && (br1[3] == 'V' || br1[3] == 'v') && (br1[4] == ' ' || br1[4] == '>')) {
+					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
+					keep = 2;
 				}
 			break;
 
