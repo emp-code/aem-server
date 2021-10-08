@@ -181,7 +181,8 @@ static void html2cet(unsigned char * const text, size_t * const lenText) {
 		switch (br1[1]) {
 			case '/':
 				if (
-				   memeq_anycase(br1 + 2, "table", 5)
+				   memeq_anycase(br1 + 2, "li", 2)
+				|| memeq_anycase(br1 + 2, "table", 5)
 				|| memeq_anycase(br1 + 2, "td", 2)
 				|| memeq_anycase(br1 + 2, "tr", 2)
 				) {
