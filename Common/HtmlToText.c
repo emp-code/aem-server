@@ -278,6 +278,20 @@ void html2cet(char * const src, size_t * const lenSrc) {
 						break;
 					}
 
+					if (memeq_anycase(src + i + 1, "!--", 3)) {
+						const char * const cEnd = (const char * const)memcasemem((unsigned char*)src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
+
+						if (cEnd == NULL) {
+							memcpy(src, out, lenOut);
+							free(out);
+							*lenSrc = lenOut;
+							return;
+						}
+
+						i = cEnd - src + 2;
+						break;
+					}
+
 					type = AEM_HTML_TYPE_T1;
 					break;
 				}
