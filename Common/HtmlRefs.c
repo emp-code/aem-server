@@ -18,15 +18,7 @@ static size_t utf8char(unsigned char * const text, const unsigned int codepoint)
 	if (codepoint < 32 || codepoint == 127) return 0; // Control characters
 
 	if (codepoint <= 0x007F) {
-		switch (codepoint) {
-			case '\n': text[0] = AEM_HTML_PLACEHOLDER_LINEBREAK; break;
-			case '\'': text[0] = AEM_HTML_PLACEHOLDER_SINGLEQUOTE; break;
-			case '"':  text[0] = AEM_HTML_PLACEHOLDER_DOUBLEQUOTE; break;
-			case '<':  text[0] = AEM_HTML_PLACEHOLDER_LT; break;
-			case '>':  text[0] = AEM_HTML_PLACEHOLDER_GT; break;
-			default:   text[0] = codepoint; break;
-		}
-
+		text[0] = codepoint;
 		return 1;
 	}
 

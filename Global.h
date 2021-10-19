@@ -81,23 +81,11 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_NEWER 1
 
 // Control-Enriched Text (CET) - Avoid common-use CCs (HTab/LF), 0 (NUL), and 127 (DEL)
-
 // 0x09 = HTab
 // 0x0A = LF
 #define AEM_CET_CHAR_SEP 0x0B // Separator (internal use)
-
 #define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
 #define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
-#define AEM_CET_CHAR_MLT 0x10 // mailto
-
-#define AEM_CET_CHAR_HRB 0x11 // <hr>
-
-// Conversion placeholders - avoid overlap with CET formatting
-#define AEM_HTML_PLACEHOLDER_LINEBREAK 0x1F
-#define AEM_HTML_PLACEHOLDER_SINGLEQUOTE 0x1E
-#define AEM_HTML_PLACEHOLDER_DOUBLEQUOTE 0x1D
-#define AEM_HTML_PLACEHOLDER_LT 0x1C
-#define AEM_HTML_PLACEHOLDER_GT 0x1B
 
 #define AEM_STORE_INERROR (-1)
 #define AEM_STORE_USRFULL (-2)

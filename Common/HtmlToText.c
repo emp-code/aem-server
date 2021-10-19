@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h> // for isupper/tolower
 #include <sys/types.h> // for ssize_t
@@ -9,319 +10,291 @@
 
 #include "HtmlToText.h"
 
-static void convertChar(char * const text, const size_t lenText, const char from, const char to) {
-	while(1) {
-		char * const c = memchr(text, from, lenText);
-		if (c == NULL) return;
-		*c = to;
+enum aem_html_type {
+	AEM_HTML_TYPE_TX = 0,
+	AEM_HTML_TYPE_T1 = 1,
+	AEM_HTML_TYPE_T2 = 2,
+	AEM_HTML_TYPE_EQ = 3,
+	AEM_HTML_TYPE_QN = ' ',
+	AEM_HTML_TYPE_QD = '"',
+	AEM_HTML_TYPE_QS = '\''
+};
+
+enum aem_html_tag {
+	// Special use
+	AEM_HTML_TAG_NULL,
+	AEM_HTML_TAG_L1, // insert 1 linebreak
+	AEM_HTML_TAG_L2, // insert 2 linebreaks
+	// Opening tags
+	AEM_HTML_TAG_a,
+	AEM_HTML_TAG_audio,
+	AEM_HTML_TAG_embed,
+	AEM_HTML_TAG_frame,
+	AEM_HTML_TAG_iframe,
+	AEM_HTML_TAG_img,
+	AEM_HTML_TAG_object,
+	AEM_HTML_TAG_source,
+	AEM_HTML_TAG_table,
+	AEM_HTML_TAG_track,
+	AEM_HTML_TAG_video,
+};
+
+int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
+	switch (tag) {
+		case AEM_HTML_TAG_a: return (lenName == 4 && memcmp(name, "href", 4) == 0) ? AEM_CET_CHAR_LNK : 0;
+
+		case AEM_HTML_TAG_frame:
+		case AEM_HTML_TAG_iframe: return (lenName == 3 && memcmp(name, "src", 3) == 0) ? AEM_CET_CHAR_LNK : 0;
+
+		case AEM_HTML_TAG_audio:
+		case AEM_HTML_TAG_embed:
+		case AEM_HTML_TAG_img:
+		case AEM_HTML_TAG_source:
+		case AEM_HTML_TAG_track:
+		case AEM_HTML_TAG_video: return (lenName == 3 && memcmp(name, "src", 3) == 0) ? AEM_CET_CHAR_FIL : 0;
+
+		case AEM_HTML_TAG_object: return (lenName == 4 && memcmp(name, "data", 4) == 0) ? AEM_CET_CHAR_FIL : 0;
+	}
+
+	return 0;
+}
+
+void emptyTag(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
+	if (tag == AEM_HTML_TAG_L1) {
+		out[*lenOut] = '\n';
+		(*lenOut)++;
+	} else if (tag == AEM_HTML_TAG_L2) {
+		out[*lenOut]     = '\n';
+		out[*lenOut + 1] = '\n';
+		*lenOut += 2;
 	}
 }
 
-static void lfToSpace(char * const text, const size_t len) {
-	char *c = memchr(text, '\n', len);
-
-	while (c != NULL) {
-		*c = ' ';
-
-		const size_t skip = c - text;
-		c = memchr(text + skip, '\n', len - skip);
-	}
-}
-
-static void bracketsInQuotes_single(const char * const br1, char ** const br2) {
-	const char *qt1 = strchr(br1, '\'');
-	while (qt1 != NULL && qt1 < *br2) {
-		const char * const qt2 = strchr(qt1 + 1, '\'');
-		if (qt2 == NULL) break;
-
-		while (*br2 < qt2) {
-			*br2 = strchr(qt2 + 1, '>');
-			if (*br2 == NULL) return;
-		}
-
-		while(1) {
-			char * const c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
-			if (c == NULL) break;
-			*c = AEM_HTML_PLACEHOLDER_LT;
-		}
-
-		while(1) {
-			char * const c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
-			if (c == NULL) break;
-			*c = AEM_HTML_PLACEHOLDER_GT;
-		}
-
-		// br2 is now beyond the quote character, look for next quote
-		qt1 = strchr(qt2 + 1, '\'');
-		if (qt1 == NULL || qt1 > *br2) break;
-	}
-}
-
-static void bracketsInQuotes_double(const char * const br1, char ** const br2) {
-	const char *qt1 = strchr(br1, '"');
-	while (qt1 != NULL && qt1 < *br2) {
-		const char * const qt2 = strchr(qt1 + 1, '"');
-		if (qt2 == NULL) break;
-
-		while (*br2 < qt2) {
-			*br2 = strchr(qt2 + 1, '>');
-			if (*br2 == NULL) return;
-		}
-
-		while(1) {
-			char * const c = memchr(qt1 + 1, '\'', qt2 - (qt1 + 1));
-			if (c == NULL) break;
-			*c = AEM_HTML_PLACEHOLDER_SINGLEQUOTE;
-		}
-
-		while(1) {
-			char * const c = memchr(qt1 + 1, '<', qt2 - (qt1 + 1));
-			if (c == NULL) break;
-			*c = AEM_HTML_PLACEHOLDER_LT;
-		}
-
-		while(1) {
-			char * const c = memchr(qt1 + 1, '>', qt2 - (qt1 + 1));
-			if (c == NULL) break;
-			*c = AEM_HTML_PLACEHOLDER_GT;
-		}
-
-		// br2 is now beyond the quote character, look for next quote
-		qt1 = strchr(qt2 + 1, '"');
-		if (qt1 == NULL || qt1 > *br2) break;
-	}
-}
-
-// 1. Look for double quotes
-// 2. Locate single quotes within double quotes, change them into a placeholder character
-// 3. Locate angle brackets, change them into placeholders
-// 4. Look for single quotes
-// 5. Repeat step 3
-// 6. Convert single quotes to double quotes (src='abc' -> src="abc")
-static void bracketsInQuotes(char *text) {
-	char *br1 = strchr(text, '<');
-
-	while (br1 != NULL) {
-		char *br2 = strchr(br1 + 1, '>');
-		if (br2 == NULL) break;
-
-		bracketsInQuotes_double(br1, &br2);
-		bracketsInQuotes_single(br1, &br2);
-		bracketsInQuotes_double(br1, &br2);
-
-		if (br2 == NULL) break;
-		convertChar(br1, br2 - br1, '\'', '"');
-
-		br1 = strchr(br2 + 1, '<');
-	}
-}
-
-static const unsigned char *pmin(const unsigned char * const a, const unsigned char * const b) {
-	return (a == NULL) ? b : ((b == NULL) ? a : ((a <= b) ? a : b));
-}
-
-static int extractLink(unsigned char * const br1, const unsigned char * const br2, const char * const param, const size_t lenParam, const unsigned char linkCharBase) {
-	const unsigned char *url = memcasemem(br1 + 1, br2 - (br1 + 1), param, lenParam);
-	if (url == NULL) return 0; // param not found
-	url += lenParam;
-
-	while (*url == ' ') url++;
-	const bool isQuot = (*url == '"');
-	if (isQuot) url++;
-	if (*url == '\0') return -1;
-
-	const unsigned char * const term = isQuot? memchr(url, '"', br2 - url) : pmin(memchr(url, ' ', br2 - url), br2);
-	if (term == NULL || term > br2) return -1;
-	size_t lenUrl = term - url;
-
-	unsigned char linkChar = linkCharBase + 1; // Secure by default
-	if (lenUrl >= 2 && memeq(url, "//", 2)) {
-		url += 2;
-		lenUrl -= 2;
-	} else if (lenUrl >= 8 && memeq_anycase(url, "https://", 8)) {
-		url += 8;
-		lenUrl -= 8;
-	} else if (lenUrl >= 7 && memeq_anycase(url, "http://", 7)) {
-		linkChar--;
-		url += 7;
-		lenUrl -= 7;
-	} else if (lenUrl >= 6 && memeq_anycase(url, "ftp://", 6)) {
-		url += 6;
-		lenUrl -= 6;
-	} else if (lenUrl >= 7 && memeq_anycase(url, "mailto:", 7)) {
-		url += 7;
-		lenUrl -= 7;
-		linkChar = AEM_CET_CHAR_MLT;
-	} else if ((lenUrl >= 4 && memeq_anycase(url, "cid:", 4)) || (lenUrl >= 11 && memeq_anycase(url, "javascript:", 11)) || !isalnum(*url)) return 0; // otherwise, bare link with no protocol specified, assume HTTPS
-
-	if (lenUrl < 3) return 0;
-
-	// Replace the content
-	*br1 = linkChar;
-	memmove(br1 + 1, url, lenUrl); // TODO: Lowercase domain (until slash)
-	br1[1 + lenUrl] = linkChar;
-
-	return 2 + lenUrl;
-}
-
-// Needs bracketsInQuotes() and lfToSpace()
-static void html2cet(unsigned char * const text, size_t * const lenText) {
-	text[*lenText] = '\0';
-	size_t begin = 0;
-
-	while (begin < *lenText) {
-		unsigned char *br1 = memchr(text + begin, '<', *lenText - begin);
-		if (br1 == NULL) return;
-
-		const unsigned char *br2 = memchr(br1 + 1, '>', (text + *lenText) - (br1 + 1));
-		if (br2 == NULL) return;
-		br2++;
-
-		int keep = 0;
-		switch (br1[1]) {
-			case '/':
-				if (
-				   memeq_anycase(br1 + 2, "li", 2)
-				|| memeq_anycase(br1 + 2, "table", 5)
-				|| memeq_anycase(br1 + 2, "td", 2)
-				|| memeq_anycase(br1 + 2, "tr", 2)
-				) {
-					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					keep = 1;
-				}
-
-				if (
-				   memeq_anycase(br1 + 2, "p>", 2)
-				|| memeq_anycase(br1 + 2, "p ", 2)
-				|| memeq_anycase(br1 + 2, "div>", 4)
-				|| memeq_anycase(br1 + 2, "div ", 4)
-				) {
-					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					keep = 2;
-				}
-			break;
-
-			case 'A':
-			case 'a':
-				if (br1[2] == ' ') {keep = extractLink(br1, br2, "href=", 5, AEM_CET_CHAR_LNK);}
-				else if (memeq_anycase(br1 + 1, "udio ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
-			break;
-
-			case 'B':
-			case 'b':
-				if ((br1[2] == 'R' || br1[2] == 'r') && (br1[3] == ' ' || br1[3] == '>')) {
-					*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					keep = 1;
-				}
-			break;
-
-			case 'D':
+enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagName) {
+	if (tagName[0] == '/') {
+		switch (tagName[1]) {
 			case 'd':
-				if ((br1[2] == 'I' || br1[2] == 'i') && (br1[3] == 'V' || br1[3] == 'v') && (br1[4] == ' ' || br1[4] == '>')) {
-					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					keep = 2;
-				}
+				if (lenTagName == 4 && tagName[2] == 'i' && tagName[3] == 'v') return AEM_HTML_TAG_L1;
 			break;
-
-			case 'E':
-			case 'e':
-				if (memeq_anycase(br1 + 2, "mbed ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-			break;
-
-			case 'F':
-			case 'f':
-				if (memeq_anycase(br1 + 2, "rame ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-			break;
-
-			case 'H':
 			case 'h':
-				if ((br1[2] == 'R' || br1[2] == 'r') && (br1[3] == ' ' || br1[3] == '>')) {
-					*br1 = AEM_CET_CHAR_HRB;
-					keep = 1;
-				}
+				if (lenTagName == 3 && tagName[2] >= '1' && tagName[2] <= '6') return AEM_HTML_TAG_L1;
 			break;
-
-			case 'I':
-			case 'i':
-				if (memeq_anycase(br1 + 2, "frame ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-				else if (memeq_anycase(br1 + 2, "mg ", 3)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_FIL);}
+			case 'l':
+				if (lenTagName == 3 && tagName[2] == 'i') return AEM_HTML_TAG_L1;
 			break;
-
-			case 'O':
-			case 'o':
-				if (memeq_anycase(br1 + 2, "bject ", 6)) {keep = extractLink(br1, br2, "data=", 5, AEM_CET_CHAR_LNK);}
-			break;
-
-			case 'P':
 			case 'p':
-				if (br1[2] == '>' || br1[2] == ' ') {
-					br1[0] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					br1[1] = AEM_HTML_PLACEHOLDER_LINEBREAK;
-					keep = 2;
-				}
+				if (lenTagName == 2) return AEM_HTML_TAG_L1;
 			break;
-
-			case 'S':
-			case 's':
-				if (memeq_anycase(br1 + 2, "ource ", 6)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-				else if (memeq_anycase(br1 + 2, "tyle", 4)) {
-					const unsigned char * const br3 = memcasemem(br2 + 1, (text + *lenText) - (br2 + 1), "</style>", 8);
-					if (br3 != NULL) br2 = br3 + 8;
-				}
-			break;
-
-			case 'T':
 			case 't':
-				if (memeq_anycase(br1 + 2, "rack ", 4)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
-				else if (
-				   memeq_anycase(br1 + 2, "able", 4)
-				|| memeq_anycase(br1 + 2, "d", 1)
-				|| memeq_anycase(br1 + 2, "r", 1)
-				) {*br1 = AEM_HTML_PLACEHOLDER_LINEBREAK; keep = 1;}
-			break;
-
-			case 'V':
-			case 'v':
-				if (memeq_anycase(br1 + 2, "ideo ", 5)) {keep = extractLink(br1, br2, "src=", 4, AEM_CET_CHAR_LNK);}
+				if (lenTagName == 3 && (tagName[2] == 'd' || tagName[2] == 'r')) return AEM_HTML_TAG_L1;
+				if (lenTagName == 6 && memcmp(tagName + 2, "able",  4) == 0) return AEM_HTML_TAG_L2;
 			break;
 		}
 
-		if (keep < 0) return;
-
-		br1 += keep;
-		begin = br1 - text;
-		const size_t lenRem = br2 - br1;
-
-		memmove(br1, br2, (text + *lenText) - br2);
-		*lenText -= lenRem;
+		return AEM_HTML_TAG_NULL;
 	}
+
+	switch (tagName[0]) {
+		case 'a':
+			if (lenTagName == 1) return AEM_HTML_TAG_a;
+			if (lenTagName == 5 && memcmp(tagName + 1, "udio", 4) == 0) return AEM_HTML_TAG_audio;
+		break;
+		case 'b':
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
+		break;
+		case 'd':
+			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_L1;
+		break;
+		case 'e':
+			if (lenTagName == 5 && memcmp(tagName + 1, "mbed", 4) == 0) return AEM_HTML_TAG_embed;
+		break;
+		case 'f':
+			if (lenTagName == 5 && memcmp(tagName + 1, "rame", 4) == 0) return AEM_HTML_TAG_frame;
+		break;
+		case 'h':
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
+		break;
+		case 'i':
+			if (lenTagName == 6 && memcmp(tagName + 1, "frame", 5) == 0) return AEM_HTML_TAG_iframe;
+			if (lenTagName == 3 && tagName[1] == 'm' && tagName[2] == 'g') return AEM_HTML_TAG_img;
+		break;
+		case 'l':
+			if (lenTagName == 2 && tagName[1] == 'i') return AEM_HTML_TAG_L1;
+		break;
+		case 'o':
+			if (lenTagName == 6 && memcmp(tagName + 1, "bject", 5) == 0) return AEM_HTML_TAG_object;
+		break;
+		case 'p':
+			if (lenTagName == 1) return AEM_HTML_TAG_L1;
+		break;
+		case 's':
+			if (lenTagName == 6 && memcmp(tagName + 1, "ource", 5) == 0) return AEM_HTML_TAG_source;
+		break;
+		case 't':
+			if (lenTagName == 5 && memcmp(tagName + 1, "able",  4) == 0) return AEM_HTML_TAG_L2;
+			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'r')) return AEM_HTML_TAG_L1;
+			if (lenTagName == 5 && memcmp(tagName + 1, "rack",  4) == 0) return AEM_HTML_TAG_track;
+		break;
+		case 'v':
+			if (lenTagName == 5 && memcmp(tagName + 1, "ideo",  4) == 0) return AEM_HTML_TAG_video;
+		break;
+	}
+
+	return AEM_HTML_TAG_NULL;
 }
 
-static void text2space(char * const hay, const size_t lenHay, const char * const needle, const size_t lenNeedle) {
-	char *c;
-	while ((c = memmem(hay, lenHay, needle, lenNeedle)) != NULL) {
-		memset(c, ' ', lenNeedle);
+void html2cet(char * const src, size_t * const lenSrc) {
+	char * const out = malloc(*lenSrc);
+	if (out == NULL) return;
+	size_t lenOut = 0;
+
+	enum aem_html_tag tagType = AEM_HTML_TAG_NULL;
+	size_t lenTagName = 0;
+	char tagName[8];
+
+	enum aem_html_type type = AEM_HTML_TYPE_TX;
+	int copyAttr = 0;
+
+	for (size_t i = 0; i < *lenSrc; i++) {
+		if (src[i] == '\n') src[i] = ' ';
+
+		switch (type) {
+			case AEM_HTML_TYPE_T1: { // New tag's name
+				if (src[i] == ' ') { // Tag name ends, has attributes
+					tagType = getTagByName(tagName, lenTagName);
+					lenTagName = 0;
+					type = AEM_HTML_TYPE_T2;
+				} else if (src[i] == '>') { // Tag name ends, no attributes
+					emptyTag(out, &lenOut, getTagByName(tagName, lenTagName));
+					lenTagName = 0;
+					tagType = AEM_HTML_TAG_NULL;
+					type = AEM_HTML_TYPE_TX;
+				} else if (lenTagName < 7) {
+					tagName[lenTagName] = tolower(src[i]);
+					lenTagName++;
+					break;
+				} else { // Tag name too long, ignore
+					tagName[0] = '-';
+					break;
+				}
+			break;}
+
+			case AEM_HTML_TYPE_T2: { // Inside of tag
+				if (src[i] == '>') {
+					emptyTag(out, &lenOut, tagType);
+					tagType = AEM_HTML_TAG_NULL;
+					type = AEM_HTML_TYPE_TX;
+				} else if (src[i] == '=') {
+					size_t offset = 0;
+					while (src[i - offset - 1] == ' ') offset++;
+
+					if (!isalpha(src[i - offset - 1])) break; // Invalid attribute name, e.g. @=
+
+					size_t lenAttrName = 0;
+					for (size_t j = 1;; j++) {
+						if (src[i - offset - j] == ' ') break;
+						if (src[i - offset - j] == '<') {free(out); return;} // Should not happen
+
+						lenAttrName++;
+						if (lenAttrName > 9) break; // todo
+					}
+
+					char attrName[lenAttrName];
+					for (size_t j = 0; j < lenAttrName; j++) {
+						attrName[j] = tolower(src[i - offset - lenAttrName + j]);
+					}
+
+					copyAttr = wantAttr(tagType, attrName, lenAttrName);
+					type = AEM_HTML_TYPE_EQ;
+				} // else ignored
+			break;}
+
+			case AEM_HTML_TYPE_EQ: {
+				if (src[i] == ' ') continue;
+				else if (src[i] == '\'') type = AEM_HTML_TYPE_QS;
+				else if (src[i] == '"')  type = AEM_HTML_TYPE_QD;
+				else {
+					type = AEM_HTML_TYPE_QN;
+					i--;
+				}
+
+				if (src[i + 1] == '#') {
+					copyAttr = 0;
+				} else if (copyAttr != 0) {
+					if (memeq_anycase(src + i + 1, "https://", 8)) {
+						copyAttr++;
+						i += 8;
+					} else if (memeq_anycase(src + i + 1, "http://", 7)) {
+						i += 7;
+					}
+
+					out[lenOut] = copyAttr;
+					lenOut++;
+				}
+			break;}
+
+			case AEM_HTML_TYPE_QN:
+			case AEM_HTML_TYPE_QD:
+			case AEM_HTML_TYPE_QS: {
+				if (src[i] == (char)type) {
+					if (copyAttr != 0) {
+						out[lenOut] = copyAttr;
+						lenOut++;
+
+						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
+							out[lenOut] = '\n';
+							lenOut++;
+						}
+					}
+
+					type = AEM_HTML_TYPE_T2;
+					continue;
+				}
+
+				if (copyAttr != 0) {
+					out[lenOut] = src[i];
+					lenOut++;
+				}
+			break;}
+
+			case AEM_HTML_TYPE_TX: {
+				if (src[i] == '<') {
+					if (memeq_anycase(src + i + 1, "style", 5)) {
+						const char * const styleEnd = (char*)memcasemem((unsigned char*)src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
+
+						if (styleEnd == NULL) {
+							memcpy(src, out, lenOut);
+							free(out);
+							*lenSrc = lenOut;
+							return;
+						}
+
+						i = styleEnd - src - 1;
+						break;
+					}
+
+					type = AEM_HTML_TYPE_T1;
+					break;
+				}
+
+				out[lenOut] = src[i];
+				lenOut++;
+			break;}
+
+			default:
+				free(out);
+				return;
+		}
 	}
+
+	memcpy(src, out, lenOut);
+	free(out);
+	*lenSrc = lenOut;
 }
 
 void htmlToText(char * const text, size_t * const len) {
 	removeControlChars((unsigned char*)text, len);
-	lfToSpace(text, *len);
-	bracketsInQuotes(text);
-
-	text2space(text, *len, "<!--", 4);
-	text2space(text, *len, "-->", 3);
-
-	html2cet((unsigned char*)text, len);
+	html2cet(text, len);
 	decodeHtmlRefs((unsigned char*)text, len);
-
-	convertChar(text, *len, AEM_HTML_PLACEHOLDER_LINEBREAK, '\n');
-	convertChar(text, *len, AEM_HTML_PLACEHOLDER_SINGLEQUOTE, '\'');
-	convertChar(text, *len, AEM_HTML_PLACEHOLDER_DOUBLEQUOTE, '"');
-	convertChar(text, *len, AEM_HTML_PLACEHOLDER_GT, '>');
-	convertChar(text, *len, AEM_HTML_PLACEHOLDER_LT, '<');
-
 	cleanText((unsigned char*)text, len, false);
 }
