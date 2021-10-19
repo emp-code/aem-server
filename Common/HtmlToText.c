@@ -217,8 +217,7 @@ void html2cet(char * const src, size_t * const lenSrc) {
 					type = AEM_HTML_TYPE_QN;
 					i--;
 				}
-
-				if (src[i + 1] == '#') {
+				if (src[i + 1] == '#' || src[i + 1] == '>' || src[i + 1] == (char)type) {
 					copyAttr = 0;
 				} else if (copyAttr != 0) {
 					if (memeq_anycase(src + i + 1, "https://", 8)) {
