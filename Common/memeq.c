@@ -4,7 +4,7 @@
 
 bool memeq(const void * const a, const void * const b, const size_t len) {
 	for (size_t i = 0; i < len; i++) {
-		if (((unsigned char*)a)[i] != ((unsigned char*)b)[i]) return false;
+		if (((const unsigned char * const)a)[i] != ((const unsigned char * const)b)[i]) return false;
 	}
 
 	return true;
@@ -12,7 +12,7 @@ bool memeq(const void * const a, const void * const b, const size_t len) {
 
 bool memeq_anycase(const void * const a, const void * const b, const size_t len) {
 	for (size_t i = 0; i < len; i++) {
-		if (tolower(((unsigned char*)a)[i]) != tolower(((unsigned char*)b)[i])) return false;
+		if (tolower(((const unsigned char * const)a)[i]) != tolower(((const unsigned char * const)b)[i])) return false;
 	}
 
 	return true;
@@ -25,7 +25,7 @@ const unsigned char *memcasemem(const unsigned char * const hay, const size_t le
 		for (size_t j = 0; j < lenNeedle; j++) {
 			if (i + j >= lenHay) return NULL;
 
-			if (tolower(hay[i + j]) != tolower(((unsigned char*)needle)[j])) {
+			if (tolower(hay[i + j]) != tolower(((const unsigned char * const)needle)[j])) {
 				found = false;
 				break;
 			}

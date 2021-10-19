@@ -265,7 +265,7 @@ void html2cet(char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_TX: {
 				if (src[i] == '<') {
 					if (memeq_anycase(src + i + 1, "style", 5)) {
-						const char * const styleEnd = (char*)memcasemem((unsigned char*)src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
+						const char * const styleEnd = (const char * const)memcasemem((unsigned char*)src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
 
 						if (styleEnd == NULL) {
 							memcpy(src, out, lenOut);
