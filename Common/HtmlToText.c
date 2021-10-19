@@ -220,9 +220,13 @@ void html2cet(char * const src, size_t * const lenSrc) {
 				if (src[i + 1] == '#' || src[i + 1] == '>' || src[i + 1] == (char)type || memeq_anycase(src + i + 1, "javascript:", 11)) {
 					copyAttr = 0;
 				} else if (memeq_anycase(src + i + 1, "mailto:", 7)) {
-					copyAttr = ' ';
 					i += 7;
-
+					copyAttr = ' ';
+					out[lenOut] = ' ';
+					lenOut++;
+				} else if (memeq_anycase(src + i + 1, "tel:", 4)) {
+					i += 4;
+					copyAttr = ' ';
 					out[lenOut] = ' ';
 					lenOut++;
 				} else if (copyAttr != 0) {
