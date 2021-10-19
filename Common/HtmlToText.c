@@ -219,6 +219,12 @@ void html2cet(char * const src, size_t * const lenSrc) {
 				}
 				if (src[i + 1] == '#' || src[i + 1] == '>' || src[i + 1] == (char)type || memeq_anycase(src + i + 1, "javascript:", 11)) {
 					copyAttr = 0;
+				} else if (memeq_anycase(src + i + 1, "mailto:", 7)) {
+					copyAttr = ' ';
+					i += 7;
+
+					out[lenOut] = ' ';
+					lenOut++;
 				} else if (copyAttr != 0) {
 					if (memeq_anycase(src + i + 1, "https://", 8)) {
 						copyAttr++;
