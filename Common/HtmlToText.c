@@ -211,35 +211,21 @@ void html2cet(char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_EQ: {
 				if (src[i] == ' ') continue;
-				else if (src[i] == '\'') type = AEM_HTML_TYPE_QS;
-				else if (src[i] == '"')  type = AEM_HTML_TYPE_QD;
-				else {
-					type = AEM_HTML_TYPE_QN;
-					i--;
-				}
-				if (src[i + 1] == '#' || src[i + 1] == '>' || src[i + 1] == (char)type || memeq_anycase(src + i + 1, "javascript:", 11)) {
-					copyAttr = 0;
-				} else if (memeq_anycase(src + i + 1, "mailto:", 7)) {
-					i += 7;
-					copyAttr = ' ';
-					out[lenOut] = ' ';
-					lenOut++;
-				} else if (memeq_anycase(src + i + 1, "tel:", 4)) {
-					i += 4;
-					copyAttr = ' ';
-					out[lenOut] = ' ';
-					lenOut++;
-				} else if (copyAttr != 0) {
-					if (memeq_anycase(src + i + 1, "https://", 8)) {
-						copyAttr++;
-						i += 8;
-					} else if (memeq_anycase(src + i + 1, "http://", 7)) {
-						i += 7;
-					}
 
-					out[lenOut] = copyAttr;
-					lenOut++;
-				}
+				if     (src[i] == '\'') type = AEM_HTML_TYPE_QS;
+				else if (src[i] == '"') type = AEM_HTML_TYPE_QD;
+				else {type = AEM_HTML_TYPE_QN; i--;}
+
+				if (copyAttr == 0) break;
+
+				if      (memeq_anycase(src + i + 1, "mailto:",  7)) {i += 7; copyAttr = ' ';}
+				else if (memeq_anycase(src + i + 1, "tel:",     4)) {i += 4; copyAttr = ' ';}
+				else if (memeq_anycase(src + i + 1, "http://",  7)) {i += 7;}
+				else if (memeq_anycase(src + i + 1, "https://", 8)) {i += 8; copyAttr++;}
+				else {copyAttr = 0; break;} // All others ignored/deleted
+
+				out[lenOut] = copyAttr;
+				lenOut++;
 			break;}
 
 			case AEM_HTML_TYPE_QN:
