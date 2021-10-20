@@ -34,7 +34,6 @@ enum aem_html_tag {
 	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_object,
 	AEM_HTML_TAG_source,
-	AEM_HTML_TAG_table,
 	AEM_HTML_TAG_track,
 	AEM_HTML_TAG_video,
 };
