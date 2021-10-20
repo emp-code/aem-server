@@ -451,6 +451,11 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				lenFn = 3;
 			} else if (lenFn > 256) lenFn = 256;
 
+			char fn2[lenFn];
+			memcpy(fn2, fn, lenFn);
+			decodeEncodedWord((unsigned char*)fn2, &lenFn);
+			fn = fn2;
+
 			if (17 + lenFn + lenNew <= AEM_API_BOX_SIZE_MAX) {
 				email->attachment[email->attachCount] = malloc(17 + lenFn + lenNew);
 
