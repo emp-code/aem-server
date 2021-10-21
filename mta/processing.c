@@ -446,15 +446,15 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				*outLen += lenNew + 1;
 			}
 		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
+			char fn2[lenFn];
+
 			if (fn == NULL || lenFn < 1) {
 				fn = (char[]){'A','E','M'}; // TODO, name based on message/sender/etc
 				lenFn = 3;
 			} else {
-				char fn2[lenFn];
 				memcpy(fn2, fn, lenFn);
 				decodeEncodedWord((unsigned char*)fn2, &lenFn);
 				fn = fn2;
-
 				if (lenFn > 256) lenFn = 256;
 			}
 
