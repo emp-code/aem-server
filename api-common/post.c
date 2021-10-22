@@ -759,7 +759,7 @@ static void message_create_int(void) {
 	const bool fromShield  = (infoByte &  8) > 0;
 	const bool toShield    = (infoByte &  4) > 0;
 
-	if (lenDecrypted < (isEncrypted? 106 : 96)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TOOSHORT); // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (pubkey/ts): 96/106
+	if (lenDecrypted < (isEncrypted? 106 : 128)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TOOSHORT); // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (pubkey/ts): 96/106; +32 for non-E2EE DR
 
 	unsigned char ts_sender[4];
 	if (isEncrypted) {
