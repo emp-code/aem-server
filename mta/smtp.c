@@ -421,7 +421,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	mbedtls_ssl_context *tls = NULL;
 
 	if (bytes >= 8 && strncasecmp((char*)buf, "STARTTLS", 8) == 0) {
-		bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0); // Remove the MSG_PEEK'd message from the queue
+		recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0); // Remove the MSG_PEEK'd message from the queue
 		if (!send_aem(sock, NULL, "220 Ok\r\n", 8)) return smtp_fail(110);
 
 		tls = &ssl;
