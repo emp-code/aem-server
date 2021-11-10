@@ -217,13 +217,12 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 }
 
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
-	const uint16_t count = stindex[stindexNum].msgCount;
-
 	uint32_t blocks = 0;
 	for (int i = 0; i < stindex[stindexNum].msgCount; i++) {
 		blocks += stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS;
 	}
 
+	const uint16_t count = stindex[stindexNum].msgCount;
 	memcpy(target, &count, 2);
 	memcpy(target + 2, &blocks, 4);
 }
