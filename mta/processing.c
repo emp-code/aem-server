@@ -124,8 +124,8 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				lenDec = lenEw;
 
 				// RFC 2047 4.2: underscore always represents hexadecimal 20
-				for (size_t i = 0; i < lenDec; i++) {
-					if (dec[i] == '_') dec[i] = ' ';
+				for (size_t j = 0; j < lenDec; j++) {
+					if (dec[j] == '_') dec[j] = ' ';
 				}
 
 				decodeQuotedPrintable(dec, &lenDec);
