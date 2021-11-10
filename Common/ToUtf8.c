@@ -5,14 +5,18 @@
 
 #include <unicode/ucnv.h>
 
+#include "../Common/memeq.h"
+
 #include "ToUtf8.h"
 
 bool isUtf8(const char * const charset) {
 	return (charset != NULL && (
-	(strncasecmp(charset, "utf", 3) == 0 && charset[4] == '8')
-	|| strcasecmp(charset, "utf8") == 0
-	|| strcasecmp(charset, "ascii") == 0
-	|| strcasecmp(charset, "us-ascii") == 0
+	   memeq_anycase(charset, "utf8", 4)
+	|| memeq_anycase(charset, "utf-8", 5)
+	|| memeq_anycase(charset, "utf_8", 5)
+	|| memeq_anycase(charset, "ascii", 5)
+	|| memeq_anycase(charset, "us-ascii", 8)
+	|| memeq_anycase(charset, "us_ascii", 8)
 	));
 }
 

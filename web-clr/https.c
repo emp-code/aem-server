@@ -46,10 +46,10 @@ static void handleRequest(const size_t lenReq) {
 	) return;
 
 	const char * const fetchMode = strcasestr(req, "\r\nSec-Fetch-Mode: ");
-	if (fetchMode != NULL && strncasecmp(fetchMode + 18, "navigate\r\n", 10) != 0) return;
+	if (fetchMode != NULL && !memeq_anycase(fetchMode + 18, "Navigate\r\n", 10)) return;
 
 	const char * const fetchDest = strcasestr(req, "\r\nSec-Fetch-Dest: ");
-	if (fetchDest != NULL && strncasecmp(fetchDest + 18, "document\r\n", 10) != 0) return;
+	if (fetchDest != NULL && !memeq_anycase(fetchDest + 18, "Document\r\n", 10)) return;
 
 	sendData(&ssl, AEM_HTML_CLR_DATA, AEM_HTML_CLR_SIZE);
 }

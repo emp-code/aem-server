@@ -32,7 +32,7 @@ static char getValuePair_dns(const char * const src, size_t * const offset, char
 }
 
 static char getValuePair_header(const char * const src, size_t * const offset, char * const result, size_t * const lenResult) {
-	if (strncasecmp(src, "bh=", 3) == 0) {
+	if (memeq_anycase(src, "bh=", 3)) {
 		const char * const end = strchr(src + 3, ';');
 		if (end == NULL) return 0; // TODO
 		*offset = end - src;
@@ -160,12 +160,12 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 		while (isspace(*h)) h++;
 		const size_t lenH = strlen(h);
 
-		if      (strcasecmp(h, "Date")       == 0) email->dkim[email->dkimCount].sgnDate    = true;
-		else if (strcasecmp(h, "From")       == 0) email->dkim[email->dkimCount].sgnFrom    = true;
-		else if (strcasecmp(h, "Message-ID") == 0) email->dkim[email->dkimCount].sgnMsgId   = true;
-		else if (strcasecmp(h, "Reply-To")   == 0) email->dkim[email->dkimCount].sgnReplyTo = true;
-		else if (strcasecmp(h, "Subject")    == 0) email->dkim[email->dkimCount].sgnSubject = true;
-		else if (strcasecmp(h, "To")         == 0) email->dkim[email->dkimCount].sgnTo      = true;
+		if      (memeq_anycase(h, "Date", 4))        email->dkim[email->dkimCount].sgnDate    = true;
+		else if (memeq_anycase(h, "From", 4))        email->dkim[email->dkimCount].sgnFrom    = true;
+		else if (memeq_anycase(h, "Message-ID", 10)) email->dkim[email->dkimCount].sgnMsgId   = true;
+		else if (memeq_anycase(h, "Reply-To", 8))    email->dkim[email->dkimCount].sgnReplyTo = true;
+		else if (memeq_anycase(h, "Subject", 7))     email->dkim[email->dkimCount].sgnSubject = true;
+		else if (memeq_anycase(h, "To", 2))          email->dkim[email->dkimCount].sgnTo      = true;
 
 		const unsigned char *s = (unsigned char*)strcasestr(headers, h);
 
@@ -258,7 +258,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	const size_t lenHead = headEnd - src;
 
 	const unsigned char *dkimHeader = src;
-	if (strncasecmp((char*)dkimHeader, "DKIM-Signature:", 15) != 0) return 0;
+	if (!memeq_anycase(dkimHeader, "DKIM-Signature:", 15)) return 0;
 	size_t offset = 15;
 
 	while (isspace(dkimHeader[offset])) offset++;

@@ -3,21 +3,23 @@
 #include <strings.h>
 #include <time.h>
 
+#include "../Common/memeq.h"
+
 #include "date.h"
 
 static int monthFromName(const char * const c) {
-	if (strncasecmp(c, "Jan", 3) == 0) return 0;
-	if (strncasecmp(c, "Feb", 3) == 0) return 1;
-	if (strncasecmp(c, "Mar", 3) == 0) return 2;
-	if (strncasecmp(c, "Apr", 3) == 0) return 3;
-	if (strncasecmp(c, "May", 3) == 0) return 4;
-	if (strncasecmp(c, "Jun", 3) == 0) return 5;
-	if (strncasecmp(c, "Jul", 3) == 0) return 6;
-	if (strncasecmp(c, "Aug", 3) == 0) return 7;
-	if (strncasecmp(c, "Sep", 3) == 0) return 8;
-	if (strncasecmp(c, "Oct", 3) == 0) return 9;
-	if (strncasecmp(c, "Nov", 3) == 0) return 10;
-	if (strncasecmp(c, "Dec", 3) == 0) return 11;
+	if (memeq_anycase(c, "Jan", 3)) return 0;
+	if (memeq_anycase(c, "Feb", 3)) return 1;
+	if (memeq_anycase(c, "Mar", 3)) return 2;
+	if (memeq_anycase(c, "Apr", 3)) return 3;
+	if (memeq_anycase(c, "May", 3)) return 4;
+	if (memeq_anycase(c, "Jun", 3)) return 5;
+	if (memeq_anycase(c, "Jul", 3)) return 6;
+	if (memeq_anycase(c, "Aug", 3)) return 7;
+	if (memeq_anycase(c, "Sep", 3)) return 8;
+	if (memeq_anycase(c, "Oct", 3)) return 9;
+	if (memeq_anycase(c, "Nov", 3)) return 10;
+	if (memeq_anycase(c, "Dec", 3)) return 11;
 	return -1;
 }
 
@@ -27,13 +29,13 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (b == NULL || b[0] == '\0') return 0;
 
 	size_t offset = (
-	   strncasecmp(b, "Mon,", 4) == 0
-	|| strncasecmp(b, "Tue,", 4) == 0
-	|| strncasecmp(b, "Wed,", 4) == 0
-	|| strncasecmp(b, "Thu,", 4) == 0
-	|| strncasecmp(b, "Fri,", 4) == 0
-	|| strncasecmp(b, "Sat,", 4) == 0
-	|| strncasecmp(b, "Sun,", 4) == 0
+	   memeq_anycase(b, "Mon,", 4)
+	|| memeq_anycase(b, "Tue,", 4)
+	|| memeq_anycase(b, "Wed,", 4)
+	|| memeq_anycase(b, "Thu,", 4)
+	|| memeq_anycase(b, "Fri,", 4)
+	|| memeq_anycase(b, "Sat,", 4)
+	|| memeq_anycase(b, "Sun,", 4)
 	) ? 4 : 0;
 
 	while (b[offset] == ' ') offset++;

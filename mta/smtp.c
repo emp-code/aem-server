@@ -295,7 +295,7 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	int toChars = 0;
 	for (int i = 0; i < lenAddr; i++) {
 		if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || strncasecmp((char*)buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
+			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || !memeq_anycase(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
 			break;
 		}
 
@@ -327,9 +327,9 @@ __attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const unsigned char * const buf, const ssize_t bytes) {
 	if (buf == NULL || bytes < 4) return false;
 
-	if (strncasecmp((char*)buf, "HELO", 4) == 0) {
+	if (memeq_anycase(buf, "HELO", 4)) {
 		return send_aem(sock, NULL, "250 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
-	} else if (strncasecmp((char*)buf, "EHLO", 4) == 0) {
+	} else if (memeq_anycase(buf, "EHLO", 4)) {
 		return send_aem(sock, NULL, "250-"AEM_DOMAIN""AEM_EHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_EHLO_RESPONSE_LEN);
 	}
 
@@ -421,7 +421,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	mbedtls_ssl_context *tls = NULL;
 
-	if (bytes >= 8 && strncasecmp((char*)buf, "STARTTLS", 8) == 0) {
+	if (bytes >= 8 && memeq_anycase(buf, "STARTTLS", 8)) {
 		recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0); // Remove the MSG_PEEK'd message from the queue
 		if (!send_aem(sock, NULL, "220 Ok\r\n", 8)) return smtp_fail(110);
 
@@ -443,12 +443,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			tlsClose(tls);
 			return;
-		} else if (bytes >= 4 && strncasecmp((char*)buf, "QUIT", 4) == 0) {
+		} else if (bytes >= 4 && memeq_anycase(buf, "QUIT", 4)) {
 			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			send_aem(sock, tls, "221 Bye\r\n", 9);
 			tlsClose(tls);
 			return;
-		} else if (bytes < 4 || (strncasecmp((char*)buf, "EHLO", 4) != 0 && strncasecmp((char*)buf, "HELO", 4) != 0)) {
+		} else if (bytes < 4 || (!memeq_anycase(buf, "EHLO", 4) && !memeq_anycase(buf, "HELO", 4))) {
 			syslog(LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
 			send_aem(sock, tls, "421 5.5.1 EHLO/HELO required after STARTTLS\r\n", 45);
 			tlsClose(tls);
@@ -489,10 +489,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			send_aem(sock, tls, "421 4.7.0 Too many requests\r\n", 29);
 			smtp_fail(200);
 			break;
-		} else if (bytes > 10 && strncasecmp((char*)buf, "MAIL FROM:", 10) == 0) {
+		} else if (bytes > 10 && memeq_anycase(buf, "MAIL FROM:", 10)) {
 			if (smtp_addr_sender(buf + 10, bytes - 10) != 0) {smtp_fail(100); break;}
 			if (!send_aem(sock, tls, "250 2.1.0 Sender address ok\r\n", 29)) {smtp_fail(101); break;}
-		} else if (bytes > 8 && strncasecmp((char*)buf, "RCPT TO:", 8) == 0) {
+		} else if (bytes > 8 && memeq_anycase(buf, "RCPT TO:", 8)) {
 			if (email.lenEnvFr < 1) {
 				email.protocolViolation = true;
 				if (!send_aem(sock, tls, "503 5.5.1 Need sender address first\r\n", 37)) {smtp_fail(102); break;}
@@ -532,7 +532,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}
-		} else if (strncasecmp((char*)buf, "RSET", 4) == 0) {
+		} else if (memeq_anycase(buf, "RSET", 4)) {
 			if (!deliveryOk && toCount > 0) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
 			email.rareCommands = true;
 			email.lenEnvFr = 0;
@@ -543,13 +543,13 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			toCount = 0;
 
 			if (!send_aem(sock, tls, "250 Reset\r\n", 11)) {smtp_fail(150); break;}
-		} else if (strncasecmp((char*)buf, "VRFY", 4) == 0) {
+		} else if (memeq_anycase(buf, "VRFY", 4)) {
 			email.rareCommands = true;
 			if (!send_aem(sock, tls, "252 Not verified\r\n", 18)) {smtp_fail(105); break;}
-		} else if (strncasecmp((char*)buf, "QUIT", 4) == 0) {
+		} else if (memeq_anycase(buf, "QUIT", 4)) {
 			send_aem(sock, tls, "221 Bye\r\n", 9);
 			break;
-		} else if (strncasecmp((char*)buf, "DATA", 4) == 0) {
+		} else if (memeq_anycase(buf, "DATA", 4)) {
 			if (email.lenEnvFr < 1 || toCount < 1) {
 				email.protocolViolation = true;
 
@@ -627,7 +627,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				default:                retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(108); break;}
-		} else if (strncasecmp((char*)buf, "NOOP", 4) == 0) {
+		} else if (memeq_anycase(buf, "NOOP", 4)) {
 			email.rareCommands = true;
 			if (!send_aem(sock, tls, "250 Ok\r\n", 8)) {smtp_fail(150); break;}
 		} else { // Unsupported commands
