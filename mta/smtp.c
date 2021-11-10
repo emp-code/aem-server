@@ -14,6 +14,7 @@
 #include "../Common/Addr32.h"
 #include "../Common/Trim.h"
 #include "../Common/UnixSocketClient.h"
+#include "../Common/memeq.h"
 
 #include "delivery.h"
 #include "dkim.h"
@@ -107,17 +108,17 @@ static void getCertName(const mbedtls_x509_crt * const cert) {
 
 		if (name == NULL || lenName < 4) continue; // a.bc
 
-		if (memcmp(name, "*.", 2) == 0) { // Wildcard: remove the asterisk and see if the ends match
+		if (memeq(name, "*.", 2)) { // Wildcard: remove the asterisk and see if the ends match
 			lenName--;
 			name++;
 
-			if (lenName < lenHdrFr       && memcmp(hdrFr       + lenHdrFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
-			if (lenName < lenEnvFr       && memcmp(envFr       + lenEnvFr       - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			if (lenName < email.lenGreet && memcmp(email.greet + email.lenGreet - lenName, name, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
+			if (lenName < lenHdrFr       && memeq(hdrFr       + lenHdrFr       - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
+			if (lenName < lenEnvFr       && memeq(envFr       + lenEnvFr       - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
+			if (lenName < email.lenGreet && memeq(email.greet + email.lenGreet - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
 		} else {
-			if      (lenName == lenHdrFr       && memcmp(name, hdrFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
-			else if (lenName == lenEnvFr       && memcmp(name, envFr,       lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			else if (lenName == email.lenGreet && memcmp(name, email.greet, lenName) == 0) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
+			if      (lenName == lenHdrFr       && memeq(name, hdrFr,       lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
+			else if (lenName == lenEnvFr       && memeq(name, envFr,       lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
+			else if (lenName == email.lenGreet && memeq(name, email.greet, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
 		}
 	}
 }
@@ -310,9 +311,9 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	}
 
 	if (addrChars < 1 || addrChars > 16
-	|| (addrChars == 6 && memcmp(addr, "system", 6) == 0)
-	|| (addrChars == 6 && memcmp(addr, "public", 6) == 0)
-	|| (addrChars == 16 && memcmp(addr + 3, "administrator", 13) == 0)
+	|| (addrChars == 6 && memeq(addr, "system", 6))
+	|| (addrChars == 6 && memeq(addr, "public", 6))
+	|| (addrChars == 16 && memeq(addr + 3, "administrator", 13))
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	to[toChars] = '\0';

@@ -14,6 +14,7 @@
 
 #include "../Common/Addr32.h"
 #include "../Common/UnixSocketClient.h"
+#include "../Common/memeq.h"
 
 #include "delivery.h"
 
@@ -221,7 +222,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	unsigned char zero[crypto_box_PUBLICKEYBYTES];
 	bzero(zero, crypto_box_PUBLICKEYBYTES);
 
-	unsigned char * const encrypted = msg_encrypt((memcmp(zero, upk, crypto_box_PUBLICKEYBYTES) == 0) ? throwaway : upk, content, lenContent, lenOut);
+	unsigned char * const encrypted = msg_encrypt((memeq(zero, upk, crypto_box_PUBLICKEYBYTES)) ? throwaway : upk, content, lenContent, lenOut);
 	free(content);
 	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
 

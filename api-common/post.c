@@ -18,6 +18,7 @@
 #include "../Common/UnixSocketClient.h"
 #include "../Common/ValidEmail.h"
 #include "../Common/ValidUtf8.h"
+#include "../Common/memeq.h"
 #include "../Data/welcome.h"
 
 #include "Error.h"
@@ -320,7 +321,7 @@ static void account_update(void) {
 }
 
 static void address_create(void) {
-	if (lenDecrypted != 8 && (lenDecrypted != 6 || memcmp(decrypted, "SHIELD", 6) != 0)) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (lenDecrypted != 8 && (lenDecrypted != 6 || !memeq(decrypted, "SHIELD", 6))) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	const int sock = accountSocket(AEM_API_ADDRESS_CREATE, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
@@ -803,8 +804,8 @@ static void message_create_int(void) {
 
 	close(sock);
 
-	if (memcmp(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);
-	if (memcmp(toPubKey, upk, crypto_box_PUBLICKEYBYTES) == 0) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF); // Forbid messaging oneself (pointless; not designed for it)
+	if (memeq(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);
+	if (memeq(toPubKey, upk, crypto_box_PUBLICKEYBYTES)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF); // Forbid messaging oneself (pointless; not designed for it)
 
 	// Create message
 	const size_t lenContent = 6 + lenData;
@@ -937,7 +938,7 @@ static void message_public(void) {
 			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 
-		if (memcmp(toPubKey, upk, crypto_box_PUBLICKEYBYTES) == 0) memcpy(msgId, enc, 16);
+		if (memeq(toPubKey, upk, crypto_box_PUBLICKEYBYTES)) memcpy(msgId, enc, 16);
 
 		// Store message
 		const uint16_t u = (lenEnc / 16) - AEM_MSG_MINBLOCKS;
@@ -1008,7 +1009,7 @@ static void message_sender(void) {
 	for (int i = 0; i < (lenUpkList / crypto_box_PUBLICKEYBYTES); i++) {
 		genMsgId(tmp, ts, upkList + (i * crypto_box_PUBLICKEYBYTES), false);
 
-		if (memcmp(tmp, decrypted, 48) == 0) {
+		if (memeq(tmp, decrypted, 48)) {
 			result = i;
 			break;
 		}

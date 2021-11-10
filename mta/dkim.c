@@ -13,6 +13,7 @@
 #include <sodium.h>
 
 #include "../Common/UnixSocketClient.h"
+#include "../Common/memeq.h"
 
 #include "dkim.h"
 
@@ -89,7 +90,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 
 		switch (key) {
 			case 'v': { // Version: DKIM1
-				if (lenVal != 5 || memcmp(val, "DKIM1", 5) != 0) return -1;
+				if (lenVal != 5 || !memeq(val, "DKIM1", 5)) return -1;
 			break;}
 
 			case 'p': { // Public key
@@ -182,7 +183,7 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 		while(1) {
 			if (end[0] == '\0' || end[1] == '\0') break;
 
-			if (memcmp(end, "\r\n", 2) != 0 || end[2] == ' ' || end[2] == '\t') {
+			if (!memeq(end, "\r\n", 2) || end[2] == ' ' || end[2] == '\t') {
 				end++;
 				continue;
 			}
@@ -394,10 +395,10 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	if (delSig) return offset;
 
 	if (lenUserId > 0 && (
-	   (lenUserId == email->lenEnvFr && memcmp(email->envFr, userId, lenUserId) == 0)
-	|| (lenUserId == email->lenHdrFr && memcmp(email->hdrFr, userId, lenUserId) == 0)
-	|| (lenUserId == email->lenHdrRt && memcmp(email->hdrRt, userId, lenUserId) == 0)
-	) && (memcmp(userId + lenUserId - email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain, email->dkim[email->dkimCount].lenDomain) == 0))
+	   (lenUserId == email->lenEnvFr && memeq(email->envFr, userId, lenUserId))
+	|| (lenUserId == email->lenHdrFr && memeq(email->hdrFr, userId, lenUserId))
+	|| (lenUserId == email->lenHdrRt && memeq(email->hdrRt, userId, lenUserId))
+	) && (memeq(userId + lenUserId - email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain, email->dkim[email->dkimCount].lenDomain)))
 		email->dkim[email->dkimCount].fullId = true;
 
 	size_t lenPkBin;
@@ -419,7 +420,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 	// Verify bodyhash
 	// Remove extra linebreaks at end
-	while (lenBody > 4 && memcmp(headEnd + lenBody - 4, "\r\n\r\n", 4) == 0) lenBody -= 2;
+	while (lenBody > 4 && memeq(headEnd + lenBody - 4, "\r\n\r\n", 4)) lenBody -= 2;
 	if (lenTrunc > lenBody) lenTrunc = 0;
 
 	unsigned char calc_bodyhash[crypto_hash_sha256_BYTES];
@@ -428,7 +429,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		return offset;
 	}
 
-	if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
+	if (!memeq(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES)) {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
 		size_t lenRelaxed = 0;
@@ -456,7 +457,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			return offset;
 		}
 
-		if (memcmp(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES) != 0) {
+		if (!memeq(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES)) {
 			email->dkimFailed = true;
 			return offset;
 		}

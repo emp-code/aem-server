@@ -10,6 +10,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/memeq.h"
 #include "Error.h"
 #include "MessageId.h"
 
@@ -214,7 +215,7 @@ static void smtp_quit(const int sock, const bool useTls) {
 	if (smtp_send(sock, useTls, "QUIT\r\n", 6) == 6) {
 		char buf[1024];
 		smtp_recv(sock, useTls, buf);
-		// if (len < 4 || memcmp(buf, "221 ", 4) != 0) // 221 should be received here
+		// if (len < 4 || !memeq(buf, "221 ", 4)) // 221 should be received here
 	}
 
 	if (useTls) {
@@ -237,7 +238,7 @@ static bool smtpCommand(const int sock, const bool useTls, char * const buf, siz
 	}
 
 	const int len = smtp_recv(sock, useTls, buf);
-	if (len < 6 || memcmp(buf, expectedResponse, strlen(expectedResponse)) != 0 || memcmp(buf + len - 2, "\r\n", 2) != 0) {
+	if (len < 6 || !memeq(buf, expectedResponse, strlen(expectedResponse)) || !memeq(buf + len - 2, "\r\n", 2)) {
 		smtp_quit(sock, useTls);
 		return false;
 	}

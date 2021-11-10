@@ -40,19 +40,19 @@ enum aem_html_tag {
 
 int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
 	switch (tag) {
-		case AEM_HTML_TAG_a: return (lenName == 4 && memcmp(name, "href", 4) == 0) ? AEM_CET_CHAR_LNK : 0;
+		case AEM_HTML_TAG_a: return (lenName == 4 && memeq(name, "href", 4)) ? AEM_CET_CHAR_LNK : 0;
 
 		case AEM_HTML_TAG_frame:
-		case AEM_HTML_TAG_iframe: return (lenName == 3 && memcmp(name, "src", 3) == 0) ? AEM_CET_CHAR_LNK : 0;
+		case AEM_HTML_TAG_iframe: return (lenName == 3 && memeq(name, "src", 3)) ? AEM_CET_CHAR_LNK : 0;
 
 		case AEM_HTML_TAG_audio:
 		case AEM_HTML_TAG_embed:
 		case AEM_HTML_TAG_img:
 		case AEM_HTML_TAG_source:
 		case AEM_HTML_TAG_track:
-		case AEM_HTML_TAG_video: return (lenName == 3 && memcmp(name, "src", 3) == 0) ? AEM_CET_CHAR_FIL : 0;
+		case AEM_HTML_TAG_video: return (lenName == 3 && memeq(name, "src", 3)) ? AEM_CET_CHAR_FIL : 0;
 
-		case AEM_HTML_TAG_object: return (lenName == 4 && memcmp(name, "data", 4) == 0) ? AEM_CET_CHAR_FIL : 0;
+		case AEM_HTML_TAG_object: return (lenName == 4 && memeq(name, "data", 4)) ? AEM_CET_CHAR_FIL : 0;
 	}
 
 	return 0;
@@ -86,7 +86,7 @@ enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagNa
 			break;
 			case 't':
 				if (lenTagName == 3 && (tagName[2] == 'd' || tagName[2] == 'r')) return AEM_HTML_TAG_L1;
-				if (lenTagName == 6 && memcmp(tagName + 2, "able",  4) == 0) return AEM_HTML_TAG_L2;
+				if (lenTagName == 6 && memeq(tagName + 2, "able", 4)) return AEM_HTML_TAG_L2;
 			break;
 		}
 
@@ -96,7 +96,7 @@ enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagNa
 	switch (tagName[0]) {
 		case 'a':
 			if (lenTagName == 1) return AEM_HTML_TAG_a;
-			if (lenTagName == 5 && memcmp(tagName + 1, "udio", 4) == 0) return AEM_HTML_TAG_audio;
+			if (lenTagName == 5 && memeq(tagName + 1, "udio", 4)) return AEM_HTML_TAG_audio;
 		break;
 		case 'b':
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
@@ -105,37 +105,37 @@ enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagNa
 			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_L1;
 		break;
 		case 'e':
-			if (lenTagName == 5 && memcmp(tagName + 1, "mbed", 4) == 0) return AEM_HTML_TAG_embed;
+			if (lenTagName == 5 && memeq(tagName + 1, "mbed", 4)) return AEM_HTML_TAG_embed;
 		break;
 		case 'f':
-			if (lenTagName == 5 && memcmp(tagName + 1, "rame", 4) == 0) return AEM_HTML_TAG_frame;
+			if (lenTagName == 5 && memeq(tagName + 1, "rame", 4)) return AEM_HTML_TAG_frame;
 		break;
 		case 'h':
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
 		break;
 		case 'i':
-			if (lenTagName == 6 && memcmp(tagName + 1, "frame", 5) == 0) return AEM_HTML_TAG_iframe;
+			if (lenTagName == 6 && memeq(tagName + 1, "frame", 5)) return AEM_HTML_TAG_iframe;
 			if (lenTagName == 3 && tagName[1] == 'm' && tagName[2] == 'g') return AEM_HTML_TAG_img;
 		break;
 		case 'l':
 			if (lenTagName == 2 && tagName[1] == 'i') return AEM_HTML_TAG_L1;
 		break;
 		case 'o':
-			if (lenTagName == 6 && memcmp(tagName + 1, "bject", 5) == 0) return AEM_HTML_TAG_object;
+			if (lenTagName == 6 && memeq(tagName + 1, "bject", 5)) return AEM_HTML_TAG_object;
 		break;
 		case 'p':
 			if (lenTagName == 1) return AEM_HTML_TAG_L1;
 		break;
 		case 's':
-			if (lenTagName == 6 && memcmp(tagName + 1, "ource", 5) == 0) return AEM_HTML_TAG_source;
+			if (lenTagName == 6 && memeq(tagName + 1, "ource", 5)) return AEM_HTML_TAG_source;
 		break;
 		case 't':
-			if (lenTagName == 5 && memcmp(tagName + 1, "able",  4) == 0) return AEM_HTML_TAG_L2;
+			if (lenTagName == 5 && memeq(tagName + 1, "able", 4)) return AEM_HTML_TAG_L2;
 			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'r')) return AEM_HTML_TAG_L1;
-			if (lenTagName == 5 && memcmp(tagName + 1, "rack",  4) == 0) return AEM_HTML_TAG_track;
+			if (lenTagName == 5 && memeq(tagName + 1, "rack", 4)) return AEM_HTML_TAG_track;
 		break;
 		case 'v':
-			if (lenTagName == 5 && memcmp(tagName + 1, "ideo",  4) == 0) return AEM_HTML_TAG_video;
+			if (lenTagName == 5 && memeq(tagName + 1, "ideo", 4)) return AEM_HTML_TAG_video;
 		break;
 	}
 

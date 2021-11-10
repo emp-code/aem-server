@@ -7,28 +7,28 @@ aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c Common/ValidFd.c -lsodium -lcap
 
 aem-account: account/*.c
-	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/UnixSocketClient.c -lsodium -lcap -lm
+	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/UnixSocketClient.c Common/memeq.c -lsodium -lcap -lm
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
+	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
 
 aem-storage: storage/*.c
-	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c Common/memeq.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
-	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_CLR -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_CLR -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
 	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_ONI -DAEM_IS_ONION -o aem-web-oni web-oni/main.c Common/SetCaps.c Common/CreateSocket.c -lsodium -lcap
 
 aem-api-clr: api-clr/*.c
-	$(CC) $(CFLAGS) -DAEM_API_CLR -DAEM_API -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_API_CLR -DAEM_API -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/memeq.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-api-oni: api-oni/*.c
-	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api-oni/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/SetCaps.c Common/Addr32.c Common/CreateSocket.c Common/HtmlToText.c Common/memeq.c Common/HtmlRefs.c Common/ref2codepoint.c Common/QuotedPrintable.c Common/UnixSocketClient.c Common/ToUtf8.c Common/Trim.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -licuuc -licui18n
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/UnixSocketClient.c Common/ValidIp.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c utils/GetKey.c Common/ToggleEcho.c -lsodium

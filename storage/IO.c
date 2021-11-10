@@ -11,6 +11,7 @@
 
 #include "../Global.h"
 #include "../Common/aes.h"
+#include "../Common/memeq.h"
 
 #include "IO.h"
 
@@ -42,7 +43,7 @@ int updateLevels(const unsigned char * const data, const size_t lenData) {
 	for (int i = 0; i < recCount; i++) {
 		const size_t s = sizeof(struct aem_stindex);
 
-		if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) { // In sync
+		if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) { // In sync
 			memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + i * s, s);
 		} else { // Out of sync
 			syslog(LOG_WARNING, "updateLevels: Out of sync");
@@ -51,7 +52,7 @@ int updateLevels(const unsigned char * const data, const size_t lenData) {
 			bool found = false;
 
 			for (int j = 0; j < stindexCount; j++) {
-				if (memcmp(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[j].pubkey, crypto_box_PUBLICKEYBYTES) == 0) { // Match
+				if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[j].pubkey, crypto_box_PUBLICKEYBYTES)) { // Match
 					memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + j * s, s);
 					found = true;
 					break;
@@ -108,7 +109,7 @@ static void getStorageKey(unsigned char * const target, const unsigned char * co
 	// Uses random key for 'Trash'; the extra kdf/random is to resist timing attacks
 	unsigned char empty[crypto_box_PUBLICKEYBYTES];
 	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
-	if (memcmp(empty, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+	if (memeq(empty, upk, crypto_box_PUBLICKEYBYTES)) {
 		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
 		randombytes_buf(target, 32);
 	} else {
@@ -209,7 +210,7 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 	unsigned char empty[crypto_box_PUBLICKEYBYTES];
 	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
 
-	if (memcmp(empty, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+	if (memeq(empty, upk, crypto_box_PUBLICKEYBYTES)) {
 		strcpy(path, "MessageData/Trash");
 	} else {
 		memcpy(path, "MessageData/", 12);
@@ -237,7 +238,7 @@ int storage_erase(const unsigned char * const upk) {
 
 	int delNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memeq(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES)) {
 			delNum = i;
 			break;
 		}
@@ -259,7 +260,7 @@ int storage_erase(const unsigned char * const upk) {
 int storage_delete(const unsigned char upk[crypto_box_PUBLICKEYBYTES], const unsigned char * const id) {
 	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
 			stindexNum = i;
 			break;
 		}
@@ -328,7 +329,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 	// Stindex
 	int num = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
 			num = i;
 			break;
 		}
@@ -407,7 +408,7 @@ int storage_write(const unsigned char upk[crypto_box_PUBLICKEYBYTES], unsigned c
 int storage_read(const unsigned char * const upk, const unsigned char * const matchId, unsigned char ** const msgData) {
 	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memcmp(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES) == 0) {
+		if (memeq(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES)) {
 			stindexNum = i;
 			break;
 		}

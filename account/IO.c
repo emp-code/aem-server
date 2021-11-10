@@ -12,6 +12,7 @@
 #include <sodium.h>
 
 #include "../Common/UnixSocketClient.h"
+#include "../Common/memeq.h"
 #include "../Data/address.h"
 #include "../Global.h"
 
@@ -257,7 +258,7 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 
 int userNumFromPubkey(const unsigned char * const pubkey) {
 	for (int i = 0; i < userCount; i++) {
-		if (memcmp(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES) == 0) return i;
+		if (memeq(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES)) return i;
 	}
 
 	return -1;
@@ -350,7 +351,7 @@ void api_account_browse(const int sock, const int num) {
 		if (i == num) continue; // Skip own user
 
 		uint32_t kib64;
-		if (storage != NULL && lenStorage > 0 && memcmp(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES) == 0) {
+		if (storage != NULL && lenStorage > 0 && memeq(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES)) {
 			uint32_t storageBytes;
 			memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
 			kib64 = round((double)storageBytes / 65536);
@@ -385,8 +386,8 @@ void api_account_create(const int sock, const int num) {
 
 	// Forbidden pubkeys
 	unsigned char pubkey_inv[crypto_box_PUBLICKEYBYTES];
-	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
-	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memcmp(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES) == 0) return;
+	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memeq(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return;
+	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memeq(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return;
 
 	if (userNumFromPubkey(pubkey_new) >= 0) {
 		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
@@ -460,7 +461,7 @@ void api_account_update(const int sock, const int num) {
 void api_address_create(const int sock, const int num) {
 	uint64_t hash;
 	const ssize_t len = recv(sock, &hash, 8, 0);
-	const bool isShield = (len == 6 && memcmp(&hash, "SHIELD", 6) == 0);
+	const bool isShield = (len == 6 && memeq(&hash, "SHIELD", 6));
 
 	int addrCount = user[num].info >> 3;
 	if (addrCount >= AEM_ADDRESSES_PER_USER) {
@@ -476,7 +477,7 @@ void api_address_create(const int sock, const int num) {
 		}
 
 		randombytes_buf(addr32, 10);
-		hash = (memcmp(addr32 + 2, AEM_ADDR32_ADMIN, 8) == 0) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
+		hash = (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
 
 		if (hash == 0 || hash == UINT64_MAX) {
 			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
@@ -648,7 +649,7 @@ static uint64_t getAddrHash(const int sock, bool * const isShield) {
 	if (recv(sock, buf, 11, 0) != 11) return 0;
 
 	*isShield = (buf[0] == 'S');
-	if (!(*isShield) && ((memcmp(buf + 1, AEM_ADDR32_PUBLIC, 10) == 0) || memcmp(buf + 1, AEM_ADDR32_SYSTEM, 10) == 0)) return 0;
+	if (!(*isShield) && (memeq(buf + 1, AEM_ADDR32_PUBLIC, 10) || memeq(buf + 1, AEM_ADDR32_SYSTEM, 10))) return 0;
 
 	return addressToHash(buf + 1, *isShield);
 }

@@ -1,5 +1,6 @@
 #include "../Global.h"
 
+#include "../Common/memeq.h"
 #include "../Data/domain.h"
 #include "../Data/tls.h"
 
@@ -56,9 +57,9 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 	if (empty != NULL || ssl2 != &ssl) return -1;
 	if (len == 0) return 0;
 
-	return (hostname != NULL && ((len == AEM_DOMAIN_LEN && memcmp(hostname, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
+	return (hostname != NULL && ((len == AEM_DOMAIN_LEN && memeq(hostname, AEM_DOMAIN, AEM_DOMAIN_LEN))
 #ifdef AEM_WEB
-	|| (len == AEM_DOMAIN_LEN + 8 && memcmp(hostname, "mta-sts.", 8) == 0 && memcmp(hostname + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0)
+	|| (len == AEM_DOMAIN_LEN + 8 && memeq(hostname, "mta-sts.", 8) && memeq(hostname + 8, AEM_DOMAIN, AEM_DOMAIN_LEN))
 #endif
 	)) ? 0 : -1;
 }

@@ -11,6 +11,7 @@
 
 #include "../Common/ValidDomain.h"
 #include "../Common/ValidIp.h"
+#include "../Common/memeq.h"
 #include "../Data/domain.h"
 #include "../Data/internal.h"
 #include "../Global.h"
@@ -29,7 +30,7 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 				break;
 			}
 
-			if (lenDec - 1 == AEM_DOMAIN_LEN && memcmp(dec + 1, AEM_DOMAIN, AEM_DOMAIN_LEN) == 0) {
+			if (lenDec - 1 == AEM_DOMAIN_LEN && memeq(dec + 1, AEM_DOMAIN, AEM_DOMAIN_LEN)) {
 				send(sock, (unsigned char[]){AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN}, 1, 0);
 				break;
 			}

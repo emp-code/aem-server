@@ -6,6 +6,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/memeq.h"
 #include "../Common/tls_common.h"
 #include "../Data/html.h"
 
@@ -19,7 +20,7 @@ static char req[AEM_MAXLEN_REQ + 1];
 #include "../Common/tls_setup.c"
 
 static void handleRequest(const size_t lenReq) {
-	if (memcmp(req, "GET /", 5) != 0) return;
+	if (!memeq(req, "GET /", 5)) return;
 
 	const char * const reqEnd = strstr(req, "\r\n\r\n");
 	if (reqEnd == NULL) return;

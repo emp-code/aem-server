@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "memeq.h"
+
 #include "ValidDomain.h"
 
 static bool hasAlpha(const char * const c, const size_t len) {
@@ -16,7 +18,7 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	if (domain == NULL
 	|| lenDomain < 4
 	|| lenDomain > 127
-	|| (lenDomain == 11 && memcmp(domain, "example.", 8) == 0 && ((memcmp(domain + 8, "com", 3) == 0) || (memcmp(domain + 8, "net", 3) == 0) || (memcmp(domain + 8, "org", 3) == 0)))
+	|| (lenDomain == 11 && memeq(domain, "example.", 8) && (memeq(domain + 8, "com", 3) || memeq(domain + 8, "net", 3) || memeq(domain + 8, "org", 3)))
 	) return false;
 
 	size_t lastDot = 0;
