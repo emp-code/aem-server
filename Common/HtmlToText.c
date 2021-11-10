@@ -38,7 +38,7 @@ enum aem_html_tag {
 	AEM_HTML_TAG_video,
 };
 
-int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
+static int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
 	switch (tag) {
 		case AEM_HTML_TAG_a: return (lenName == 4 && memeq(name, "href", 4)) ? AEM_CET_CHAR_LNK : 0;
 
@@ -58,7 +58,7 @@ int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t 
 	return 0;
 }
 
-void emptyTag(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
+static void emptyTag(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
 	if (tag == AEM_HTML_TAG_L1) {
 		out[*lenOut] = '\n';
 		(*lenOut)++;
@@ -69,7 +69,7 @@ void emptyTag(char * const out, size_t * const lenOut, const enum aem_html_tag t
 	}
 }
 
-enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagName) {
+static enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagName) {
 	if (tagName[0] == '/') {
 		switch (tagName[1]) {
 			case 'd':
@@ -142,7 +142,7 @@ enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagNa
 	return AEM_HTML_TAG_NULL;
 }
 
-void html2cet(char * const src, size_t * const lenSrc) {
+static void html2cet(char * const src, size_t * const lenSrc) {
 	char * const out = malloc(*lenSrc);
 	if (out == NULL) return;
 	size_t lenOut = 0;
