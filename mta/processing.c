@@ -10,6 +10,7 @@
 #include "../Common/HtmlToText.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
+#include "../Common/memeq.h"
 
 #include "date.h"
 
@@ -75,39 +76,94 @@ static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource
 	return;
 }
 
-static void removeHeaderSpace(unsigned char * msg, size_t const lenMsg) {
-	if (lenMsg < 5) return;
-
-	const unsigned char *c = msg;
-	while (c != NULL) {
-		const unsigned char * const next = memchr(c + 1, '\n', (msg + lenMsg) - (c + 1));
-		const unsigned char * const colon = memchr(c + 1, ':', (msg + lenMsg) - (c + 1));
-		if (colon == NULL) break;
-
-		for (int i = (colon + 1) - msg; i < ((next != NULL) ? next - msg : (int)lenMsg); i++) {
-			if (isspace(msg[i])) msg[i] = 127; else break; // 127=DEL
-		}
-
-		c = next;
-	}
+static void replace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
+	memcpy(target, source, lenSource);
+	*lenTarget = lenSource;
 }
 
-static void unfoldHeaders(unsigned char * const data, const size_t lenData) {
-	while(1) {
-		char *t = memchr(data, '\t', lenData);
-		if (t == NULL) break;
-		*t = ' ';
+static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
+	unsigned char out[*lenData * 2];
+	size_t lenOut = 0;
+
+	bool wasEw = false;
+	bool afterColon = false;
+
+	for (size_t i = 0; i < *lenData; i++) {
+		if (i < *lenData - 1 && data[i] == '=' && data[i + 1] == '?') { // Encoded-Word; e.g. =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
+			if (wasEw && lenOut > 0) {
+				// This is EW follows another: remove all spaces between the two
+				while (lenOut > 0 && isspace(out[lenOut - 1])) lenOut--;
+			}
+
+			const unsigned char * const charsetEnd = memchr(data + i + 2, '?', *lenData - (i + 2));
+			const size_t lenCharset = (charsetEnd == NULL) ? 0 : charsetEnd - (data + i + 2);
+			if (lenCharset < 1 || lenCharset > 30) return replace(data, lenData, out, lenOut);
+
+			char charset[lenCharset + 1];
+			memcpy(charset, data + i + 2, lenCharset);
+			charset[lenCharset] = '\0';
+
+			if (data[i + 2 + lenCharset] != '?' || data[i + 4 + lenCharset] != '?') return replace(data, lenData, out, lenOut);
+
+			const bool isBase64 = (toupper(data[i + 3 + lenCharset]) == 'B');
+			if (!isBase64 && toupper(data[i + 3 + lenCharset]) != 'Q') return replace(data, lenData, out, lenOut);
+
+			const unsigned char * const ewStart = data + i + 5 + lenCharset;
+			const unsigned char * const ewEnd = memmem(ewStart, *lenData - (i + 5 + lenCharset), "?=", 2);
+			const size_t lenEw = (ewEnd == NULL) ? 0 : ewEnd - ewStart;
+			if (lenEw < 1) return replace(data, lenData, out, lenOut);
+
+			size_t lenDec = 0;
+			unsigned char dec[lenEw];
+
+			if (isBase64) {
+				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return replace(data, lenData, out, lenOut);
+			} else {
+				memcpy(dec, ewStart, lenEw);
+				lenDec = lenEw;
+				decodeQuotedPrintable(dec, &lenDec);
+			}
+
+			const size_t lenOriginal = 7 + lenCharset + lenEw;
+			if (lenDec > lenOriginal) { // Extremely unlikely
+				memset(out + lenOut, '?', lenOriginal);
+				lenOut += lenOriginal;
+			} else {
+				memcpy(out + lenOut, dec, lenDec);
+				lenOut += lenDec;
+			}
+
+			i += lenOriginal;
+
+			wasEw = true;
+		} else if (i < (*lenData - 1) && data[i] == '\n' && isspace(data[i + 1])) {
+			// This linebreak is followed by a space -> unfold the header by ignoring this linebreak
+			continue;
+		} else if (data[i] == '\n') {
+			out[lenOut] = '\n';
+			lenOut++;
+			afterColon = false;
+		} else if (data[i] == ' ' || data[i] == '\t') {
+			out[lenOut] = ' ';
+			lenOut++;
+		} else if (!afterColon && data[i] == ':') {
+			if (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
+
+			out[lenOut] = ':';
+			lenOut++;
+			afterColon = true;
+		} else if (data[i] > 32 && data[i] < 127) {
+			out[lenOut] = data[i];
+			lenOut++;
+			wasEw = false;
+		} // else skipped
 	}
 
-	while(1) {
-		char * const lfSp = memmem(data, lenData, (unsigned char[]){'\n',' '}, 2);
-		if (lfSp == NULL) break;
-		*lfSp = 127; // 127=DEL
-	}
+	replace(data, lenData, out, lenOut);
 }
 
 static int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
-	if (data == NULL) return -1;
+	if (data == NULL || *lenData < 1) return -1;
 
 	unsigned char *hend = memmem(data, *lenData, "\r\n\r\n", 4);
 	unsigned char *hend2 = memmem(data, *lenData, "\n\n", 2);
@@ -126,13 +182,7 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	memmove(data, hend + lenHend, (data + *lenData) - (hend + lenHend));
 	*lenData -= (email->lenHead + lenHend);
 
-	unfoldHeaders(email->head, email->lenHead);
-	removeHeaderSpace(email->head, email->lenHead);
-
-	// Preserve first linebreak
-	email->lenHead--;
-	cleanText(email->head + 1, &email->lenHead, true);
-	email->lenHead++;
+	cleanHeaders(email->head, &email->lenHead);
 
 	email->head[email->lenHead] = '\0';
 	return 0;
@@ -160,90 +210,15 @@ static void moveHeader(unsigned char * const data, size_t * const lenData, const
 	data[*lenData] = '\0';
 }
 
-// Example: =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
-static void decodeEncodedWord(unsigned char * const data, size_t * const lenData) {
-	if (data == NULL || lenData == NULL || *lenData < 1) return;
-
-	while(1) {
-		unsigned char * const ew = memmem(data, *lenData, "=?", 2);
-		if (ew == NULL) break;
-
-		// Remove charset part
-		unsigned char * const charsetEnd = memchr(ew + 2, '?', (data + *lenData) - (ew + 2));
-		if (charsetEnd == NULL) break;
-		if (charsetEnd[2] != '?') break;
-
-		const size_t lenCs = charsetEnd - (ew + 2);
-		char cs[lenCs + 1];
-		memcpy(cs, (ew + 2), lenCs);
-		cs[lenCs] = '\0';
-
-		const char type = charsetEnd[1];
-		unsigned char *ewText = charsetEnd + 3;
-
-		const unsigned char * const ewEnd = memmem(ewText, *lenData - (ewText - data), "?=", 2);
-		if (ewEnd == NULL) break;
-
-		size_t lenEw = ewEnd - ew;
-		size_t lenEwText = ewEnd - ewText;
-
-		if (lenEwText == 0) {
-			memmove(ew, ewEnd + 2, (data + *lenData) - (ewEnd + 2));
-			*lenData -= (lenEw + 2);
-			continue;
-		}
-
-		while(1) {
-			unsigned char * const underscore = memchr(ewText, '_', lenEwText);
-			if (underscore == NULL) break;
-			*underscore = ' ';
-		}
-
-		if (type == 'Q' || type == 'q') {
-			decodeQuotedPrintable(ewText, &lenEwText);
-		} else if (type == 'B' || type == 'b') {
-			unsigned char * const dec = malloc(lenEwText);
-			size_t lenDec;
-			if (dec == NULL || sodium_base642bin(dec, lenEwText, (char*)ewText, lenEwText, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dec); break;}
-
-			memcpy(ewText, dec, lenDec);
-			lenEwText = lenDec;
-			free(dec);
-		} else break;
-
-		size_t lenUtf8 = 0;
-		char * const utf8 = toUtf8((char*)ewText, lenEwText, &lenUtf8, cs);
-		if (utf8 == NULL) break;
-
-		for (size_t i = 0; i < lenUtf8; i++) { // Replace all control characters with spaces
-			if ((unsigned char)(utf8[i]) < 32 || (unsigned char)(utf8[i]) == 127) utf8[i] = ' '; // 127=DEL
-		}
-
-		const size_t lenDiff = lenEw - lenUtf8;
-		if (lenDiff > 0) {
-			memcpy(ew, utf8, lenUtf8);
-			memmove(ew + lenUtf8, ewEnd + 2, (data + *lenData) - (ewEnd + 2));
-			*lenData -= (lenDiff + 2);
-		} else {
-			// TODO: UTF-8 version is longer or same
-			break;
-		}
-
-		free(utf8);
-	}
-}
-
-static int getCte(const char * const h) {
+static int getCte(const unsigned char * const h, const size_t len) {
 	if (h == NULL) return MTA_PROCESSING_CTE_NONE;
 
-	const char *cte = strcasestr(h, "\nContent-Transfer-Encoding:");
+	const unsigned char *cte = memcasemem(h, len, "\nContent-Transfer-Encoding:", 27);
 	if (cte == NULL) return MTA_PROCESSING_CTE_NONE;
-
 	cte += 27;
-	while (isspace(*cte)) cte++;
 
-	if (strncasecmp(cte, "Quoted-Printable", 16) == 0) return MTA_PROCESSING_CTE_QP;
-	if (strncasecmp(cte, "Base64", 6) == 0) return MTA_PROCESSING_CTE_B64;
+	if (memeq_anycase(cte, "Quoted-Printable", 16)) return MTA_PROCESSING_CTE_QP;
+	if (memeq_anycase(cte, "Base64", 6)) return MTA_PROCESSING_CTE_B64;
 	return MTA_PROCESSING_CTE_NONE;
 }
 
@@ -289,25 +264,25 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	*lenSrc = lenUtf8;
 }
 
-static char *getCharset(const char *ct) {
-	const char *cs = strcasestr(ct, "charset");
+static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
+	const unsigned char *cs = memcasemem(ct, lenCt, "charset", 7);
 	if (cs == NULL) return NULL;
-	cs = strchr(cs + 7, '=');
+	cs = memchr(cs + 7, '=', (ct + lenCt) - (cs + 7));
 	if (cs == NULL) return NULL;
 	cs++;
 	while (isspace(*cs)) cs++;
 
-	char *csEnd;
+	const unsigned char *csEnd;
 	if (*cs == '"' || *cs == '\'') {
-		csEnd = strchr(cs + 1, *cs);
+		csEnd = memchr(cs + 1, *cs, (ct + lenCt) - (cs + 1));
 		cs++;
 	} else {
-		csEnd = strpbrk(cs, "; \t\v\f\r\n");
+		csEnd = mempbrk(cs, (ct + lenCt) - cs, (unsigned char[]){';', ' ', '\t', '\v', '\f', '\r', '\n'}, 7);
 	}
 	if (csEnd == NULL) return NULL;
 
 	const size_t lenCs = csEnd - cs;
-	char *charset = malloc(lenCs + 1);
+	unsigned char * const charset = malloc(lenCs + 1);
 	if (charset == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
 	memcpy(charset, cs, lenCs);
@@ -315,22 +290,22 @@ static char *getCharset(const char *ct) {
 	return charset;
 }
 
-static unsigned char* getBound(const char * const src, size_t * const lenBound) {
-	const char *start = strcasestr(src, "boundary");
+static unsigned char* getBound(const unsigned char * const src, const size_t lenSrc, size_t * const lenBound) {
+	const unsigned char *start = memcasemem(src, lenSrc, "boundary", 8);
 	if (start == NULL) return NULL;
-	start = strchr(start + 8, '=');
+	start = memchr(start + 8, '=', (src + lenSrc) - (start + 8));
 	if (start == NULL) return NULL;
 	start++;
 
-	const char *end = NULL;
+	const unsigned char *end = NULL;
 	if (*start == '"' || *start == '\'') {
-		end = strchr(start + 1, *start);
+		end = memchr(start + 1, *start, (src + lenSrc) - (start + 1));
 		start++;
 	} else {
-		end = strpbrk(start, "; \t\v\f\r\n");
+		end = mempbrk(start, (src + lenSrc) - start, (unsigned char[]){';', ' ', '\t', '\v', '\f', '\r', '\n'}, 7);
 	}
 
-	*lenBound = 4 + ((end != NULL) ? end : src + strlen(src)) - start;
+	*lenBound = 4 + ((end != NULL) ? end : src + lenSrc) - start;
 	unsigned char *bound = malloc(*lenBound);
 	if (bound == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 	bound[0] = '\r';
@@ -357,7 +332,6 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 	for (int i = 0; i < boundCount;) {
 		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i] + ((i == 0) ? 2 : 0), lenBound[i]);
 		if (begin == NULL) break;
-
 		begin += lenBound[i];
 
 		if (begin[0] == '-' && begin[1] == '-') {
@@ -370,31 +344,28 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 		if (hend == NULL) break;
 		hend += 3;
 
-		const size_t lenPartHeaders = hend - begin;
+		size_t lenPartHeaders = hend - begin;
 		if (lenPartHeaders > 9999) break;
 
-		char partHeaders[lenPartHeaders + 1];
+		unsigned char partHeaders[lenPartHeaders];
 		memcpy(partHeaders, begin, lenPartHeaders);
-		partHeaders[lenPartHeaders] = '\0';
+		cleanHeaders(partHeaders, &lenPartHeaders);
 
-		const char *ct = strcasestr(partHeaders, "Content-Type:");
-		if (ct != NULL) {
-			ct += 13;
-			while (isspace(*ct)) ct++;
-		}
+		const unsigned char *ct = memcasemem(partHeaders, lenPartHeaders, "Content-Type:", 13);
+		if (ct != NULL) ct += 13;
 
-		const char *fn = (ct == NULL) ? NULL : strcasestr(ct, "NAME=");
+		const unsigned char *fn = (ct == NULL) ? NULL : memcasemem(ct, (partHeaders + lenPartHeaders) - ct, "NAME=", 5);
 		size_t lenFn = 0;
 		if (fn != NULL) {
 			fn += 5;
 			while (isspace(*fn)) fn++;
 
 			if (*fn == '"' || *fn == '\'') {
-				const char * const end = strpbrk(fn + 1, (char[]){*fn, '\v', '\r', '\n', '\0'});
+				const unsigned char * const end = mempbrk(fn + 1, (partHeaders + lenPartHeaders) - (fn + 1), (const unsigned char[]){*fn, '\v', '\r', '\n', '\0'}, 4);
 				fn++;
 				if (end != NULL) lenFn = end - fn;
 			} else if (*fn != '\0') {
-				const char * const end = strpbrk(fn + 1, "; \t\v\r\n\0");
+				const unsigned char * const end = mempbrk(fn + 1, (partHeaders + lenPartHeaders) - (fn + 1), (const unsigned char[]){*fn, '\v', '\r', '\n', '\0', '\t', ' ', ';'}, 7);
 				if (end != NULL) lenFn = end - fn;
 			}
 		}
@@ -404,12 +375,12 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 
 		size_t lenNew = boundEnd - hend;
 
-		const bool isText = (ct != NULL) && (strncasecmp(ct, "text/", 5) == 0);
-		const bool isHtml = isText && (strncasecmp(ct + 5, "html", 4) == 0);
-		const bool multip = (ct != NULL) && (strncasecmp(ct, "multipart", 9) == 0);
+		const bool isText = (ct != NULL) && (memeq_anycase(ct, "text/", 5));
+		const bool isHtml = isText && (memeq_anycase(ct + 5, "html", 4));
+		const bool multip = (ct != NULL) && (memeq_anycase(ct, "multipart", 9));
 
 		if (multip) {
-			bound[boundCount] = getBound(ct + 9, lenBound + boundCount);
+			bound[boundCount] = getBound(ct + 9, (partHeaders + lenPartHeaders) - (ct + 9), lenBound + boundCount);
 
 			if (bound[boundCount] != NULL) {
 				boundCount++;
@@ -417,13 +388,13 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 			}
 		}
 
-		const char cte = getCte(partHeaders);
+		const unsigned char cte = getCte(partHeaders, lenPartHeaders);
 		unsigned char *new = decodeCte(cte, hend, &lenNew);
 		if (new == NULL) break;
 
 		if (isText) {
-			char * const cs = getCharset(ct);
-			convertToUtf8((char**)&new, &lenNew, cs);
+			unsigned char * const cs = getCharset(ct, (partHeaders + lenPartHeaders) - ct);
+			convertToUtf8((char**)&new, &lenNew, (char*)cs);
 			if (cs != NULL) free(cs);
 
 			if (isHtml) htmlToText((char*)new, &lenNew);
@@ -446,15 +417,10 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				*outLen += lenNew + 1;
 			}
 		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-			char fn2[lenFn];
-
 			if (fn == NULL || lenFn < 1) {
-				fn = (char[]){'A','E','M'}; // TODO, name based on message/sender/etc
+				fn = (unsigned char[]){'A','E','M'}; // TODO, name based on message/sender/etc
 				lenFn = 3;
 			} else {
-				memcpy(fn2, fn, lenFn);
-				decodeEncodedWord((unsigned char*)fn2, &lenFn);
-				fn = fn2;
 				if (lenFn > 256) lenFn = 256;
 			}
 
@@ -484,7 +450,6 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email) {
 	if (getHeaders(source, lenSource, email) != 0) return;
 
-	decodeEncodedWord(email->head, &email->lenHead);
 	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->hdrFr, &email->lenHdrFr, 255); // Removed/ignored
 	moveHeader(email->head, &email->lenHead, "\nFrom:",          6, email->hdrFr, &email->lenHdrFr, 255);
 	moveHeader(email->head, &email->lenHead, "\nReply-To:",     10, email->hdrRt, &email->lenHdrRt, 255);
@@ -495,7 +460,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	minifyHeaderAddress(email->hdrRt, &email->lenHdrRt);
 	minifyHeaderAddress(email->hdrTo, &email->lenHdrTo);
 
-	char ct[256];
+	unsigned char ct[256];
 	uint8_t lenCt = 0;
 	moveHeader(email->head, &email->lenHead, "\nContent-Type:", 14, (unsigned char*)ct, &lenCt, 255);
 	ct[lenCt] = '\0';
@@ -527,14 +492,14 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	}
 
 	// Content-Type
-	if (strncmp(ct, "multipart", 9) == 0) {
+	if (memeq_anycase(ct, "multipart", 9)) {
 		// CTE in headers: ignored
 		unsigned char ignore[255];
 		uint8_t lenIgnore;
 		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, ignore, &lenIgnore, 255);
 
 		size_t lenBound;
-		unsigned char * const bound = getBound(ct + 9, &lenBound);
+		unsigned char * const bound = getBound(ct + 9, (email->head + email->lenHead) - (ct + 9), &lenBound);
 
 		if (bound != NULL) {
 			email->lenBody = *lenSource;
@@ -553,14 +518,13 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 		email->body = source;
 		email->lenBody = *lenSource;
 
-		char tmp[256];
+		unsigned char tmp[255];
 		uint8_t lenTmp = 0;
 		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, (unsigned char*)tmp, &lenTmp, 255);
-		tmp[lenTmp] = '\0';
 
 		int cte;
-		if (strcasestr(tmp, "quoted-printable") != 0) cte = MTA_PROCESSING_CTE_QP;
-		else if (strcasestr(tmp, "base64") != 0) cte = MTA_PROCESSING_CTE_B64;
+		if (memcasemem(tmp, lenTmp, "quoted-printable", 16) != NULL) cte = MTA_PROCESSING_CTE_QP;
+		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
 		unsigned char * const new = decodeCte(cte, email->body, &email->lenBody);
@@ -569,12 +533,12 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			email->body = new;
 		}
 
-		if (strncasecmp(ct, "text/", 5) == 0 || lenCt < 2) {
-			char * const cs = getCharset(ct);
-			convertToUtf8((char**)&email->body, &email->lenBody, cs);
+		if (memeq_anycase(ct, "text/", 5) || lenCt < 2) {
+			unsigned char * const cs = getCharset(ct, (email->head + email->lenHead) - ct);
+			convertToUtf8((char**)&email->body, &email->lenBody, (char*)cs);
 			if (cs != NULL) free(cs);
 
-			if (lenCt >= 9 && strncasecmp(ct + 5, "html", 4) == 0)
+			if (lenCt >= 9 && memeq_anycase(ct + 5, "html", 4))
 				htmlToText((char*)email->body, &email->lenBody);
 			else
 				removeControlChars(email->body, &email->lenBody);
