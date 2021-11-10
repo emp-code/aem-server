@@ -5,6 +5,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/memeq.h"
 #include "../Data/domain.h"
 
 #include "isRequestValid.h"
@@ -18,14 +19,14 @@
 __attribute__((warn_unused_result))
 bool isRequestValid(const char * const req, const size_t lenReq, bool * const keepAlive, long * const clen) {
 	if (lenReq < AEM_MINLEN_POST) return false;
-	if (strncmp(req, "POST /api HTTP/1.1\r\n", 20) != 0) return false;
+	if (!memeq(req, "POST /api HTTP/1.1\r\n", 20)) return false;
 	if (strcasestr(req, "\r\nConnection: close") != NULL) *keepAlive = false;
 
 	const char * const host = strstr(req, "\r\nHost: ");
 #ifdef AEM_IS_ONION
-	if (host == NULL || strncmp(host + 8, AEM_ONIONID".onion:302\r\n", 68) != 0) return false;
+	if (host == NULL || !memeq(host + 8, AEM_ONIONID".onion:302\r\n", 68)) return false;
 #else
-	if (host == NULL || strncmp(host + 8, AEM_DOMAIN":302\r\n", AEM_DOMAIN_LEN + 6) != 0) return false;
+	if (host == NULL || !memeq(host + 8, AEM_DOMAIN":302\r\n", AEM_DOMAIN_LEN + 6)) return false;
 #endif
 
 	const char * const clenStr = strstr(req, "\r\nContent-Length: ");
@@ -54,16 +55,16 @@ bool isRequestValid(const char * const req, const size_t lenReq, bool * const ke
 	) return false;
 
 	const char *s = strcasestr(req, "\r\nAccept: ");
-	if (s != NULL && strncmp(s + 10, "\r\n", 2) != 0) return false;
+	if (s != NULL && !memeq(s + 10, "\r\n", 2)) return false;
 
 	s = strcasestr(req, "\r\nAccept-Language: ");
-	if (s != NULL && strncmp(s + 19, "\r\n", 2) != 0) return false;
+	if (s != NULL && !memeq(s + 19, "\r\n", 2)) return false;
 
 	s = strcasestr(req, "\r\nSec-Fetch-Dest: ");
-	if (s != NULL && strncasecmp(s + 18, "empty\r\n", 7) != 0) return false;
+	if (s != NULL && !memeq_anycase(s + 18, "empty\r\n", 7)) return false;
 
 	s = strcasestr(req, "\r\nSec-Fetch-Mode: ");
-	if (s != NULL && strncasecmp(s + 18, "cors\r\n", 6) != 0) return false;
+	if (s != NULL && !memeq_anycase(s + 18, "cors\r\n", 6)) return false;
 
 	return true;
 }

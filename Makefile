@@ -4,7 +4,7 @@ CFLAGS=-O2 -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTI
 all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c Common/ValidFd.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/UnixSocketClient.c Common/memeq.c -lsodium -lcap -lm
@@ -19,7 +19,7 @@ aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_CLR -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web-oni: web-oni/main.c
-	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_ONI -DAEM_IS_ONION -o aem-web-oni web-oni/main.c Common/SetCaps.c Common/CreateSocket.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_ONI -DAEM_IS_ONION -o aem-web-oni web-oni/main.c Common/SetCaps.c Common/CreateSocket.c Common/memeq.c -lsodium -lcap
 
 aem-api-clr: api-clr/*.c
 	$(CC) $(CFLAGS) -DAEM_API_CLR -DAEM_API -o aem-api-clr api-clr/*.c api-common/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/UnixSocketClient.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/memeq.c Common/tls_common.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
@@ -55,7 +55,7 @@ Data/gen_dkim: Data/gen_dkim.c
 	$(CC) $(CFLAGS) -o Data/gen_dkim Data/gen_dkim.c
 
 Data/gen_tls: Data/gen_tls.c
-	$(CC) $(CFLAGS) -o Data/gen_tls Data/gen_tls.c
+	$(CC) $(CFLAGS) -o Data/gen_tls Data/gen_tls.c Common/memeq.c
 
 .PHONY: clean
 clean:

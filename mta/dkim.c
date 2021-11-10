@@ -304,7 +304,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 			case 'a': { // Algo
 				// TODO: EdDSA, RSA-SHA support
-				if (lenVal != 10 || strncmp(val, "rsa-sha256", 10) != 0) delSig = true;
+				if (lenVal != 10 || !memeq_anycase(val, "rsa-sha256", 10)) delSig = true;
 			break;}
 
 			case 'd': { // Domain
@@ -336,7 +336,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'q': { // Query method
-				if (lenVal != 7 || strncmp(val, "dns/txt", 7) != 0) delSig = true;
+				if (lenVal != 7 || !memeq_anycase(val, "dns/txt", 7)) delSig = true;
 			break;}
 
 			case 't': { // Timestamp

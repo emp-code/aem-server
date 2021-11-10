@@ -58,15 +58,15 @@ static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 
 	const size_t keyBits = mbedtls_pk_get_bitlen(&cert->pk);
 
-	if (strcmp(mbedtls_pk_get_name(&cert->pk), "RSA") == 0) {
+	if (memeq(mbedtls_pk_get_name(&cert->pk), "RSA", 3)) {
 		if      (keyBits >= 4096) return AEM_EMAIL_CERT_RSA4K;
 		else if (keyBits >= 2048) return AEM_EMAIL_CERT_RSA2K;
 		else if (keyBits >= 1024) return AEM_EMAIL_CERT_RSA1K;
-	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EC") == 0) {
+	} else if (memeq(mbedtls_pk_get_name(&cert->pk), "EC", 2)) {
 		if      (keyBits >= 521) return AEM_EMAIL_CERT_EC521;
 		else if (keyBits >= 384) return AEM_EMAIL_CERT_EC384;
 		else if (keyBits >= 256) return AEM_EMAIL_CERT_EC256;
-	} else if (strcmp(mbedtls_pk_get_name(&cert->pk), "EDDSA") == 0) return AEM_EMAIL_CERT_EDDSA;
+	} else if (memeq(mbedtls_pk_get_name(&cert->pk), "EDDSA", 5)) return AEM_EMAIL_CERT_EDDSA;
 
 	return AEM_EMAIL_CERT_NONE;
 }

@@ -48,7 +48,7 @@ __attribute__((warn_unused_result))
 static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
 	const char * const c = mbedtls_ssl_get_version(tls);
-	return (c == NULL || strncmp(c, "TLSv1.", 6) != 0 || c[6] < '0' || c[6] > '3') ? 0 : c[6] - '0';
+	return (c == NULL || !memeq_anycase(c, "TLSv1.", 6) || c[6] < '0' || c[6] > '3') ? 0 : c[6] - '0';
 }
 #endif
 

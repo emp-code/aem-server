@@ -29,9 +29,9 @@ static void handleRequest(const size_t lenReq) {
 	// Host header
 	const char * const host = strstr(req, "\r\nHost: ");
 	if (host == NULL) return;
-	if (strncmp(host + 8, "mta-sts.", 8) == 0) {sendData(&ssl, AEM_MTASTS_DATA, AEM_MTASTS_SIZE); return;}
-	if (strncmp(host + 8, AEM_DOMAIN, AEM_DOMAIN_LEN) != 0) return;
-	if (strncmp(req + 5, " HTTP/1.1\r\n", 11) != 0) return;
+	if (memeq(host + 8, "mta-sts.", 8) == 0) {sendData(&ssl, AEM_MTASTS_DATA, AEM_MTASTS_SIZE); return;}
+	if (!memeq(host + 8, AEM_DOMAIN, AEM_DOMAIN_LEN)) return;
+	if (!memeq(req + 5, " HTTP/1.1\r\n", 11)) return;
 
 	// Forbidden request headers
 	if (

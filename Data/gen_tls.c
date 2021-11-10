@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h> // for read
 
+#include "../Common/memeq.h"
+
 #define AEM_MAXSIZE_FILE 8192
 
 static int rdFile(const char * const path, unsigned char * const data, off_t * const size) {
@@ -31,8 +33,8 @@ static void printKey(const char * const def, unsigned char * const buf, const si
 
 int main(int argc, char *argv[]) {
 	if (argc != 3
-	|| (strlen(argv[1]) < 5 || strcmp(argv[1] + strlen(argv[1]) - 4, ".crt") != 0)
-	|| (strlen(argv[2]) < 5 || strcmp(argv[2] + strlen(argv[2]) - 4, ".key") != 0)
+	|| (strlen(argv[1]) < 5 || !memeq(argv[1] + strlen(argv[1]) - 4, ".crt", 4))
+	|| (strlen(argv[2]) < 5 || !memeq(argv[2] + strlen(argv[2]) - 4, ".key", 4))
 	) {fprintf(stderr, "Usage: %s TLS.crt TLS.key\n", argv[0]); return 1;}
 
 	off_t crtSize = 0;
