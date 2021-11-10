@@ -131,9 +131,15 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			}
 
 			const size_t lenOriginal = 7 + lenCharset + lenEw;
-			if (lenDec > lenOriginal) { // Extremely unlikely
-				memset(out + lenOut, '?', lenOriginal);
-				lenOut += lenOriginal;
+
+			if (isUtf8(charset)) {
+				if (lenDec <= lenOriginal) {
+					memcpy(out + lenOut, dec, lenDec);
+					lenOut += lenDec;
+				} else {
+					memset(out + lenOut, '?', lenOriginal);
+					lenOut += lenOriginal;
+				}
 			} else {
 				size_t lenDecUtf8 = 0;
 				char * decUtf8 = toUtf8((char*)dec, lenDec, &lenDecUtf8, charset);
