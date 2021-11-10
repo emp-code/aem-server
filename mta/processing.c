@@ -10,6 +10,7 @@
 #include "../Common/HtmlToText.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
+#include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
 
 #include "date.h"
@@ -133,6 +134,8 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			const size_t lenOriginal = 7 + lenCharset + lenEw;
 
 			if (isUtf8(charset)) {
+				filterUtf8(dec, lenDec);
+
 				if (lenDec <= lenOriginal) {
 					memcpy(out + lenOut, dec, lenDec);
 					lenOut += lenDec;
@@ -142,9 +145,11 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				}
 			} else {
 				size_t lenDecUtf8 = 0;
-				char * decUtf8 = toUtf8((char*)dec, lenDec, &lenDecUtf8, charset);
+				unsigned char *decUtf8 = (unsigned char*)toUtf8((char*)dec, lenDec, &lenDecUtf8, charset);
 
 				if (decUtf8 != NULL && lenDecUtf8 > 0 && lenDecUtf8 <= lenOriginal) {
+					filterUtf8(decUtf8, lenDecUtf8);
+
 					memcpy(out + lenOut, decUtf8, lenDecUtf8);
 					lenOut += lenDecUtf8;
 					free(decUtf8);
