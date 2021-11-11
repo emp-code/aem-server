@@ -14,6 +14,7 @@
 #include "../Common/Addr32.h"
 #include "../Common/Trim.h"
 #include "../Common/UnixSocketClient.h"
+#include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
 
 #include "delivery.h"
@@ -376,6 +377,7 @@ static void prepareEmail(unsigned char * const source, size_t lenSource) {
 	source[lenSource] = '\0';
 
 	processEmail(source, &lenSource, &email);
+	filterUtf8(email.body, email.lenBody, true);
 }
 
 static void clearEmail(void) {

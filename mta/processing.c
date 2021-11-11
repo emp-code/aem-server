@@ -134,7 +134,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			const size_t lenOriginal = 7 + lenCharset + lenEw;
 
 			if (isUtf8(charset)) {
-				filterUtf8(dec, lenDec);
+				filterUtf8(dec, lenDec, false);
 
 				if (lenDec <= lenOriginal) {
 					memcpy(out + lenOut, dec, lenDec);
@@ -148,7 +148,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				unsigned char *decUtf8 = (unsigned char*)toUtf8((char*)dec, lenDec, &lenDecUtf8, charset);
 
 				if (decUtf8 != NULL && lenDecUtf8 > 0 && lenDecUtf8 <= lenOriginal) {
-					filterUtf8(decUtf8, lenDecUtf8);
+					filterUtf8(decUtf8, lenDecUtf8, false);
 
 					memcpy(out + lenOut, decUtf8, lenDecUtf8);
 					lenOut += lenDecUtf8;
@@ -566,10 +566,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			if (lenCt >= 9 && memeq_anycase(ct + 5, "html", 4))
 				htmlToText((char*)email->body, &email->lenBody);
 			else
-				removeControlChars(email->body, &email->lenBody);
-
-			cleanText(email->body, &email->lenBody, false);
-			email->body[email->lenBody] = '\0';
+				cleanText(email->body, &email->lenBody, true);
 		}
 	}
 }
