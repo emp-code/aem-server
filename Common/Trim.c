@@ -57,7 +57,7 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 			lenNew += 3;
 			i += 2;
 			continue;
-		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) {
+		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
 			if (lenNew > 0 && new[lenNew - 1] == '\n') {i++; continue;} // follows LF - skip
 			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // Followed by SP/LF - skip
 			new[lenNew] = text[i];
