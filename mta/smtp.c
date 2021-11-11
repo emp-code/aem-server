@@ -360,16 +360,16 @@ static void prepareEmail(unsigned char * const source, size_t lenSource) {
 		const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
 		if (headersEnd == NULL) break;
 
-		unsigned char *start = (unsigned char*)strcasestr((char*)source, "\nDKIM-Signature:");
-		if (start == NULL || start > headersEnd) break;
+		unsigned char *start = memcasemem(source, headersEnd - source, "\nDKIM-Signature:", 16);
+		if (start == NULL) break;
 		start++;
+
 		const int offset = verifyDkim(&email, start, (source + lenSource) - start);
 		if (offset == 0) break;
 
 		// Delete the signature from the headers
 		memmove(start, start + offset, (source + lenSource) - (start + offset));
 		lenSource -= offset;
-		source[lenSource] = '\0';
 	}
 
 	// Remove final CRLF
