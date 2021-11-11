@@ -486,10 +486,9 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	minifyHeaderAddress(email->hdrRt, &email->lenHdrRt);
 	minifyHeaderAddress(email->hdrTo, &email->lenHdrTo);
 
-	unsigned char ct[256];
+	unsigned char ct[255];
 	uint8_t lenCt = 0;
 	moveHeader(email->head, &email->lenHead, "\nContent-Type:", 14, (unsigned char*)ct, &lenCt, 255);
-	ct[lenCt] = '\0';
 
 	uint8_t lenHdrDate = 0;
 	unsigned char hdrDate[256];
