@@ -525,7 +525,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, ignore, &lenIgnore, 255);
 
 		size_t lenBound;
-		unsigned char * const bound = getBound(ct + 9, (email->head + email->lenHead) - (ct + 9), &lenBound);
+		unsigned char * const bound = getBound(ct + 9, (ct + lenCt) - (ct + 9), &lenBound);
 
 		if (bound != NULL) {
 			email->lenBody = *lenSource;
