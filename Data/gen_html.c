@@ -327,8 +327,8 @@ static void printBin(const char * const def, const unsigned char * const buf, co
 }
 
 static void printSts(void) {
-	char tmp[512];
-	sprintf(tmp,
+	unsigned char tmp[512];
+	sprintf((char*)tmp,
 		"HTTP/1.1 200 aem\r\n"
 		"Cache-Control: public, max-age=9999999, immutable\r\n"
 		"Connection: close\r\n"
@@ -346,17 +346,9 @@ static void printSts(void) {
 		"max_age: 31557600"
 	, 51 + AEM_DOMAIN_LEN);
 
-	const size_t len = strlen(tmp);
-
+	const size_t len = strlen((char*)tmp);
 	printf("#define AEM_MTASTS_SIZE %zu\n", len);
-	printf("#define AEM_MTASTS_DATA (const unsigned char[]) {");
-
-	for (size_t i = 0; i < len; i++) {
-		printf("'\\x%.2x'", tmp[i]);
-		if (i < len - 1) printf(",");
-	}
-
-	puts("}\n");
+	printBin("AEM_MTASTS_DATA", tmp, len);
 }
 
 int main(int argc, char *argv[]) {
