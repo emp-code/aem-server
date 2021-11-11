@@ -131,19 +131,14 @@ static int getNameRecord(const unsigned char * const msg, const int lenMsg, int 
 		if (!memeq(msg + offset + 2, (unsigned char[]){0,1}, 2)) {syslog(LOG_ERR, "Record not internet class"); return -1;}
 		// +4 TTL (32 bits) ignored
 
-		uint16_t rdLen;
-		memcpy((unsigned char*)&rdLen + 0, msg + offset + 9, 1);
-		memcpy((unsigned char*)&rdLen + 1, msg + offset + 8, 1);
+		const uint16_t rdLen = *(uint16_t*)(unsigned char[]){msg[offset + 9], msg[offset + 8]};
 		if (rdLen < 1) {syslog(LOG_ERR, "rdLen"); return -1;}
 
 		switch (rt_u16) {
 			case AEM_DNS_RECORDTYPE_MX: {
 				if (rt_u16 != recordType) {syslog(LOG_ERR, "Record type mismatch: %.2x", msg[offset + 1]); return -1;}
 
-				uint16_t newPrio;
-				memcpy((unsigned char*)&newPrio + 0, msg + offset + 11, 1);
-				memcpy((unsigned char*)&newPrio + 1, msg + offset + 10, 1);
-
+				const uint16_t newPrio = *(uint16_t*)(unsigned char[]){msg[offset + 11], msg[offset + 10]};
 				if (newPrio < prio) {
 					*lenResult = 0;
 					const int o2 = rr_getName(msg, lenMsg, offset + 12, result, lenResult, true);
@@ -200,9 +195,7 @@ static uint32_t dnsResponse_GetIp_get(const unsigned char * const rr, const int 
 			if (!pointer) offset++;
 			pointer = false;
 
-			uint16_t lenRecord;
-			memcpy((unsigned char*)&lenRecord + 0, rr + offset + 9, 1);
-			memcpy((unsigned char*)&lenRecord + 1, rr + offset + 8, 1);
+			const uint16_t lenRecord = *(uint16_t*)(unsigned char[]){rr[offset + 9], rr[offset + 8]};
 
 			if (memeq(rr + offset, (unsigned char[]){0,1,0,1}, 4) && lenRecord == 4) { // A Record
 				uint32_t ip;
@@ -245,9 +238,7 @@ static int getAnswerCount(const uint16_t reqId, const unsigned char * const res,
 	domainToQuestion(question, domain, lenDomain, queryType);
 	if (!memeq(res + 12, question, lenDomain + 6)) {syslog(LOG_ERR, "Question mismatch"); return 0;}
 
-	uint16_t answerCount;
-	memcpy((unsigned char*)&answerCount + 0, res + 7, 1);
-	memcpy((unsigned char*)&answerCount + 1, res + 6, 1);
+	const uint16_t answerCount = *(uint16_t*)(unsigned char[]){res[7], res[6]};
 	return answerCount;
 }
 
