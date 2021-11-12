@@ -570,4 +570,6 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 				cleanText(email->body, &email->lenBody, true);
 		}
 	}
+
+	filterUtf8(email->body, email->lenBody, true);
 }
