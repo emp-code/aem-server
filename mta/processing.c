@@ -301,11 +301,12 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 	const unsigned char *csEnd;
 	if (*cs == '"' || *cs == '\'') {
 		csEnd = memchr(cs + 1, *cs, (ct + lenCt) - (cs + 1));
+		if (csEnd == NULL) return NULL;
 		cs++;
 	} else {
 		csEnd = mempbrk(cs, (ct + lenCt) - cs, (unsigned char[]){';', ' ', '\t', '\v', '\f', '\r', '\n'}, 7);
+		if (csEnd == NULL) csEnd = ct + lenCt;
 	}
-	if (csEnd == NULL) return NULL;
 
 	const size_t lenCs = csEnd - cs;
 	unsigned char * const charset = malloc(lenCs + 1);
