@@ -277,15 +277,16 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			for (int j = 0; j < email->attachCount; j++) {
 				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
-				unsigned char * const att = malloc(5 + email->lenAttachment[j]);
+				const size_t lenAtt = 5 + email->lenAttachment[j];
+				unsigned char * const att = malloc(lenAtt);
 				if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 
-				att[0] = msg_getPadAmount(5 + email->lenAttachment[j]) | 32;
+				att[0] = msg_getPadAmount(lenAtt) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
 				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
 				memcpy(att + 6, msgId, 16);
 
-				enc = msg_encrypt(toUpk[i], att, 5 + email->lenAttachment[j], &lenEnc);
+				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
 				ret = sendMsg(stoSock, enc, lenEnc);
