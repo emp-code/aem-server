@@ -449,8 +449,9 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				lenFn = 3;
 			} else if (lenFn > 256) lenFn = 256;
 
-			if (17 + lenFn + lenNew <= AEM_API_BOX_SIZE_MAX) {
-				email->attachment[email->attachCount] = malloc(17 + lenFn + lenNew);
+			const size_t lenAtt = 17 + lenFn + lenNew;
+			if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
+				email->attachment[email->attachCount] = malloc(lenAtt);
 
 				if (email->attachment[email->attachCount] != NULL) {
 					email->attachment[email->attachCount][0] = (lenFn - 1);
@@ -458,7 +459,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
 					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
 
-					email->lenAttachment[email->attachCount] = 17 + lenFn + lenNew;
+					email->lenAttachment[email->attachCount] = lenAtt;
 					(email->attachCount)++;
 				} else syslog(LOG_ERR, "Failed allocation");
 			} // else attachment too large
