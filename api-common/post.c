@@ -985,7 +985,7 @@ static void message_sender(void) {
 	if (lenDecrypted != 52) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 	if (getUserLevel(upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
-	const int sock = accountSocket(AEM_API_MESSAGE_SENDER, upk, crypto_box_PUBLICKEYBYTES);
+	const int sock = accountSocket(AEM_API_INTERNAL_PUBKS, upk, crypto_box_PUBLICKEYBYTES);
 	if (sock < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	int userCount;

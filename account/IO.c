@@ -591,23 +591,6 @@ void api_address_update(const int sock, const int num) {
 	send(sock, &resp, 1, 0);
 }
 
-void api_message_sender(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) return;
-
-	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
-
-	const size_t lenResponse = userCount * crypto_box_PUBLICKEYBYTES;
-	unsigned char * const response = malloc(lenResponse);
-	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
-
-	for (int i = 0; i < userCount; i++) {
-		memcpy(response + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
-	}
-
-	send(sock, response, lenResponse, 0);
-	free(response);
-}
-
 void api_private_update(const int sock, const int num) {
 	unsigned char buf[AEM_LEN_PRIVATE];
 	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {

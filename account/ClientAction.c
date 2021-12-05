@@ -34,7 +34,6 @@ void conn_api(const int sock, const unsigned char * const dec, const size_t lenD
 		case AEM_API_ADDRESS_DELETE: api_address_delete(sock, num); break;
 		case AEM_API_ADDRESS_UPDATE: api_address_update(sock, num); break;
 
-		case AEM_API_MESSAGE_SENDER: api_message_sender(sock, num); break;
 		case AEM_API_PRIVATE_UPDATE: api_private_update(sock, num); break;
 		case AEM_API_SETTING_LIMITS: api_setting_limits(sock, num); break;
 
