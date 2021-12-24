@@ -12,7 +12,7 @@
 #include <mbedtls/x509.h> // For RSA
 #include <sodium.h>
 
-#include "../Common/UnixSocketClient.h"
+#include "../Common/IntCom_Client.h"
 #include "../Common/memeq.h"
 
 #include "dkim.h"
@@ -65,13 +65,9 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	unsigned char tmp[512];
 	sprintf((char*)tmp, "%s/%.*s", selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
 
-	const int sock = enquirySocket(AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp));
-	if (sock < 0) {syslog(LOG_ERR, "Failed connecting to Enquiry"); return -1;}
-
-	unsigned char dkim[2048];
-	const int lenDkim = recv(sock, dkim, 2047, 0);
-	close(sock);
-	if (lenDkim < 1) {syslog(LOG_ERR, "Failed communicating with Enquiry"); return -1;}
+	unsigned char *dkim = NULL;
+	const int32_t lenDkim = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp), &dkim, 0);
+	if (lenDkim != AEM_INTCOM_RESPONSE_OK && lenDkim < 1) return -1;
 	dkim[lenDkim] = 0;
 
 	int retval = -1;

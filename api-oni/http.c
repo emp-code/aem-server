@@ -40,7 +40,7 @@ void respondClient(const int sock) {
 		if (lenPost < AEM_API_SEALBOX_SIZE) break;
 
 		ret = aem_api_prepare(buf, keepAlive);
-		if (ret != AEM_INTERNAL_RESPONSE_OK) {
+		if (ret != AEM_INTCOM_RESPONSE_OK) {
 			char txt[] =
 				"HTTP/1.1 500 aem\r\n"
 				"Tk: N\r\n"
@@ -50,9 +50,9 @@ void respondClient(const int sock) {
 				"\r\n"
 			;
 
-			if (ret == AEM_INTERNAL_RESPONSE_CRYPTOFAIL) txt[9] = '4'; // 400
-			else if (ret == AEM_INTERNAL_RESPONSE_NOTEXIST) {txt[9] = '4'; txt[11] = '3';} // 403
-			else if (ret == AEM_INTERNAL_RESPONSE_LIMIT) {txt[9] = '4'; txt[10] = '9'; txt[11] = '9';} // 499
+			if (ret == AEM_INTCOM_RESPONSE_CRYPTO) txt[9] = '4'; // 400
+			else if (ret == AEM_INTCOM_RESPONSE_NOTEXIST) {txt[9] = '4'; txt[11] = '3';} // 403
+			else if (ret == AEM_INTCOM_RESPONSE_LIMIT) {txt[9] = '4'; txt[10] = '9'; txt[11] = '9';} // 499
 
 			send(sock, txt, 97, 0);
 			break;

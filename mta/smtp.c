@@ -12,8 +12,8 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
+#include "../Common/IntCom_Client.h"
 #include "../Common/Trim.h"
-#include "../Common/UnixSocketClient.h"
 #include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
 
@@ -128,30 +128,19 @@ static bool isIpBlacklisted(void) {
 	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
 	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&email.ip)[3], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[0]);
 
-	const int sock = enquirySocket(AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain));
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed connecting to Enquiry");
-		return false;
-	}
+	unsigned char *dnsbl_ip = NULL;
+	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return -1;
 
-	uint32_t dnsbl_ip = 0;
-	const int lenIpInfo = recv(sock, &dnsbl_ip, 4, 0);
-	close(sock);
-	return (lenIpInfo == sizeof(uint32_t) && dnsbl_ip == 1);
+	sodium_free(dnsbl_ip);
+	return (*((uint32_t*)dnsbl_ip) == 1);
 }
 
 static bool greetingDomainMatchesIp(void) {
-	const int sock = enquirySocket(AEM_ENQUIRY_A, email.greet, email.lenGreet);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed connecting to Enquiry");
-		return false;
-	}
+	unsigned char *greet_ip = NULL;
+	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, email.greet, email.lenGreet, &greet_ip, 4) != 4) return -1;
 
-	uint32_t ip_greet;
-	const int lenRecv = recv(sock, &ip_greet, sizeof(uint32_t), 0);
-	close(sock);
-
-	return (lenRecv == sizeof(uint32_t) && ip_greet == email.ip);
+	sodium_free(greet_ip);
+	return (*((uint32_t*)greet_ip) == email.ip);
 }
 
 static void getIpInfo(void) {
@@ -159,16 +148,10 @@ static void getIpInfo(void) {
 	email.ccBytes[0] |= 31;
 	email.ccBytes[1] |= 31;
 
-	const int sock = enquirySocket(AEM_ENQUIRY_IP, (unsigned char*)&email.ip, 4);
-	if (sock < 0) {
-		syslog(LOG_ERR, "Failed connecting to Enquiry");
-		return;
-	}
-
-	unsigned char ipInfo[130];
-	int lenIpInfo = recv(sock, ipInfo, 130, 0);
-	close(sock);
-	if (lenIpInfo < 4) return;
+	unsigned char *ipInfo = NULL;
+	const int32_t lenIpInfo = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_IP, (unsigned char*)&email.ip, 4, &ipInfo, 0);
+	if (lenIpInfo < 1) return;
+	if (lenIpInfo < 4) {sodium_free(ipInfo); return;}
 
 	memcpy(email.ccBytes, ipInfo, 2);
 
@@ -183,6 +166,8 @@ static void getIpInfo(void) {
 		if (email.lenAuSys > 63) email.lenAuSys = 63;
 		memcpy(email.auSys, ipInfo + 4 + email.lenRvDns, email.lenAuSys);
 	}
+
+	sodium_free(ipInfo);
 
 	email.ipMatchGreeting = greetingDomainMatchesIp();
 	email.ipBlacklisted = isIpBlacklisted();
@@ -262,16 +247,16 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	unsigned char addr32[10];
 	addr32_store(addr32, addr, addrChars);
 
-	const int sock = accountSocket((addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10);
-	if (sock < 0) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
+	unsigned char *resp = NULL;
+	int32_t lenResp = intcom(AEM_INTCOM_TYPE_ACCOUNT, (addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10, &resp, crypto_box_PUBLICKEYBYTES + 1);
+	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
+	if (lenResp != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(resp); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
 
-	int ret = recv(sock, upk, crypto_box_PUBLICKEYBYTES, 0);
-	if (ret == 1 && *upk == AEM_INTERNAL_RESPONSE_NOTEXIST) {close(sock); return AEM_SMTP_ERROR_ADDR_OUR_USER;}
-	if (ret != crypto_box_PUBLICKEYBYTES) {close(sock); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
-
-	ret = (recv(sock, addrFlags, 1, 0) == 1) ? 0 : AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
-	close(sock);
-	return ret;
+	memcpy(upk, resp, crypto_box_PUBLICKEYBYTES);
+	*addrFlags = resp[crypto_box_PUBLICKEYBYTES];
+	sodium_free(resp);
+	return 0;
 }
 
 __attribute__((warn_unused_result))

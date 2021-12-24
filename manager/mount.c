@@ -98,14 +98,11 @@ int createMount(const int type) {
 	) return -1;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_ACCOUNT:
 			if (
-			   mkdir(AEM_PATH_MOUNTDIR"/etc", AEM_MODE_XO | S_ISVTX) != 0
-			|| chown(AEM_PATH_MOUNTDIR"/etc", 0, aemGroup) != 0
-			|| bindMount("/etc/localtime",                      AEM_PATH_MOUNTDIR"/etc/localtime", AEM_MOUNT_RDONLY | AEM_MOUNT_ISFILE) != 0
-			|| bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs",     AEM_MOUNT_RDONLY) != 0
-			) return -1;
+			   bindMount(AEM_PATH_HOME"/Account.aem", AEM_PATH_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0
+			|| bindMount(AEM_PATH_HOME"/Settings.aem", AEM_PATH_MOUNTDIR"/Settings.aem", AEM_MOUNT_ISFILE) != 0
+			) {syslog(LOG_ERR, "%m"); return -1;}
 		break;
 
 		case AEM_PROCESSTYPE_ENQUIRY:
@@ -116,15 +113,20 @@ int createMount(const int type) {
 			) return -1;
 		break;
 
-		case AEM_PROCESSTYPE_ACCOUNT:
-			if (bindMount(AEM_PATH_HOME"/Account.aem", AEM_PATH_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0) return -1;
-			if (bindMount(AEM_PATH_HOME"/Settings.aem", AEM_PATH_MOUNTDIR"/Settings.aem", AEM_MOUNT_ISFILE) != 0) return -1;
-		break;
-
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
 			   bindMount(AEM_PATH_HOME"/Stindex.aem", AEM_PATH_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0
 			|| bindMount(AEM_PATH_HOME"/MessageData", AEM_PATH_MOUNTDIR"/MessageData", 0) != 0
+			) return -1;
+		break;
+
+		case AEM_PROCESSTYPE_API_CLR:
+		case AEM_PROCESSTYPE_API_ONI:
+			if (
+			   mkdir(AEM_PATH_MOUNTDIR"/etc", AEM_MODE_XO | S_ISVTX) != 0
+			|| chown(AEM_PATH_MOUNTDIR"/etc", 0, aemGroup) != 0
+			|| bindMount("/etc/localtime",                      AEM_PATH_MOUNTDIR"/etc/localtime", AEM_MOUNT_RDONLY | AEM_MOUNT_ISFILE) != 0
+			|| bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs",     AEM_MOUNT_RDONLY) != 0
 			) return -1;
 		break;
 	}

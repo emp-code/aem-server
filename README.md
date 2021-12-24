@@ -18,7 +18,7 @@ All-Ears uses several process types, divided into three tiers. The design minimi
 
 The top-tier process, Manager, has full access to all data, but only has one purpose: to start the other processes and give them the data they need at startup.
 
-The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through a local Unix socket requiring an Access Key. Enquiry functions similarly, but doesn't deal with user data.
+The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through an encrypted Unix socket. Enquiry functions similarly, but doesn't deal with user data.
 
 The bottom-tier processes, API and MTA, are publically accessible, but have no direct access to user data. They can only request the middle-tier processes to perform specific functions needed for their operation. The final process type of this tier is Web, which is completely isolated from all other processes.
 
@@ -62,13 +62,13 @@ Shutting down Manager terminates all other All-Ears processes (see [Signals](#si
 
 Account manages, serves, and stores all user (see [Users](#users)) and address (see [Addresses](#addresses)) information.
 
-API and MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
+API and MTA connect to it, each with their own key. Depending on which key was used, only functions relevant to that particular type of process are available.
 
 ## Storage ##
 
 Storage handles the storage and retrieval of encrypted message data (see [Messages](#messages)).
 
-API and MTA connect to it, each with their own Access Key. Depending on which key was used, only functions relevant to that particular type of process are allowed.
+API and MTA connect to it, each with their own key. Depending on which key was used, only functions relevant to that particular type of process are available.
 
 Message data is stored in `/var/lib/allears/MessageData`, encrypted with AES-256. All users have their own file; the file names are encrypted public keys.
 

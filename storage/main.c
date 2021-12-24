@@ -14,7 +14,7 @@
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 
-#include "ClientHandler.h"
+#include "IntCom_Server.h"
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Sto"

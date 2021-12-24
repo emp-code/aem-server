@@ -14,10 +14,9 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/IntCom_Client.h"
+#include "../Common/IntCom_Server.h"
 #include "../Common/SetCaps.h"
-#include "../Common/UnixSocketClient.h"
-
-#include "ClientHandler.h"
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Acc"

@@ -18,7 +18,7 @@
 
 #include "../Common/SetCaps.h"
 
-#include "ClientHandler.h"
+#include "IntCom_Server.h"
 
 #define AEM_LOGNAME "AEM-Enq"
 

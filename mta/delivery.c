@@ -13,7 +13,7 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
-#include "../Common/UnixSocketClient.h"
+#include "../Common/IntCom_Client.h"
 #include "../Common/memeq.h"
 
 #include "delivery.h"
@@ -229,22 +229,6 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-static int sendMsg(const int sock, unsigned char * const msg, const size_t lenMsg) {
-	if (sock < 0 || msg == NULL || lenMsg < AEM_MSG_MINSIZE || lenMsg % 16 != 0) {syslog(LOG_ERR, "sendMsg: Invalid data"); return AEM_STORE_INERROR;}
-
-	char ret = AEM_STORE_INERROR;
-	const bool sockOk = (send(sock, msg, lenMsg, 0) == (ssize_t)lenMsg && recv(sock, &ret, 1, 0) == 1);
-	free(msg);
-
-	if (sockOk) {
-		if (ret == 0) return 0;
-		send(sock, (unsigned char[]){0xFE}, 1, 0);
-	} else syslog(LOG_ERR, "Failed sending to Storage");
-
-	close(sock);
-	return ret;
-}
-
 int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
 	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_STORE_INERROR;}
 	if (email->attachCount > 31) email->attachCount = 31;
@@ -263,14 +247,13 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		}
 
 		unsigned char msgId[16];
-		memcpy(msgId, enc, 16);
+		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
 
 		// Deliver
-		const int stoSock = storageSocket(AEM_MTA_INSERT, toUpk[i], crypto_box_PUBLICKEYBYTES);
-		if (stoSock < 0) {free(enc); continue;}
-
-		int ret = sendMsg(stoSock, enc, lenEnc);
-		if (ret != 0) {if (toCount > 1) continue; return ret;}
+		if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+			if (toCount > 1) continue;
+			return -1;
+		}
 
 		// Store attachments, if requested
 		if ((toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
@@ -289,8 +272,10 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
-				ret = sendMsg(stoSock, enc, lenEnc);
-				if (ret != 0) {if (toCount > 1) continue; return ret;}
+				if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+					if (toCount > 1) continue;
+					return -1;
+				}
 			}
 		}
 
@@ -313,13 +298,11 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 			free(att);
 
-			ret = sendMsg(stoSock, enc, lenEnc);
-			if (ret != 0) {if (toCount > 1) continue; return ret;}
+			if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+				if (toCount > 1) continue;
+				return -1;
+			}
 		}
-
-		// Final End
-		send(stoSock, (unsigned char[]){0xFE}, 1, 0);
-		close(stoSock);
 	}
 
 	return 0;

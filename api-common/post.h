@@ -13,7 +13,7 @@ void setEnquiryPid(const pid_t pid);
 int aem_api_init(void);
 void aem_api_free(void);
 
-int aem_api_prepare(const unsigned char * const pubkey, const bool ka);
+int32_t aem_api_prepare(const unsigned char * const pubkey, const bool ka);
 int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned char ** const response_p);
 
 #endif

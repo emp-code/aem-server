@@ -1,15 +1,20 @@
 #ifndef AEM_STORAGE_IO_H
 #define AEM_STORAGE_IO_H
 
-int updateLevels(const unsigned char * const data, const size_t lenData);
-void updateLimits(const unsigned char * const newLimits);
-size_t getStorageAmounts(unsigned char ** const out);
+// Account
+int32_t acc_storage_amount(unsigned char **res);
+int32_t acc_storage_levels(const unsigned char * const msg, const size_t lenMsg);
+int32_t acc_storage_limits(const unsigned char * const msg, const size_t lenMsg);
 
-int storage_erase(const unsigned char * const upk);
-int storage_delete(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], const unsigned char * const id);
-int storage_write(const unsigned char pubkey[crypto_box_PUBLICKEYBYTES], unsigned char * const data, const uint16_t sze);
-int storage_read(const unsigned char * const upk, const unsigned char * const matchId, unsigned char ** const msgData);
+// API
+int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk);
+int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out);
+int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], const size_t lenReq);
 
+// API/MTA
+int32_t storage_write(unsigned char * const req, const size_t lenReq);
+
+// main
 int ioSetup(const unsigned char * const storageKey);
 void ioFree(void);
 

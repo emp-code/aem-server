@@ -15,11 +15,12 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 	randombytes_buf_deterministic(clear + lenContent, padAmount, clear); // First randombytes_SEEDBYTES of message determine the padding bytes
 	crypto_sign_detached(clear + lenPadded - crypto_sign_BYTES, NULL, clear, lenPadded - crypto_sign_BYTES, sign_skey);
 
-	*lenEncrypted = lenPadded + crypto_box_SEALBYTES;
+	*lenEncrypted = crypto_box_PUBLICKEYBYTES + lenPadded + crypto_box_SEALBYTES;
 	unsigned char *encrypted = malloc(*lenEncrypted);
 	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); sodium_free(clear); return NULL;}
 
-	const int ret = crypto_box_seal(encrypted, clear, lenPadded, pk);
+	memcpy(encrypted, pk, crypto_box_PUBLICKEYBYTES);
+	const int ret = crypto_box_seal(encrypted + crypto_box_PUBLICKEYBYTES, clear, lenPadded, pk);
 	sodium_free(clear);
 
 	if (ret != 0) {

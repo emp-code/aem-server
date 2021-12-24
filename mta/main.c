@@ -19,8 +19,8 @@
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
+#include "../Common/IntCom_Client.h"
 #include "../Common/SetCaps.h"
-#include "../Common/UnixSocketClient.h"
 #include "../Common/ValidIp.h"
 
 #define AEM_LOGNAME "AEM-MTA"

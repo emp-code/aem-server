@@ -8,26 +8,24 @@ void ioFree(void);
 
 int userNumFromPubkey(const unsigned char * const pubkey);
 
-void api_account_browse(const int sock, const int num);
-void api_account_create(const int sock, const int num);
-void api_account_delete(const int sock, const int num);
-void api_account_update(const int sock, const int num);
+int32_t api_account_browse(const int num, unsigned char **res);
+int32_t api_account_create(const int num, const unsigned char * const msg, const size_t lenMsg);
+int32_t api_account_delete(const int num, const unsigned char * const msg, const size_t lenMsg);
+int32_t api_account_update(const int num, const unsigned char * const msg, const size_t lenMsg);
 
-void api_address_create(const int sock, const int num);
-void api_address_delete(const int sock, const int num);
-void api_address_update(const int sock, const int num);
+int32_t api_address_create(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res);
+int32_t api_address_delete(const int num, const unsigned char * const msg, const size_t lenMsg);
+int32_t api_address_update(const int num, const unsigned char * const msg, const size_t lenMsg);
 
-void api_message_sender(const int sock, const int num);
-void api_private_update(const int sock, const int num);
-void api_setting_limits(const int sock, const int num);
+int32_t api_private_update(const int num, const unsigned char * const msg, const size_t lenMsg);
+int32_t api_setting_limits(const int num, const unsigned char * const msg, const size_t lenMsg);
 
-void api_internal_adrpk(const int sock, const int num);
-void api_internal_level(const int sock, const int num);
-void api_internal_myadr(const int sock, const int num);
-void api_internal_uinfo(const int sock, const int num);
-void api_internal_pubks(const int sock, const int num);
+int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res);
+int32_t api_internal_level(const int num);
+int32_t api_internal_myadr(const int num);
+int32_t api_internal_uinfo(const int num, unsigned char **res);
+int32_t api_internal_pubks(const int num, unsigned char **res);
 
-void mta_shieldExist(const int sock, const unsigned char * const addr32);
-void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield);
+int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, unsigned char **res);
 
 #endif

@@ -3,16 +3,20 @@
 
 #include "Config.h"
 
-enum aem_internal_response {
-	AEM_INTERNAL_RESPONSE_NONE,
-	AEM_INTERNAL_RESPONSE_OK,
-	AEM_INTERNAL_RESPONSE_ERR,
-	AEM_INTERNAL_RESPONSE_VIOLATION,
-	AEM_INTERNAL_RESPONSE_EXIST,
-	AEM_INTERNAL_RESPONSE_NOTEXIST,
-	AEM_INTERNAL_RESPONSE_PARTIAL,
-	AEM_INTERNAL_RESPONSE_LIMIT,
-	AEM_INTERNAL_RESPONSE_CRYPTOFAIL
+#define AEM_INTCOM_RESPONSE_OK       INT32_MIN
+#define AEM_INTCOM_RESPONSE_ERR      (INT32_MIN + 1)
+#define AEM_INTCOM_RESPONSE_USAGE    (INT32_MIN + 2)
+#define AEM_INTCOM_RESPONSE_PERM     (INT32_MIN + 3)
+#define AEM_INTCOM_RESPONSE_EXIST    (INT32_MIN + 4)
+#define AEM_INTCOM_RESPONSE_NOTEXIST (INT32_MIN + 5)
+#define AEM_INTCOM_RESPONSE_PARTIAL  (INT32_MIN + 6)
+#define AEM_INTCOM_RESPONSE_LIMIT    (INT32_MIN + 7)
+#define AEM_INTCOM_RESPONSE_CRYPTO   (INT32_MIN + 8)
+
+enum aem_intcom_identifier {
+	AEM_IDENTIFIER_API,
+	AEM_IDENTIFIER_MTA,
+	AEM_IDENTIFIER_ACC
 };
 
 enum aem_internal_enquiry {
@@ -157,39 +161,39 @@ enum aem_acc_commands {
 };
 
 enum aem_process_types {
+	AEM_PROCESSTYPE_ACCOUNT,
+	AEM_PROCESSTYPE_ENQUIRY,
+	AEM_PROCESSTYPE_STORAGE,
+	AEM_PROCESSTYPE_API_CLR,
+	AEM_PROCESSTYPE_API_ONI,
 	AEM_PROCESSTYPE_MTA,
 	AEM_PROCESSTYPE_WEB_CLR,
 	AEM_PROCESSTYPE_WEB_ONI,
-	AEM_PROCESSTYPE_API_CLR,
-	AEM_PROCESSTYPE_API_ONI,
-	AEM_PROCESSTYPE_STORAGE,
-	AEM_PROCESSTYPE_ACCOUNT,
-	AEM_PROCESSTYPE_ENQUIRY,
 	AEM_PROCESSTYPES_COUNT
 };
 
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_CONF"/bin/aem-mta", \
-	AEM_PATH_CONF"/bin/aem-web-clr", \
-	AEM_PATH_CONF"/bin/aem-web-oni", \
+	AEM_PATH_CONF"/bin/aem-account", \
+	AEM_PATH_CONF"/bin/aem-enquiry", \
+	AEM_PATH_CONF"/bin/aem-storage", \
 	AEM_PATH_CONF"/bin/aem-api-clr", \
 	AEM_PATH_CONF"/bin/aem-api-oni", \
-	AEM_PATH_CONF"/bin/aem-storage", \
-	AEM_PATH_CONF"/bin/aem-account", \
-	AEM_PATH_CONF"/bin/aem-enquiry" \
+	AEM_PATH_CONF"/bin/aem-mta", \
+	AEM_PATH_CONF"/bin/aem-web-clr", \
+	AEM_PATH_CONF"/bin/aem-web-oni" \
 }
 
 #define AEM_NICE { \
-	/*MTA*/      -8, \
-	/*Web-Clr*/   4, \
-	/*Web-Oni*/   8, \
+	/*Account*/ -16, \
+	/*Enquiry*/ -18, \
+	/*Storage*/ -18, \
 	/*API-Clr*/  -4, \
 	/*API-Oni*/  -2, \
-	/*Storage*/ -18, \
-	/*Account*/ -16, \
-	/*Enquiry*/ -18 \
+	/*MTA*/      -8, \
+	/*Web-Clr*/   4, \
+	/*Web-Oni*/   8 \
 }
 
 #endif

@@ -11,7 +11,8 @@
 
 #include <sodium.h>
 
-#include "../Common/UnixSocketClient.h"
+#include "../Common/IntCom_Client.h"
+#include "../Common/IntCom_Server.h"
 #include "../Common/memeq.h"
 #include "../Data/address.h"
 #include "../Global.h"
@@ -176,25 +177,15 @@ static int loadUser(void) {
 }
 
 static int updateStorageLevels(void) {
-	const int stoSock = storageSocket(AEM_ACC_STORAGE_LEVELS, NULL, 0);
-	if (stoSock < 0) {syslog(LOG_ERR, "Failed creating Storage socket"); return -1;}
-
 	const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
-	unsigned char * const data = malloc(lenData);
+	unsigned char * const data = sodium_malloc(lenData);
 	for (int i = 0; i < userCount; i++) {
 		data[i * (crypto_box_PUBLICKEYBYTES + 1)] = user[i].info & AEM_USERLEVEL_MAX;
 		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].pubkey, crypto_box_PUBLICKEYBYTES);
 	}
 
-	send(stoSock, data, lenData, 0);
-
-	unsigned char resp = 0;
-	recv(stoSock, &resp, 1, 0);
-	close(stoSock);
-	free(data);
-
-	if (resp != AEM_INTERNAL_RESPONSE_OK) {
-		syslog(LOG_ERR, "updateStorageLevels: Invalid response from Storage");
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		syslog(LOG_ERR, "updateStorageLevels: intcom failed");
 		return -1;
 	}
 
@@ -208,13 +199,11 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 	loadSettings(); // Ignore errors
 	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
 
-	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4);
-	if (stoSock < 0) {syslog(LOG_ERR, "Failed creating Storage socket"); return -1;}
-
-	unsigned char resp = 0;
-	recv(stoSock, &resp, 1, 0);
-	close(stoSock);
-	if (resp != AEM_INTERNAL_RESPONSE_OK) {syslog(LOG_ERR, "Invalid response from Storage"); return -1;}
+	const unsigned char * const msg = (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]};
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, msg, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		syslog(LOG_ERR, "ioSetup: intcom failed");
+		return -1;
+	}
 
 	return updateStorageLevels();
 }
@@ -275,77 +264,36 @@ static int numAddresses(const int num, const bool shield) {
 	return counter;
 }
 
-void api_internal_uinfo(const int sock, const int num) {
-	unsigned char response[AEM_MAXLEN_UINFO];
-	size_t lenResponse = 4;
+int32_t api_account_browse(const int num, unsigned char **res) {
+	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
+	if (userCount <= 1 || res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
-	response[0] = user[num].info;
-	memcpy(response + 1, limits[user[num].info & 3], 3);
+	const uint32_t lenRes = userCount * 35;
+	*res = sodium_malloc(lenRes);
+	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	for (int i = 0; i < (user[num].info >> 3); i++) {
-		memcpy(response + lenResponse, &(user[num].addrHash[i]), 8);
-		response[lenResponse + 8] = user[num].addrFlag[i];
-		lenResponse += 9;
-	}
-
-	memcpy(response + lenResponse, user[num].private, AEM_LEN_PRIVATE);
-	lenResponse += AEM_LEN_PRIVATE;
-
-	send(sock, response, lenResponse, 0);
-}
-
-void api_internal_pubks(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) return;
-
-	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
-
-	unsigned char * const response = malloc(userCount * crypto_box_PUBLICKEYBYTES);
-	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
-	for (int i = 0; i < userCount; i++) {
-		memcpy(response + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
-	}
-
-	send(sock, response, userCount * crypto_box_PUBLICKEYBYTES, 0);
-	free(response);
-}
-
-size_t getUserStorage(unsigned char ** const out) {
-	const int stoSock = storageSocket(AEM_ACC_STORAGE_AMOUNT, NULL, 0);
-	if (stoSock < 0) return 0;
-
-	const size_t lenOut = userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
-	*out = malloc(lenOut + 1);
-	if (*out == NULL) {close(stoSock); syslog(LOG_ERR, "Failed allocation"); return 0;}
-	if (recv(stoSock, *out, lenOut + 1, 0) != (ssize_t)lenOut) {
-		syslog(LOG_WARNING, "getUserStorage: Out of sync");
-		free(*out);
-		*out = NULL;
-		close(stoSock);
-		return 0;
-	}
-
-	close(stoSock);
-	return lenOut;
-}
-
-void api_account_browse(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) return;
-
-	if (send(sock, &userCount, sizeof(int), 0) != sizeof(int)) return;
-	if (userCount <= 1) return;
-
-	unsigned char * const response = malloc(userCount * 35);
-	if (response == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
-
-	memcpy(response, (unsigned char*)limits, 12);
+	memcpy(*res, (unsigned char*)limits, 12);
 	int len = 12;
 
 	const uint32_t u32 = userCount - 1;
-	memcpy(response + len, &u32, 4);
+	memcpy(*res + len, &u32, 4);
 	len += 4;
 
 	unsigned char *storage = NULL;
-	const size_t lenStorage = getUserStorage(&storage);
+	int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
+	if (lenStorage < 1) {
+		sodium_free(*res);
+		*res = NULL;
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
+
+	if ((size_t)lenStorage != userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) {
+		syslog(LOG_WARNING, "getUserStorage: Out of sync");
+		sodium_free(storage);
+		sodium_free(*res);
+		*res = NULL;
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
 
 	for (int i = 0; i < userCount; i++) {
 		if (i == num) continue; // Skip own user
@@ -367,57 +315,47 @@ void api_account_browse(const int sock, const int num) {
 		Storage (bits 1..128)
 */
 		const uint16_t u16 = (user[i].info & 3) | ((numAddresses(i, false) & 31) << 2) | ((numAddresses(i, true) & 31) << 7) | ((kib64 & 3840) << 4);
-		memcpy(response + len, &u16, 2);
-		response[len + 2] = kib64 & 255;
-		memcpy(response + len + 3, user[i].pubkey, 32);
+		memcpy(*res + lenRes, &u16, 2);
+		(*res)[lenRes + 2] = kib64 & 255;
+		memcpy(*res + lenRes + 3, user[i].pubkey, 32);
 		len += 35;
 	}
 
-	send(sock, response, len, 0);
-	free(response);
 	if (storage != NULL) free(storage);
+	return lenRes;
 }
 
-void api_account_create(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) return;
-
-	unsigned char pubkey_new[crypto_box_PUBLICKEYBYTES];
-	if (recv(sock, pubkey_new, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
+int32_t api_account_create(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
+	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
 	// Forbidden pubkeys
 	unsigned char pubkey_inv[crypto_box_PUBLICKEYBYTES];
-	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memeq(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return;
-	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memeq(pubkey_new, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return;
+	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memeq(msg, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
+	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memeq(msg, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
 
-	if (userNumFromPubkey(pubkey_new) >= 0) {
-		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
-		return;
-	}
+	if (userNumFromPubkey(msg) >= 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
-	if (user2 == NULL) {syslog(LOG_ERR, "Failed allocaction"); return;}
+	if (user2 == NULL) {syslog(LOG_ERR, "Failed allocaction"); return AEM_INTCOM_RESPONSE_ERR;}
 	user = user2;
 
 	bzero(&(user[userCount]), sizeof(struct aem_user));
-	memcpy(user[userCount].pubkey, pubkey_new, crypto_box_PUBLICKEYBYTES);
+	memcpy(user[userCount].pubkey, msg, crypto_box_PUBLICKEYBYTES);
 
 	userCount++;
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
 	saveUser();
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_account_delete(const int sock, const int num) {
-	unsigned char pubkey_del[crypto_box_PUBLICKEYBYTES];
-	if (recv(sock, pubkey_del, crypto_box_PUBLICKEYBYTES, 0) != crypto_box_PUBLICKEYBYTES) return;
+int32_t api_account_delete(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
-	const int delNum = userNumFromPubkey(pubkey_del);
-	if (delNum < 0) return;
+	const int delNum = userNumFromPubkey(msg);
+	if (delNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
 
 	// Users can only delete themselves
-	if ((user[num].info & 3) != 3 && delNum != num) {
-		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_VIOLATION}, 1, 0);
-		return;
-	}
+	if ((user[num].info & 3) != 3 && delNum != num) return AEM_INTCOM_RESPONSE_PERM;
 
 	if (delNum < (userCount - 1)) {
 		const size_t s = sizeof(struct aem_user);
@@ -426,68 +364,47 @@ void api_account_delete(const int sock, const int num) {
 
 	userCount--;
 	saveUser();
-
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_account_update(const int sock, const int num) {
-	unsigned char buf[crypto_box_PUBLICKEYBYTES + 1];
-	if (recv(sock, buf, crypto_box_PUBLICKEYBYTES + 1, 0) != crypto_box_PUBLICKEYBYTES + 1) return;
+int32_t api_account_update(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES + 1) return AEM_INTCOM_RESPONSE_ERR;
+	if (msg[0] > AEM_USERLEVEL_MAX) return AEM_INTCOM_RESPONSE_USAGE;
 
-	if (buf[0] > AEM_USERLEVEL_MAX) return;
-
-	const int updateNum = userNumFromPubkey(buf + 1);
-	if (updateNum < 0) return;
+	const int updateNum = userNumFromPubkey(msg + 1);
+	if (updateNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
 
 	// If not admin && (updating another user || new-level >= current-level)
-	if ((user[num].info & 3) != 3 && (updateNum != num || buf[0] >= (user[num].info & 3))) {
-		const unsigned char violation = AEM_INTERNAL_RESPONSE_VIOLATION;
-		send(sock, &violation, 1, 0);
-		return;
-	}
+	if ((user[num].info & 3) != 3 && (updateNum != num || msg[0] >= (user[num].info & 3))) return AEM_INTCOM_RESPONSE_PERM;
 
-	if ((user[updateNum].info & 3) == (buf[0] & 3)) {
-		// Trying to set level to what it already is
-		return;
-	}
+	// Trying to set level to what it already is
+	if ((user[updateNum].info & 3) == (msg[0] & 3)) return AEM_INTCOM_RESPONSE_USAGE;
 
-	user[updateNum].info = (user[updateNum].info & 252) | (buf[0] & 3);
+	user[updateNum].info = (user[updateNum].info & 252) | (msg[0] & 3);
 	saveUser();
 	updateStorageLevels();
-
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_address_create(const int sock, const int num) {
-	uint64_t hash;
-	const ssize_t len = recv(sock, &hash, 8, 0);
-	const bool isShield = (len == 6 && memeq(&hash, "SHIELD", 6));
+int32_t api_address_create(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
+	const bool isShield = (lenMsg == 6 && memeq(msg, "SHIELD", 6));
+	if (!isShield && lenMsg != 8) return AEM_INTCOM_RESPONSE_USAGE;
 
 	int addrCount = user[num].info >> 3;
-	if (addrCount >= AEM_ADDRESSES_PER_USER) {
-		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
-		return;
-	}
+	if (addrCount >= AEM_ADDRESSES_PER_USER) return AEM_INTCOM_RESPONSE_LIMIT;
 
 	unsigned char addr32[10];
+	uint64_t hash = 0;
 	if (isShield) {
-		if (numAddresses(num, true) >= limits[user[num].info & 3][AEM_LIMIT_SHD]) {
-			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
-			return;
-		}
+		if (numAddresses(num, true) >= limits[user[num].info & 3][AEM_LIMIT_SHD]) return AEM_INTCOM_RESPONSE_LIMIT;
 
 		randombytes_buf(addr32, 10);
 		hash = (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
 
-		if (hash == 0 || hash == UINT64_MAX) {
-			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
-			return;
-		}
-	} else if (len == 8) { // Normal
-		if (numAddresses(num, false) >= limits[user[num].info & 3][AEM_LIMIT_NRM]) {
-			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_LIMIT}, 1, 0);
-			return;
-		}
+		if (hash == 0 || hash == UINT64_MAX) return AEM_INTCOM_RESPONSE_EXIST;
+	} else if (lenMsg == 8) { // Normal
+		memcpy((unsigned char*)&hash, msg, 8);
+		if (numAddresses(num, false) >= limits[user[num].info & 3][AEM_LIMIT_NRM]) return AEM_INTCOM_RESPONSE_LIMIT;
 
 		if ((user[num].info & 3) != 3) {
 			// Not admin, check if hash is forbidden
@@ -499,20 +416,10 @@ void api_address_create(const int sock, const int num) {
 			}
 		}
 
-		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) {
-			send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
-			return;
-		}
-	} else {
-		syslog(LOG_ERR, "Failed receiving data from API");
-		return;
-	}
+		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return AEM_INTCOM_RESPONSE_EXIST;
+	} else return AEM_INTCOM_RESPONSE_ERR;
 
-	if (hashToUserNum(hash, isShield, NULL) >= 0) {
-		// Address in use
-		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_EXIST}, 1, 0);
-		return;
-	}
+	if (hashToUserNum(hash, isShield, NULL) >= 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	user[num].addrHash[addrCount] = hash;
 	user[num].addrFlag[addrCount] = isShield? (AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD) : AEM_ADDR_FLAGS_DEFAULT;
@@ -521,34 +428,29 @@ void api_address_create(const int sock, const int num) {
 
 	saveUser();
 
-	if (isShield) {
-		unsigned char data[18];
-		memcpy(data, &hash, 8);
-		memcpy(data + 8, addr32, 10);
+	if (!isShield) return AEM_INTCOM_RESPONSE_OK;
 
-		if (send(sock, data, 18, 0) != 18) syslog(LOG_ERR, "Failed sending data to API");
-	} else {
-		if (send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0) != 1) syslog(LOG_ERR, "Failed sending data to API");
-	}
+	// Shield address
+	*res = sodium_malloc(18);
+	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
+	memcpy(*res, (unsigned char*)&hash, 8);
+	memcpy(*res + 8, addr32, 10);
+	return 18;
 }
 
-void api_address_delete(const int sock, const int num) {
-	uint64_t hash_del;
-	if (recv(sock, &hash_del, 8, 0) != 8) return;
+int32_t api_address_delete(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (lenMsg != 8) return AEM_INTCOM_RESPONSE_ERR;
 
 	unsigned char addrCount = user[num].info >> 3;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
-		if (hash_del == user[num].addrHash[i]) {
+		if (*(uint64_t*)msg == user[num].addrHash[i]) {
 			delNum = i;
 			break;
 		}
 	}
 
-	if (delNum < 0) {
-		send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0);
-		return;
-	}
+	if (delNum < 0) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
 	if (delNum < (addrCount - 1)) {
 		for (int i = delNum; i < addrCount - 1; i++) {
@@ -559,23 +461,20 @@ void api_address_delete(const int sock, const int num) {
 
 	addrCount--;
 	user[num].info = (user[num].info & 3) | (addrCount << 3);
-
 	saveUser();
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_address_update(const int sock, const int num) {
-	unsigned char buf[8192];
-	const ssize_t len = recv(sock, buf, 8192, 0);
-	if (len < 1 || len % 9 != 0) return;
+int32_t api_address_update(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (lenMsg < 1 || lenMsg % 9 != 0) return AEM_INTCOM_RESPONSE_ERR;
 
-	int found = 0;
+	unsigned int found = 0;
 
 	const int addrCount = user[num].info >> 3;
-	for (int i = 0; i < (len / 9); i++) {
+	for (size_t i = 0; i < (lenMsg / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if (*(uint64_t*)(buf + (i * 9)) == user[num].addrHash[j]) {
-				user[num].addrFlag[j] = (buf[(i * 9) + 8] & 63) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
+			if (*(uint64_t*)(msg + (i * 9)) == user[num].addrHash[j]) {
+				user[num].addrFlag[j] = (msg[(i * 9) + 8] & 63) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				found++;
 				break;
 			}
@@ -584,92 +483,107 @@ void api_address_update(const int sock, const int num) {
 
 	saveUser();
 
-	unsigned char resp = AEM_INTERNAL_RESPONSE_NOTEXIST;
-	if (found == len / 9) resp = AEM_INTERNAL_RESPONSE_OK;
-	else if (found > 0) resp = AEM_INTERNAL_RESPONSE_PARTIAL;
-
-	send(sock, &resp, 1, 0);
+	if (found == lenMsg / 9) return AEM_INTCOM_RESPONSE_OK;
+	else if (found > 0) return AEM_INTCOM_RESPONSE_PARTIAL;
+	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
-void api_private_update(const int sock, const int num) {
-	unsigned char buf[AEM_LEN_PRIVATE];
-	if (recv(sock, buf, AEM_LEN_PRIVATE, 0) != AEM_LEN_PRIVATE) {
-		syslog(LOG_ERR, "Failed receiving data from API");
-		return;
+int32_t api_private_update(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (lenMsg != AEM_LEN_PRIVATE) return AEM_INTCOM_RESPONSE_ERR;
+	memcpy(user[num].private, msg, lenMsg);
+	saveUser();
+	return AEM_INTCOM_RESPONSE_OK;
+}
+
+int32_t api_setting_limits(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
+	if (lenMsg != 12) return AEM_INTCOM_RESPONSE_ERR;
+
+	const unsigned char * const sto = (unsigned char[]){msg[0], msg[3], msg[6], msg[9]};
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, sto, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		syslog(LOG_ERR, "api_setting_limits: intcom failed");
+		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	memcpy(user[num].private, buf, AEM_LEN_PRIVATE);
-
-	saveUser();
-}
-
-void api_setting_limits(const int sock, const int num) {
-	if ((user[num].info & 3) != 3) return;
-
-	unsigned char buf[12];
-	if (recv(sock, buf, 12, 0) != 12) return;
-
-	const int stoSock = storageSocket(AEM_ACC_STORAGE_LIMITS, (unsigned char[]){buf[0], buf[3], buf[6], buf[9]}, 4);
-	if (stoSock < 0) return;
-
-	unsigned char resp = 0;
-	recv(stoSock, &resp, 1, 0);
-	close(stoSock);
-	if (resp != AEM_INTERNAL_RESPONSE_OK) return;
-
-	send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
-	memcpy((unsigned char*)limits, buf, 12);
+	memcpy((unsigned char*)limits, msg, 12);
 	saveSettings();
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_internal_level(const int sock, const int num) {
-	const unsigned char level = user[num].info & 3;
-	send(sock, &level, 1, 0);
-}
+int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
+	if (lenMsg != 11) return AEM_INTCOM_RESPONSE_ERR;
 
-static uint64_t getAddrHash(const int sock, bool * const isShield) {
-	unsigned char buf[11];
-	if (recv(sock, buf, 11, 0) != 11) return 0;
-
-	*isShield = (buf[0] == 'S');
-	if (!(*isShield) && (memeq(buf + 1, AEM_ADDR32_PUBLIC, 10) || memeq(buf + 1, AEM_ADDR32_SYSTEM, 10))) return 0;
-
-	return addressToHash(buf + 1, *isShield);
-}
-
-void api_internal_adrpk(const int sock, const int num) {
-	bool isShield;
-	const uint64_t hash = getAddrHash(sock, &isShield);
-	if (hash == 0) return;
+	bool isShield = (msg[0] == 'S');
+	if (!isShield && (memeq(msg + 1, AEM_ADDR32_PUBLIC, 10) || memeq(msg, AEM_ADDR32_SYSTEM, 10))) return AEM_INTCOM_RESPONSE_USAGE;
+	const uint64_t hash = addressToHash(msg + 1, isShield);
+	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 || ((user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0)) {
-		unsigned char empty[crypto_box_PUBLICKEYBYTES];
-		bzero(empty, crypto_box_PUBLICKEYBYTES);
-		send(sock, empty, crypto_box_PUBLICKEYBYTES, 0);
-		return;
-	}
+	if (userNum < 0 || ((user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0)) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
-	send(sock, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
+	*res = sodium_malloc(crypto_box_PUBLICKEYBYTES);
+	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
+
+	memcpy(*res, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
-void api_internal_myadr(const int sock, const int num) {
-	bool isShield;
-	const uint64_t hash = getAddrHash(sock, &isShield);
-	if (hash == 0) return;
+int32_t api_internal_level(const int num) {
+	return -(user[num].info & 3);
+}
+
+int32_t api_internal_myadr(const int num, const unsigned char * const msg, const size_t lenMsg) {
+	if (lenMsg != 11) return AEM_INTCOM_RESPONSE_ERR;
+
+	bool isShield = (msg[0] == 'S');
+	if (!isShield && (memeq(msg + 1, AEM_ADDR32_PUBLIC, 10) || memeq(msg, AEM_ADDR32_SYSTEM, 10))) return AEM_INTCOM_RESPONSE_USAGE;
+	const uint64_t hash = addressToHash(msg + 1, isShield);
+	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	const int userNum = hashToUserNum(hash, isShield, NULL);
-	if (userNum == num) send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_OK}, 1, 0);
+	return (userNum == num) ? AEM_INTCOM_RESPONSE_OK : AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
-void mta_getPubKey(const int sock, const unsigned char * const addr32, const bool isShield) {
+int32_t api_internal_uinfo(const int num, unsigned char **res) {
+	*res = sodium_malloc(AEM_MAXLEN_UINFO);
+	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	size_t lenRes = 4;
+	(*res)[0] = user[num].info;
+	memcpy(*res + 1, limits[user[num].info & 3], 3);
+
+	for (int i = 0; i < (user[num].info >> 3); i++) {
+		memcpy(*res + lenRes, &(user[num].addrHash[i]), 8);
+		(*res)[lenRes + 8] = user[num].addrFlag[i];
+		lenRes += 9;
+	}
+
+	memcpy(*res + lenRes, user[num].private, AEM_LEN_PRIVATE);
+	lenRes += AEM_LEN_PRIVATE;
+	return lenRes;
+}
+
+int32_t api_internal_pubks(const int num, unsigned char **res) {
+	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
+
+	*res = sodium_malloc(userCount * crypto_box_PUBLICKEYBYTES);
+	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	for (int i = 0; i < userCount; i++) {
+		memcpy(*res + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+	}
+
+	return userCount * crypto_box_PUBLICKEYBYTES;
+}
+
+int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, unsigned char **res) {
 	const uint64_t hash = addressToHash(addr32, isShield);
-	if (hash == 0) {send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_ERR}, 1, 0); return;}
+	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	unsigned char flags;
 	const int userNum = hashToUserNum(hash, isShield, &flags);
-	if (userNum < 0 && isShield) {send(sock, (unsigned char[]){AEM_INTERNAL_RESPONSE_NOTEXIST}, 1, 0); return;}
+	if (userNum < 0 && isShield) return AEM_INTCOM_RESPONSE_NOTEXIST;
 	flags &= (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
 
 	// Prepare fake response
@@ -692,7 +606,11 @@ void mta_getPubKey(const int sock, const unsigned char * const addr32, const boo
 	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
 
 	// Respond
+	*res = sodium_malloc(crypto_box_PUBLICKEYBYTES + 1);
+	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
+
 	const bool sendFake = (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0);
-	send(sock, sendFake ? empty : user[userNum].pubkey, crypto_box_PUBLICKEYBYTES, 0);
-	send(sock, sendFake ? &fakeFlags : &flags, 1, 0);
+	memcpy(*res, sendFake? empty : user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
+	(*res)[crypto_box_PUBLICKEYBYTES] = sendFake? fakeFlags : flags;
+	return crypto_box_PUBLICKEYBYTES + 1;
 }
