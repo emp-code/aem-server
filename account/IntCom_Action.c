@@ -11,10 +11,10 @@
 #include "IntCom_Action.h"
 
 int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, unsigned char **res) {
-	if (lenMsg < crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
+	if (lenMsg < crypto_box_PUBLICKEYBYTES) {syslog(LOG_WARNING, "Rejected: missing UPK"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	const int num = userNumFromPubkey(msg);
-	if (num < 0) {syslog(LOG_WARNING, "Rejected non-existing UPK"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
+	if (num < 0) {syslog(LOG_WARNING, "Rejected: non-existing UPK"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
 
 	msg += crypto_box_PUBLICKEYBYTES;
 	lenMsg -= crypto_box_PUBLICKEYBYTES;
