@@ -1,13 +1,8 @@
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <syslog.h>
-#include <unistd.h>
-
 #include <sodium.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <syslog.h>
 
 #include "IO.h"
 
@@ -19,7 +14,7 @@ int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, un
 	if (lenMsg < crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
 	const int num = userNumFromPubkey(msg);
-	if (num < 0) {syslog(LOG_INFO, "fasifjaifji"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
+	if (num < 0) {syslog(LOG_WARNING, "Rejected non-existing UPK"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
 
 	msg += crypto_box_PUBLICKEYBYTES;
 	lenMsg -= crypto_box_PUBLICKEYBYTES;
