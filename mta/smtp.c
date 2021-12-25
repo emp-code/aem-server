@@ -129,7 +129,7 @@ static bool isIpBlacklisted(void) {
 	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&email.ip)[3], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[0]);
 
 	unsigned char *dnsbl_ip = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return -1;
+	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return false;
 
 	sodium_free(dnsbl_ip);
 	return (*((uint32_t*)dnsbl_ip) == 1);
@@ -137,7 +137,7 @@ static bool isIpBlacklisted(void) {
 
 static bool greetingDomainMatchesIp(void) {
 	unsigned char *greet_ip = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, email.greet, email.lenGreet, &greet_ip, 4) != 4) return -1;
+	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, email.greet, email.lenGreet, &greet_ip, 4) != 4) return false;
 
 	sodium_free(greet_ip);
 	return (*((uint32_t*)greet_ip) == email.ip);
