@@ -250,9 +250,10 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
 
 		// Deliver
-		if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		int deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
+		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 			if (toCount > 1) continue;
-			return -1;
+			return deliveryStatus;
 		}
 
 		// Store attachments, if requested
@@ -272,9 +273,10 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
-				if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
+				if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 					if (toCount > 1) continue;
-					return -1;
+					return deliveryStatus;
 				}
 			}
 		}
@@ -298,9 +300,10 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
 			free(att);
 
-			if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+			deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
+			if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 				if (toCount > 1) continue;
-				return -1;
+				return deliveryStatus;
 			}
 		}
 	}

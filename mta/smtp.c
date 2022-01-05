@@ -607,10 +607,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 			bool retOk;
 			switch (deliveryStatus) {
-				case 0:                 retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23); break;
-				case AEM_STORE_MSGSIZE: retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
-				case AEM_STORE_USRFULL: retOk = send_aem(sock, tls, "452 4.2.2 Recipient mailbox full\r\n", 34); break;
-				default:                retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
+				case 0:                         retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23); break;
+				case AEM_STORE_MSGSIZE:         retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
+				case AEM_INTCOM_RESPONSE_LIMIT: retOk = send_aem(sock, tls, "452 4.2.2 Recipient mailbox full\r\n", 34); break;
+				default:                        retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(108); break;}
 		} else if (memeq_anycase(buf, "NOOP", 4)) {
