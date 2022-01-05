@@ -145,7 +145,7 @@ void takeConnections(void) {
 		if (res == NULL && resCode > 0) resCode = AEM_INTCOM_RESPONSE_ERR;
 
 		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-		const size_t lenResHdr = sizeof(uint32_t) + crypto_secretbox_MACBYTES;
+		const size_t lenResHdr = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 		unsigned char resHdr[lenResHdr];
 		crypto_secretbox_easy(resHdr, (const unsigned char*)&resCode, sizeof(int32_t), encHdr + 1, intcom_keys[encHdr[0]]);
 		if (send(sock, resHdr, lenResHdr, 0) != lenResHdr) {syslog(LOG_ERR, "Failed sending response header"); close(sock); continue;}
