@@ -142,7 +142,7 @@ void takeConnections(void) {
 			}
 		}
 
-		if (res == NULL && resCode > 0) resCode = 0;
+		if (res == NULL && resCode > 0) resCode = AEM_INTCOM_RESPONSE_ERR;
 
 		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 		const size_t lenResHdr = sizeof(uint32_t) + crypto_secretbox_MACBYTES;
