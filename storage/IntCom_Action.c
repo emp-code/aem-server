@@ -23,6 +23,7 @@ int32_t conn_acc(const uint8_t type, const unsigned char * const msg, const size
 		case AEM_ACC_STORAGE_LEVELS: return acc_storage_levels(msg, lenMsg);
 	}
 
+	syslog(LOG_WARNING, "conn_acc(): Invalid type");
 	return AEM_INTCOM_RESPONSE_ERR;
 }
 
@@ -34,11 +35,13 @@ int32_t conn_api(const uint8_t type, unsigned char * const msg, const size_t len
 		case AEM_API_MESSAGE_UPLOAD: return storage_write(msg, lenMsg);
 	}
 
+	syslog(LOG_WARNING, "conn_api(): Invalid type");
 	return AEM_INTCOM_RESPONSE_ERR;
 }
 
 int32_t conn_mta(const uint8_t type, unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	if (type == AEM_MTA_INSERT) return storage_write(msg, lenMsg);
 
+	syslog(LOG_WARNING, "conn_mta(): Invalid type");
 	return AEM_INTCOM_RESPONSE_ERR;
 }
