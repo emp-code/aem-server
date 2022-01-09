@@ -160,7 +160,14 @@ void takeConnections(void) {
 			unsigned char mac[crypto_secretbox_MACBYTES];
 			crypto_secretbox_detached(res, mac, res, resCode, encHdr + 1, intcom_keys[encHdr[0]]);
 
-			if (send(sock, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sock, res, resCode, 0) != resCode) {syslog(LOG_ERR, "Failed sending response message"); close(sock); continue;}
+			if (send(sock, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sock, res, resCode, 0) != resCode) {
+				syslog(LOG_ERR, "Failed sending response message");
+				close(sock);
+				sodium_free(res);
+				continue;
+			}
+
+			sodium_free(res);
 		}
 
 		close(sock);
