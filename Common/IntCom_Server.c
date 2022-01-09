@@ -120,6 +120,7 @@ void takeConnections(void) {
 			if (crypto_secretbox_open_easy(msg, msg, lenMsg + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
 				syslog(LOG_WARNING, "Failed decrypting message");
 				close(sock);
+				sodium_free(msg);
 				continue;
 			}
 
