@@ -145,7 +145,7 @@ void takeConnections(void) {
 
 		if (res == NULL && resCode > 0) {
 			resCode = AEM_INTCOM_RESPONSE_ERR;
-		} else if (res != NULL && resCode <= 0)
+		} else if (res != NULL && resCode <= 0) {
 			sodium_free(res);
 		}
 
