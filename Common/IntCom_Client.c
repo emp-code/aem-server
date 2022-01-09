@@ -95,7 +95,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	if (sock < 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	// Create and send header
-	const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
+	const size_t lenEncHdr = 1 + sizeof(uint32_t) + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 	unsigned char encHdr[lenEncHdr];
 #ifdef AEM_ACCOUNT
 	encHdr[0] = AEM_IDENTIFIER_ACC;
@@ -108,7 +108,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 #endif
 	randombytes_buf(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	const uint32_t hdr = (operation << 24) | (lenMsg & UINT24_MAX); // 8 highest bits = operation, 24 lowest bits = size
-	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (unsigned char*)&hdr, 4, encHdr + 1, intcom_keys[intcom_type]);
+	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (unsigned char*)&hdr, sizeof(uint32_t), encHdr + 1, intcom_keys[intcom_type]);
 	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Create and send message
@@ -120,7 +120,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Receive response header
-	const size_t lenRcvEnc = 4 + crypto_secretbox_MACBYTES;
+	const size_t lenRcvEnc = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 	unsigned char rcv_enc[lenRcvEnc];
 	if (recv(sock, rcv_enc, lenRcvEnc, 0) != lenRcvEnc) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
