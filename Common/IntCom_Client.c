@@ -126,14 +126,14 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	int32_t lenOut = AEM_INTCOM_RESPONSE_ERR;
-	if (crypto_secretbox_open_easy((unsigned char*)&lenOut, rcv_enc, lenRcvEnc, encHdr + 1, intcom_keys[intcom_type]) != 0) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (crypto_secretbox_open_easy((unsigned char*)&lenOut, rcv_enc, lenRcvEnc, encHdr + 1, intcom_keys[intcom_type]) != 0) {close(sock); syslog(LOG_ERR, "IntCom: Failed decrypting header"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	if (out == NULL || lenOut < 1) {
 		close(sock);
 		return lenOut;
 	}
 
-	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); syslog(LOG_WARNING, "IntCom: Response does not match expected length"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Receive response message
 	*out = sodium_malloc(lenOut);
