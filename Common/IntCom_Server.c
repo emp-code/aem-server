@@ -99,7 +99,7 @@ void takeConnections(void) {
 		}
 
 		uint32_t hdr;
-		if (crypto_secretbox_open_easy((unsigned char*)&hdr, encHdr + 1 + crypto_secretbox_NONCEBYTES, sizeof(int32_t) + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
+		if (crypto_secretbox_open_easy((unsigned char*)&hdr, encHdr + 1 + crypto_secretbox_NONCEBYTES, sizeof(uint32_t) + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
 			syslog(LOG_WARNING, "Failed decrypting header");
 			close(sock);
 			continue;
