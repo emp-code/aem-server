@@ -22,6 +22,7 @@
 #include <sodium.h>
 
 #include "../Common/CreateSocket.h"
+#include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
 #include "../Global.h"
 
@@ -53,8 +54,8 @@ static int sockClient = -1;
 
 static bool terminate = false;
 
-void setMasterKey(const unsigned char newKey[crypto_secretbox_KEYBYTES]) {
-	memcpy(master, newKey, crypto_secretbox_KEYBYTES);
+int getMasterKey(void) {
+	return getKey(master);
 }
 
 static void wipeKeys(void) {

@@ -22,20 +22,10 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
 #include "mount.h"
 
 #include "manager.h"
-
-static int getMaster(void) {
-	unsigned char master[crypto_secretbox_KEYBYTES];
-	if (getKey(master) != 0) return -1;
-
-	setMasterKey(master);
-	sodium_memzero(master, crypto_secretbox_KEYBYTES);
-	return 0;
-}
 
 static int dropBounds(void) {
 	return (
@@ -247,7 +237,7 @@ int main(void) {
 	if (setCaps()    != 0) return 24;
 	if (dropBounds() != 0) return 25;
 
-	if (getMaster() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
+	if (getMasterKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
 
 	puts("Ready");
