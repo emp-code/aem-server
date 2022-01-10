@@ -267,19 +267,17 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
 	if (userCount <= 1 || res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
-	const uint32_t lenRes = userCount * 35;
+	const uint32_t lenRes = 16 + ((userCount - 1) * 35); // Exclude own user
 	*res = sodium_malloc(lenRes);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	memcpy(*res, (unsigned char*)limits, 12);
-	int len = 12;
-
 	const uint32_t u32 = userCount - 1;
-	memcpy(*res + len, &u32, 4);
-	len += 4;
+	memcpy(*res + 12, &u32, 4);
 
 	unsigned char *storage = NULL;
 	const int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
+
 	if (lenStorage < 1) {
 		sodium_free(*res);
 		*res = NULL;
@@ -294,8 +292,9 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
+	int skip = 0;
 	for (int i = 0; i < userCount; i++) {
-		if (i == num) continue; // Skip own user
+		if (i == num) {skip = 1; continue;} // Skip own user
 
 		uint32_t kib64;
 		if (storage != NULL && lenStorage > 0 && memeq(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES)) {
@@ -314,10 +313,9 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		Storage (bits 1..128)
 */
 		const uint16_t u16 = (user[i].info & 3) | ((numAddresses(i, false) & 31) << 2) | ((numAddresses(i, true) & 31) << 7) | ((kib64 & 3840) << 4);
-		memcpy(*res + lenRes, &u16, 2);
-		(*res)[lenRes + 2] = kib64 & 255;
-		memcpy(*res + lenRes + 3, user[i].pubkey, 32);
-		len += 35;
+		memcpy(*res + 16 + ((i - skip) * 35), &u16, 2);
+		(*res)[18 + ((i - skip) * 35)] = kib64 & 255;
+		memcpy(*res + 19 + ((i - skip) * 35), user[i].pubkey, 32);
 	}
 
 	if (storage != NULL) sodium_free(storage);
