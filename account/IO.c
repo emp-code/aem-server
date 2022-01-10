@@ -231,10 +231,11 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 	if (addr32 == NULL) return 0;
 
 	if (shield) {
+		if (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) return 0; // Forbid addresses ending with 'administrator'
 		uint64_t hash;
 		crypto_shorthash((unsigned char*)&hash, addr32, 10, saltShield);
 		return hash;
-	}
+	} else if (memeq(addr32, AEM_ADDR32_PUBLIC, 10) || memeq(addr32, AEM_ADDR32_SYSTEM, 10)) return 0; // Forbid 'public' and 'system'
 
 	uint64_t halves[2];
 	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, AEM_SLT_NRM, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
@@ -396,9 +397,8 @@ int32_t api_address_create(const int num, const unsigned char * const msg, const
 		if (numAddresses(num, true) >= limits[user[num].info & 3][AEM_LIMIT_SHD]) return AEM_INTCOM_RESPONSE_LIMIT;
 
 		randombytes_buf(addr32, 10);
-		hash = (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) ? 0 : addressToHash(addr32, true); // Forbid addresses ending with 'administrator'
-
-		if (hash == 0 || hash == UINT64_MAX) return AEM_INTCOM_RESPONSE_EXIST;
+		hash = addressToHash(addr32, true);
+		if (hash == 0) return AEM_INTCOM_RESPONSE_EXIST;
 	} else if (lenMsg == 8) { // Normal
 		memcpy((unsigned char*)&hash, msg, 8);
 		if (numAddresses(num, false) >= limits[user[num].info & 3][AEM_LIMIT_NRM]) return AEM_INTCOM_RESPONSE_LIMIT;
@@ -507,7 +507,6 @@ int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const
 	if (lenMsg != 11) return AEM_INTCOM_RESPONSE_ERR;
 
 	bool isShield = (msg[0] == 'S');
-	if (!isShield && (memeq(msg + 1, AEM_ADDR32_PUBLIC, 10) || memeq(msg, AEM_ADDR32_SYSTEM, 10))) return AEM_INTCOM_RESPONSE_USAGE;
 	const uint64_t hash = addressToHash(msg + 1, isShield);
 	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
@@ -530,7 +529,6 @@ int32_t api_internal_myadr(const int num, const unsigned char * const msg, const
 	if (lenMsg != 11) return AEM_INTCOM_RESPONSE_ERR;
 
 	bool isShield = (msg[0] == 'S');
-	if (!isShield && (memeq(msg + 1, AEM_ADDR32_PUBLIC, 10) || memeq(msg, AEM_ADDR32_SYSTEM, 10))) return AEM_INTCOM_RESPONSE_USAGE;
 	const uint64_t hash = addressToHash(msg + 1, isShield);
 	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
