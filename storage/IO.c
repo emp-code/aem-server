@@ -247,7 +247,7 @@ int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk)
 		saveStindex();
 	}
 
-	return unlinkRet;
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
 static void browse_infoBytes(unsigned char * const target, const int stindexNum) {
