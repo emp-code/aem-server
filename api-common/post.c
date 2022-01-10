@@ -686,8 +686,8 @@ static void message_create_int(void) {
 	icMsg[crypto_box_PUBLICKEYBYTES] = toShield? 'S' : 'N';
 	memcpy(icMsg + crypto_box_PUBLICKEYBYTES + 1, toAddr32, 10);
 
-	unsigned char *toPubKey;
-	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toPubKey, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	unsigned char *toPubKey = NULL;
+	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toPubKey, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	if (memeq(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
 	if (memeq(toPubKey, req->upk, crypto_box_PUBLICKEYBYTES)) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
