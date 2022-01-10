@@ -142,11 +142,11 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	if (*out == NULL) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 	unsigned char mac[crypto_secretbox_MACBYTES];
 
-	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {close(sock); sodium_free(*out); return AEM_INTCOM_RESPONSE_ERR;}
+	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {close(sock); sodium_free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
 	close(sock);
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-	if (crypto_secretbox_open_detached(*out, *out, mac, lenOut, encHdr + 1, intcom_keys[intcom_type]) != 0) {sodium_free(*out); return AEM_INTCOM_RESPONSE_ERR;}
+	if (crypto_secretbox_open_detached(*out, *out, mac, lenOut, encHdr + 1, intcom_keys[intcom_type]) != 0) {sodium_free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
 
 	return lenOut;
 }
