@@ -40,18 +40,18 @@ static size_t getUserStorageAmount(const int num) {
 	return total;
 }
 
-int32_t acc_storage_amount(unsigned char ** const out) {
-	const int32_t outSize = stindexCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
-	*out = sodium_malloc(outSize);
-	if (*out == NULL) return AEM_INTCOM_RESPONSE_ERR;
+int32_t acc_storage_amount(unsigned char ** const res) {
+	const int32_t resSize = stindexCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
+	*res = sodium_malloc(resSize);
+	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	for (int i = 0; i < stindexCount; i++) {
 		const uint32_t bytes = getUserStorageAmount(i);
-		memcpy(*out + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (unsigned char*)&bytes, sizeof(uint32_t));
-		memcpy(*out + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (unsigned char*)&bytes, sizeof(uint32_t));
+		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].pubkey, crypto_box_PUBLICKEYBYTES);
 	}
 
-	return outSize;
+	return resSize;
 }
 
 // Recreate the Stindex with levels, reordered to be in sync with the received list
