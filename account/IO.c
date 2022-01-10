@@ -279,7 +279,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 	len += 4;
 
 	unsigned char *storage = NULL;
-	int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
+	const int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
 	if (lenStorage < 1) {
 		sodium_free(*res);
 		*res = NULL;
