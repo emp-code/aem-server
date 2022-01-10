@@ -838,7 +838,7 @@ static void message_upload(void) {
 	free(msg);
 	if (enc == NULL) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) == AEM_INTCOM_RESPONSE_OK) {
 		shortResponse(enc, 16);
 	} else {
 		shortResponse(NULL, AEM_API_ERR_INTERNAL);
