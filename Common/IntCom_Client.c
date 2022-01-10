@@ -1,5 +1,3 @@
-#define AEM_INTCOM_ESTABLISH_MSGSIZE 80
-
 #include <stdbool.h>
 #include <syslog.h>
 #include <string.h>
