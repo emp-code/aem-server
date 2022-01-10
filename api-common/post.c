@@ -852,7 +852,7 @@ static void private_update(void) {
 static void setting_limits(void) {
 	if (req->lenPost != 12) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 	if (getUserLevel(req->upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
-	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_SETTING_LIMITS, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) != AEM_INTCOM_RESPONSE_OK) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	shortResponse(NULL, (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_SETTING_LIMITS, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 
 int32_t aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
