@@ -31,7 +31,7 @@ aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/IntCom_Client.c Common/ValidIp.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -licuuc -licui18n
 
 utils/Accgen: utils/Accgen.c
-	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c Common/GetKey.c Common/ToggleEcho.c -lsodium
+	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium
 
 utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/GetKey.c Common/ToggleEcho.c -lsodium
@@ -40,13 +40,13 @@ utils/Keygen: utils/Keygen.c
 	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
 
 utils/ManagerClient: utils/ManagerClient.c
-	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/GetKey.c Common/ToggleEcho.c -lsodium
+	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium
 
 Data/gen_address: Data/gen_address.c
 	$(CC) $(CFLAGS) -o Data/gen_address Data/gen_address.c -lsodium
 
 Data/gen_html: Data/gen_html.c
-	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
+	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
 
 Data/gen_internal: Data/gen_internal.c
 	$(CC) $(CFLAGS) -o Data/gen_internal Data/gen_internal.c -lsodium

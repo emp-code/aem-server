@@ -10,34 +10,16 @@
 #include <zopfli/zopfli.h>
 
 #include "../Common/Brotli.c"
-#include "../Common/GetKey.h"
+#include "../Common/LoadEnc.h"
 #include "../Global.h"
 
 #include "address.h" // for normal salt
 #include "domain.h"
 
-static unsigned char master[crypto_secretbox_KEYBYTES];
-
-static int loadKey(const char * const path, const size_t lenKey, unsigned char * const target) {
-	const int fd = open(path, O_RDONLY);
-	if (fd < 0) return -1;
-
-	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
-	if (readBytes != crypto_secretbox_NONCEBYTES) {close(fd); return -1;}
-
-	unsigned char encrypted[lenKey + crypto_secretbox_MACBYTES];
-	readBytes = read(fd, encrypted, lenKey + crypto_secretbox_MACBYTES);
-	close(fd);
-	if (readBytes != (off_t)lenKey + crypto_secretbox_MACBYTES) return -1;
-
-	const int ret = crypto_secretbox_open_easy(target, encrypted, lenKey + crypto_secretbox_MACBYTES, nonce, master);
-	return ret;
-}
-
 static int html_putKeys(char * const src, const size_t lenSrc) {
-	unsigned char key_api[AEM_LEN_KEY_API]; loadKey(AEM_PATH_KEY_API, AEM_LEN_KEY_API, key_api);
-	unsigned char key_sig[AEM_LEN_KEY_API]; loadKey(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, key_sig);
+	unsigned char key_api[AEM_LEN_KEY_API];
+	unsigned char key_sig[AEM_LEN_KEY_API];
+	if (loadEnc(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, key_sig) != 0 || loadEnc(AEM_PATH_KEY_API, AEM_LEN_KEY_API, key_api) != 0) return -1;
 
 	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
 	if (placeholder == NULL) {fputs("API-Placeholder not found", stderr); return -1;}
@@ -354,7 +336,6 @@ static void printSts(void) {
 int main(int argc, char *argv[]) {
 	if (argc != 2) {fprintf(stderr, "Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
-	if (getKey(master) != 0) {fputs("Terminating: Failed reading key", stderr); return EXIT_FAILURE;}
 
 	puts("#ifndef AEM_DATA_HTML_H");
 	puts("#define AEM_DATA_HTML_H");
@@ -373,14 +354,13 @@ int main(int argc, char *argv[]) {
 
 	size_t html_clr_size;
 	unsigned char * const html_clr_data = genHtml(html, lenHtml, &html_clr_size, false);
-	if (html_clr_data == NULL) {sodium_memzero(master, crypto_secretbox_KEYBYTES); return EXIT_FAILURE;}
+	if (html_clr_data == NULL) return EXIT_FAILURE;
 	printf("#define AEM_HTML_CLR_SIZE %zu\n", html_clr_size);
 	printBin("AEM_HTML_CLR_DATA", html_clr_data, html_clr_size);
 	free(html_clr_data);
 
 	size_t html_oni_size;
 	unsigned char * const html_oni_data = genHtml(html, lenHtml, &html_oni_size, true);
-	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	if (html_oni_data == NULL) return EXIT_FAILURE;
 	printf("#define AEM_HTML_ONI_SIZE %zu\n", html_oni_size);
 	printBin("AEM_HTML_ONI_DATA", html_oni_data, html_oni_size);

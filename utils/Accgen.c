@@ -12,41 +12,15 @@
 #include <sodium.h>
 
 #include "../Global.h"
-
-#include "../Common/GetKey.h"
-
+#include "../Common/LoadEnc.h"
 #include "../account/aem_user.h"
-
-static unsigned char key_account[crypto_secretbox_KEYBYTES];
-
-static int loadKey(void) {
-	// Load Account Key box
-	const int fd = open(AEM_PATH_KEY_ACC, O_RDONLY);
-	if (fd < 0) return -1;
-
-	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
-	if (readBytes != crypto_secretbox_NONCEBYTES) {close(fd); return -1;}
-
-	unsigned char encrypted[crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES];
-	readBytes = read(fd, encrypted, crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES);
-	close(fd);
-	if (readBytes != crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES) return -1;
-
-	unsigned char master[crypto_secretbox_KEYBYTES];
-	getKey(master);
-
-	// Open Account Key box
-	const int ret = crypto_secretbox_open_easy(key_account, encrypted, crypto_secretbox_KEYBYTES + crypto_secretbox_MACBYTES, nonce, master);
-	sodium_memzero(master, crypto_secretbox_KEYBYTES);
-	return ret;
-}
 
 int main(void) {
 	setlocale(LC_ALL, "C");
-
 	if (sodium_init() != 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
-	if (loadKey() != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
+
+	static unsigned char key_account[crypto_secretbox_KEYBYTES];
+	if (loadEnc(AEM_PATH_KEY_ACC, crypto_secretbox_KEYBYTES, key_account) != 0) return EXIT_FAILURE;
 
 	unsigned char pk[crypto_box_PUBLICKEYBYTES];
 	unsigned char sk[crypto_box_SECRETKEYBYTES];
