@@ -334,7 +334,7 @@ static void message_browse(void) {
 	// Message data
 	unsigned char *msg = NULL;
 	const int32_t lenMsg = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((req->lenPost == 17) ? req->lenPost : 0), &msg, 0);
-	if (lenMsg < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	if (lenMsg < 0) {sodium_free(usr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	unsigned char *clr = sodium_malloc(lenUsr + lenMsg);
 	if (lenUsr > 0) memcpy(clr, usr, lenUsr);
