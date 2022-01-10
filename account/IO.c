@@ -413,7 +413,7 @@ int32_t api_address_create(const int num, const unsigned char * const msg, const
 			}
 		}
 
-		if (hash == 0 || hash == UINT64_MAX || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return AEM_INTCOM_RESPONSE_EXIST;
+		if (hash == 0 || hash == AEM_HASH_PUBLIC || hash == AEM_HASH_SYSTEM) return AEM_INTCOM_RESPONSE_EXIST;
 	} else return AEM_INTCOM_RESPONSE_ERR;
 
 	if (hashToUserNum(hash, isShield, NULL) >= 0) return AEM_INTCOM_RESPONSE_EXIST;
