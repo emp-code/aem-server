@@ -320,7 +320,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		len += 35;
 	}
 
-	if (storage != NULL) free(storage);
+	if (storage != NULL) sodium_free(storage);
 	return lenRes;
 }
 
