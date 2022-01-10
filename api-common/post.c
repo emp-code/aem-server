@@ -267,7 +267,6 @@ static void address_create(void) {
 
 	if (lenResp == AEM_INTCOM_RESPONSE_LIMIT) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 	if (lenResp == AEM_INTCOM_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
-	if (lenResp < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (req->lenPost == 6 && lenResp == 18) { // Shield address OK
 		shortResponse(resp, 18);
@@ -275,9 +274,12 @@ static void address_create(void) {
 		return;
 	}
 
-	sodium_free(resp);
-	if (req->lenPost == 8 && lenResp == 1) return shortResponse(NULL, 0); // Normal address OK
-	shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	if (lenResp > 0) {
+		sodium_free(resp);
+		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	}
+
+	shortResponse(NULL, (lenResp == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 
 static void address_delete(void) {
