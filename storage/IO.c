@@ -43,7 +43,7 @@ static size_t getUserStorageAmount(const int num) {
 int32_t acc_storage_amount(unsigned char ** const res) {
 	const int32_t resSize = stindexCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
 	*res = sodium_malloc(resSize);
-	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
+	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	for (int i = 0; i < stindexCount; i++) {
 		const uint32_t bytes = getUserStorageAmount(i);
