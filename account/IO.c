@@ -199,8 +199,7 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 	loadSettings(); // Ignore errors
 	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
 
-	const unsigned char * const msg = (unsigned char[]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]};
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, msg, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 		syslog(LOG_ERR, "ioSetup: intcom failed");
 		return -1;
 	}
