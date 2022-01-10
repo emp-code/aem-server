@@ -496,11 +496,7 @@ int32_t api_setting_limits(const int num, const unsigned char * const msg, const
 	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
 	if (lenMsg != 12) return AEM_INTCOM_RESPONSE_ERR;
 
-	const unsigned char * const sto = (unsigned char[]){msg[0], msg[3], msg[6], msg[9]};
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, sto, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
-		syslog(LOG_ERR, "api_setting_limits: intcom failed");
-		return AEM_INTCOM_RESPONSE_ERR;
-	}
+	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){msg[0], msg[3], msg[6], msg[9]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) return AEM_INTCOM_RESPONSE_ERR;
 
 	memcpy((unsigned char*)limits, msg, 12);
 	saveSettings();
