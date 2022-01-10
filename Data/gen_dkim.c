@@ -12,7 +12,6 @@ admin._domainkey
 users._domainkey
 */
 
-
 #include <fcntl.h> // for open
 #include <stdio.h>
 #include <string.h>
@@ -20,29 +19,8 @@ users._domainkey
 
 #define AEM_MAXSIZE_FILE 8192
 
-static int rdFile(const char * const path, unsigned char * const data, off_t * const size) {
-	const int fd = open(path, O_RDONLY);
-	if (fd < 0) return -1;
-
-	*size = read(fd, data, AEM_MAXSIZE_FILE);
-	close(fd);
-	if (*size < 1) return -1;
-
-	data[*size] = '\0';
-	(*size)++;
-	return 0;
-}
-
-static void printKey(const char * const def, unsigned char * const buf, const size_t len) {
-	printf("#define %s (const unsigned char[]) {", def);
-
-	for (size_t i = 0; i < len; i++) {
-		printf("'\\x%.2x'", buf[i]);
-		if (i < (len - 1)) printf(",");
-	}
-
-	puts("}");
-}
+#include "../Common/RdFile.c"
+#include "../Common/PrintDef.c"
 
 int main(int argc, char *argv[]) {
 	if (argc != 3) {fprintf(stderr, "Usage: %s Admin.dkim Users.dkim\n", argv[0]); return 1;}
@@ -63,8 +41,8 @@ int main(int argc, char *argv[]) {
 	printf("#define AEM_DKIM_USR_SIZE %ld\n", usrSize);
 	puts("");
 
-	printKey("AEM_DKIM_ADM_DATA", admData, admSize);
-	printKey("AEM_DKIM_USR_DATA", usrData, usrSize);
+	printDef("AEM_DKIM_ADM_DATA", admData, admSize);
+	printDef("AEM_DKIM_USR_DATA", usrData, usrSize);
 
 	puts("");
 	puts("#endif");

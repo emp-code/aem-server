@@ -16,6 +16,8 @@
 #include "address.h" // for normal salt
 #include "domain.h"
 
+#include "../Common/PrintDef.c"
+
 static int html_putKeys(char * const src, const size_t lenSrc) {
 	unsigned char key_api[AEM_LEN_KEY_API];
 	unsigned char key_sig[AEM_LEN_KEY_API];
@@ -297,17 +299,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	return result;
 }
 
-static void printBin(const char * const def, const unsigned char * const buf, const size_t len) {
-	printf("#define %s (const unsigned char[]) {", def);
-
-	for (size_t i = 0; i < len; i++) {
-		printf("'\\x%.2x'", buf[i]);
-		if (i < (len - 1)) printf(",");
-	}
-
-	puts("}\n");
-}
-
 static void printSts(void) {
 	unsigned char tmp[512];
 	sprintf((char*)tmp,
@@ -330,7 +321,8 @@ static void printSts(void) {
 
 	const size_t len = strlen((char*)tmp);
 	printf("#define AEM_MTASTS_SIZE %zu\n", len);
-	printBin("AEM_MTASTS_DATA", tmp, len);
+	printDef("AEM_MTASTS_DATA", tmp, len);
+	puts("");
 }
 
 int main(int argc, char *argv[]) {
@@ -356,14 +348,16 @@ int main(int argc, char *argv[]) {
 	unsigned char * const html_clr_data = genHtml(html, lenHtml, &html_clr_size, false);
 	if (html_clr_data == NULL) return EXIT_FAILURE;
 	printf("#define AEM_HTML_CLR_SIZE %zu\n", html_clr_size);
-	printBin("AEM_HTML_CLR_DATA", html_clr_data, html_clr_size);
+	printDef("AEM_HTML_CLR_DATA", html_clr_data, html_clr_size);
+	puts("");
 	free(html_clr_data);
 
 	size_t html_oni_size;
 	unsigned char * const html_oni_data = genHtml(html, lenHtml, &html_oni_size, true);
 	if (html_oni_data == NULL) return EXIT_FAILURE;
 	printf("#define AEM_HTML_ONI_SIZE %zu\n", html_oni_size);
-	printBin("AEM_HTML_ONI_DATA", html_oni_data, html_oni_size);
+	printDef("AEM_HTML_ONI_DATA", html_oni_data, html_oni_size);
+	puts("");
 	free(html_oni_data);
 
 	puts("#endif");
