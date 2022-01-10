@@ -194,7 +194,7 @@ static void account_browse(void) {
 
 	unsigned char *clr = NULL;
 	const int32_t lenClr = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ACCOUNT_BROWSE, req->upk, crypto_box_PUBLICKEYBYTES, &clr, 0);
-	if (clr == NULL || lenClr < 1) return shortResponse(NULL, AEM_API_ERR_ACCOUNT_CREATE_EXIST);//XXX int
+	if (clr == NULL || lenClr < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (lenClr < 10) {
 		sodium_free(clr);
@@ -267,7 +267,7 @@ static void address_create(void) {
 
 	if (lenResp == AEM_INTCOM_RESPONSE_LIMIT) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 	if (lenResp == AEM_INTCOM_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
-	if (lenResp < 0) {syslog(LOG_INFO, "R1"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenResp < 0) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (req->lenPost == 6 && lenResp == 18) { // Shield address OK
 		shortResponse(resp, 18);
