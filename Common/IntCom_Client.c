@@ -112,12 +112,14 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Create and send message
-	const size_t lenEncMsg = lenMsg + crypto_secretbox_MACBYTES;
-	unsigned char * const encMsg = malloc(lenEncMsg);
-	if (encMsg == NULL) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
-	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encMsg, msg, lenMsg, encHdr + 1, intcom_keys[intcom_type]);
-	if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (lenMsg > 0) {
+		const size_t lenEncMsg = lenMsg + crypto_secretbox_MACBYTES;
+		unsigned char * const encMsg = malloc(lenEncMsg);
+		if (encMsg == NULL) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
+		crypto_secretbox_easy(encMsg, msg, lenMsg, encHdr + 1, intcom_keys[intcom_type]);
+		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	}
 
 	// Receive response header
 	const size_t lenRcvEnc = sizeof(int32_t) + crypto_secretbox_MACBYTES;
