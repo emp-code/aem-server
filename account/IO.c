@@ -519,7 +519,7 @@ int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	memcpy(*res, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
-	return AEM_INTCOM_RESPONSE_OK;
+	return crypto_box_PUBLICKEYBYTES;
 }
 
 int32_t api_internal_level(const int num) {
