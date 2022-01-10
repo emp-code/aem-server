@@ -16,7 +16,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "GetKey.h"
+#include "../Common/GetKey.h"
 
 static unsigned char key_manager[crypto_secretbox_KEYBYTES];
 

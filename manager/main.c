@@ -22,29 +22,16 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/ToggleEcho.h"
+#include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
 #include "mount.h"
 
 #include "manager.h"
 
-static int getKey(void) {
-	toggleEcho(false);
-
-	puts("Enter Master Key (hex) - will not echo");
-
-	char masterHex[crypto_secretbox_KEYBYTES * 2];
-	for (unsigned int i = 0; i < crypto_secretbox_KEYBYTES * 2; i++) {
-		const int gc = getchar_unlocked();
-		if (gc == EOF || !isxdigit(gc)) {toggleEcho(true); return -1;}
-		masterHex[i] = gc;
-	}
-
-	toggleEcho(true);
-
+static int getMaster(void) {
 	unsigned char master[crypto_secretbox_KEYBYTES];
-	sodium_hex2bin(master, crypto_secretbox_KEYBYTES, masterHex, crypto_secretbox_KEYBYTES * 2, NULL, NULL, NULL);
-	sodium_memzero(masterHex, crypto_secretbox_KEYBYTES);
+	if (getKey(master) != 0) return -1;
+
 	setMasterKey(master);
 	sodium_memzero(master, crypto_secretbox_KEYBYTES);
 	return 0;
@@ -260,7 +247,7 @@ int main(void) {
 	if (setCaps()    != 0) return 24;
 	if (dropBounds() != 0) return 25;
 
-	if (getKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
+	if (getMaster() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
 	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
 
 	puts("Ready");

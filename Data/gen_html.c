@@ -10,8 +10,8 @@
 #include <zopfli/zopfli.h>
 
 #include "../Common/Brotli.c"
+#include "../Common/GetKey.h"
 #include "../Global.h"
-#include "../utils/GetKey.h"
 
 #include "address.h" // for normal salt
 #include "domain.h"

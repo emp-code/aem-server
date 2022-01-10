@@ -9,7 +9,7 @@
 
 #include "../Global.h"
 
-#include "GetKey.h"
+#include "../Common/GetKey.h"
 
 static unsigned char master[crypto_secretbox_KEYBYTES];
 
