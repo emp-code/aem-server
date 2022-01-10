@@ -111,7 +111,7 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 
 				if (lenRef < 1) break; // Invalid
 
-				codepoint1 = strtol((char*)c + 3, NULL, 16);
+				codepoint1 = strtoul((char*)c + 3, NULL, 16);
 			} else { // Decimal
 				const unsigned char * const end = memchr(c + 2, ';', (text + *lenText) - c);
 				if (end == NULL) break;
@@ -127,7 +127,7 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 
 				if (lenRef < 1) break; // Invalid
 
-				codepoint1 = strtol((char*)c + 2, NULL, 10);
+				codepoint1 = strtoul((char*)c + 2, NULL, 10);
 			}
 
 			lenRef++; // Include semicolon
