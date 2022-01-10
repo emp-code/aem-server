@@ -12,17 +12,20 @@
 #include "../Data/internal.h"
 #include "../Global.h"
 
-#include "IntCom_Action.h"
 #include "IntCom_Common.h"
-#include "IntCom_Server.h"
 
 #if defined(AEM_ACCOUNT)
 	#define AEM_INTCOM_TYPE AEM_INTCOM_TYPE_ACCOUNT
+	#include "../account/IntCom_Action.h"
 #elif defined(AEM_ENQUIRY)
 	#define AEM_INTCOM_TYPE AEM_INTCOM_TYPE_ENQUIRY
+	#include "../enquiry/IntCom_Action.h"
 #elif defined(AEM_STORAGE)
 	#define AEM_INTCOM_TYPE AEM_INTCOM_TYPE_STORAGE
+	#include "../storage/IntCom_Action.h"
 #endif
+
+#include "IntCom_Server.h"
 
 static bool terminate = false;
 

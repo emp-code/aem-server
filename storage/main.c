@@ -12,9 +12,9 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/IntCom_Server.h"
 #include "../Common/SetCaps.h"
 
-#include "IntCom_Server.h"
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Sto"

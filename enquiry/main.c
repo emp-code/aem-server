@@ -16,9 +16,8 @@
 
 #include <sodium.h>
 
+#include "../Common/IntCom_Server.h"
 #include "../Common/SetCaps.h"
-
-#include "IntCom_Server.h"
 
 #define AEM_LOGNAME "AEM-Enq"
 

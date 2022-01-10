@@ -7,13 +7,13 @@ aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
 
 aem-account: account/*.c
-	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/SetCaps.c Common/IntCom_Client.c Common/memeq.c -lsodium -lcap -lm
+	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/IntCom_Client.c Common/IntCom_Server.c Common/SetCaps.c Common/memeq.c -lsodium -lcap -lm
 
 aem-enquiry: enquiry/*.c
-	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
+	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enquiry enquiry/*.c Common/IntCom_Server.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lmaxminddb
 
 aem-storage: storage/*.c
-	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-storage storage/*.c Common/SetCaps.c Common/aes.c Common/memeq.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-storage storage/*.c Common/IntCom_Server.c Common/SetCaps.c Common/aes.c Common/memeq.c -lsodium -lcap
 
 aem-web-clr: web-clr/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_WEB_CLR -o aem-web-clr web-clr/*.c Common/tls_common.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
