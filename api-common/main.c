@@ -11,18 +11,31 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#ifdef AEM_API_CLR
 #include <mbedtls/ssl.h>
+#endif
+
 #include <sodium.h>
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
-#include "https.h"
+#ifdef AEM_API_CLR
+#include "../api-clr/https.h"
+#else
+#include "../api-oni/http.h"
+#endif
+
 #include "../api-common/MessageId.h"
 #include "../api-common/post.h"
 
+#ifdef AEM_API_CLR
 #define AEM_LOGNAME "AEM-API"
+#else
+#define AEM_LOGNAME "AEM-AOn"
+#endif
+
 #define AEM_PIPEFD 2
 #define AEM_MAXLEN_PIPEREAD 64
 
@@ -38,7 +51,9 @@ static void sigTerm(const int sig) {
 
 	// SIGUSR2: Fast kill
 	aem_api_free();
+#ifdef AEM_API_CLR
 	tlsFree();
+#endif
 	syslog(LOG_INFO, "Terminating immediately");
 	exit(EXIT_SUCCESS);
 }
@@ -72,7 +87,14 @@ static int pipeLoadKeys(void) {
 }
 
 static void acceptClients(void) {
-	const int sock = createSocket(AEM_PORT_API, false, 10, 10);
+	const int sock = createSocket(AEM_PORT_API,
+#ifdef AEM_API_CLR
+	false,
+#else
+	true,
+#endif
+	10, 10);
+
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 	if (setCaps(0) != 0) return;
 
@@ -94,14 +116,16 @@ int main(void) {
 	if (pipeLoadKeys() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
 	close(AEM_PIPEFD);
 
+#ifdef AEM_API_CLR
 	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing TLS"); return EXIT_FAILURE;}
+#endif
 	if (aem_api_init() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing API"); return EXIT_FAILURE;}
 
 	acceptClients();
-
 	aem_api_free();
 	delMsgIdKey();
+#ifdef AEM_API_CLR
 	tlsFree();
-
+#endif
 	return EXIT_SUCCESS;
 }
