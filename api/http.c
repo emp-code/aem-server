@@ -123,7 +123,9 @@ void respondClient(int sock) {
 			lenPost += ret;
 		}
 
+#ifdef AEM_API_CLR
 		if (ret < 1) break;
+#endif
 
 		unsigned char *resp;
 		const int lenResp = aem_api_process(box, lenBox, &resp);
