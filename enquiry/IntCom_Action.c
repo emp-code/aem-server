@@ -15,7 +15,6 @@
 #include "../Data/domain.h"
 #include "../Data/internal.h"
 #include "../Global.h"
-#include "../api-common/Error.h"
 
 #include "Geo.h"
 #include "DNS.h"

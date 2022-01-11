@@ -21,14 +21,9 @@
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 
-#ifdef AEM_API_CLR
-#include "../api-clr/https.h"
-#else
-#include "../api-oni/http.h"
-#endif
-
-#include "../api-common/MessageId.h"
-#include "../api-common/post.h"
+#include "http.h"
+#include "MessageId.h"
+#include "post.h"
 
 #ifdef AEM_API_CLR
 #define AEM_LOGNAME "AEM-API"
