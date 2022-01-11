@@ -54,7 +54,7 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	switch (type) {
 		case AEM_ENQUIRY_IP: {
-			if (lenMsg != 5) return AEM_INTCOM_RESPONSE_ERR;
+			if (lenMsg != 4) return AEM_INTCOM_RESPONSE_ERR;
 
 			const uint32_t ip = *((uint32_t*)msg);
 			if (validIp(ip) == 1) return AEM_INTCOM_RESPONSE_ERR;
