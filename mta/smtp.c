@@ -131,16 +131,18 @@ static bool isIpBlacklisted(void) {
 	unsigned char *dnsbl_ip = NULL;
 	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return false;
 
+	const bool ret = (*((uint32_t*)dnsbl_ip) == 1);
 	sodium_free(dnsbl_ip);
-	return (*((uint32_t*)dnsbl_ip) == 1);
+	return ret;
 }
 
 static bool greetingDomainMatchesIp(void) {
 	unsigned char *greet_ip = NULL;
 	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, email.greet, email.lenGreet, &greet_ip, 4) != 4) return false;
 
+	const bool ret = (*((uint32_t*)greet_ip) == email.ip);
 	sodium_free(greet_ip);
-	return (*((uint32_t*)greet_ip) == email.ip);
+	return ret;
 }
 
 static void getIpInfo(void) {
