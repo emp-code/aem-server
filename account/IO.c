@@ -279,18 +279,10 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 	unsigned char *storage = NULL;
 	const int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
 
-	if (lenStorage < 1) {
-		sodium_free(*res);
-		*res = NULL;
-		return AEM_INTCOM_RESPONSE_ERR;
-	}
-
 	if ((size_t)lenStorage != userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) {
-		syslog(LOG_WARNING, "getUserStorage: Out of sync");
+		syslog(LOG_WARNING, "User storage data out of sync");
 		sodium_free(storage);
-		sodium_free(*res);
-		*res = NULL;
-		return AEM_INTCOM_RESPONSE_ERR;
+		storage = NULL;
 	}
 
 	int skip = 0;
