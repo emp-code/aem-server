@@ -581,37 +581,16 @@ static void message_create_ext(void) {
 
 	unsigned char *mx = NULL;
 	const int32_t lenMx = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
-	if (lenMx < 0) {return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenMx < 1 || mx == NULL) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
+	if (lenMx < 10) {sodium_free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-/*
-	TODO
+	const size_t lenMxDomain = lenMx - 6;
+	if (lenMxDomain < 4) {sodium_free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);} // a.bc
 
-	int lenMxDomain = 0;
-	email.ip = 0;
-	const int rb = recv(sock, &email.ip, 4, 0);
-	if (rb == 1 && (((unsigned char*)&email)[0] == AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO || ((unsigned char*)&email)[0] == AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN)) {
-		close(sock);
-		free(email.body);
-		return shortResponse(NULL, ((unsigned char*)&email)[0]);
-	}
-
-	if (
-	   rb != 4
-	|| email.ip <= 1
-	|| recv(sock, email.cc, 2, 0) != 2
-	|| recv(sock, &lenMxDomain, sizeof(int), 0) != sizeof(int)
-	|| lenMxDomain < 4
-	|| lenMxDomain > 255
-	|| recv(sock, email.mxDomain, lenMxDomain, 0) != lenMxDomain
-	) {
-		close(sock);
-		free(email.body);
-		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	}
-
+	memcpy((unsigned char*)(&email.ip), mx, 4);
+	memcpy((unsigned char*)(&email.cc), mx + 4, 2);
+	memcpy(email.mxDomain, mx + 6, lenMxDomain);
 	email.mxDomain[lenMxDomain] = '\0';
-*/
-
 	sodium_free(mx);
 
 	// Deliver

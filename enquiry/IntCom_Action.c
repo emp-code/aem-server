@@ -36,13 +36,12 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 			const uint16_t cc = getCountryCode(ip);
 			const uint8_t ld = lenMxDomain;
 
-			*res = sodium_malloc(7 + ld);
+			*res = sodium_malloc(6 + ld);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 			memcpy(*res, (unsigned char*)&ip, 4);
-			memcpy(*res, (unsigned char*)&cc, 2);
-			memcpy(*res, (unsigned char*)&ld, 1);
-			memcpy(*res, mxDomain, ld);
-			return 7 + ld;
+			memcpy(*res + 4, (unsigned char*)&cc, 2);
+			memcpy(*res + 6, mxDomain, ld);
+			return 6 + ld;
 		}
 
 		default: syslog(LOG_ERR, "Invalid command: %u", type);
