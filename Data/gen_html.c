@@ -171,8 +171,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"prefetch-src"    " 'none';"
 			"script-src-attr" " 'none';"
 			"worker-src"      " 'none';"
-
-			"block-all-mixed-content;"
 		"\r\n"
 
 		// DP
