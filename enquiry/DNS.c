@@ -118,16 +118,15 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 
 	unsigned char req[100];
 	bzero(req, 100);
-
 	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
 
 	const int sock = connectSocket();
 	if (sock < 0) return 0;
 
-	int ret = send(sock, req, reqLen, 0);
+	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
+	int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	if (!checkDnsLength(res, ret)) {close(sock); return 0;}
 
 	uint32_t ip = 0;
@@ -136,7 +135,8 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 		bzero(req, 100);
 		reqLen = dnsCreateRequest(reqId, req, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
 
-		ret = send(sock, req, reqLen, 0);
+		if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
+
 		ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 		if (!checkDnsLength(res, ret)) {close(sock); return 0;}
 
