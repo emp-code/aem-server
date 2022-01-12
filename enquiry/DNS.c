@@ -54,6 +54,20 @@ static bool checkDnsLength(const unsigned char * const src, const int len) {
 	return true;
 }
 
+static int getResponse(const unsigned char * const req, const size_t lenReq, unsigned char * const res, size_t * const lenRes) {
+	const int sock = connectSocket();
+	if (sock < 0) return -1;
+
+	if (send(sock, req, lenReq, 0) != (ssize_t)lenReq) {close(sock); return -1;}
+
+	const int ret = recv(sock, res, *lenRes, 0);
+	close(sock);
+	if (!checkDnsLength(res, ret)) return -1;
+
+	*lenRes = ret;
+	return 0;
+}
+
 uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) {
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4) return 0; // a.bc
 
@@ -62,31 +76,21 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 
 	unsigned char req[100];
 	bzero(req, 100);
+	const int lenReq = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
 
-	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
+	size_t lenRes = 1024;
+	unsigned char res[1024];
+	if (getResponse(req, lenReq, res, &lenRes) != 0) return 0;
 
-	const int sock = connectSocket();
-	if (sock < 0) return 0;
-
-	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
-
-	unsigned char res[AEM_DNS_BUFLEN];
-	const int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-	close(sock);
-	if (!checkDnsLength(res, ret)) return 0;
-
-	const uint32_t ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
+	const uint32_t ip = dnsResponse_GetIp(reqId, res + 2, lenRes - 2, domain, lenDomain, AEM_DNS_RECORDTYPE_A);
 	return ip;
 }
 
-void queryDns_dkim(const unsigned char * const selector, const size_t lenSelector, const unsigned char * const domain, const size_t lenDomain, unsigned char * const dkimRecord, int * const lenDkimRecord) {
+void queryDns_dkim(const unsigned char * const selector, const size_t lenSelector, const unsigned char * const domain, const size_t lenDomain, unsigned char * const dkimRecord, size_t * const lenDkimRecord) {
 	if (domain == NULL || lenDomain < 1 || domain[0] == '\0' || selector == NULL || lenSelector < 1 || selector[0] == '\0') return;
 
 	uint16_t reqId;
 	randombytes_buf(&reqId, 2);
-
-	unsigned char req[100];
-	bzero(req, 100);
 
 	size_t lenDkimDomain = lenSelector + 12 + lenDomain;
 	unsigned char dkimDomain[lenDkimDomain];
@@ -94,22 +98,18 @@ void queryDns_dkim(const unsigned char * const selector, const size_t lenSelecto
 	memcpy(dkimDomain + lenSelector, "._domainkey.", 12);
 	memcpy(dkimDomain + lenSelector + 12, domain, lenDomain);
 
-	int reqLen = dnsCreateRequest(reqId, req, dkimDomain, lenDkimDomain, AEM_DNS_RECORDTYPE_TXT);
+	unsigned char req[100];
+	bzero(req, 100);
+	const int lenReq = dnsCreateRequest(reqId, req, dkimDomain, lenDkimDomain, AEM_DNS_RECORDTYPE_TXT);
 
-	const int sock = connectSocket();
-	if (sock < 0) return;
-
-	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
-
+	size_t lenRes = 1024;
 	unsigned char res[1024];
-	const int ret = recv(sock, res, 1024, 0);
-	close(sock);
-	if (!checkDnsLength(res, ret)) return;
+	if (getResponse(req, lenReq, res, &lenRes) != 0) return;
 
-	dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, dkimDomain, lenDkimDomain, dkimRecord, lenDkimRecord, AEM_DNS_RECORDTYPE_TXT);
+	dnsResponse_GetNameRecord(reqId, res + 2, lenRes - 2, dkimDomain, lenDkimDomain, dkimRecord, lenDkimRecord, AEM_DNS_RECORDTYPE_TXT);
 }
 
-uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, int * const lenMxDomain) {
+uint32_t queryDns_mx(const unsigned char * const domain, const size_t lenDomain, unsigned char * const mxDomain, size_t * const lenMxDomain) {
 	if (domain == NULL || domain[0] == '\0' || lenDomain < 4 || mxDomain == NULL || lenMxDomain == NULL) return 0; // a.bc
 	*lenMxDomain = 0;
 
@@ -118,36 +118,16 @@ uint32_t queryDns(const unsigned char * const domain, const size_t lenDomain, un
 
 	unsigned char req[100];
 	bzero(req, 100);
-	int reqLen = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
+	const int lenReq = dnsCreateRequest(reqId, req, domain, lenDomain, AEM_DNS_RECORDTYPE_MX);
 
-	const int sock = connectSocket();
-	if (sock < 0) return 0;
+	size_t lenRes = 1024;
+	unsigned char res[1024];
+	if (getResponse(req, lenReq, res, &lenRes) != 0) return 0;
 
-	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
-
-	unsigned char res[AEM_DNS_BUFLEN];
-	int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-	if (!checkDnsLength(res, ret)) {close(sock); return 0;}
-
-	uint32_t ip = 0;
-	if (dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, domain, lenDomain, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 && *lenMxDomain > 4) { // a.bc
-		randombytes_buf(&reqId, 2);
-		bzero(req, 100);
-		reqLen = dnsCreateRequest(reqId, req, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
-
-		if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
-
-		ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-		if (!checkDnsLength(res, ret)) {close(sock); return 0;}
-
-		ip = dnsResponse_GetIp(reqId, res + 2, ret - 2, mxDomain, *lenMxDomain, AEM_DNS_RECORDTYPE_A);
-	}
-
-	close(sock);
-	return ip;
+	return (dnsResponse_GetNameRecord(reqId, res + 2, lenRes - 2, domain, lenDomain, mxDomain, lenMxDomain, AEM_DNS_RECORDTYPE_MX) == 0 || *lenMxDomain >= 4) ? queryDns_a(mxDomain, *lenMxDomain) : 0; // 4:a.bc
 }
 
-int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
+int getPtr(const uint32_t ip, unsigned char * const ptr, size_t * const lenPtr) {
 	if (ip == 0 || ptr == NULL || lenPtr == NULL) return -1;
 
 	uint16_t reqId;
@@ -160,17 +140,11 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
 	const size_t lenReqDomain = strlen((char*)reqDomain);
 
-	int reqLen = dnsCreateRequest(reqId, req, reqDomain, lenReqDomain, AEM_DNS_RECORDTYPE_PTR);
+	const int lenReq = dnsCreateRequest(reqId, req, reqDomain, lenReqDomain, AEM_DNS_RECORDTYPE_PTR);
 
-	const int sock = connectSocket();
-	if (sock < 0) return 0;
+	size_t lenRes = 1024;
+	unsigned char res[1024];
+	if (getResponse(req, lenReq, res, &lenRes) != 0) return 0;
 
-	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
-
-	unsigned char res[AEM_DNS_BUFLEN];
-	const int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
-	close(sock);
-	if (!checkDnsLength(res, ret)) return -1;
-
-	return dnsResponse_GetNameRecord(reqId, res + 2, ret - 2, reqDomain, lenReqDomain, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
+	return dnsResponse_GetNameRecord(reqId, res + 2, lenRes - 2, reqDomain, lenReqDomain, ptr, lenPtr, AEM_DNS_RECORDTYPE_PTR);
 }

@@ -77,7 +77,7 @@ int dnsCreateRequest(const uint16_t id, unsigned char * const rq, const unsigned
 	return 22 + lenDomain;
 }
 
-static int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, int * const lenName, bool allowPointer) {
+static int rr_getName(const unsigned char * const msg, const int lenMsg, const int rrOffset, unsigned char * const name, size_t * const lenName, bool allowPointer) {
 	int offset = rrOffset;
 
 	while (offset < lenMsg) {
@@ -114,12 +114,12 @@ static int rr_getName(const unsigned char * const msg, const int lenMsg, const i
 	return -1;
 }
 
-static int getNameRecord(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const result, int * const lenResult, const uint16_t recordType) {
+static int getNameRecord(const unsigned char * const msg, const int lenMsg, int rrOffset, const int answerCount, unsigned char * const result, size_t * const lenResult, const uint16_t recordType) {
 	uint16_t prio = UINT16_MAX;
 
 	for (int i = 0; i < answerCount; i++) {
 		unsigned char name[255];
-		int lenName = 0;
+		size_t lenName = 0;
 
 		const int offset = rr_getName(msg, lenMsg, rrOffset, name, &lenName, true);
 		if (offset < 1) {syslog(LOG_ERR, "rr_getName failed"); return -1;}
@@ -249,7 +249,7 @@ uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res
 	return validIp(dnsResponse_GetIp_get(res + 18 + lenDomain, lenRes - 18 - lenDomain));
 }
 
-int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, unsigned char * const result, int * const lenResult, const uint16_t queryType) {
+int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, unsigned char * const result, size_t * const lenResult, const uint16_t queryType) {
 	const int answerCount = getAnswerCount(reqId, res, lenRes, domain, lenDomain, queryType);
 	if (answerCount <= 0) return -1;
 

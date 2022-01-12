@@ -28,8 +28,8 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 			if (lenMsg == AEM_DOMAIN_LEN && memeq(msg, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN
 
 			unsigned char mxDomain[256];
-			int lenMxDomain = 0;
-			const uint32_t ip = queryDns(msg, lenMsg, mxDomain, &lenMxDomain);
+			size_t lenMxDomain = 0;
+			const uint32_t ip = queryDns_mx(msg, lenMsg, mxDomain, &lenMxDomain);
 			if (lenMxDomain < 4 || lenMxDomain > 255) return AEM_INTCOM_RESPONSE_ERR;
 
 			const uint16_t cc = getCountryCode(ip);
@@ -63,9 +63,8 @@ int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size
 			const uint16_t cc = getCountryCode(ip);
 			memcpy(*res, (unsigned char*)&cc, 2);
 
-			int lenPtr = 0;
+			size_t lenPtr = 0;
 			getPtr(ip, *res + 4, &lenPtr);
-			if (lenPtr < 0) lenPtr = 0;
 
 			size_t lenAsn = 0;
 			getIpAsn(ip, *res + 4 + lenPtr, &lenAsn);
@@ -93,7 +92,7 @@ int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size
 			if (slash == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 			unsigned char dkimRecord[1024];
-			int lenDkimRecord = 0;
+			size_t lenDkimRecord = 0;
 
 			queryDns_dkim(msg, slash - msg, slash + 1, (msg + lenMsg) - (slash + 1), dkimRecord, &lenDkimRecord);
 			if (lenDkimRecord < 1) return AEM_INTCOM_RESPONSE_ERR;

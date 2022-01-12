@@ -9,6 +9,6 @@
 
 int dnsCreateRequest(const uint16_t id, unsigned char * const rq, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType);
 uint32_t dnsResponse_GetIp(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, const uint16_t queryType);
-int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, unsigned char * const result, int * const lenResult, const uint16_t queryType);
+int dnsResponse_GetNameRecord(const uint16_t reqId, const unsigned char * const res, const int lenRes, const unsigned char * const domain, const size_t lenDomain, unsigned char * const result, size_t * const lenResult, const uint16_t queryType);
 
 #endif
