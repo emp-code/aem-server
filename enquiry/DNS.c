@@ -68,10 +68,10 @@ uint32_t queryDns_a(const unsigned char * const domain, const size_t lenDomain) 
 	const int sock = connectSocket();
 	if (sock < 0) return 0;
 
-	int ret = send(sock, req, reqLen, 0);
+	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
+	const int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
 	if (!checkDnsLength(res, ret)) return 0;
 
@@ -99,10 +99,10 @@ void queryDns_dkim(const unsigned char * const selector, const size_t lenSelecto
 	const int sock = connectSocket();
 	if (sock < 0) return;
 
-	int ret = send(sock, req, reqLen, 0);
+	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
 
 	unsigned char res[1024];
-	ret = recv(sock, res, 1024, 0);
+	const int ret = recv(sock, res, 1024, 0);
 	close(sock);
 	if (!checkDnsLength(res, ret)) return;
 
@@ -165,10 +165,10 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, int * const lenPtr) {
 	const int sock = connectSocket();
 	if (sock < 0) return 0;
 
-	int ret = send(sock, req, reqLen, 0);
+	if (send(sock, req, reqLen, 0) != reqLen) {close(sock); return 0;}
 
 	unsigned char res[AEM_DNS_BUFLEN];
-	ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
+	const int ret = recv(sock, res, AEM_DNS_BUFLEN, 0);
 	close(sock);
 	if (!checkDnsLength(res, ret)) return -1;
 
