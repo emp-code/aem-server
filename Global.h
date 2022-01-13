@@ -161,39 +161,39 @@ enum aem_acc_commands {
 };
 
 enum aem_process_types {
-	AEM_PROCESSTYPE_ACCOUNT,
-	AEM_PROCESSTYPE_ENQUIRY,
-	AEM_PROCESSTYPE_STORAGE,
+	AEM_PROCESSTYPE_WEB_CLR,
+	AEM_PROCESSTYPE_WEB_ONI,
 	AEM_PROCESSTYPE_API_CLR,
 	AEM_PROCESSTYPE_API_ONI,
 	AEM_PROCESSTYPE_MTA,
-	AEM_PROCESSTYPE_WEB_CLR,
-	AEM_PROCESSTYPE_WEB_ONI,
+	AEM_PROCESSTYPE_ACCOUNT,
+	AEM_PROCESSTYPE_ENQUIRY,
+	AEM_PROCESSTYPE_STORAGE,
 	AEM_PROCESSTYPES_COUNT
 };
 
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_CONF"/bin/aem-account", \
-	AEM_PATH_CONF"/bin/aem-enquiry", \
-	AEM_PATH_CONF"/bin/aem-storage", \
+	AEM_PATH_CONF"/bin/aem-web-clr", \
+	AEM_PATH_CONF"/bin/aem-web-oni", \
 	AEM_PATH_CONF"/bin/aem-api-clr", \
 	AEM_PATH_CONF"/bin/aem-api-oni", \
 	AEM_PATH_CONF"/bin/aem-mta", \
-	AEM_PATH_CONF"/bin/aem-web-clr", \
-	AEM_PATH_CONF"/bin/aem-web-oni" \
+	AEM_PATH_CONF"/bin/aem-account", \
+	AEM_PATH_CONF"/bin/aem-enquiry", \
+	AEM_PATH_CONF"/bin/aem-storage" \
 }
 
 #define AEM_NICE { \
-	/*Account*/ -16, \
-	/*Enquiry*/ -18, \
-	/*Storage*/ -18, \
+	/*Web-Clr*/   4, \
+	/*Web-Oni*/   8 \
 	/*API-Clr*/  -4, \
 	/*API-Oni*/  -2, \
 	/*MTA*/      -8, \
-	/*Web-Clr*/   4, \
-	/*Web-Oni*/   8 \
+	/*Account*/ -16, \
+	/*Enquiry*/ -18, \
+	/*Storage*/ -18, \
 }
 
 #endif
