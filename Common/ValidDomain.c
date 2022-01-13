@@ -6,14 +6,6 @@
 
 #include "ValidDomain.h"
 
-static bool hasAlpha(const char * const c, const size_t len) {
-	for (size_t i = 0; i < len; i++) {
-		if (islower(c[i])) return true;
-	}
-
-	return false;
-}
-
 bool isValidDomain(const char * const domain, const size_t lenDomain) {
 	if (domain == NULL
 	|| lenDomain < 4
@@ -28,7 +20,7 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 		if (islower(domain[i]) || isdigit(domain[i])) continue;
 
 		if (domain[i] == '.') {
-			if (i - firstCh > 63 || !hasAlpha(domain + firstCh, i - firstCh)) return false;
+			if (i - firstCh > 63) return false;
 			lastDot = i;
 			firstCh = i + 1;
 		}
@@ -41,5 +33,5 @@ bool isValidDomain(const char * const domain, const size_t lenDomain) {
 		return false;
 	}
 
-	return (lastDot > 0 && lastDot < lenDomain - 2 && lenDomain - firstCh <= 63 && hasAlpha(domain + firstCh, lenDomain - firstCh));
+	return (lastDot > 0 && lastDot < lenDomain - 2 && lenDomain - firstCh <= 63);
 }
