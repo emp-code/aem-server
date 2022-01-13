@@ -44,7 +44,7 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
 	decrypted[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
-	switch(comType) {
+	switch (comType) {
 		case 'M': decrypted[1] = AEM_PROCESSTYPE_MTA; break;
 		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB_CLR; break;
 		case 'w': decrypted[1] = AEM_PROCESSTYPE_WEB_ONI; break;
