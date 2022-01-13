@@ -93,14 +93,15 @@ int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size
 
 			unsigned char dkimRecord[1024];
 			size_t lenDkimRecord = 0;
-
 			queryDns_dkim(msg, slash - msg, slash + 1, (msg + lenMsg) - (slash + 1), dkimRecord, &lenDkimRecord);
 			if (lenDkimRecord < 1) return AEM_INTCOM_RESPONSE_ERR;
+
 			*res = sodium_malloc(lenDkimRecord + 1);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 			memcpy(*res, dkimRecord, lenDkimRecord);
 			(*res)[lenDkimRecord] = '\0';
-			return lenDkimRecord + 1;
+
+			return lenDkimRecord;
 		}
 
 		default: syslog(LOG_ERR, "Invalid command: %u", type);

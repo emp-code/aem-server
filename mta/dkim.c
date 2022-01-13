@@ -68,7 +68,6 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	unsigned char *dkim = NULL;
 	int32_t lenDkim = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp), &dkim, 0);
 	if (lenDkim < 1) return AEM_INTCOM_RESPONSE_ERR;
-	lenDkim--; // Don't count terminating zero
 
 	int retval = -1;
 	size_t offset = 0;
