@@ -37,7 +37,7 @@ void setStoragePid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_STORAGE] = pid;
 
 static int setSockOpts(const int sock) {
 	struct timeval tv;
-	tv.tv_sec = 1;
+	tv.tv_sec = 10;
 	tv.tv_usec = 1;
 
 	const int intTrue = 1;
