@@ -107,40 +107,46 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	randombytes_buf(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	const uint32_t hdr = (operation << 24) | (lenMsg & UINT24_MAX); // 8 highest bits = operation, 24 lowest bits = size
 	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (unsigned char*)&hdr, sizeof(uint32_t), encHdr + 1, intcom_keys[intcom_type]);
-	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed sending header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Create and send message
 	if (lenMsg > 0) {
 		const size_t lenEncMsg = lenMsg + crypto_secretbox_MACBYTES;
 		unsigned char * const encMsg = malloc(lenEncMsg);
-		if (encMsg == NULL) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+		if (encMsg == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 		crypto_secretbox_easy(encMsg, msg, lenMsg, encHdr + 1, intcom_keys[intcom_type]);
-		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed sending message: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 	}
 
 	// Receive response header
 	const size_t lenRcvEnc = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 	unsigned char rcv_enc[lenRcvEnc];
-	if (recv(sock, rcv_enc, lenRcvEnc, 0) != lenRcvEnc) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (recv(sock, rcv_enc, lenRcvEnc, 0) != lenRcvEnc) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed receiving header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	int32_t lenOut = AEM_INTCOM_RESPONSE_ERR;
-	if (crypto_secretbox_open_easy((unsigned char*)&lenOut, rcv_enc, lenRcvEnc, encHdr + 1, intcom_keys[intcom_type]) != 0) {close(sock); syslog(LOG_ERR, "IntCom: Failed decrypting header"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (crypto_secretbox_open_easy((unsigned char*)&lenOut, rcv_enc, lenRcvEnc, encHdr + 1, intcom_keys[intcom_type]) != 0) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed decrypting header"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	if (out == NULL || lenOut < 1) {
 		close(sock);
 		return lenOut;
 	}
 
-	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); syslog(LOG_WARNING, "IntCom: Response does not match expected length"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); syslog(LOG_WARNING, "IntCom[C]: Response does not match expected length"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Receive response message
 	*out = sodium_malloc(lenOut);
-	if (*out == NULL) {close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+	if (*out == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 	unsigned char mac[crypto_secretbox_MACBYTES];
 
-	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {close(sock); sodium_free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
+	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {
+		close(sock);
+		sodium_free(*out);
+		*out = NULL;
+		syslog(LOG_ERR, "IntCom[C]: Failed receiving message: %m");
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
 	close(sock);
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);

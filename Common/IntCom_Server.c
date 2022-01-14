@@ -87,7 +87,7 @@ void takeConnections(void) {
 
 		const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
-		if (recv(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {syslog(LOG_ERR, "Invalid header received"); close(sock); continue;}
+		if (recv(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
 
 		switch (encHdr[0]) {
 			case AEM_IDENTIFIER_API: break;
@@ -103,7 +103,7 @@ void takeConnections(void) {
 
 		uint32_t hdr;
 		if (crypto_secretbox_open_easy((unsigned char*)&hdr, encHdr + 1 + crypto_secretbox_NONCEBYTES, sizeof(uint32_t) + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
-			syslog(LOG_WARNING, "Failed decrypting header");
+			syslog(LOG_ERR, "IntCom[S]: Failed decrypting header: %m");
 			close(sock);
 			continue;
 		}
@@ -117,11 +117,11 @@ void takeConnections(void) {
 		if (lenMsg > 0) {
 			unsigned char * const msg = sodium_malloc(lenMsg + crypto_secretbox_MACBYTES);
 			if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); close(sock); continue;}
-			if (recv(sock, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "Failed receiving message"); close(sock); sodium_free(msg); continue;}
+			if (recv(sock, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "IntCom[S]: Failed receiving message: %m"); close(sock); sodium_free(msg); continue;}
 
 			sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 			if (crypto_secretbox_open_easy(msg, msg, lenMsg + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
-				syslog(LOG_WARNING, "Failed decrypting message");
+				syslog(LOG_ERR, "IntCom[S]: Failed decrypting message: %m");
 				close(sock);
 				sodium_free(msg);
 				continue;
@@ -156,7 +156,7 @@ void takeConnections(void) {
 		const size_t lenResHdr = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 		unsigned char resHdr[lenResHdr];
 		crypto_secretbox_easy(resHdr, (const unsigned char*)&resCode, sizeof(int32_t), encHdr + 1, intcom_keys[encHdr[0]]);
-		if (send(sock, resHdr, lenResHdr, 0) != lenResHdr) {syslog(LOG_ERR, "Failed sending response header"); close(sock); continue;}
+		if (send(sock, resHdr, lenResHdr, 0) != lenResHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
 
 		if (resCode > 0) {
 			sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
@@ -164,7 +164,7 @@ void takeConnections(void) {
 			crypto_secretbox_detached(res, mac, res, resCode, encHdr + 1, intcom_keys[encHdr[0]]);
 
 			if (send(sock, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sock, res, resCode, 0) != resCode) {
-				syslog(LOG_ERR, "Failed sending response message");
+				syslog(LOG_ERR, "IntCom[S]: Failed sending message: %m");
 				close(sock);
 				sodium_free(res);
 				continue;
