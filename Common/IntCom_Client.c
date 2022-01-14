@@ -122,7 +122,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	// Receive response header
 	const size_t lenRcvEnc = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 	unsigned char rcv_enc[lenRcvEnc];
-	if (recv(sock, rcv_enc, lenRcvEnc, 0) != lenRcvEnc) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed receiving header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (recv(sock, rcv_enc, lenRcvEnc, MSG_WAITALL) != lenRcvEnc) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed receiving header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	int32_t lenOut = AEM_INTCOM_RESPONSE_ERR;
