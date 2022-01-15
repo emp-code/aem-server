@@ -87,12 +87,12 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 
 		switch (key) {
 			case 'v': { // Version: DKIM1
-				if (lenVal != 5 || !memeq(val, "DKIM1", 5)) return -1;
+				if (lenVal != 5 || !memeq(val, "DKIM1", 5)) {sodium_free(dkim); return -1;}
 			break;}
 
 			case 'p': { // Public key
-				if (lenVal > 1024) return -1;
-				if (sodium_base642bin(pkBin, 1024, val, lenVal, " \t\r\n", lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return -1;
+				if (lenVal > 1024) {sodium_free(dkim); return -1;}
+				if (sodium_base642bin(pkBin, 1024, val, lenVal, " \t\r\n", lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {sodium_free(dkim); return -1;}
 				retval = 0;
 			break;}
 
@@ -110,6 +110,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 		}
 	}
 
+	sodium_free(dkim);
 	return retval;
 }
 
