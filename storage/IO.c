@@ -226,8 +226,7 @@ int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk)
 
 	char path[77];
 	getMsgPath(path, upk);
-	const int unlinkRet = unlink(path);
-	if (unlinkRet != 0 && errno != ENOENT) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;} // Treat file not existing (no message data to delete) as success
+	if (unlink(path) != 0 && errno != ENOENT) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;} // Treat file not existing (no message data to delete) as success
 
 	int delNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
