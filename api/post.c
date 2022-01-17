@@ -707,7 +707,7 @@ static void message_create(void) {
 }
 
 static void message_delete(void) {
-	if (req->lenPost != 16) return shortResponse(NULL, AEM_API_ERR_FORMAT);
+	if (req->lenPost != 1 && req->lenPost != 16) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 	shortResponse(NULL, (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 

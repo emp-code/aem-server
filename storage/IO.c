@@ -356,7 +356,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 }
 
 int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], const size_t lenReq) {
-	if (lenReq != crypto_box_PUBLICKEYBYTES + 16) return AEM_INTCOM_RESPONSE_ERR;
+	if (lenReq != crypto_box_PUBLICKEYBYTES + 1 && lenReq != crypto_box_PUBLICKEYBYTES + 16) return AEM_INTCOM_RESPONSE_ERR;
 
 	const unsigned char * const upk = req;
 	const unsigned char * const id = req + crypto_box_PUBLICKEYBYTES;
@@ -373,6 +373,13 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 
 	char path[77];
 	getMsgPath(path, stindex[stindexNum].pubkey);
+
+	if (lenReq == crypto_box_PUBLICKEYBYTES + 1) { // Delete all
+		if (unlink(path) != 0 && errno != ENOENT) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;} // Treat file not existing (no message data to delete) as success
+		free(stindex[stindexNum].msg);
+		stindex[stindexNum].msgCount = 0;
+		return AEM_INTCOM_RESPONSE_OK;
+	}
 
 	const int fdMsg = open(path, O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) return AEM_INTCOM_RESPONSE_ERR;
