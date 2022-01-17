@@ -378,6 +378,7 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 		if (unlink(path) != 0 && errno != ENOENT) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;} // Treat file not existing (no message data to delete) as success
 		free(stindex[stindexNum].msg);
 		stindex[stindexNum].msgCount = 0;
+		saveStindex();
 		return AEM_INTCOM_RESPONSE_OK;
 	}
 
