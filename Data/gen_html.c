@@ -227,6 +227,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"ch-ua-arch"                      "=(),"
 			"ch-ua-bitness"                   "=(),"
 			"ch-ua-full-version"              "=(),"
+			"ch-ua-full-version-list"         "=(),"
 			"ch-ua-mobile"                    "=(),"
 			"ch-ua-model"                     "=(),"
 			"ch-ua-platform"                  "=(),"
