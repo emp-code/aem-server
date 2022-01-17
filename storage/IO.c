@@ -438,19 +438,26 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 
 	// Stindex
 	const unsigned char * const upk = req;
-	int num = -1;
-	for (int i = 0; i < stindexCount; i++) {
-		if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
-			num = i;
-			break;
-		}
-	}
 
-	if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) return AEM_INTCOM_RESPONSE_LIMIT; // Over storage limit
+	unsigned char empty[crypto_box_PUBLICKEYBYTES];
+	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
+	const bool isTrash = memeq(empty, upk, crypto_box_PUBLICKEYBYTES);
+
+	int num = -1;
+	if (!isTrash) {
+		for (int i = 0; i < stindexCount; i++) {
+			if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
+				num = i;
+				break;
+			}
+		}
+
+		if (num != -1 && (int)getUserStorageAmount(num) >= (limits[stindex[num].level & 3]) * 1048576) return AEM_INTCOM_RESPONSE_LIMIT; // Over storage limit
+	}
 
 	char path[77];
 	getMsgPath(path, upk);
-	const int fdMsg = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | ((path[12] == 'T') ? O_TRUNC : O_APPEND), S_IRUSR | S_IWUSR | S_ISVTX);
+	const int fdMsg = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | (isTrash? O_TRUNC : O_APPEND), S_IRUSR | S_IWUSR | S_ISVTX);
 	if (fdMsg < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	const off_t oldFilesize = lseek(fdMsg, 0, SEEK_END);
@@ -470,7 +477,7 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 
 	if (write(fdMsg, msg, (sze + AEM_MSG_MINBLOCKS) * 16) != (ssize_t)((sze + AEM_MSG_MINBLOCKS) * 16)) {close(fdMsg); syslog(LOG_ERR, "storage_write(): Failed write: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	if (path[12] == 'T') {
+	if (isTrash) {
 		close(fdMsg);
 		saveStindex();
 		return AEM_INTCOM_RESPONSE_OK;
