@@ -375,10 +375,15 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 	getMsgPath(path, stindex[stindexNum].pubkey);
 
 	if (lenReq == crypto_box_PUBLICKEYBYTES + 1) { // Delete all
-		if (unlink(path) != 0 && errno != ENOENT) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;} // Treat file not existing (no message data to delete) as success
-		free(stindex[stindexNum].msg);
+		const int fd = open(path, O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+		if (fd < 0) {syslog(LOG_ERR, "Erase: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+		close(fd);
+
+		uint16_t * const newMsg = realloc(stindex[stindexNum].msg, 2);
+		if (newMsg != NULL) stindex[stindexNum].msg = newMsg;
 		stindex[stindexNum].msgCount = 0;
 		saveStindex();
+
 		return AEM_INTCOM_RESPONSE_OK;
 	}
 
