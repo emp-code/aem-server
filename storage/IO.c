@@ -307,7 +307,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 			const off_t startFilePos = (stindex[stindexNum].msg[0] + AEM_MSG_MINBLOCKS) * 16;
 			filePos = lseek(fdMsg, startFilePos, SEEK_SET);
-			if (filePos != startFilePos) {close(fdMsg); return -1;}
+			if (filePos != startFilePos) {close(fdMsg); return AEM_INTCOM_RESPONSE_ERR;}
 
 			for (int i = 1; i < stindex[stindexNum].msgCount; i++) {
 				if (idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
