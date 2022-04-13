@@ -811,7 +811,7 @@ static void message_upload(void) {
 	if (enc == NULL) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) == AEM_INTCOM_RESPONSE_OK) {
-		shortResponse(enc, 16);
+		shortResponse(enc + crypto_box_PUBLICKEYBYTES, 16);
 	} else {
 		shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
