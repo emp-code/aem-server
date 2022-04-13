@@ -81,7 +81,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	if (src == NULL) return NULL;
 	memcpy(src, src_original, lenSrc);
 
-	if (html_putKeys(src, lenSrc) != 0) return NULL;
+	if (html_putKeys(src, lenSrc) != 0) {free(src); return NULL;}
 
 	if (onion) html_addEmail(src, &lenSrc); else html_remEmail(src, &lenSrc);
 
