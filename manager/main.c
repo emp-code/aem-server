@@ -247,6 +247,6 @@ int main(void) {
 	close(STDERR_FILENO);
 
 	receiveConnections();
-	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return 50;}
+	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {syslog(LOG_ERR, "Failed cgroup2 unmount: %m\n"); return 50;}
 	return 0;
 }
