@@ -114,7 +114,6 @@ enum aem_internal_enquiry {
 
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
-#define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
 
 #define AEM_TIMEOUT_MANAGER_RCV 3
 #define AEM_TIMEOUT_MANAGER_SND 3

@@ -17,6 +17,8 @@
 
 #include "../Global.h"
 
+#define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT)
+
 #define AEM_MODE_RO (S_IRUSR | S_IRGRP)
 #define AEM_MODE_XO (S_IXUSR | S_IXGRP)
 #define AEM_MODE_RW (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
