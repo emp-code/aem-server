@@ -130,6 +130,8 @@ void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
 				codepoint1 = strtoul((char*)c + 2, NULL, 10);
 			}
 
+			if (codepoint1 >= 0x2000 && codepoint1 <= 0x200A) codepoint1 = ' '; // Various space characters
+
 			lenRef++; // Include semicolon
 		} else { // Named reference
 			lenRef = strspn((char*)c + 1, "12345678ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz"); // All alphanumerics except '0' and '9' occur in names
