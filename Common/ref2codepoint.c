@@ -504,8 +504,8 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x0272a7f6: return 0x02256;
 		case 0x0272a81e: return 0x000EA;
 		case 0x0272f3d7: return 0x00117;
-		case 0x02752288: return 0x02003;
-		case 0x02755f91: return 0x02002;
+		case 0x02752288: return ' '; // 0x02003 emsp;
+		case 0x02755f91: return ' '; // 0x02002 ensp;
 		case 0x0275944d: return 0x1D556;
 		case 0x0275ade3: return 0x022D5;
 		case 0x0275d8f4: return 0x003B5;
@@ -579,7 +579,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x02a4701a: return 0x02026;
 		case 0x02a54355: return 0x1D55E;
 		case 0x02a618e8: return 0x1D4C2;
-		case 0x02a8280e: return ' '; // 0x000A0; nbsp
+		case 0x02a8280e: return ' '; // 0x000A0 nbsp;
 		case 0x02a83925: return 0x02A43;
 		case 0x02a869f9: return 0x02A42;
 		case 0x02a93726: return 0x02271;
@@ -847,7 +847,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x234135c4: return 0x022B8;
 		case 0x2347c502: return 0x00110;
 		case 0x236956ae: return 0x02956;
-		case 0x246a7c7a: return 0x0200A;
+		case 0x246a7c7a: return ' '; // 0x0200A hairsp;
 		case 0x24801dfa: return 0x0210B;
 		case 0x2492be72: return 0x02288;
 		case 0x249ca4b6: return 0x0044A;
@@ -1256,7 +1256,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x42d1bbb6: return 0x02289;
 		case 0x42d43e55: return 0x02973;
 		case 0x42d4cb78: return 0x000F1;
-		case 0x42dbc796: return 0x02007;
+		case 0x42dbc796: return ' '; // 0x02007 numsp;
 		case 0x42dd338d: return 0x021D6;
 		case 0x42e4d4ad: return 0x02196;
 		case 0x42f73811: return 0x000F3;
@@ -1514,7 +1514,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x612c8b26: return 0x02A93;
 		case 0x6188d72d: return 0x0297C;
 		case 0x6199d591: return 0x0230A;
-		case 0x61a79c15: return ' '; // 0x000A0; nbsp
+		case 0x61a79c15: return ' '; // 0x000A0 nbsp;
 		case 0x624cd5a0: return 0x02A82;
 		case 0x62831003: return 0x0296A;
 		case 0x62896053: return 0x0224C;
@@ -1594,7 +1594,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0x794fdada: return 0x0226B;
 		case 0x7950591b: return 0x0225F;
 		case 0x798c9ef3: return 0x02224;
-		case 0x79babe5a: return 0x02009;
+		case 0x79babe5a: return ' '; // 0x02009 ThinSpace;
 		case 0x7a3dfecb: return 0x00408;
 		case 0x7a812786: return 0x025EF;
 		case 0x7a99b228: return 0x0229F;
@@ -1766,7 +1766,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0xa38c6ec8: return 0x0291C;
 		case 0xa41c00c3: return 0x02205;
 		case 0xa443c9fd: return 0x0219E;
-		case 0xa4934454: return 0x02008;
+		case 0xa4934454: return ' '; // 0x02008 puncsp;
 		case 0xa49a588c: return 0x027F9;
 		case 0xa4b348f9: return 0x02292;
 		case 0xa4c14390: return 0x022CB;
@@ -1970,7 +1970,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0xd6da303b: return 0x02958;
 		case 0xd7050d87: return 0x02234;
 		case 0xd7058447: return 0x003D1;
-		case 0xd71c18f1: return 0x02009;
+		case 0xd71c18f1: return ' '; // 0x02009 thinsp;
 		case 0xd7291d2b: return 0x0223C;
 		case 0xd72ea74a: return 0x02145;
 		case 0xd749713a: return 0x000A6;
@@ -2142,7 +2142,7 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0xfc724ced: return 0x000E8;
 		case 0xfc78ea49: return 0x02A98;
 		case 0xfc8983ec: return 0x022A3;
-		case 0xfd33ffb0: return 0x0200A;
+		case 0xfd33ffb0: return ' '; // 0x0200A VeryThinSpace;
 		case 0xfdc17c58: return 0x02A01;
 		case 0xfe4e0161: return 0x022D0;
 		case 0xfe4ff77d: return 0x02223;
@@ -2152,8 +2152,8 @@ unsigned int ref2codepoint(const unsigned char * const ref) {
 		case 0xfebcd0e7: return 0x0295A;
 		case 0xff61f926: return 0x02A97;
 		case 0xffe903a8: return 0x02205;
-		case 0xfff93ad4: return 0x02004;
-		case 0xfff93aed: return 0x02005;
+		case 0xfff93ad4: return ' '; // 0x02004 emsp13;
+		case 0xfff93aed: return ' '; // 0x02005 emsp14;
 	}
 
 	return 0;
@@ -2229,7 +2229,7 @@ void ref2codepoint2(const unsigned char * const ref, unsigned int * const one, u
 		case 0x856fba2b: *one = 0x02933; *two = 0x00338; return;
 		case 0x856fbc1f: *one = 0x0219D; *two = 0x00338; return;
 		case 0x8bd33740: *one = 0x0224E; *two = 0x00338; return;
-		case 0x8e2c50ba: *one = 0x0205F; *two = 0x0200A; return;
+		case 0x8e2c50ba: *one = ' '; *two = 0; return; // 0x0205F, 0x0200A ThickSpace
 		case 0x9189168a: *one = 0x022F5; *two = 0x00338; return;
 		case 0x964fdbd3: *one = 0x02AB0; *two = 0x00338; return;
 		case 0x9ed93ab5: *one = 0x0227F; *two = 0x00338; return;
