@@ -59,6 +59,7 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 			continue;
 		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
 			if (lenNew > 0 && new[lenNew - 1] == '\n') {i++; continue;} // follows LF - skip
+			if (i + 4 < *len && text[i + 2] == 0xE2 && text[i + 3] == 0x80 && text[i + 4] == 0x8C) {i += 4; continue;} // Followed by ZWNJ
 			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // Followed by SP/LF - skip
 			new[lenNew] = text[i];
 			new[lenNew + 1] = text[i + 1];
