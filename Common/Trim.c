@@ -4,7 +4,7 @@
 
 #include "Trim.h"
 
-// Converts HT/NBSP to SP; Converts VT/FF to LF; Removes other control characters
+// Converts HT/NBSP/etc to SP; Converts VT/FF to LF; Removes other control characters
 void removeControlChars(unsigned char * const text, size_t * const len) {
 	if (text == NULL || len == NULL) return;
 
@@ -14,7 +14,11 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	size_t lenNew = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
+		if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && (text[i + 2] >= 0x80 && text[i + 2] <= 0x8A)) { // Whitespace of various sizes
+			new[lenNew] = ' ';
+			lenNew++;
+			i += 2;
+		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
 			new[lenNew] = ' ';
 			lenNew++;
 			i++;
