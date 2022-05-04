@@ -166,6 +166,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			// This linebreak is followed by a space -> unfold the header by ignoring this linebreak
 			continue;
 		} else if (data[i] == '\n') {
+			if (lenOut > 0 && out[lenOut - 1] == ' ') lenOut--;
 			out[lenOut] = '\n';
 			lenOut++;
 			afterColon = false;
