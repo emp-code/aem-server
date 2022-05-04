@@ -112,6 +112,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			if (lenTagName == 5 && memeq(tagName + 1, "rame", 4)) return AEM_HTML_TAG_frame;
 		break;
 		case 'h':
+			if (lenTagName == 2 && tagName[1] >= '1' && tagName[1] <= '6') return AEM_HTML_TAG_L1;
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
 		break;
 		case 'i':
