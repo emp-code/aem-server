@@ -87,6 +87,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			case 't':
 				if (lenTagName == 3 && (tagName[2] == 'd' || tagName[2] == 'r')) return AEM_HTML_TAG_L1;
 				if (lenTagName == 6 && memeq(tagName + 2, "able", 4)) return AEM_HTML_TAG_L2;
+				if (lenTagName == 6 && memeq(tagName + 2, "itle", 4)) return AEM_HTML_TAG_L2;
 			break;
 		}
 
@@ -133,6 +134,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			if (lenTagName == 5 && memeq(tagName + 1, "able", 4)) return AEM_HTML_TAG_L2;
 			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'r')) return AEM_HTML_TAG_L1;
 			if (lenTagName == 5 && memeq(tagName + 1, "rack", 4)) return AEM_HTML_TAG_track;
+			if (lenTagName == 5 && memeq(tagName + 1, "itle", 4)) return AEM_HTML_TAG_L2;
 		break;
 		case 'v':
 			if (lenTagName == 5 && memeq(tagName + 1, "ideo", 4)) return AEM_HTML_TAG_video;
