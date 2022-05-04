@@ -170,8 +170,10 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			lenOut++;
 			afterColon = false;
 		} else if (data[i] == ' ' || data[i] == '\t') {
-			out[lenOut] = ' ';
-			lenOut++;
+			if (lenOut < 1 || out[lenOut - 1] != ' ') {
+				out[lenOut] = ' ';
+				lenOut++;
+			}
 		} else if (!afterColon && data[i] == ':') {
 			if (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
 
