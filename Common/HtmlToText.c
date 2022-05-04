@@ -58,7 +58,7 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 	return 0;
 }
 
-static void emptyTag(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
+static void addNewline(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
 	if (tag == AEM_HTML_TAG_L1) {
 		out[*lenOut] = '\n';
 		(*lenOut)++;
@@ -164,7 +164,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					lenTagName = 0;
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
-					emptyTag(out, &lenOut, getTagByName(tagName, lenTagName));
+					addNewline(out, &lenOut, getTagByName(tagName, lenTagName));
 					lenTagName = 0;
 					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
@@ -180,7 +180,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_T2: { // Inside of tag
 				if (src[i] == '>') {
-					emptyTag(out, &lenOut, tagType);
+					addNewline(out, &lenOut, tagType);
 					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
