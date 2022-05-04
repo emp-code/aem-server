@@ -346,6 +346,35 @@ static unsigned char* getBound(const unsigned char * const src, const size_t len
 	return bound;
 }
 
+static size_t getNameHeader(const unsigned char * const src, const size_t lenSrc, unsigned char * const target) {
+	target[0] = '?';
+	if (src == NULL || lenSrc < 6) return 1;
+
+	const unsigned char *fn = memcasemem(src, lenSrc, "NAME=", 5);
+	if (fn == NULL) return 1;
+
+	fn += 5;
+	while (isspace(*fn)) {
+		fn++;
+		if (fn == src + lenSrc) return 1;
+	}
+
+	const unsigned char *end;
+	if (*fn == '"' || *fn == '\'') {
+		fn++;
+		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){*(fn - 1), '\v', '\r', '\n', '\0'}, 4);
+		if (end == NULL) return 1;
+	} else {
+		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){'\v', '\r', '\n', '\0', '\t', ' ', ';'}, 7);
+		if (end == NULL) return 1;
+	}
+
+	const size_t lenFn = end - fn;
+	if (lenFn > 255) return 1;
+	memcpy(target, fn, lenFn);
+	return lenFn;
+}
+
 static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
 	const size_t lenSrc = *outLen;
 
@@ -384,21 +413,8 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 		const unsigned char *ct = memcasemem(partHeaders, lenPartHeaders, "Content-Type:", 13);
 		if (ct != NULL) ct += 13;
 
-		const unsigned char *fn = (ct == NULL) ? NULL : memcasemem(ct, (partHeaders + lenPartHeaders) - ct, "NAME=", 5);
-		size_t lenFn = 0;
-		if (fn != NULL) {
-			fn += 5;
-			while (isspace(*fn)) fn++;
-
-			if (*fn == '"' || *fn == '\'') {
-				const unsigned char * const end = mempbrk(fn + 1, (partHeaders + lenPartHeaders) - (fn + 1), (const unsigned char[]){*fn, '\v', '\r', '\n', '\0'}, 4);
-				fn++;
-				if (end != NULL) lenFn = end - fn;
-			} else if (*fn != '\0') {
-				const unsigned char * const end = mempbrk(fn + 1, (partHeaders + lenPartHeaders) - (fn + 1), (const unsigned char[]){*fn, '\v', '\r', '\n', '\0', '\t', ' ', ';'}, 7);
-				if (end != NULL) lenFn = end - fn;
-			}
-		}
+		unsigned char fn[256];
+		const size_t lenFn = getNameHeader(ct, (partHeaders + lenPartHeaders) - ct, fn);
 
 		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
 		if (boundEnd == NULL) break;
@@ -447,11 +463,6 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 				*outLen += lenNew + 1;
 			}
 		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-			if (fn == NULL || lenFn < 1) {
-				fn = (unsigned char[]){'A','E','M'}; // TODO, name based on message/sender/etc
-				lenFn = 3;
-			} else if (lenFn > 256) lenFn = 256;
-
 			const size_t lenAtt = 17 + lenFn + lenNew;
 			if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
 				email->attachment[email->attachCount] = malloc(lenAtt);
