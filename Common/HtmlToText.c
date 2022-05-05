@@ -232,10 +232,9 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 				lenOut++;
 			break;}
 
-			case AEM_HTML_TYPE_QN:
 			case AEM_HTML_TYPE_QD:
 			case AEM_HTML_TYPE_QS: {
-				if (src[i] == (char)type) {
+				if (src[i] == (char)type) { // End of attribute -> add end marker
 					if (copyAttr != 0) {
 						out[lenOut] = copyAttr;
 						lenOut++;
@@ -247,10 +246,27 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					}
 
 					type = AEM_HTML_TYPE_T2;
-					continue;
+				} else if (copyAttr != 0) { // Attribute value -> copy
+					out[lenOut] = src[i];
+					lenOut++;
 				}
+			break;}
 
-				if (copyAttr != 0) {
+			case AEM_HTML_TYPE_QN: {
+				if (src[i] == ' ' || src[i] == '>') { // End of attribute -> add end marker
+					if (copyAttr != 0) {
+						out[lenOut] = copyAttr;
+						lenOut++;
+
+						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
+							out[lenOut] = '\n';
+							lenOut++;
+						}
+					}
+
+					i--;
+					type = AEM_HTML_TYPE_T2;
+				} else if (copyAttr != 0) { // Attribute value -> copy
 					out[lenOut] = src[i];
 					lenOut++;
 				}
