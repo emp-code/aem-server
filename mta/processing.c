@@ -82,8 +82,9 @@ static void replace(unsigned char * const target, size_t * const lenTarget, cons
 	*lenTarget = lenSource;
 }
 
+#define AEM_CLEANHEADERS_MAXLENOUT 65536
 static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
-	unsigned char out[*lenData * 2];
+	unsigned char out[AEM_CLEANHEADERS_MAXLENOUT];
 	size_t lenOut = 0;
 
 	bool wasEw = false;
@@ -137,9 +138,11 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				filterUtf8(dec, lenDec, false);
 
 				if (lenDec <= lenOriginal) {
+					if (lenOut + lenDec >= AEM_CLEANHEADERS_MAXLENOUT) return;
 					memcpy(out + lenOut, dec, lenDec);
 					lenOut += lenDec;
 				} else {
+					if (lenOut + lenOriginal >= AEM_CLEANHEADERS_MAXLENOUT) return;
 					memset(out + lenOut, '?', lenOriginal);
 					lenOut += lenOriginal;
 				}
@@ -150,9 +153,11 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				if (decUtf8 != NULL && lenDecUtf8 > 0 && lenDecUtf8 <= lenOriginal) {
 					filterUtf8(decUtf8, lenDecUtf8, false);
 
+					if (lenOut + lenDecUtf8 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 					memcpy(out + lenOut, decUtf8, lenDecUtf8);
 					lenOut += lenDecUtf8;
 				} else {
+					if (lenOut + lenOriginal >= AEM_CLEANHEADERS_MAXLENOUT) return;
 					memset(out + lenOut, '?', lenOriginal);
 					lenOut += lenOriginal;
 				}
@@ -168,23 +173,32 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			continue;
 		} else if (data[i] == '\n') {
 			if (lenOut > 0 && out[lenOut - 1] == ' ') lenOut--;
+
+			if (lenOut + 1 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 			out[lenOut] = '\n';
 			lenOut++;
+
 			afterColon = false;
 		} else if (data[i] == ' ' || data[i] == '\t') {
 			if (lenOut < 1 || out[lenOut - 1] != ' ') {
+				if (lenOut + 1 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 				out[lenOut] = ' ';
 				lenOut++;
 			}
 		} else if (!afterColon && data[i] == ':') {
 			if (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
 
+			if (lenOut + 1 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 			out[lenOut] = ':';
 			lenOut++;
+
 			afterColon = true;
 		} else if (data[i] > 32 && data[i] < 127) {
+
+			if (lenOut + 1 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 			out[lenOut] = data[i];
 			lenOut++;
+
 			wasEw = false;
 		} // else skipped
 	}
