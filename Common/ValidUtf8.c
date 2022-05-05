@@ -45,7 +45,16 @@ bool isValidUtf8(const unsigned char * const src, const size_t len) {
 void filterUtf8(unsigned char * const src, const size_t len, const bool allowControl) {
 	for (size_t i = 0; i < len;) {
 		const int s = validUtf8(src + i, len - i, allowControl);
-		if (s < 0) memset(src + i, '?', abs(s));
+
+		if (s < 0) {
+			if (i + abs(s) >= len) {
+				memset(src + i, '?', len - i);
+				return;
+			}
+
+			memset(src + i, '?', abs(s));
+		}
+
 		i += abs(s);
 	}
 }
