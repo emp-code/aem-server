@@ -433,18 +433,19 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 
 		const unsigned char *ct = memcasemem(partHeaders, lenPartHeaders, "Content-Type:", 13);
 		if (ct != NULL) ct += 13;
+		const size_t lenCt = (ct != NULL) ? (partHeaders + lenPartHeaders) - ct : 0;
 
 		unsigned char fn[256];
-		const size_t lenFn = getNameHeader(ct, (partHeaders + lenPartHeaders) - ct, fn);
+		const size_t lenFn = getNameHeader(ct, lenCt, fn);
 
 		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
 		if (boundEnd == NULL) break;
 
 		size_t lenNew = boundEnd - hend;
 
-		const bool isText = (ct != NULL) && (memeq_anycase(ct, "text/", 5));
-		const bool isHtml = isText && (memeq_anycase(ct + 5, "html", 4));
-		const bool multip = (ct != NULL) && (memeq_anycase(ct, "multipart", 9));
+		const bool isText = (lenCt >= 5 && memeq_anycase(ct, "text/", 5));
+		const bool isHtml = (isText && lenCt >= 9 && memeq_anycase(ct + 5, "html", 4));
+		const bool multip = (lenCt >= 9 && memeq_anycase(ct, "multipart", 9));
 
 		if (multip) {
 			bound[boundCount] = getBound(ct + 9, (partHeaders + lenPartHeaders) - (ct + 9), lenBound + boundCount);
