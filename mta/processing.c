@@ -261,8 +261,9 @@ static int getCte(const unsigned char * const h, const size_t len) {
 	if (cte == NULL) return MTA_PROCESSING_CTE_NONE;
 	cte += 27;
 
-	if (memeq_anycase(cte, "Quoted-Printable", 16)) return MTA_PROCESSING_CTE_QP;
-	if (memeq_anycase(cte, "Base64", 6)) return MTA_PROCESSING_CTE_B64;
+	const size_t lenCte = len - (cte - h);
+	if (lenCte >= 16 && memeq_anycase(cte, "Quoted-Printable", 16)) return MTA_PROCESSING_CTE_QP;
+	if (lenCte >= 6 && memeq_anycase(cte, "Base64", 6)) return MTA_PROCESSING_CTE_B64;
 	return MTA_PROCESSING_CTE_NONE;
 }
 
