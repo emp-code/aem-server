@@ -433,7 +433,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 
 		const unsigned char *ct = memcasemem(partHeaders, lenPartHeaders, "Content-Type:", 13);
 		if (ct != NULL) ct += 13;
-		const size_t lenCt = (ct != NULL) ? (partHeaders + lenPartHeaders) - ct : 0;
+		const size_t lenCt = (ct != NULL) ? ((partHeaders + lenPartHeaders) - ct) : 0;
 
 		unsigned char fn[256];
 		const size_t lenFn = getNameHeader(ct, lenCt, fn);
