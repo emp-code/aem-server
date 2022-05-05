@@ -553,7 +553,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 	}
 
 	// Content-Type
-	if (lenCt == 9 && memeq_anycase(ct, "multipart", 9)) {
+	if (lenCt >= 9 && memeq_anycase(ct, "multipart", 9)) {
 		// CTE in headers: ignored
 		unsigned char ignore[255];
 		uint8_t lenIgnore;
