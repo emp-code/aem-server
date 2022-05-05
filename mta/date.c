@@ -60,7 +60,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (year < 2020 || end == NULL) return 0;
 
 	b = end;
-	offset = 1;
+	offset = 0;
 	while (b[offset] == ' ') offset++;
 
 	const long hour = strtol(b + offset, &end, 10);
@@ -68,7 +68,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (end == NULL || *end != ':') return 0;
 
 	b = end;
-	offset = 1;
+	offset = 0;
 	while (b[offset] == ' ') offset++;
 
 	const long min = strtol(b + offset, &end, 10);
@@ -76,7 +76,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	if (end == NULL || *end != ':') return 0;
 
 	b = end;
-	offset = 1;
+	offset = 0;
 	while (b[offset] == ' ') offset++;
 
 	const long sec = strtol(b + offset, &end, 10);
