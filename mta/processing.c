@@ -318,7 +318,7 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 		cs++;
 		if (cs == ct + lenCt) return NULL;
 
-		if (isspace(*cs)) break;
+		if (!isspace(*cs)) break;
 	}
 
 	const unsigned char *csEnd;
