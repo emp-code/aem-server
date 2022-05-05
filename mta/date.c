@@ -57,7 +57,7 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 
 	long year = strtol(b + offset, &end, 10);
 	if (year > 20 && year < 100) year += 2000;
-	if (year < 1970 || end == NULL || *end != ' ') return 0;
+	if (year < 2022 || end == NULL || *end != ' ') return 0;
 
 	b = end;
 	offset = 1;
