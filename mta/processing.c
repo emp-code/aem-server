@@ -152,11 +152,12 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 
 					memcpy(out + lenOut, decUtf8, lenDecUtf8);
 					lenOut += lenDecUtf8;
-					free(decUtf8);
 				} else {
 					memset(out + lenOut, '?', lenOriginal);
 					lenOut += lenOriginal;
 				}
+
+				if (decUtf8 != NULL) free(decUtf8);
 			}
 
 			i += lenOriginal;
