@@ -70,6 +70,8 @@ static void addNewline(char * const out, size_t * const lenOut, const enum aem_h
 }
 
 static enum aem_html_tag getTagByName(const char * const tagName, const size_t lenTagName) {
+	if (lenTagName == 0) return AEM_HTML_TAG_NULL;
+
 	if (tagName[0] == '/') {
 		switch (tagName[1]) {
 			case 'd':
