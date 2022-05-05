@@ -592,7 +592,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 			email->body = new;
 		}
 
-		if (lenCt < 2 || memeq_anycase(ct, "text/", 5)) {
+		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
 			unsigned char * const cs = getCharset(ct, lenCt);
 			convertToUtf8((char**)&email->body, &email->lenBody, (char*)cs);
 			if (cs != NULL) free(cs);
