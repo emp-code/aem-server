@@ -313,8 +313,13 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 	if (cs == NULL) return NULL;
 	cs = memchr(cs + 7, '=', (ct + lenCt) - (cs + 7));
 	if (cs == NULL) return NULL;
-	cs++;
-	while (isspace(*cs)) cs++;
+
+	while(1) {
+		cs++;
+		if (cs == ct + lenCt) return NULL;
+
+		if (isspace(*cs)) break;
+	}
 
 	const unsigned char *csEnd;
 	if (*cs == '"' || *cs == '\'') {
