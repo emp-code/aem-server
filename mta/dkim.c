@@ -176,18 +176,17 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 			continue;
 		}
 
-		const unsigned char *end = s + 1;
+		const unsigned char *end = s + lenH + 1; // Skip name and colon
 		bool found = false;
 		while(1) {
 			if (end[0] == '\0' || end[1] == '\0') break;
 
-			if (!memeq(end, "\r\n", 2) || end[2] == ' ' || end[2] == '\t') {
-				end++;
-				continue;
+			if (memeq(end, "\r\n", 2) && end[2] != ' ' && end[2] != '\t') {
+				found = true;
+				break;
 			}
 
-			found = true;
-			break;
+			end++;
 		}
 
 		if (!found) end = (unsigned char*)headers + lenHeaders;
@@ -199,7 +198,7 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 		lenSimple += 2;
 
 		// Relaxed
-		s += lenH + 1; // Include colon
+		s += lenH + 1; // Skip name and colon
 		while (s < end && isspace(*s)) s++;
 
 		const size_t lenHeader = end - s;
