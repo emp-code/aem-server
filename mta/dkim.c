@@ -200,7 +200,7 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 
 		// Relaxed
 		s += lenH + 1; // Include colon
-		while (isspace(*s)) s++;
+		while (s < end && isspace(*s)) s++;
 
 		const size_t lenHeader = end - s;
 
