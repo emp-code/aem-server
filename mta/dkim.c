@@ -406,16 +406,6 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		return offset;
 	}
 
-	mbedtls_pk_context pk;
-	mbedtls_pk_init(&pk);
-	const int ret = mbedtls_pk_parse_public_key(&pk, pkBin, lenPkBin);
-	if (ret != 0) {
-		syslog(LOG_INFO, "pk_parse failed: %x", -ret);
-		mbedtls_pk_free(&pk);
-		email->dkimFailed = true;
-		return offset;
-	}
-
 	// Verify bodyhash
 	// Remove extra linebreaks at end
 	while (lenBody > 4 && memeq(headEnd + lenBody - 4, "\r\n\r\n", 4)) lenBody -= 2;
@@ -462,6 +452,16 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
+
+	mbedtls_pk_context pk;
+	mbedtls_pk_init(&pk);
+	const int ret = mbedtls_pk_parse_public_key(&pk, pkBin, lenPkBin);
+	if (ret != 0) {
+		syslog(LOG_INFO, "pk_parse failed: %x", -ret);
+		mbedtls_pk_free(&pk);
+		email->dkimFailed = true;
+		return offset;
+	}
 
 	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff + 1, &email->dkim[email->dkimCount].headSimple)) {
 		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
