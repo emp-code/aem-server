@@ -73,6 +73,7 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 		} else if (text[i] == ' ') {
 			if (lenNew > 0 && new[lenNew - 1] == '\n') continue; // follows LF - skip
 			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // Followed by SP/LF - skip
+			if (i + 3 < *len && text[i + 1] == 0xE2 && text[i + 2] == 0x80 && text[i + 3] == 0x8C) {i += 3; continue;} // Followed by ZWNJ - skip
 		} else if (text[i] == '\n') {
 			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // Follows 2 LF - skip
 		} else if (removeControl && (text[i] < 32 || text[i] == 127)) { // 127=DEL
