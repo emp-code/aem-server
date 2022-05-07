@@ -345,7 +345,7 @@ static unsigned char* getBound(const unsigned char * const src, const size_t len
 	const unsigned char *start = memcasemem(src, lenSrc, "boundary", 8);
 	if (start == NULL) return NULL;
 	start = memchr(start + 8, '=', (src + lenSrc) - (start + 8));
-	if (start == NULL) return NULL;
+	if (start == NULL || ((src + lenSrc) - start) < 3) return NULL;
 	start++;
 
 	const unsigned char *end = NULL;
