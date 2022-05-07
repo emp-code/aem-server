@@ -112,8 +112,16 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 
 			const unsigned char * const ewStart = data + i + 5 + lenCharset;
 			const unsigned char * const ewEnd = memmem(ewStart, *lenData - (i + 5 + lenCharset), "?=", 2);
-			const size_t lenEw = (ewEnd == NULL) ? 0 : ewEnd - ewStart;
-			if (lenEw < 1) return replace(data, lenData, out, lenOut);
+			if (ewEnd == NULL) {
+				i += ewStart - (data + i) - 1;
+				continue;
+			}
+
+			const size_t lenEw = ewEnd - ewStart;
+			if (lenEw < 1) {
+				i += ewEnd - (data + i) + 1;
+				continue;
+			}
 
 			size_t lenDec = 0;
 			unsigned char dec[lenEw];
