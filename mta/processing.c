@@ -124,7 +124,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			}
 
 			size_t lenDec = 0;
-			unsigned char dec[lenEw];
+			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
 				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return replace(data, lenData, out, lenOut);
