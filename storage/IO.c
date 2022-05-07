@@ -394,7 +394,7 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 	const off_t fileSize = filePos;
 	bool doneDelete = false;
 
-	for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
+	for (int i = stindex[stindexNum].msgCount - 1; i >= 1; i--) {
 		filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
 
 		if (!idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, id)) continue;
