@@ -194,7 +194,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				lenOut++;
 			}
 		} else if (!afterColon && data[i] == ':') {
-			if (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
+			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
 
 			if (lenOut + 1 >= AEM_CLEANHEADERS_MAXLENOUT) return;
 			out[lenOut] = ':';
