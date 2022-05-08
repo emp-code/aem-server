@@ -261,42 +261,47 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	return 0;
 }
 
+#define AEM_ADDROUR_MIN (AEM_DOMAIN_LEN + 2)
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char * const buf, const size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags, const bool usingTls) {
-	if (buf == NULL || len < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
+static int smtp_addr_our(const unsigned char *buf, size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags, const bool isSecure) {
+	if (buf == NULL || len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
-	size_t skipBytes = 0;
-	while (skipBytes < len && isspace(buf[skipBytes])) skipBytes++;
-	if (skipBytes >= len) return AEM_SMTP_ERROR_ADDR_OUR_SYNTAX;
+	for (size_t i = 0; i < len; i++) {
+		if (isspace(*buf)) {
+			if (len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
+			buf++;
+			len--;
+			i--;
+		}
+	}
 
-	if (buf[skipBytes] != '<') return AEM_SMTP_ERROR_ADDR_OUR_SYNTAX;
-	skipBytes++;
+	if (*buf == '<') {
+		buf++;
+		len--;
+	}
+	if (len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
 
-	const int max = len - skipBytes - 1;
-	int lenAddr = 0;
-	while (lenAddr < max && buf[skipBytes + lenAddr] != '>') lenAddr++;
+	while (!isprint(buf[len - 1]) || buf[len - 1] == '>') {
+		if (len - 1 < AEM_ADDROUR_MIN) return 12; // AEM_SMTP_ERROR_ADDR_OUR_DOMAIN
+		len--;
+	}
 
-	if (lenAddr < 1) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (len < AEM_ADDROUR_MIN || buf[len - AEM_DOMAIN_LEN - 1] != '@' || !memeq_anycase(buf + len - AEM_DOMAIN_LEN, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
+	if (len - AEM_DOMAIN_LEN - 1 > 31) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	char addr[AEM_MAXLEN_ADDR32];
-	int addrChars = 0;
-	int toChars = 0;
-	for (int i = 0; i < lenAddr; i++) {
-		if (buf[skipBytes + i] == '@') {
-			if (lenAddr - i - 1 != AEM_DOMAIN_LEN || !memeq_anycase(buf + skipBytes + i + 1, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
-			break;
-		}
+	size_t addrChars = 0;
+	size_t toChars = 0;
+	for (;toChars < len - AEM_DOMAIN_LEN - 1; toChars++) {
+		to[toChars] = buf[toChars];
 
-		if (toChars >= 31) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-		to[toChars] = buf[skipBytes + i];
-		toChars++;
-
-		if (isalnum(buf[skipBytes + i])) {
+		if (isalnum(buf[toChars])) {
 			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-			addr[addrChars] = tolower(buf[skipBytes + i]);
+			addr[addrChars] = tolower(buf[toChars]);
 			addrChars++;
 		}
 	}
+	to[toChars] = '\0';
 
 	if (addrChars < 1 || addrChars > 16
 	|| (addrChars == 6 && memeq(addr, "system", 6))
@@ -304,11 +309,10 @@ static int smtp_addr_our(const unsigned char * const buf, const size_t len, char
 	|| (addrChars == 16 && memeq(addr + 3, "administrator", 13))
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
-	to[toChars] = '\0';
 	const int ret = getUpk(addr, addrChars, toUpk, addrFlags);
 	if (ret != 0) return ret;
-	if (!usingTls && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) return AEM_SMTP_ERROR_ADDR_TLS_NEEDED;
-	return 0;
+
+	return (!isSecure && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) ? AEM_SMTP_ERROR_ADDR_TLS_NEEDED : 0;
 }
 
 __attribute__((warn_unused_result))
