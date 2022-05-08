@@ -77,8 +77,15 @@ static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource
 	return;
 }
 
-static void replace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
-	memcpy(target, source, lenSource);
+#define AEM_CLEANHEADERS_PLACEHOLDER_SPACE 0x01
+static void chReplace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
+	for (size_t i = 0; i < lenSource; i++) {
+		if (source[i] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE)
+			target[i] = ' ';
+		else
+			target[i] = source[i];
+	}
+
 	*lenTarget = lenSource;
 }
 
@@ -93,21 +100,21 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 		if (i < *lenData - 1 && data[i] == '=' && data[i + 1] == '?') { // Encoded-Word; e.g. =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 			if (wasEw && lenOut > 0) {
 				// This is EW follows another: remove all spaces between the two
-				while (lenOut > 0 && isspace(out[lenOut - 1])) lenOut--;
+				while (lenOut > 0 && out[lenOut - 1] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE) lenOut--;
 			}
 
 			const unsigned char * const charsetEnd = memchr(data + i + 2, '?', *lenData - (i + 2));
 			const size_t lenCharset = (charsetEnd == NULL) ? 0 : charsetEnd - (data + i + 2);
-			if (lenCharset < 1 || lenCharset > 30) return replace(data, lenData, out, lenOut);
+			if (lenCharset < 1 || lenCharset > 30) return chReplace(data, lenData, out, lenOut);
 
 			char charset[lenCharset + 1];
 			memcpy(charset, data + i + 2, lenCharset);
 			charset[lenCharset] = '\0';
 
-			if (data[i + 2 + lenCharset] != '?' || data[i + 4 + lenCharset] != '?') return replace(data, lenData, out, lenOut);
+			if (data[i + 2 + lenCharset] != '?' || data[i + 4 + lenCharset] != '?') return chReplace(data, lenData, out, lenOut);
 
 			const bool isBase64 = (toupper(data[i + 3 + lenCharset]) == 'B');
-			if (!isBase64 && toupper(data[i + 3 + lenCharset]) != 'Q') return replace(data, lenData, out, lenOut);
+			if (!isBase64 && toupper(data[i + 3 + lenCharset]) != 'Q') return chReplace(data, lenData, out, lenOut);
 
 			const unsigned char * const ewStart = data + i + 5 + lenCharset;
 			const unsigned char * const ewEnd = memmem(ewStart, *lenData - (i + 5 + lenCharset), "?=", 2);
@@ -126,7 +133,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
-				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return replace(data, lenData, out, lenOut);
+				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return chReplace(data, lenData, out, lenOut);
 			} else {
 				memcpy(dec, ewStart, lenEw);
 				lenDec = lenEw;
@@ -186,8 +193,8 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 
 			afterColon = false;
 		} else if (data[i] == ' ' || data[i] == '\t') {
-			if (lenOut < 1 || out[lenOut - 1] != ' ') {
-				out[lenOut] = ' ';
+			if (lenOut < 1 || out[lenOut - 1] != AEM_CLEANHEADERS_PLACEHOLDER_SPACE) {
+				out[lenOut] = AEM_CLEANHEADERS_PLACEHOLDER_SPACE;
 				lenOut++;
 			}
 		} else if (!afterColon && data[i] == ':') {
@@ -205,7 +212,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 		} // else skipped
 	}
 
-	replace(data, lenData, out, lenOut);
+	chReplace(data, lenData, out, lenOut);
 }
 
 static int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
