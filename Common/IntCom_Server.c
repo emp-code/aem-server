@@ -112,7 +112,7 @@ void takeConnections(void) {
 		const size_t lenMsg = hdr & UINT24_MAX;
 
 		unsigned char *res = NULL;
-		int32_t resCode;
+		int32_t resCode = AEM_INTCOM_RESPONSE_ERR;
 
 		if (lenMsg > 0) {
 			unsigned char * const msg = sodium_malloc(lenMsg + crypto_secretbox_MACBYTES);
