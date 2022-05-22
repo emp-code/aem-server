@@ -208,4 +208,4 @@ Other signals:
 * [libsodium](https://libsodium.org) for cryptography
 * [Brotli](https://github.com/google/brotli) and [Zopfli](https://github.com/google/zopfli) for compression
 * [MaxMind GeoIP2](https://dev.maxmind.com/geoip/geoip2/downloadable/) for IP geolocation and ASN data
-* [ICU](http://site.icu-project.org/home) for converting text to UTF-8
+* [ICU](https://icu.unicode.org) for converting text to UTF-8
