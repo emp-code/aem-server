@@ -521,7 +521,7 @@ static void message_create_ext(void) {
 	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
 	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_SUBJ);
 
-	if (strchr(email.replyId, ' ') != NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
+	if (strspn(email.replyId, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz$%+-.=@_") != strlen(email.replyId)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
 	if (!isValidFrom(email.addrFrom))       return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 	if (!isValidEmail(email.addrTo))        return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO);
 
