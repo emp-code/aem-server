@@ -19,6 +19,7 @@
 #include "../Common/ValidEmail.h"
 #include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
+#include "../Data/domain.h"
 #include "../Data/welcome.h"
 
 #include "Error.h"
@@ -502,6 +503,14 @@ static bool isValidFrom(const char * const src) { // Only allow sending from val
 	return true;
 }
 
+static bool isOurDomain(const char * const input, const size_t lenInput) {
+	return (
+	   lenInput >= AEM_DOMAIN_LEN + 1
+	&& input[lenInput - AEM_DOMAIN_LEN - 1] == '@'
+	&& memeq_anycase(input + lenInput - AEM_DOMAIN_LEN, AEM_DOMAIN, AEM_DOMAIN_LEN)
+	);
+}
+
 static void message_create_ext(void) {
 	const int userLevel = getUserLevel(req->upk);
 	if (userLevel < AEM_MINLEVEL_SENDEMAIL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_MINLEVEL);
@@ -524,6 +533,7 @@ static void message_create_ext(void) {
 	if (strspn(email.replyId, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz$%+-.=@_") != strlen(email.replyId)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
 	if (!isValidFrom(email.addrFrom)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 	if (!isValidEmail(email.addrTo))  return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO);
+	if (isOurDomain(email.addrTo, strlen(email.addrTo))) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_MYDOMAIN);
 
 	// Body
 	const size_t lenBody = end - p;
