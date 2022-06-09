@@ -516,19 +516,19 @@ static void message_create_ext(void) {
 	// Address From
 	const unsigned char *p = req->post + 1;
 	const unsigned char * const end = req->post + req->lenPost;
-	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL || !addrOwned(email.addrFrom)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_FROM);
-	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_TO);
-	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_REPLYID);
-	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_FORMAT_SUBJECT);
+	p = cpyEmail(p, end - p, email.addrFrom, 1); if (p == NULL || !addrOwned(email.addrFrom)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
+	p = cpyEmail(p, end - p, email.addrTo,   6); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO);
+	p = cpyEmail(p, end - p, email.replyId,  0); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
+	p = cpyEmail(p, end - p, email.subject,  3); if (p == NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_SUBJ);
 
-	if (strchr(email.replyId, ' ') != NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_REPLYID);
-	if (!isValidFrom(email.addrFrom))       return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_FROM);
-	if (!isValidEmail(email.addrTo))        return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO);
+	if (strchr(email.replyId, ' ') != NULL) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_RPLY);
+	if (!isValidFrom(email.addrFrom))       return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
+	if (!isValidEmail(email.addrTo))        return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO);
 
 	// Body
 	const size_t lenBody = end - p;
-	if (lenBody < 15 || lenBody > 99999)          return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_SIZE);
-	if (!isValidUtf8((unsigned char*)p, lenBody)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_UTF8);
+	if (lenBody < 15 || lenBody > 99999)          return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_SIZE);
+	if (!isValidUtf8((unsigned char*)p, lenBody)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_UTF8);
 
 	email.body = malloc(lenBody + 1000);
 	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
@@ -542,7 +542,7 @@ static void message_create_ext(void) {
 			lineLength = 0;
 		} else if ((p[copied] < 32 && p[copied] != '\t') || p[copied] == 127) { // Control characters
 			free(email.body);
-			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_CONTROL);
+			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_CTRL);
 		} else if (p[copied] > 127) { // UTF-8
 			// TODO - Forbid for now
 			free(email.body);
@@ -551,7 +551,7 @@ static void message_create_ext(void) {
 			lineLength++;
 			if (lineLength > 998) {
 				free(email.body);
-				return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_LINE_TOOLONG);
+				return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_LONG);
 			}
 
 			email.body[email.lenBody] = p[copied];
@@ -560,7 +560,7 @@ static void message_create_ext(void) {
 
 		if (email.lenBody > lenBody + 950) {
 			free(email.body);
-			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_FORMAT);
+			return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_SIZE);
 		}
 	}
 
@@ -572,12 +572,12 @@ static void message_create_ext(void) {
 
 	if (email.lenBody < 15) {
 		free(email.body);
-		return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BODY_TOOSHORT);
+		return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_SIZE);
 	}
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO); // 5=@a.bc
+	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO); // 5=@a.bc
 
 	unsigned char *mx = NULL;
 	const int32_t lenMx = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
