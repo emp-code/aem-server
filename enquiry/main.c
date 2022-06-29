@@ -1,16 +1,8 @@
-#include <fcntl.h>
 #include <locale.h> // for setlocale
 #include <signal.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h> // for mlockall
 #include <sys/mount.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <syslog.h>
 #include <unistd.h>
 
