@@ -390,7 +390,7 @@ static int process_spawn(const int type) {
 	close(fd[0]);
 
 	bool fail = false;
-	switch(type) {
+	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			fail = (
 			   write(fd[1], &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
