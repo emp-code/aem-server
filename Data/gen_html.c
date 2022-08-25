@@ -158,7 +158,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"script-src"      " 'wasm-unsafe-eval';"
 			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.10/dist/browsers/sodium.js;"
 			"style-src-attr"  " 'unsafe-inline';" // For displaying PDF files
-			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';"
+			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // inline for displaying HTML files
 
 			"base-uri"        " 'none';"
 			"child-src"       " 'none';"
