@@ -32,6 +32,9 @@
 
 #define AEM_LEN_FILE_MAX 128
 
+// AEM_FD_PIPE_RD in Global.h
+#define AEM_FD_PIPE_WR (AEM_FD_PIPE_RD + 1)
+
 static unsigned char master[AEM_LEN_KEY_MASTER];
 static unsigned char key_mng[AEM_LEN_KEY_MNG];
 static unsigned char key_acc[AEM_LEN_KEY_ACC];
@@ -41,7 +44,6 @@ static unsigned char key_sig[AEM_LEN_KEY_SIG];
 static unsigned char key_sto[AEM_LEN_KEY_STO];
 static unsigned char slt_shd[AEM_LEN_SLT_SHD];
 
-static int binfd[AEM_PROCESSTYPES_COUNT] = {0,0,0,0,0,0,0,0};
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
 static pid_t pid_account = 0;
@@ -50,8 +52,6 @@ static pid_t pid_enquiry = 0;
 static pid_t aemPid[5][AEM_MAXPROCESSES];
 
 static int sockMain = -1;
-static int sockClient = -1;
-
 static bool terminate = false;
 
 int getMasterKey(void) {
@@ -187,13 +187,22 @@ static int loadExec(void) {
 	const char * const path[] = AEM_PATH_EXE;
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+		const int binfd = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+		if (binfd != AEM_BINFD_OFFSET + i) {
+			if (binfd < 0) {
+				syslog(LOG_ERR, "Failed memfd_create: %m");
+			} else {
+				syslog(LOG_ERR, "Invalid fd: expected %d, got %d", AEM_BINFD_OFFSET + i, binfd);
+			}
+
+			sodium_free(tmp);
+			return -1;
+		}
 
 		if (
-		   binfd[i] < 0
-		|| loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0
-		|| write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp
-		|| fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
+		   loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0
+		|| write(binfd, tmp, lenTmp) != (ssize_t)lenTmp
+		|| fcntl(binfd, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
 		) {
 			syslog(LOG_ERR, "Failed loadExec: %m");
 			sodium_free(tmp);
@@ -331,17 +340,17 @@ static int cgroupMove(void) {
 	return 0;
 }
 
-static int process_new(const int type, const int pipefd, const int closefd) {
+static int process_new(const int type) {
 	wipeKeys();
-	close(sockMain);
-	close(sockClient);
-	close(closefd);
+	close(sockMain); // fd0 freed
 
-	if (type == AEM_PROCESSTYPE_ENQUIRY || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI)
-		close(pipefd);
+	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
+		// This process type uses a pipe, but doesn't need its writing side
+		close(AEM_FD_PIPE_WR);
+	}
 
 	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		if (i != type) close(binfd[i]);
+		if (i != type) close(AEM_BINFD_OFFSET + i);
 	}
 
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
@@ -349,16 +358,16 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0)       != 0) {syslog(LOG_ERR, "[%d] Failed prctl()",       type); exit(EXIT_FAILURE);}
 
 	if (cgroupMove()       != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",   type); exit(EXIT_FAILURE);}
-	if (createMount(type)  != 0) {syslog(LOG_ERR, "[%d] Failed createMount()",  type); exit(EXIT_FAILURE);}
+	if (createMount(type)  != 0) {syslog(LOG_ERR, "[%d] Failed createMount()",  type); exit(EXIT_FAILURE);} // fd0 becomes pivot-dir fd
 	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "[%d] Failed setSubLimits()", type); exit(EXIT_FAILURE);}
 	if (dropRoot()         != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",     type); exit(EXIT_FAILURE);}
 	if (setCaps(type)      != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",      type); exit(EXIT_FAILURE);}
 
-	fexecve(binfd[type], (char*[]){NULL}, (char*[]){NULL});
+	fexecve(AEM_BINFD_OFFSET + type, (char*[]){NULL}, (char*[]){NULL});
 
 	// Only runs if exec failed
-	close(0); // pivot dir fd
-	close(binfd[type]);
+	close(0); // pivot-dir fd
+	close(AEM_BINFD_OFFSET + type);
 	syslog(LOG_ERR, "[%d] Failed starting process: %m", type);
 	exit(EXIT_FAILURE);
 }
@@ -376,8 +385,11 @@ static int process_spawn(const int type) {
 		if (freeSlot < 0) return -1;
 	}
 
-	int fd[2];
-	if (pipe2(fd, O_DIRECT) < 0) return -1;
+	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
+		int fd[2];
+		if (pipe2(fd, O_DIRECT) < 0 || fd[0] < 0 || fd[1] < 0) {syslog(LOG_ERR, "Failed creating pipes: %m"); return -1;}
+		if (fd[0] != AEM_FD_PIPE_RD || fd[1] != AEM_FD_PIPE_WR) {syslog(LOG_ERR, "Failed creating pipes: %d/%d", fd[0], fd[1]); return -1;}
+	}
 
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
@@ -386,36 +398,40 @@ static int process_spawn(const int type) {
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
 	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return -1;}
-	if (pid == 0) exit(process_new(type, fd[0], fd[1]));
-	close(fd[0]);
+	if (pid == 0) exit(process_new(type));
+
+	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
+		// This process type uses a pipe, but Manager doesn't need its reading side
+		close(AEM_FD_PIPE_RD);
+	}
 
 	bool fail = false;
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			fail = (
-			   write(fd[1], &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(fd[1], key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
-			|| write(fd[1], slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+			   write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(AEM_FD_PIPE_WR, key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+			|| write(AEM_FD_PIPE_WR, slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
 			);
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-			fail = (write(fd[1], key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO);
+			fail = (write(AEM_FD_PIPE_WR, key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO);
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
 			fail = (
-			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
-			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
+			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			);
 		break;
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
 			fail = (
-			   write(fd[1], (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
-			|| write(fd[1], key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
-			|| write(fd[1], key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
+			|| write(AEM_FD_PIPE_WR, key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
+			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			);
 		break;
 
@@ -428,7 +444,7 @@ static int process_spawn(const int type) {
 
 	if (fail) kill(pid, SIGKILL);
 
-	close(fd[1]);
+	close(AEM_FD_PIPE_WR);
 
 	if (fail) {
 		syslog(LOG_ERR, "Failed writing to pipe: %m");
@@ -464,7 +480,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	kill(pid, sig);
 }
 
-static void cryptSend(void) {
+static void cryptSend(const int sock) {
 	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
@@ -476,7 +492,7 @@ static void cryptSend(void) {
 	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	if (crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_RESLEN_DECRYPTED, encrypted, key_mng) == 0) {
-		if (send(sockClient, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+		if (send(sock, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
 			syslog(LOG_WARNING, "Failed send");
 		}
 	} else {
@@ -484,12 +500,15 @@ static void cryptSend(void) {
 	}
 }
 
-static void respond_manager(void) {
+static void respond_manager(const int sock) {
 	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
-	if (recv(sockClient, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
+	if (recv(sock, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
 		syslog(LOG_WARNING, "Failed recv");
+		close(sock);
 		return;
 	}
+
+	close(sock);
 
 	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_CMDLEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) {
@@ -527,7 +546,7 @@ static void respond_manager(void) {
 	}
 
 	refreshPids();
-	cryptSend();
+//	cryptSend(sock);
 }
 
 static bool verifyStatus(void) {
@@ -539,31 +558,34 @@ static bool verifyStatus(void) {
 }
 
 int receiveConnections(void) {
-	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND); // fd=0
+	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
+	if (sockMain != 0) {syslog(LOG_ERR, "sm=%d", sockMain); return -1;}
+	if (loadFiles() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
 
-	if ( // pipefd=1
-	   sockMain < 0
-	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
+	if (
+	   process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
-	) {wipeKeys(); return EXIT_FAILURE;}
+	) {
+		wipeKeys();
+		syslog(LOG_ERR, "Failed starting T2 processes");
+		return -1;
+	}
 
 	bzero(aemPid, sizeof(aemPid));
 
 	while (!terminate) {
-		sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC); // fd=1
-
-		if (!verifyStatus()) {
-			killAll(SIGUSR1);
-			return 100;
-		}
-
+		const int sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC); // fd=1
 		if (sockClient < 0) continue;
-		respond_manager(); // pipefd=2
-		close(sockClient);
+		respond_manager(sockClient);
+
+//		if (!verifyStatus()) {
+//			killAll(SIGUSR1);
+//			return 100;
+//		}
 	}
 
 	close(sockMain);
 	wipeKeys();
-	return EXIT_SUCCESS;
+	return 0;
 }

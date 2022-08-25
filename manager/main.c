@@ -1,6 +1,7 @@
 #include <ctype.h> // for isxdigit
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/close_range.h>
 #include <linux/securebits.h>
 #include <locale.h> // for setlocale
 #include <sched.h> // for unshare
@@ -212,7 +213,6 @@ static int setCgroup(void) {
 
 int main(void) {
 	setlocale(LC_ALL, "C");
-	openlog("AEM-Man", LOG_PID, LOG_MAIL);
 
 	if (getuid() != 0) {puts("Terminating: Must be started as root"); return 1;}
 	if (!ptraceDisabled()) {puts("Terminating: Failed disabling ptrace"); return 2;}
@@ -241,13 +241,8 @@ int main(void) {
 	if (dropBounds() != 0) return 25;
 
 	if (getMasterKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
-	if (loadFiles() != 0) {puts("Terminating: Failed reading files"); return 41;}
-
-	puts("Ready");
-
-	close(STDIN_FILENO);
-	close(STDOUT_FILENO);
-	close(STDERR_FILENO);
+	if (close_range(0, UINT_MAX, 0) != 0) {puts("Terminating: Failed closing file descriptors"); return 42;}
+	openlog("AEM-Man", LOG_PID, LOG_MAIL);
 
 	receiveConnections();
 	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {syslog(LOG_ERR, "Failed cgroup2 unmount: %m"); return 50;}

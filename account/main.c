@@ -20,7 +20,6 @@
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Acc"
-#define AEM_PIPEFD 1
 
 static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
@@ -42,17 +41,17 @@ static int setupIo(void) {
 	unsigned char saltShield[AEM_LEN_SLT_SHD];
 
 	if (
-	   read(AEM_PIPEFD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
-	|| read(AEM_PIPEFD, accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
-	|| read(AEM_PIPEFD, saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+	   read(AEM_FD_PIPE_RD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
+	|| read(AEM_FD_PIPE_RD, accountKey, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
+	|| read(AEM_FD_PIPE_RD, saltShield, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
 	) {
 		sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
-		close(AEM_PIPEFD);
+		close(AEM_FD_PIPE_RD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe");
 		return -1;
 	}
 
-	close(AEM_PIPEFD);
+	close(AEM_FD_PIPE_RD);
 	setStoragePid(storagePid);
 	if (ioSetup(accountKey, saltShield) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
 	sodium_memzero(accountKey, AEM_LEN_KEY_ACC);

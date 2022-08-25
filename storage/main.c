@@ -18,7 +18,6 @@
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Sto"
-#define AEM_PIPEFD 1
 
 static void sigTerm(const int sig) {
 	if (sig == SIGUSR1) {
@@ -36,13 +35,13 @@ static void sigTerm(const int sig) {
 
 static int setupIo(void) {
 	unsigned char storageKey[AEM_LEN_KEY_STO];
-	if (read(AEM_PIPEFD, storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
-		close(AEM_PIPEFD);
+	if (read(AEM_FD_PIPE_RD, storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
+		close(AEM_FD_PIPE_RD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe: %m");
 		return -1;
 	}
 
-	close(AEM_PIPEFD);
+	close(AEM_FD_PIPE_RD);
 	ioSetup(storageKey);
 	sodium_memzero(storageKey, AEM_LEN_KEY_STO);
 	return 0;

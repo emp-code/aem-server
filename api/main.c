@@ -31,7 +31,6 @@
 #define AEM_LOGNAME "AEM-AOn"
 #endif
 
-#define AEM_PIPEFD 2
 #define AEM_MAXLEN_PIPEREAD 64
 
 static bool terminate = false;
@@ -58,7 +57,7 @@ static void sigTerm(const int sig) {
 __attribute__((warn_unused_result))
 static int pipeLoadPids(void) {
 	pid_t pids[3];
-	if (read(AEM_PIPEFD, pids, sizeof(pid_t) * 3) != sizeof(pid_t) * 3) return -1;
+	if (read(AEM_FD_PIPE_RD, pids, sizeof(pid_t) * 3) != sizeof(pid_t) * 3) return -1;
 
 	setAccountPid(pids[0]);
 	setStoragePid(pids[1]);
@@ -70,11 +69,11 @@ __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
 	unsigned char buf[AEM_MAXLEN_PIPEREAD];
 
-	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
+	if (read(AEM_FD_PIPE_RD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
 	setApiKey(buf);
 	setMsgIdKey(buf);
 
-	if (read(AEM_PIPEFD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
+	if (read(AEM_FD_PIPE_RD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
 	setSigKey(buf);
 
 	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
@@ -109,7 +108,7 @@ int main(void) {
 #include "../Common/MainSetup.c"
 	if (pipeLoadPids() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	if (pipeLoadKeys() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
-	close(AEM_PIPEFD);
+	close(AEM_FD_PIPE_RD);
 
 #ifdef AEM_API_CLR
 	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing TLS"); return EXIT_FAILURE;}
