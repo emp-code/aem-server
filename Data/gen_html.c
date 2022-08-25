@@ -210,7 +210,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"cross-origin-isolated"           "=(self),"
 			"focus-without-user-activation"   "=(self),"
 			"fullscreen"                      "=(self),"
-			"vertical-scroll"                 "=(self),"
+			"vertical-scroll"                 "=(*),"
 
 			"accelerometer"                   "=(),"
 			"ambient-light-sensor"            "=(),"
