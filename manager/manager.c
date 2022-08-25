@@ -344,22 +344,22 @@ static int process_new(const int type, const int pipefd, const int closefd) {
 		if (i != type) close(binfd[i]);
 	}
 
-	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "Failed private mount"); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
-	if (setpriority(PRIO_PROCESS, 0, typeNice[type]) != 0) {syslog(LOG_ERR, "Failed setpriority()"); exit(EXIT_FAILURE);}
-	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl()"); exit(EXIT_FAILURE);}
+	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
+	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
+	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0)       != 0) {syslog(LOG_ERR, "[%d] Failed prctl()",       type); exit(EXIT_FAILURE);}
 
-	if (cgroupMove()) exit(EXIT_FAILURE);
-	if (createMount(type)) {syslog(LOG_ERR, "Failed createMount()"); exit(EXIT_FAILURE);}
-	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "Failed setSubLimits()"); exit(EXIT_FAILURE);}
-	if (dropRoot() != 0) {syslog(LOG_ERR, "Failed dropRoot()"); exit(EXIT_FAILURE);}
-	if (setCaps(type) != 0) {syslog(LOG_ERR, "Failed setCaps()"); exit(EXIT_FAILURE);}
+	if (cgroupMove()       != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",   type); exit(EXIT_FAILURE);}
+	if (createMount(type)  != 0) {syslog(LOG_ERR, "[%d] Failed createMount()",  type); exit(EXIT_FAILURE);}
+	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "[%d] Failed setSubLimits()", type); exit(EXIT_FAILURE);}
+	if (dropRoot()         != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",     type); exit(EXIT_FAILURE);}
+	if (setCaps(type)      != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",      type); exit(EXIT_FAILURE);}
 
 	fexecve(binfd[type], (char*[]){NULL}, (char*[]){NULL});
 
 	// Only runs if exec failed
 	close(0); // pivot dir fd
 	close(binfd[type]);
-	syslog(LOG_ERR, "Failed starting process");
+	syslog(LOG_ERR, "[%d] Failed starting process: %m", type);
 	exit(EXIT_FAILURE);
 }
 
