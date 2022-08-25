@@ -190,7 +190,7 @@ static int loadExec(void) {
 		binfd[i] = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
 
 		if (
-		   binfd[i] == -1
+		   binfd[i] < 0
 		|| loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0
 		|| write(binfd[i], tmp, lenTmp) != (ssize_t)lenTmp
 		|| fcntl(binfd[i], F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
