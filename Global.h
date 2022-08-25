@@ -186,13 +186,13 @@ enum aem_process_types {
 
 #define AEM_NICE { \
 	/*Web-Clr*/   4, \
-	/*Web-Oni*/   8 \
+	/*Web-Oni*/   8, \
 	/*API-Clr*/  -4, \
 	/*API-Oni*/  -2, \
 	/*MTA*/      -8, \
 	/*Account*/ -16, \
 	/*Enquiry*/ -18, \
-	/*Storage*/ -18, \
+	/*Storage*/ -18 \
 }
 
 #endif
