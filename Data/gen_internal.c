@@ -44,16 +44,17 @@ int main(void) {
 	printKey("AEM_KEY_INTCOM_ENQUIRY_MTA", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_INTCOM_STORAGE_ACC", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_INTCOM_STORAGE_API", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_STORAGE_MTA", crypto_box_SECRETKEYBYTES);
-
+	printKey("AEM_KEY_INTCOM_STORAGE_DLV", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_INTCOM_STREAM", crypto_secretstream_xchacha20poly1305_KEYBYTES); // MTA->Deliver
 	puts("");
 
 	puts("#define AEM_SOCKPATH_LEN 108");
 	printAbstract("AEM_SOCKPATH_ACCOUNT");
+	printAbstract("AEM_SOCKPATH_DELIVER");
 	printAbstract("AEM_SOCKPATH_ENQUIRY");
 	printAbstract("AEM_SOCKPATH_STORAGE");
-
 	puts("");
+
 	puts("#endif");
 
 	return 0;

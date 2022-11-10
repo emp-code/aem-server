@@ -17,9 +17,10 @@
 #define AEM_INTCOM_RESPONSE_CRYPTO   (INT32_MIN + 8)
 
 enum aem_intcom_identifier {
-	AEM_IDENTIFIER_API,
-	AEM_IDENTIFIER_MTA,
-	AEM_IDENTIFIER_ACC
+	AEM_IDENTIFIER_API = 0,
+	AEM_IDENTIFIER_MTA = 1,
+	AEM_IDENTIFIER_DLV = 1,
+	AEM_IDENTIFIER_ACC = 2
 };
 
 enum aem_internal_enquiry {
@@ -63,6 +64,7 @@ enum aem_internal_enquiry {
 #define AEM_ADDR_FLAGS_DEFAULT (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH)
 
 #define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
+#define AEM_SMTP_CHUNKSIZE 65536
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
@@ -94,10 +96,6 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
 #define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
 
-#define AEM_STORE_INERROR (-1)
-#define AEM_STORE_USRFULL (-2)
-#define AEM_STORE_MSGSIZE (-3)
-
 /*
 	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.
 	Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
@@ -117,6 +115,9 @@ enum aem_internal_enquiry {
 
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
+
+#define AEM_SMTP_MAX_SIZE_BODY      4194304 // 4 MiB. RFC5321: min. 64k
+#define AEM_SMTP_MAX_SIZE_BODY_STR "4194304"
 
 #define AEM_TIMEOUT_MANAGER_RCV 3
 #define AEM_TIMEOUT_MANAGER_SND 3
@@ -152,8 +153,7 @@ enum aem_api_commands {
 enum aem_mta_commands {
 	AEM_MTA_ADREXISTS_SHIELD,
 	AEM_MTA_GETPUBKEY_NORMAL,
-	AEM_MTA_GETPUBKEY_SHIELD,
-	AEM_MTA_INSERT
+	AEM_MTA_GETPUBKEY_SHIELD
 };
 
 enum aem_acc_commands {
@@ -169,6 +169,7 @@ enum aem_process_types {
 	AEM_PROCESSTYPE_API_ONI,
 	AEM_PROCESSTYPE_MTA,
 	AEM_PROCESSTYPE_ACCOUNT,
+	AEM_PROCESSTYPE_DELIVER,
 	AEM_PROCESSTYPE_ENQUIRY,
 	AEM_PROCESSTYPE_STORAGE,
 	AEM_PROCESSTYPES_COUNT
@@ -183,6 +184,7 @@ enum aem_process_types {
 	AEM_PATH_CONF"/bin/aem-api-oni", \
 	AEM_PATH_CONF"/bin/aem-mta", \
 	AEM_PATH_CONF"/bin/aem-account", \
+	AEM_PATH_CONF"/bin/aem-deliver", \
 	AEM_PATH_CONF"/bin/aem-enquiry", \
 	AEM_PATH_CONF"/bin/aem-storage" \
 }
@@ -194,6 +196,7 @@ enum aem_process_types {
 	/*API-Oni*/  -2, \
 	/*MTA*/      -8, \
 	/*Account*/ -16, \
+	/*Deliver*/  -3, \
 	/*Enquiry*/ -18, \
 	/*Storage*/ -18 \
 }

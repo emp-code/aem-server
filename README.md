@@ -18,23 +18,24 @@ All-Ears uses several process types, divided into three tiers. The design minimi
 
 The top-tier process, Manager, has full access to all data, but only has one purpose: to start the other processes and give them the data they need at startup.
 
-The middle-tier processes, Account and Storage, have direct access to user data, but are only accessible through an encrypted Unix socket. Enquiry functions similarly, but doesn't deal with user data.
+The middle-tier processes, Account and Storage, have direct access to user data but are only accessible through an encrypted Unix socket. Deliver and Enquiry function similarly, but have no access to user data.
 
-The bottom-tier processes, API and MTA, are publically accessible, but have no direct access to user data. They can only request the middle-tier processes to perform specific functions needed for their operation. The final process type of this tier is Web, which is completely isolated from all other processes.
+The bottom-tier processes, API and MTA, are publicly accessible but have no direct access to user data. They can only request the middle-tier processes to perform specific functions needed for their operation. The final process type of this tier is Web, which is completely isolated from all other processes.
 
-Manager starts Account and Storage automatically. API, MTA, and Web processes need to be started manually using ManagerClient, and multiple of them can be run simultaneously.
+Manager starts the middle-tier processes automatically. API, MTA, and Web processes need to be started manually using ManagerClient, and multiple of them can be run simultaneously.
 
 Logging is kept to a minimum, and is mostly done in case of errors. All log messages are sent to syslog's mail facility.
 
 All-Ears consists of the following parts:
 1. [Manager](#manager)
 2. [Account](#account)
-3. [Storage](#storage)
+3. [Deliver](#deliver)
 4. [Enquiry](#enquiry)
-5. [Web](#web)
-6. [API](#api)
-7. [MTA](#mta)
-8. [Utilities](#utilities)
+5. [Storage](#storage)
+6. [Web](#web)
+7. [API](#api)
+8. [MTA](#mta)
+9. [Utilities](#utilities)
 
 General information:
 * [Users](#users)
@@ -64,19 +65,23 @@ Account manages, serves, and stores all user (see [Users](#users)) and address (
 
 API and MTA connect to it, each with their own key. Depending on which key was used, only functions relevant to that particular type of process are available.
 
+## Deliver ##
+
+Deliver receives email from the MTA processes, converts it to a custom binary format, and sends it to Storage.
+
+## Enquiry ##
+
+Enquiry retrieves information such as IP/DNS data for the other processes.
+
 ## Storage ##
 
 Storage handles the storage and retrieval of encrypted message data (see [Messages](#messages)).
 
-API and MTA connect to it, each with their own key. Depending on which key was used, only functions relevant to that particular type of process are available.
+API and Deliver connect to it, each with their own key. Depending on which key was used, only functions relevant to that particular type of process are available.
 
 Message data is stored in `/var/lib/allears/MessageData`, encrypted with AES-256. All users have their own file; the file names are encrypted public keys.
 
 An index of messages is kept, containing the owner's public key and message sizes. This index is stored in `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box using a key derived from the Storage Key.
-
-## Enquiry ##
-
-Enquiry retrieves and stores information for API and MTA.
 
 ## Web ##
 
@@ -106,7 +111,7 @@ Invalid requests, such as those made without a registered public key, are droppe
 
 ## MTA ##
 
-MTA receives email. It converts the received email into a custom binary format, including additional data.
+MTA receives email from other servers, and sends it to Deliver for processing and delivery.
 
 ## Utilities ##
 

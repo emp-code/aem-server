@@ -22,8 +22,9 @@ static const unsigned char *intcom_keys[] = {
 	AEM_KEY_INTCOM_STORAGE_API
 #elif defined(AEM_MTA)
 	AEM_KEY_INTCOM_ACCOUNT_MTA,
-	AEM_KEY_INTCOM_ENQUIRY_MTA,
-	AEM_KEY_INTCOM_STORAGE_MTA
+	AEM_KEY_INTCOM_ENQUIRY_MTA
+#elif defined(AEM_DELIVER)
+	AEM_KEY_INTCOM_STORAGE_DLV
 #endif
 };
 
@@ -31,7 +32,12 @@ static pid_t intcom_pids[4] = {0, 0, 0, 0};
 
 #if defined(AEM_API) || defined(AEM_MTA)
 void setAccountPid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_ACCOUNT] = pid;}
+#endif
+#if defined(AEM_API) || defined(AEM_DLV)
 void setEnquiryPid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_ENQUIRY] = pid;}
+#endif
+#if defined(AEM_MTA)
+void setDeliverPid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_DELIVER] = pid;}
 #endif
 void setStoragePid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_STORAGE] = pid;}
 
@@ -54,6 +60,7 @@ static bool peerOk(const int sock, const aem_intcom_type_t intcom_type) {
 	struct ucred peer;
 	socklen_t lenUc = sizeof(struct ucred);
 	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
+
 	return (peer.pid == intcom_pids[intcom_type] && peer.gid == getgid() && peer.uid == getuid());
 }
 
@@ -63,6 +70,7 @@ static int intcom_socket(const aem_intcom_type_t intcom_type) {
 
 	switch (intcom_type) {
 		case AEM_INTCOM_TYPE_ACCOUNT: memcpy(sa.sun_path, AEM_SOCKPATH_ACCOUNT, AEM_SOCKPATH_LEN); break;
+		case AEM_INTCOM_TYPE_DELIVER: memcpy(sa.sun_path, AEM_SOCKPATH_DELIVER, AEM_SOCKPATH_LEN); break;
 		case AEM_INTCOM_TYPE_ENQUIRY: memcpy(sa.sun_path, AEM_SOCKPATH_ENQUIRY, AEM_SOCKPATH_LEN); break;
 		case AEM_INTCOM_TYPE_STORAGE: memcpy(sa.sun_path, AEM_SOCKPATH_STORAGE, AEM_SOCKPATH_LEN); break;
 		default: return -1;
@@ -101,6 +109,8 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	encHdr[0] = AEM_IDENTIFIER_API;
 #elif defined(AEM_MTA)
 	encHdr[0] = AEM_IDENTIFIER_MTA;
+#elif defined(AEM_DELIVER)
+	encHdr[0] = AEM_IDENTIFIER_DLV;
 #else
 	encHdr[0] = AEM_IDENTIFIER_INV;
 #endif
@@ -154,3 +164,46 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 
 	return lenOut;
 }
+
+// Streaming IntCom socket, used by MTA->Deliver to avoid large allocations. Uses libsodium's SecretStream.
+#ifdef AEM_MTA
+int intcom_stream_open(const unsigned char * const ss_header) {
+	const int sock = intcom_socket(AEM_INTCOM_TYPE_DELIVER);
+	if (sock < 0) return -1;
+
+	if (send(sock, ss_header, crypto_secretstream_xchacha20poly1305_HEADERBYTES, 0) != crypto_secretstream_xchacha20poly1305_HEADERBYTES) {
+		close(sock);
+		syslog(LOG_ERR, "IntCom[SC]: Failed sending header: %m");
+		return -1;
+	}
+
+	return sock;
+}
+
+int intcom_stream_send(const int sock, crypto_secretstream_xchacha20poly1305_state * const ss_state, const unsigned char * const src, const size_t lenSrc) {
+	const size_t lenEnc = lenSrc + crypto_secretstream_xchacha20poly1305_ABYTES;
+	unsigned char enc[lenEnc];
+	crypto_secretstream_xchacha20poly1305_push(ss_state, enc, NULL, src, lenSrc, NULL, 0, 0);
+
+	if (send(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t) || send(sock, enc, lenEnc, 0) != (ssize_t)lenEnc) {
+		close(sock);
+		syslog(LOG_ERR, "IntCom[SC]: Failed sending message: %m");
+		return -1;
+	}
+
+	return 0;
+}
+
+int32_t intcom_stream_end(const int sock, crypto_secretstream_xchacha20poly1305_state * const ss_state) {
+	crypto_secretstream_xchacha20poly1305_rekey(ss_state);
+
+	const size_t smax = SIZE_MAX;
+	if (send(sock, &smax, sizeof(size_t), 0) != sizeof(size_t)) {close(sock); syslog(LOG_ERR, "IntCom[SC]: Failed sending end-message: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	int32_t res;
+	if (recv(sock, &res, sizeof(int32_t), MSG_WAITALL) != sizeof(int32_t)) {close(sock); syslog(LOG_ERR, "IntCom[SC]: Failed receiving result: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	close(sock);
+	return res;
+}
+#endif

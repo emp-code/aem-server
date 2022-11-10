@@ -39,8 +39,8 @@ int32_t conn_api(const uint8_t type, unsigned char * const msg, const size_t len
 	return AEM_INTCOM_RESPONSE_ERR;
 }
 
-int32_t conn_mta(const uint8_t type, unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
-	if (type == AEM_MTA_INSERT) return storage_write(msg, lenMsg);
+int32_t conn_dlv(const uint8_t type, unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
+	if (type == 0) return storage_write(msg, lenMsg);
 
 	syslog(LOG_WARNING, "conn_mta(): Invalid type");
 	return AEM_INTCOM_RESPONSE_ERR;

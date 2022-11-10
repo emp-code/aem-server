@@ -73,7 +73,8 @@ int createMount(const int type) {
 	switch (type) {
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI: fsmode = 1110; nr_inodes = 9; break;
+		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 9; break;
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:

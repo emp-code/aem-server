@@ -23,36 +23,75 @@
 #define MTA_PROCESSING_CTE_B64 1
 #define MTA_PROCESSING_CTE_QP 2
 
+static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
+	unsigned char *c = memmem(src, *lenSrc, "\r\n..", 4);
+
+	while (c != NULL) {
+		c += 2;
+		const size_t offset = (c + 1) - src;
+
+		memmove(c, c + 1, *lenSrc - offset);
+		(*lenSrc)--;
+
+		c = memmem(src + offset, *lenSrc - offset, "\r\n..", 4);
+	}
+}
+
+static void processDkim(unsigned char * const src, size_t * const lenSrc) {
+	// Disabled for now, TODO
+/*
+	for (int i = 0; i < 7; i++) {
+		const unsigned char * const headersEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
+		if (headersEnd == NULL) break;
+
+		unsigned char *start = memcasemem(src, headersEnd - src, "\nDKIM-Signature:", 16);
+		if (start == NULL) break;
+		start++;
+
+		const int offset = verifyDkim(&email, start, (src + lenSrc) - start);
+		if (offset == 0) break;
+
+		// Delete the signature from the headers
+		memmove(start, start + offset, (src + lenSrc) - (start + offset));
+		lenSrc -= offset;
+	}
+*/
+
+	// Remove the CRLF added for DKIM
+	(*lenSrc) -= 2;
+	src[*lenSrc] = '\0';
+}
+
 // "abc" <def@ghj> --> abcAEM_CET_CHAR_SEPdef@ghj
-static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource) {
+static void minifyHeaderAddress(unsigned char *src, uint8_t * const lenSrc) {
 	while(1) {
-		unsigned char *r = memchr(source, '\r', *lenSource);
+		unsigned char *r = memchr(src, '\r', *lenSrc);
 		if (r == NULL) break;
 		*r = ' ';
 	}
 
-	unsigned char *addrStart = memchr(source, '<', *lenSource);
-	unsigned char *addrEnd = memchr(source, '>', *lenSource);
+	unsigned char *addrStart = memchr(src, '<', *lenSrc);
+	unsigned char *addrEnd = memchr(src, '>', *lenSrc);
 	if (addrStart == NULL || addrEnd == NULL || addrEnd < addrStart) return;
 	addrStart++;
 	const size_t lenAddr = addrEnd - addrStart;
 
-	if (addrStart == source + 1) {
-		memmove(source, addrStart, lenAddr);
-		*lenSource = lenAddr;
+	if (addrStart == src + 1) {
+		memmove(src, addrStart, lenAddr);
+		*lenSrc = lenAddr;
 		return;
 	}
 
 	unsigned char *nameEnd = addrStart - 1;
-	unsigned char *nameStart = source;
+	unsigned char *nameStart = src;
 	while (isspace(*nameStart) && nameStart[1] != '<') nameStart++;
 
 	const bool quot = (*nameStart == '"');
 	if (quot) nameStart++;
 
 	if (nameStart == nameEnd) {
-		memmove(source, addrStart, lenAddr);
-		*lenSource = lenAddr;
+		memmove(src, addrStart, lenAddr);
+		*lenSrc = lenAddr;
 		return;
 	}
 
@@ -62,8 +101,8 @@ static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource
 	if (quot && lenName > 0 && nameStart[lenName - 1] == '"') lenName--;
 
 	if (lenName < 1) {
-		memcpy(source, addrStart, lenAddr);
-		*lenSource = lenAddr;
+		memcpy(src, addrStart, lenAddr);
+		*lenSrc = lenAddr;
 		return;
 	}
 
@@ -72,21 +111,21 @@ static void minifyHeaderAddress(unsigned char *source, uint8_t * const lenSource
 	new[lenName] = AEM_CET_CHAR_SEP;
 	memcpy(new + lenName + 1, addrStart, lenAddr);
 
-	*lenSource = lenName + 1 + lenAddr;
-	memcpy(source, new, *lenSource);
+	*lenSrc = lenName + 1 + lenAddr;
+	memcpy(src, new, *lenSrc);
 	return;
 }
 
 #define AEM_CLEANHEADERS_PLACEHOLDER_SPACE 0x01
-static void chReplace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
-	for (size_t i = 0; i < lenSource; i++) {
-		if (source[i] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE)
+static void chReplace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const src, const size_t lenSrc) {
+	for (size_t i = 0; i < lenSrc; i++) {
+		if (src[i] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE)
 			target[i] = ' ';
 		else
-			target[i] = source[i];
+			target[i] = src[i];
 	}
 
-	*lenTarget = lenSource;
+	*lenTarget = lenSrc;
 }
 
 static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
@@ -198,7 +237,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				lenOut++;
 			}
 		} else if (!afterColon && data[i] == ':') {
-			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t')) i++; // Skip space after header name (colon)
+			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t' || data[i + 1] == '\r' || data[i + 1] == '\n')) i++; // Skip space after header name (colon)
 
 			out[lenOut] = ':';
 			lenOut++;
@@ -307,7 +346,7 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 }
 
 static void convertToUtf8(char ** const src, size_t * const lenSrc, const char * const charset) {
-	if (src == NULL || *src == NULL || charset == NULL || isUtf8(charset)) return;
+	if (src == NULL || *src == NULL || charset == NULL) return;
 
 	size_t lenUtf8;
 	char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
@@ -518,8 +557,11 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 	return out;
 }
 
-void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email) {
-	if (getHeaders(source, lenSource, email) != 0) return;
+void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * const email) {
+	convertLineDots(src, lenSrc);
+	processDkim(src, lenSrc);
+
+	if (getHeaders(src, lenSrc, email) != 0) return;
 
 	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->hdrFr, &email->lenHdrFr, 255); // Removed/ignored
 	moveHeader(email->head, &email->lenHead, "\nFrom:",          6, email->hdrFr, &email->lenHdrFr, 255);
@@ -572,21 +614,21 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 		unsigned char * const bound = getBound(ct + 9, lenCt - 9, &lenBound);
 
 		if (bound != NULL) {
-			email->lenBody = *lenSource;
-			email->body = decodeMp(source, &(email->lenBody), email, bound, lenBound - 2);
+			email->lenBody = *lenSrc;
+			email->body = decodeMp(src, &(email->lenBody), email, bound, lenBound - 2);
 			// bound is free'd by decodeMp()
 
 			if (email->body == NULL) { // Error - decodeMp() failed
-				email->body = source;
-				email->lenBody = *lenSource;
-			} else free(source);
+				email->body = src;
+				email->lenBody = *lenSrc;
+			}
 		} else { // Error - getBound() failed
-			email->body = source;
-			email->lenBody = *lenSource;
+			email->body = src;
+			email->lenBody = *lenSrc;
 		}
 	} else { // Single-part body
-		email->body = source;
-		email->lenBody = *lenSource;
+		email->body = src;
+		email->lenBody = *lenSrc;
 
 		unsigned char tmp[255];
 		uint8_t lenTmp = 0;
@@ -598,10 +640,7 @@ void processEmail(unsigned char *source, size_t * const lenSource, struct emailI
 		else cte = 0;
 
 		unsigned char * const new = decodeCte(cte, email->body, &email->lenBody);
-		if (new != NULL) {
-			free(email->body);
-			email->body = new;
-		}
+		if (new != NULL) email->body = new;
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
 			unsigned char * const cs = getCharset(ct, lenCt);

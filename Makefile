@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
 
-all: aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
@@ -27,8 +27,11 @@ aem-api-clr: api/*.c
 aem-api-oni: api/*.c
 	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
+aem-deliver: deliver/*.c
+	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-deliver deliver/*.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/IntCom_Client.c Common/IntCom_Server.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lmbedtls -lmbedcrypto -lmbedx509
+
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/IntCom_Client.c Common/ValidIp.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509 -lbrotlienc -licuuc -licui18n
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/memeq.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 utils/Accgen: utils/Accgen.c
 	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium
@@ -59,4 +62,4 @@ Data/gen_tls: Data/gen_tls.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls

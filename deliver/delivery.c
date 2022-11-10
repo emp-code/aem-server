@@ -18,6 +18,7 @@
 
 #include "delivery.h"
 
+#include "../Common/Email.h"
 #include "../Global.h"
 
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
@@ -229,18 +230,18 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES], const uint8_t toFlags[AEM_SMTP_MAX_TO], const int toCount, struct emailInfo * const email, const unsigned char * const original, const size_t lenOriginal, const bool brOriginal) {
-	if (to == NULL || toCount < 1 || email == NULL) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_STORE_INERROR;}
+int deliverMessage(struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
+	if (meta->toCount < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return -1;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
-	for (int i = 0; i < toCount; i++) {
-		email->lenEnvTo = strlen(to[i]);
+	for (int i = 0; i < meta->toCount; i++) {
+		email->lenEnvTo = strlen(meta->to[i]);
 		if (email->lenEnvTo > 31) email->lenEnvTo = 31;
-		memcpy(email->envTo, to[i], email->lenEnvTo);
+		memcpy(email->envTo, meta->to[i], email->lenEnvTo);
 
 		size_t lenEnc = 0;
-		unsigned char *enc = makeExtMsg(email, toUpk[i], &lenEnc, (toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
+		unsigned char *enc = makeExtMsg(email, meta->toUpk[i], &lenEnc, (meta->toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			continue;
@@ -250,14 +251,14 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
 
 		// Deliver
-		int deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
+		int deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
 		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
-			if (toCount > 1) continue;
+			if (meta->toCount > 1) continue;
 			return deliveryStatus;
 		}
 
 		// Store attachments, if requested
-		if ((toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
+		if ((meta->toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
 			for (int j = 0; j < email->attachCount; j++) {
 				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
@@ -270,21 +271,21 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				memcpy(att + 5, email->attachment[j], email->lenAttachment[j]);
 				memcpy(att + 6, msgId, 16);
 
-				enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
+				enc = msg_encrypt(meta->toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
-				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
+				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
 				if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
-					if (toCount > 1) continue;
+					if (meta->toCount > 1) continue;
 					return deliveryStatus;
 				}
 			}
 		}
 
 		// Store original, if requested
-		if (original != NULL && lenOriginal > 0 && (toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			const char * const fn = brOriginal? "src.eml.br" : "src.eml";
-			const size_t lenFn = brOriginal? 10 : 7;
+/*		if (original != NULL && lenOriginal > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
+			const char * const fn = "src.eml.br";
+			const size_t lenFn = 10;
 
 			const size_t lenAtt = 22 + lenFn + lenOriginal;
 			unsigned char * const att = malloc(lenAtt);
@@ -305,7 +306,7 @@ int deliverMessage(char to[AEM_SMTP_MAX_TO][32], const unsigned char toUpk[AEM_S
 				if (toCount > 1) continue;
 				return deliveryStatus;
 			}
-		}
+		}*/ // TODO
 	}
 
 	return 0;

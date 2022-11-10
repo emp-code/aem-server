@@ -7,26 +7,20 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <brotli/encode.h>
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
 #include "../Common/IntCom_Client.h"
-#include "../Common/Trim.h"
-#include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
-
-#include "delivery.h"
-#include "dkim.h"
-#include "processing.h"
 
 #include "smtp.h"
 
+#include "../Common/Email.h"
+#include "../Data/internal.h"
 #include "../Global.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
-#define AEM_SMTP_MAX_SIZE_BODY 4194304 // 4 MiB. RFC5321: min. 64k; XXX if changed, set the HLO responses and their lengths below also
 #define AEM_SMTP_MAX_ROUNDS 500
 
 #define AEM_EHLO_RESPONSE_LEN 60
@@ -45,14 +39,6 @@
 static struct emailInfo email;
 
 #include "../Common/tls_setup.c"
-
-void setSignKey_mta(const unsigned char * const seed) {
-	return setSignKey(seed);
-}
-
-void delSignKey_mta() {
-	return delSignKey();
-}
 
 static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return AEM_EMAIL_CERT_NONE;
@@ -122,57 +108,6 @@ static void getCertName(const mbedtls_x509_crt * const cert) {
 			else if (lenName == email.lenGreet && memeq(name, email.greet, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
 		}
 	}
-}
-
-static bool isIpBlacklisted(void) {
-	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
-	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ((uint8_t*)&email.ip)[3], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[0]);
-
-	unsigned char *dnsbl_ip = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return false;
-
-	const bool ret = (*((uint32_t*)dnsbl_ip) == 1);
-	sodium_free(dnsbl_ip);
-	return ret;
-}
-
-static bool greetingDomainMatchesIp(void) {
-	unsigned char *greet_ip = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, email.greet, email.lenGreet, &greet_ip, 4) != 4) return false;
-
-	const bool ret = (*((uint32_t*)greet_ip) == email.ip);
-	sodium_free(greet_ip);
-	return ret;
-}
-
-static void getIpInfo(void) {
-	email.lenRvDns = 0;
-	email.ccBytes[0] |= 31;
-	email.ccBytes[1] |= 31;
-
-	unsigned char *ipInfo = NULL;
-	const int32_t lenIpInfo = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_IP, (unsigned char*)&email.ip, 4, &ipInfo, 0);
-	if (lenIpInfo < 1) return;
-	if (lenIpInfo < 4) {sodium_free(ipInfo); return;}
-
-	memcpy(email.ccBytes, ipInfo, 2);
-
-	if (ipInfo[2] > 0) {
-		email.lenRvDns = ipInfo[2];
-		if (email.lenRvDns > 63) email.lenRvDns = 63;
-		memcpy(email.rvDns, ipInfo + 4, email.lenRvDns);
-	}
-
-	if (ipInfo[3] > 0) {
-		email.lenAuSys = ipInfo[3];
-		if (email.lenAuSys > 63) email.lenAuSys = 63;
-		memcpy(email.auSys, ipInfo + 4 + email.lenRvDns, email.lenAuSys);
-	}
-
-	sodium_free(ipInfo);
-
-	email.ipMatchGreeting = greetingDomainMatchesIp();
-	email.ipBlacklisted = isIpBlacklisted();
 }
 
 __attribute__((warn_unused_result))
@@ -338,57 +273,6 @@ static void smtp_fail(const int code) {
 	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %u.%u.%u.%u)", code, ((uint8_t*)&email.ip)[0], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[3]);
 }
 
-static void prepareEmail(unsigned char * const source, size_t lenSource) {
-	convertLineDots(source, &lenSource);
-
-	// Add final CRLF for DKIM
-	source[lenSource + 0] = '\r';
-	source[lenSource + 1] = '\n';
-	source[lenSource + 2] = '\0';
-	lenSource += 2;
-
-	for (int i = 0; i < 7; i++) {
-		const unsigned char * const headersEnd = memmem(source, lenSource, "\r\n\r\n", 4);
-		if (headersEnd == NULL) break;
-
-		unsigned char *start = memcasemem(source, headersEnd - source, "\nDKIM-Signature:", 16);
-		if (start == NULL) break;
-		start++;
-
-		const int offset = verifyDkim(&email, start, (source + lenSource) - start);
-		if (offset == 0) break;
-
-		// Delete the signature from the headers
-		memmove(start, start + offset, (source + lenSource) - (start + offset));
-		lenSource -= offset;
-	}
-
-	// Remove final CRLF
-	lenSource -= 2;
-	source[lenSource] = '\0';
-
-	processEmail(source, &lenSource, &email);
-}
-
-static void clearEmail(void) {
-	if (email.head != NULL) {
-		sodium_memzero(email.head, email.lenHead);
-		free(email.head);
-	}
-
-	if (email.body != NULL) {
-		sodium_memzero(email.body, email.lenBody);
-		free(email.body);
-	}
-
-	for (int i = 0; i < email.attachCount; i++) {
-		if (email.attachment[i] == NULL) break;
-		free(email.attachment[i]);
-	}
-
-	sodium_memzero(&email, sizeof(struct emailInfo));
-}
-
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (sock < 0 || clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
@@ -460,15 +344,10 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	}
 
 	bool storeOriginal = false;
-	size_t toCount = 0;
-	char to[AEM_SMTP_MAX_TO][32];
-	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
-	unsigned char toFlags[AEM_SMTP_MAX_TO];
+	struct emailMeta meta;
+	meta.toCount = 0;
 
-	bool haveIpInfo = false;
 	bool deliveryOk = false;
-	unsigned char *source = NULL;
-	size_t lenSource = 0;
 
 	for (int roundsDone = 0;; roundsDone++) {
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
@@ -491,14 +370,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				continue;
 			}
 
-			if (toCount >= AEM_SMTP_MAX_TO - 1) {
+			if (meta.toCount >= AEM_SMTP_MAX_TO - 1) {
 				if (!send_aem(sock, tls, "451 5.5.3 Too many recipients\r\n", 31)) {smtp_fail(103); break;}
 				continue;
-			}
-
-			if (!haveIpInfo) {
-				getIpInfo();
-				haveIpInfo = true;
 			}
 
 			bool retOk;
@@ -511,28 +385,24 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 			));
 
-			switch (smtp_addr_our(buf + 8, bytes - 8, to[toCount], toUpk[toCount], &toFlags[toCount], tlsIsSecure)) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUpk[meta.toCount], &meta.toFlags[meta.toCount], tlsIsSecure)) {
 				case 0:
 					retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32);
-					if ((toFlags[toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
-					toCount++;
+					if ((meta.toFlags[meta.toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
+					meta.toCount++;
 					break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
-				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires a secure connection (TLS 1.2)\r\n", 60); toCount++; break; // Record delivery attempt
+				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires a secure connection (TLS 1.2)\r\n", 60); meta.toCount++; break; // Record delivery attempt
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}
 		} else if (memeq_anycase(buf, "RSET", 4)) {
-			if (!deliveryOk && toCount > 0) deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
+//			if (!deliveryOk && meta.toCount > 0) deliverMessage(&meta, &email, NULL, 0, false);
 			email.rareCommands = true;
 			email.lenEnvFr = 0;
-
-			sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
-			sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
-			sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
-			toCount = 0;
+			sodium_memzero(&meta, sizeof(struct emailMeta));
 
 			if (!send_aem(sock, tls, "250 Reset\r\n", 11)) {smtp_fail(150); break;}
 		} else if (memeq_anycase(buf, "VRFY", 4)) {
@@ -542,79 +412,60 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			send_aem(sock, tls, "221 Bye\r\n", 9);
 			break;
 		} else if (memeq_anycase(buf, "DATA", 4)) {
-			if (email.lenEnvFr < 1 || toCount < 1) {
+			if (email.lenEnvFr < 1 || meta.toCount < 1) {
 				email.protocolViolation = true;
 
 				bool retOk;
-				if (email.lenEnvFr < 1 && toCount < 1) {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient and sender addresses first\r\n", 53);}
-				else if (email.lenEnvFr < 1)           {retOk = send_aem(sock, tls, "503 5.5.1 Need sender address first\r\n", 37);}
-				else                                   {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient address first\r\n", 40);}
+				if (email.lenEnvFr < 1 && meta.toCount < 1) {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient and sender addresses first\r\n", 53);}
+				else if (email.lenEnvFr < 1)                {retOk = send_aem(sock, tls, "503 5.5.1 Need sender address first\r\n", 37);}
+				else                                        {retOk = send_aem(sock, tls, "503 5.5.1 Need recipient address first\r\n", 40);}
 				if (!retOk) {smtp_fail(106); break;}
 
 				continue;
 			}
 
-			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); break;}
+			// Setup IntCom SecretStream to Deliver
+			crypto_secretstream_xchacha20poly1305_state ss_state;
+			unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
+			crypto_secretstream_xchacha20poly1305_init_push(&ss_state, ss_header, AEM_KEY_INTCOM_STREAM);
+			const int sockIc = intcom_stream_open(ss_header);
 
-			source = malloc(AEM_SMTP_MAX_SIZE_BODY + 5);
-			if (source == NULL) {
-				send_aem(sock, tls, "421 4.3.0 Internal server error\r\n", 33);
-				syslog(LOG_ERR, "Failed allocation");
-				smtp_fail(999);
+			if (sockIc < 0
+			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&meta, sizeof(struct emailMeta)) != 0
+			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&email, sizeof(struct emailInfo)) != 0
+			) {
+				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
 				break;
 			}
 
-			source[0] = '\n';
-			lenSource = 1;
+			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); break;}
 
-			// Receive body/source
-			while(1) {
-				bytes = recv_aem(sock, tls, source + lenSource, AEM_SMTP_MAX_SIZE_BODY - lenSource);
+			// Receive the email
+			unsigned char body[AEM_SMTP_CHUNKSIZE];
+			size_t lenBody = 0;
+
+			while (lenBody < AEM_SMTP_MAX_SIZE_BODY) {
+				bytes = recv_aem(sock, tls, body, AEM_SMTP_CHUNKSIZE);
 				if (bytes < 1) break;
+				if (lenBody + bytes > AEM_SMTP_MAX_SIZE_BODY) bytes = AEM_SMTP_MAX_SIZE_BODY - lenBody;
 
-				lenSource += bytes;
-
-				const unsigned char * const end = (lenSource < 5) ? NULL : memmem(source, lenSource, "\r\n.\r\n", 5);
+				const unsigned char * const end = (bytes < 5) ? NULL : memmem(body, bytes, "\r\n.\r\n", 5);
 				if (end != NULL) {
-					lenSource = end - source;
-					break;
-				}
+					bytes = end - body;
+					lenBody = AEM_SMTP_MAX_SIZE_BODY; // end loop
+				} else lenBody += bytes;
 
-				if (lenSource >= AEM_SMTP_MAX_SIZE_BODY) break;
+				intcom_stream_send(sockIc, &ss_state, body, bytes);// TODO check if fail
 			}
 
-			bool brOriginal = false;
-			size_t lenOriginal = lenSource - 1;
-			unsigned char *original = NULL;
-			if (storeOriginal && 17 + 7 + lenOriginal <= AEM_API_BOX_SIZE_MAX) { // 7 = Filename length
-				original = malloc(lenOriginal);
-				if (original != NULL) {
-					size_t lenComp = lenOriginal;
-					if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenOriginal, source + 1, &lenComp, original) != BROTLI_FALSE) {
-						lenOriginal = lenComp;
-						brOriginal = true;
-					} else {
-						memcpy(original, source + 1, lenOriginal);
-						syslog(LOG_ERR, "Failed compression");
-					}
-				} else syslog(LOG_ERR, "Failed allocation");
-			}
-
-			prepareEmail(source, lenSource);
-			const int deliveryStatus = deliverMessage(to, toUpk, toFlags, toCount, &email, original, lenOriginal, brOriginal);
-			deliveryOk = true;
-
-			if (original != NULL) free(original);
-			clearEmail();
-			sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
-			sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
-			sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
-			toCount = 0;
+			sodium_memzero(body, AEM_SMTP_CHUNKSIZE);
+			sodium_memzero(&email, sizeof(struct emailInfo));
+			sodium_memzero(&meta, sizeof(struct emailMeta));
 
 			bool retOk;
-			switch (deliveryStatus) {
-				case 0:                         retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23); break;
-				case AEM_STORE_MSGSIZE:         retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
+			switch (intcom_stream_end(sockIc, &ss_state)) {
+				case AEM_INTCOM_RESPONSE_OK:    retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23); break;
+				case AEM_INTCOM_RESPONSE_USAGE: retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
 				case AEM_INTCOM_RESPONSE_LIMIT: retOk = send_aem(sock, tls, "452 4.2.2 Recipient mailbox full\r\n", 34); break;
 				default:                        retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
@@ -629,11 +480,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	}
 
 	tlsClose(tls);
-	if (!deliveryOk && toCount > 0) {
-		deliverMessage(to, toUpk, toFlags, toCount, &email, NULL, 0, false);
-		sodium_memzero(to,      AEM_SMTP_MAX_TO * 32);
-		sodium_memzero(toUpk,   AEM_SMTP_MAX_TO * crypto_box_PUBLICKEYBYTES);
-		sodium_memzero(toFlags, AEM_SMTP_MAX_TO);
-		clearEmail();
+	if (!deliveryOk && meta.toCount > 0) {
+		sodium_memzero(&email, sizeof(struct emailInfo));
+		sodium_memzero(&meta, sizeof(struct emailMeta));
 	}
 }

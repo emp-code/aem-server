@@ -47,8 +47,9 @@ static unsigned char slt_shd[AEM_LEN_SLT_SHD];
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
 static pid_t pid_account = 0;
-static pid_t pid_storage = 0;
+static pid_t pid_deliver = 0;
 static pid_t pid_enquiry = 0;
+static pid_t pid_storage = 0;
 static pid_t aemPid[5][AEM_MAXPROCESSES];
 
 static int sockMain = -1;
@@ -83,8 +84,9 @@ static void refreshPids(void) {
 	}
 
 	if (pid_account != 0 && !process_exists(pid_account)) pid_account = 0;
-	if (pid_storage != 0 && !process_exists(pid_storage)) pid_storage = 0;
+	if (pid_deliver != 0 && !process_exists(pid_deliver)) pid_deliver = 0;
 	if (pid_enquiry != 0 && !process_exists(pid_enquiry)) pid_enquiry = 0;
+	if (pid_storage != 0 && !process_exists(pid_storage)) pid_storage = 0;
 }
 
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
@@ -104,8 +106,9 @@ void killAll(int sig) {
 		// TODO: Connect to each service to make sure they'll terminate
 	} else {
 		if (pid_account > 0) kill(pid_account, SIGUSR2);
-		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+		if (pid_deliver > 0) kill(pid_deliver, SIGUSR2);
 		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
+		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
 	}
 
 	// Processes should have terminated after one second
@@ -120,8 +123,9 @@ void killAll(int sig) {
 		}
 
 		if (pid_account > 0) kill(pid_account, SIGUSR1);
-		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
+		if (pid_deliver > 0) kill(pid_deliver, SIGUSR1);
 		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR1);
+		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
 
 		sleep(1);
 		refreshPids();
@@ -134,15 +138,17 @@ void killAll(int sig) {
 	}
 
 	if (pid_account > 0) kill(pid_account, SIGUSR2);
-	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+	if (pid_deliver > 0) kill(pid_deliver, SIGUSR2);
 	if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
+	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
 
 	sleep(1);
 	refreshPids();
 
 	if (pid_account > 0) kill(pid_account, SIGKILL);
-	if (pid_storage > 0) kill(pid_storage, SIGKILL);
+	if (pid_deliver > 0) kill(pid_deliver, SIGKILL);
 	if (pid_enquiry > 0) kill(pid_enquiry, SIGKILL);
+	if (pid_storage > 0) kill(pid_storage, SIGKILL);
 
 	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
 	exit(EXIT_SUCCESS);
@@ -238,6 +244,7 @@ static int setCaps(const int type) {
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_DELIVER:
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
 			cap[2] = CAP_IPC_LOCK;
@@ -297,8 +304,10 @@ static int setSubLimits(const int type) {
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
+		case AEM_PROCESSTYPE_DELIVER: rlim.rlim_cur = 4; break;
 		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
+		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
+
 		case AEM_PROCESSTYPE_MTA:     rlim.rlim_cur = 4; break;
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI: rlim.rlim_cur = 3; break;
@@ -415,15 +424,19 @@ static int process_spawn(const int type) {
 			);
 		break;
 
+		case AEM_PROCESSTYPE_DELIVER:
+			fail = (
+			   write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			);
+		break;
+
 		case AEM_PROCESSTYPE_STORAGE:
 			fail = (write(AEM_FD_PIPE_WR, key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO);
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
-			fail = (
-			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
-			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
-			);
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_deliver}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
 		break;
 
 		case AEM_PROCESSTYPE_API_CLR:
@@ -453,8 +466,9 @@ static int process_spawn(const int type) {
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT: pid_account = pid; break;
-		case AEM_PROCESSTYPE_STORAGE: pid_storage = pid; break;
+		case AEM_PROCESSTYPE_DELIVER: pid_deliver = pid; break;
 		case AEM_PROCESSTYPE_ENQUIRY: pid_enquiry = pid; break;
+		case AEM_PROCESSTYPE_STORAGE: pid_storage = pid; break;
 
 		default: aemPid[type][freeSlot] = pid;
 	}
@@ -552,6 +566,7 @@ static void respond_manager(const int sock) {
 static bool verifyStatus(void) {
 	return (
 		   pid_account > 0
+		&& pid_deliver > 0
 		&& pid_enquiry > 0
 		&& pid_storage > 0
 	);
@@ -564,6 +579,7 @@ int receiveConnections(void) {
 
 	if (
 	   process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
+	|| process_spawn(AEM_PROCESSTYPE_DELIVER) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
 	) {
