@@ -93,17 +93,3 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 
 	while (*len > 0 && (text[*len - 1] == '\n' || text[*len - 1] == ' ')) (*len)--;
 }
-
-void convertLineDots(unsigned char * const text, size_t * const len) {
-	unsigned char *c = memmem(text, *len, "\r\n..", 4);
-
-	while (c != NULL) {
-		c += 2;
-		const size_t offset = (c + 1) - text;
-
-		memmove(c, c + 1, *len - offset);
-		(*len)--;
-
-		c = memmem(text + offset, *len - offset, "\r\n..", 4);
-	}
-}
