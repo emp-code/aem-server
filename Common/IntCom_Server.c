@@ -147,7 +147,7 @@ void takeConnections(void) {
 				break;
 			}
 
-			if (recv(sock, enc, lenEnc, MSG_WAITALL) != lenEnc) {
+			if (recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message");
 				sodium_free(dec);
 				dec = NULL;
@@ -184,7 +184,7 @@ void takeConnections(void) {
 #else
 		const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
-		if (recv(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
+		if (recv(sock, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
 
 		switch (encHdr[0]) {
 			case AEM_IDENTIFIER_API:
