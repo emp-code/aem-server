@@ -111,12 +111,12 @@ void takeConnections(void) {
 		if (
 		   recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != lenEnc
+		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec,                            NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
 		|| recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != lenEnc
+		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta), NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
 		) {
