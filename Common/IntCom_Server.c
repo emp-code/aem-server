@@ -57,6 +57,7 @@ static int bindSocket(const int sock) {
 	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + 4);
 }
 
+#if defined(AEM_ACCOUNT) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
 static const unsigned char *intcom_keys[] = {
 #if defined(AEM_ACCOUNT)
 	AEM_KEY_INTCOM_ACCOUNT_API,
@@ -72,6 +73,7 @@ static const unsigned char *intcom_keys[] = {
 	AEM_KEY_INTCOM_STORAGE_ACC
 #endif
 };
+#endif
 
 #if defined(AEM_ACCOUNT) || defined(AEM_ENQUIRY)
 #define AEM_KEY_INTCOM_COUNT 2
