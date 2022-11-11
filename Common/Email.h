@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <sodium.h>
+
 #include "../Global.h"
 
 #define AEM_EMAIL_CERT_MATCH_HDRFR 96
