@@ -15,15 +15,24 @@
 
 static const unsigned char *intcom_keys[] = {
 #ifdef AEM_ACCOUNT
+	AEM_KEY_INTCOM_NULL, // Account
+	AEM_KEY_INTCOM_NULL, // Deliver
+	AEM_KEY_INTCOM_NULL, // Enquiry
 	AEM_KEY_INTCOM_STORAGE_ACC
 #elif defined(AEM_API)
 	AEM_KEY_INTCOM_ACCOUNT_API,
+	AEM_KEY_INTCOM_NULL, // Deliver
 	AEM_KEY_INTCOM_ENQUIRY_API,
 	AEM_KEY_INTCOM_STORAGE_API
 #elif defined(AEM_MTA)
 	AEM_KEY_INTCOM_ACCOUNT_MTA,
-	AEM_KEY_INTCOM_ENQUIRY_MTA
+	AEM_KEY_INTCOM_NULL, // Deliver; N/A, uses Stream
+	AEM_KEY_INTCOM_NULL, // Enquiry
+	AEM_KEY_INTCOM_NULL  // Storage
 #elif defined(AEM_DELIVER)
+	AEM_KEY_INTCOM_NULL, // Account
+	AEM_KEY_INTCOM_NULL, // Deliver
+	AEM_KEY_INTCOM_NULL, // Enquiry
 	AEM_KEY_INTCOM_STORAGE_DLV
 #endif
 };

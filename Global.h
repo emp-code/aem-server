@@ -3,6 +3,8 @@
 
 #include "Config.h"
 
+#define UINT24_MAX 16777215UL
+
 #define AEM_BINFD_OFFSET 1 // See manager/manager.c -- 0:sockMain
 #define AEM_FD_PIPE_RD (AEM_BINFD_OFFSET + AEM_PROCESSTYPES_COUNT)
 

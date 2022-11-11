@@ -1,7 +1,13 @@
 #ifndef AEM_INTCOM_CLIENT_H
 #define AEM_INTCOM_CLIENT_H
 
-#include "IntCom_Common.h"
+typedef enum {
+	AEM_INTCOM_TYPE_ACCOUNT,
+	AEM_INTCOM_TYPE_DELIVER,
+	AEM_INTCOM_TYPE_ENQUIRY,
+	AEM_INTCOM_TYPE_STORAGE,
+	AEM_INTCOM_TYPE_NULL
+} aem_intcom_type_t;
 
 int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const unsigned char * const msg, const size_t lenMsg, unsigned char ** const out, const int32_t expectedLenOut);
 

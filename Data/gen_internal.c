@@ -38,6 +38,7 @@ int main(void) {
 	puts("#define AEM_DATA_INTERNAL_H");
 	puts("");
 
+	printKey("AEM_KEY_INTCOM_NULL", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_INTCOM_ACCOUNT_API", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_INTCOM_ACCOUNT_MTA", crypto_box_SECRETKEYBYTES);
 	printKey("AEM_KEY_INTCOM_ENQUIRY_API", crypto_box_SECRETKEYBYTES);

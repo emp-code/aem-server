@@ -12,8 +12,6 @@
 #include "../Data/internal.h"
 #include "../Global.h"
 
-#include "IntCom_Common.h"
-
 #if defined(AEM_ACCOUNT)
 	#include "../account/IntCom_Action.h"
 #elif defined(AEM_ENQUIRY)
@@ -62,10 +60,12 @@ static int bindSocket(const int sock) {
 static const unsigned char *intcom_keys[] = {
 #if defined(AEM_ACCOUNT)
 	AEM_KEY_INTCOM_ACCOUNT_API,
-	AEM_KEY_INTCOM_ACCOUNT_MTA
+	AEM_KEY_INTCOM_ACCOUNT_MTA,
+	AEM_KEY_INTCOM_NULL // ACC
 #elif defined(AEM_ENQUIRY)
 	AEM_KEY_INTCOM_ENQUIRY_API,
-	AEM_KEY_INTCOM_ENQUIRY_MTA
+	AEM_KEY_INTCOM_ENQUIRY_MTA,
+	AEM_KEY_INTCOM_NULL // ACC
 #elif defined(AEM_STORAGE)
 	AEM_KEY_INTCOM_STORAGE_API,
 	AEM_KEY_INTCOM_STORAGE_DLV,

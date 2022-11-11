@@ -3,6 +3,7 @@
 
 #warning internal.h not configured: internal communication insecure
 
+#define AEM_KEY_INTCOM_NULL (const unsigned char[]) {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_ACCOUNT_API (const unsigned char[]) {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_ACCOUNT_MTA (const unsigned char[]) {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_ENQUIRY_API (const unsigned char[]) {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
