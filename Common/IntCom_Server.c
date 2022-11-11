@@ -174,6 +174,7 @@ void takeConnections(void) {
 		// Add final CRLF for DKIM
 		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody]     = '\r';
 		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody + 1] = '\n';
+		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody + 2] = '\0';
 		lenBody += 2;
 
 		getIpInfo((struct emailInfo*)(dec + sizeof(struct emailMeta)));
