@@ -38,14 +38,14 @@ int main(void) {
 	puts("#define AEM_DATA_INTERNAL_H");
 	puts("");
 
-	printKey("AEM_KEY_INTCOM_NULL", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_ACCOUNT_API", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_ACCOUNT_MTA", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_ENQUIRY_API", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_ENQUIRY_MTA", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_STORAGE_ACC", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_STORAGE_API", crypto_box_SECRETKEYBYTES);
-	printKey("AEM_KEY_INTCOM_STORAGE_DLV", crypto_box_SECRETKEYBYTES);
+	printKey("AEM_KEY_INTCOM_NULL", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_ACCOUNT_API", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_ACCOUNT_MTA", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_ENQUIRY_API", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_ENQUIRY_MTA", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_STORAGE_ACC", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_STORAGE_API", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_STORAGE_DLV", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_STREAM", crypto_secretstream_xchacha20poly1305_KEYBYTES); // MTA->Deliver
 	puts("");
 
