@@ -14,14 +14,15 @@
 
 #if defined(AEM_ACCOUNT)
 	#include "../account/IntCom_Action.h"
+#elif defined(AEM_DELIVER)
+	#include "../Common/Email.h"
+	#include "../deliver/delivery.h"
+	#include "../deliver/ipInfo.h"
+	#include "../deliver/processing.h"
 #elif defined(AEM_ENQUIRY)
 	#include "../enquiry/IntCom_Action.h"
 #elif defined(AEM_STORAGE)
 	#include "../storage/IntCom_Action.h"
-#elif defined(AEM_DELIVER)
-	#include "../Common/Email.h"
-	#include "../deliver/processing.h"
-	#include "../deliver/delivery.h"
 #endif
 
 #include "IntCom_Server.h"
@@ -45,12 +46,12 @@ static int bindSocket(const int sock) {
 	memcpy(sa.sun_path,
 #if defined(AEM_ACCOUNT)
 		AEM_SOCKPATH_ACCOUNT
+#elif defined(AEM_DELIVER)
+		AEM_SOCKPATH_DELIVER
 #elif defined(AEM_ENQUIRY)
 		AEM_SOCKPATH_ENQUIRY
 #elif defined(AEM_STORAGE)
 		AEM_SOCKPATH_STORAGE
-#elif defined(AEM_DELIVER)
-		AEM_SOCKPATH_DELIVER
 #endif
 		, AEM_SOCKPATH_LEN);
 
@@ -61,12 +62,10 @@ static int bindSocket(const int sock) {
 static const unsigned char *intcom_keys[] = {
 #if defined(AEM_ACCOUNT)
 	AEM_KEY_INTCOM_ACCOUNT_API,
-	AEM_KEY_INTCOM_ACCOUNT_MTA,
-	AEM_KEY_INTCOM_NULL // ACC
+	AEM_KEY_INTCOM_ACCOUNT_MTA
 #elif defined(AEM_ENQUIRY)
 	AEM_KEY_INTCOM_ENQUIRY_API,
-	AEM_KEY_INTCOM_ENQUIRY_MTA,
-	AEM_KEY_INTCOM_NULL // ACC
+	AEM_KEY_INTCOM_ENQUIRY_DLV
 #elif defined(AEM_STORAGE)
 	AEM_KEY_INTCOM_STORAGE_API,
 	AEM_KEY_INTCOM_STORAGE_DLV,
@@ -177,6 +176,7 @@ void takeConnections(void) {
 		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody + 1] = '\n';
 		lenBody += 2;
 
+		getIpInfo((struct emailInfo*)(dec + sizeof(struct emailMeta)));
 		processEmail(dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody, (struct emailInfo*)(dec + sizeof(struct emailMeta)));
 		deliverMessage((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), lenBody);
 		sodium_free(dec);
@@ -206,7 +206,7 @@ void takeConnections(void) {
 
 		uint32_t hdr;
 		if (crypto_secretbox_open_easy((unsigned char*)&hdr, encHdr + 1 + crypto_secretbox_NONCEBYTES, sizeof(uint32_t) + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
-			syslog(LOG_ERR, "IntCom[S]: Failed decrypting header: %m");
+			syslog(LOG_ERR, "IntCom[S]: Failed decrypting header");
 			close(sock);
 			continue;
 		}
@@ -232,8 +232,10 @@ void takeConnections(void) {
 
 			switch (encHdr[0]) {
 				case AEM_IDENTIFIER_API: resCode = conn_api(type, msg, lenMsg, &res); break;
-#if defined(AEM_ACCOUNT) || defined(AEM_DELIVER)
+#if defined(AEM_ACCOUNT)
 				case AEM_IDENTIFIER_MTA: resCode = conn_mta(type, msg, lenMsg, &res); break;
+#elif defined(AEM_ENQUIRY)
+				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;
 #elif defined(AEM_STORAGE)
 				case AEM_IDENTIFIER_ACC: resCode = conn_acc(type, msg, lenMsg, &res); break;
 				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;

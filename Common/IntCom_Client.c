@@ -32,7 +32,7 @@ static const unsigned char *intcom_keys[] = {
 #elif defined(AEM_DELIVER)
 	AEM_KEY_INTCOM_NULL, // Account
 	AEM_KEY_INTCOM_NULL, // Deliver
-	AEM_KEY_INTCOM_NULL, // Enquiry
+	AEM_KEY_INTCOM_ENQUIRY_DLV,
 	AEM_KEY_INTCOM_STORAGE_DLV
 #endif
 };
@@ -42,7 +42,7 @@ static pid_t intcom_pids[4] = {0, 0, 0, 0};
 #if defined(AEM_API) || defined(AEM_MTA)
 void setAccountPid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_ACCOUNT] = pid;}
 #endif
-#if defined(AEM_API) || defined(AEM_DLV)
+#if defined(AEM_API) || defined(AEM_DELIVER)
 void setEnquiryPid(const pid_t pid) {intcom_pids[AEM_INTCOM_TYPE_ENQUIRY] = pid;}
 #endif
 #if defined(AEM_MTA)

@@ -44,9 +44,12 @@ static void sigTerm(const int sig) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadPids(void) {
-	pid_t pid;
-	if (read(AEM_FD_PIPE_RD, &pid, sizeof(pid_t)) != sizeof(pid_t)) return -1;
-	setStoragePid(pid);
+	pid_t pids[2];
+	if (read(AEM_FD_PIPE_RD, pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2) return -1;
+
+	setEnquiryPid(pids[0]);
+	setStoragePid(pids[1]);
+
 	return 0;
 }
 

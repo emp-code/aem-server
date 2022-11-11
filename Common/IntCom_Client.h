@@ -14,7 +14,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 #if defined(AEM_API) || defined(AEM_MTA)
 void setAccountPid(const pid_t pid);
 #endif
-#if defined(AEM_API) || defined(AEM_DLV)
+#if defined(AEM_API) || defined(AEM_DELIVER)
 void setEnquiryPid(const pid_t pid);
 #endif
 void setStoragePid(const pid_t pid);

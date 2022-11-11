@@ -42,7 +42,7 @@ int main(void) {
 	printKey("AEM_KEY_INTCOM_ACCOUNT_API", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_ACCOUNT_MTA", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_ENQUIRY_API", crypto_secretbox_KEYBYTES);
-	printKey("AEM_KEY_INTCOM_ENQUIRY_MTA", crypto_secretbox_KEYBYTES);
+	printKey("AEM_KEY_INTCOM_ENQUIRY_DLV", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_STORAGE_ACC", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_STORAGE_API", crypto_secretbox_KEYBYTES);
 	printKey("AEM_KEY_INTCOM_STORAGE_DLV", crypto_secretbox_KEYBYTES);

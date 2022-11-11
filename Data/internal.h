@@ -7,7 +7,7 @@
 #define AEM_KEY_INTCOM_ACCOUNT_API (const unsigned char[]) {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_ACCOUNT_MTA (const unsigned char[]) {2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_ENQUIRY_API (const unsigned char[]) {3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-#define AEM_KEY_INTCOM_ENQUIRY_MTA (const unsigned char[]) {4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+#define AEM_KEY_INTCOM_ENQUIRY_DLV (const unsigned char[]) {4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_STORAGE_ACC (const unsigned char[]) {5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_STORAGE_API (const unsigned char[]) {6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 #define AEM_KEY_INTCOM_STORAGE_DLV (const unsigned char[]) {7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}

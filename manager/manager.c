@@ -426,7 +426,7 @@ static int process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_DELIVER:
 			fail = (
-			   write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
+			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_enquiry, pid_storage}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
 			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
 			);
 		break;
@@ -578,9 +578,9 @@ int receiveConnections(void) {
 	if (loadFiles() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
 
 	if (
-	   process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
+	   process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
+	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
 	|| process_spawn(AEM_PROCESSTYPE_DELIVER) != 0
-	|| process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
 	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
 	) {
 		wipeKeys();
