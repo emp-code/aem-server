@@ -124,7 +124,7 @@ enum aem_internal_enquiry {
 #define AEM_TIMEOUT_MANAGER_RCV 3
 #define AEM_TIMEOUT_MANAGER_SND 3
 
-#define AEM_MAXSIZE_EXEC 262144 // 256 KiB
+#define AEM_MAXSIZE_EXEC 131072 // 128 KiB
 
 enum aem_api_commands {
 	AEM_API_ACCOUNT_BROWSE,
