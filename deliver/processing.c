@@ -14,6 +14,7 @@
 #include "../Common/memeq.h"
 
 #include "date.h"
+#include "dkim.h"
 
 #include "processing.h"
 
@@ -37,25 +38,22 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 	}
 }
 
-static void processDkim(unsigned char * const src, size_t * const lenSrc) {
-	// Disabled for now, TODO
-/*
+static void processDkim(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
 	for (int i = 0; i < 7; i++) {
-		const unsigned char * const headersEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
+		const unsigned char * const headersEnd = memmem(src, *lenSrc, "\r\n\r\n", 4);
 		if (headersEnd == NULL) break;
 
 		unsigned char *start = memcasemem(src, headersEnd - src, "\nDKIM-Signature:", 16);
 		if (start == NULL) break;
 		start++;
 
-		const int offset = verifyDkim(&email, start, (src + lenSrc) - start);
+		const int offset = verifyDkim(email, start, (src + *lenSrc) - start);
 		if (offset == 0) break;
 
 		// Delete the signature from the headers
-		memmove(start, start + offset, (src + lenSrc) - (start + offset));
-		lenSrc -= offset;
+		memmove(start, start + offset, (src + *lenSrc) - (start + offset));
+		(*lenSrc) -= offset;
 	}
-*/
 
 	// Remove the CRLF added for DKIM
 	(*lenSrc) -= 2;
@@ -559,7 +557,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 
 void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * const email) {
 	convertLineDots(src, lenSrc);
-	processDkim(src, lenSrc);
+	processDkim(src, lenSrc, email);
 
 	if (getHeaders(src, lenSrc, email) != 0) return;
 
