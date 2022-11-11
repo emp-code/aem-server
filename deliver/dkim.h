@@ -1,5 +1,5 @@
-#ifndef AEM_MTA_DKIM_H
-#define AEM_MTA_DKIM_H
+#ifndef AEM_DKIM_H
+#define AEM_DKIM_H
 
 #include "../Common/Email.h"
 

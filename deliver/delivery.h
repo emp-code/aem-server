@@ -1,5 +1,5 @@
-#ifndef AEM_MTA_DELIVERY_H
-#define AEM_MTA_DELIVERY_H
+#ifndef AEM_DELIVERY_H
+#define AEM_DELIVERY_H
 
 #include "../Common/Email.h"
 

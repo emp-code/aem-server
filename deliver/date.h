@@ -1,5 +1,5 @@
-#ifndef AEM_MTA_DATE_H
-#define AEM_MTA_DATE_H
+#ifndef AEM_DATE_H
+#define AEM_DATE_H
 
 #include <time.h>
 
