@@ -229,7 +229,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
+int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const srcBr, const size_t lenSrcBr) {
 	if (meta->toCount < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_INTCOM_RESPONSE_ERR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
@@ -282,30 +282,26 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		}
 
 		// Store original, if requested
-/*		if (original != NULL && lenOriginal > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
+		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
 			const char * const fn = "src.eml.br";
 			const size_t lenFn = 10;
 
-			const size_t lenAtt = 22 + lenFn + lenOriginal;
-			unsigned char * const att = malloc(lenAtt);
+			const size_t lenAtt = 22 + lenFn + lenSrcBr;
+			unsigned char * const att = sodium_malloc(lenAtt);
 			if (att != NULL) {
 				att[0] = msg_getPadAmount(lenAtt) | 32;
 				memcpy(att + 1, &(email->timestamp), 4);
 				att[5] = lenFn - 1;
 				memcpy(att + 6, msgId, 16);
 				memcpy(att + 22, fn, lenFn);
-				memcpy(att + 22 + lenFn, original, lenOriginal);
+				memcpy(att + 22 + lenFn, srcBr, lenSrcBr);
 			} else syslog(LOG_ERR, "Failed allocation");
 
-			enc = msg_encrypt(toUpk[i], att, lenAtt, &lenEnc);
-			free(att);
+			enc = msg_encrypt(meta->toUpk[i], att, lenAtt, &lenEnc);
+			sodium_free(att);
 
-			deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_MTA_INSERT, enc, lenEnc, NULL, 0);
-			if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
-				if (toCount > 1) continue;
-				return deliveryStatus;
-			}
-		}*/ // TODO
+			intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0); // Ignore failure
+		}
 	}
 
 	return AEM_INTCOM_RESPONSE_OK;
