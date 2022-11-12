@@ -242,6 +242,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		size_t lenEnc = 0;
 		unsigned char *enc = makeExtMsg(email, meta->toUpk[i], &lenEnc, (meta->toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
 		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
+			if (enc != NULL) free(enc);
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
 			continue;
 		}
@@ -251,6 +252,8 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 		// Deliver
 		int32_t deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
+		free(enc);
+
 		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 			if (meta->toCount > 1) continue;
 			return deliveryStatus;
@@ -274,6 +277,8 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 				free(att);
 
 				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
+				free(enc);
+
 				if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 					if (meta->toCount > 1) continue;
 					return deliveryStatus;
@@ -301,6 +306,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			sodium_free(att);
 
 			intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0); // Ignore failure
+			free(enc);
 		}
 	}
 
