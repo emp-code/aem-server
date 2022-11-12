@@ -16,9 +16,7 @@
 	#include "../account/IntCom_Action.h"
 #elif defined(AEM_DELIVER)
 	#include "../Common/Email.h"
-	#include "../deliver/delivery.h"
-	#include "../deliver/ipInfo.h"
-	#include "../deliver/processing.h"
+	#include "../deliver/deliver.h"
 #elif defined(AEM_ENQUIRY)
 	#include "../enquiry/IntCom_Action.h"
 #elif defined(AEM_STORAGE)
@@ -171,15 +169,7 @@ void takeConnections(void) {
 			continue;
 		}
 
-		// Add final CRLF for DKIM
-		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody]     = '\r';
-		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody + 1] = '\n';
-		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody + 2] = '\0';
-		lenBody += 2;
-
-		getIpInfo((struct emailInfo*)(dec + sizeof(struct emailMeta)));
-		processEmail(dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody, (struct emailInfo*)(dec + sizeof(struct emailMeta)));
-		deliverMessage((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), lenBody);
+		deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody);
 		sodium_free(dec);
 
 		const int32_t icRet = AEM_INTCOM_RESPONSE_OK; // TODO

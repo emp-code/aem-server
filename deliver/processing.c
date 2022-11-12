@@ -24,20 +24,6 @@
 #define MTA_PROCESSING_CTE_B64 1
 #define MTA_PROCESSING_CTE_QP 2
 
-static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
-	unsigned char *c = memmem(src, *lenSrc, "\r\n..", 4);
-
-	while (c != NULL) {
-		c += 2;
-		const size_t offset = (c + 1) - src;
-
-		memmove(c, c + 1, *lenSrc - offset);
-		(*lenSrc)--;
-
-		c = memmem(src + offset, *lenSrc - offset, "\r\n..", 4);
-	}
-}
-
 static void processDkim(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
 	for (int i = 0; i < 7; i++) {
 		const unsigned char * const headersEnd = memmem(src, *lenSrc, "\r\n\r\n", 4);
@@ -556,7 +542,6 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 }
 
 void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * const email) {
-	convertLineDots(src, lenSrc);
 	processDkim(src, lenSrc, email);
 
 	if (getHeaders(src, lenSrc, email) != 0) return;

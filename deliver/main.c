@@ -14,7 +14,7 @@
 
 #include <sodium.h>
 
-#include "delivery.h"
+#include "store.h"
 
 #include "../Global.h"
 #include "../Common/IntCom_Client.h"

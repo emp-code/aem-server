@@ -13,13 +13,12 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
+#include "../Common/Email.h"
 #include "../Common/IntCom_Client.h"
 #include "../Common/memeq.h"
-
-#include "delivery.h"
-
-#include "../Common/Email.h"
 #include "../Global.h"
+
+#include "store.h"
 
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
@@ -230,8 +229,8 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	return encrypted;
 }
 
-int deliverMessage(struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
-	if (meta->toCount < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return -1;}
+int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
+	if (meta->toCount < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_INTCOM_RESPONSE_ERR;}
 	if (email->attachCount > 31) email->attachCount = 31;
 
 	// Deliver
@@ -251,7 +250,7 @@ int deliverMessage(struct emailMeta * const meta, struct emailInfo * const email
 		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
 
 		// Deliver
-		int deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
+		int32_t deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
 		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
 			if (meta->toCount > 1) continue;
 			return deliveryStatus;
@@ -309,5 +308,5 @@ int deliverMessage(struct emailMeta * const meta, struct emailInfo * const email
 		}*/ // TODO
 	}
 
-	return 0;
+	return AEM_INTCOM_RESPONSE_OK;
 }
