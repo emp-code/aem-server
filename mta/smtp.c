@@ -343,7 +343,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 	}
 
-	bool storeOriginal = false;
 	struct emailMeta meta;
 	meta.toCount = 0;
 
@@ -388,7 +387,6 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUpk[meta.toCount], &meta.toFlags[meta.toCount], tlsIsSecure)) {
 				case 0:
 					retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32);
-					if ((meta.toFlags[meta.toCount] & AEM_ADDR_FLAG_ORIGIN) != 0) storeOriginal = true;
 					meta.toCount++;
 					break;
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
