@@ -169,11 +169,9 @@ void takeConnections(void) {
 			continue;
 		}
 
-		deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody);
+		const int32_t ret = deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody);
 		sodium_free(dec);
-
-		const int32_t icRet = AEM_INTCOM_RESPONSE_OK; // TODO
-		send(sock, &icRet, sizeof(int32_t), 0);
+		send(sock, &ret, sizeof(int32_t), 0);
 #else
 		const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
