@@ -428,15 +428,21 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			crypto_secretstream_xchacha20poly1305_init_push(&ss_state, ss_header, AEM_KEY_INTCOM_STREAM);
 			const int sockIc = intcom_stream_open(ss_header);
 
-			if (sockIc < 0
-			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&meta, sizeof(struct emailMeta)) != 0
-			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&email, sizeof(struct emailInfo)) != 0
-			) {
+			if (sockIc < 0) {
 				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
 				break;
 			}
 
-			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); break;}
+			if (
+			   intcom_stream_send(sockIc, &ss_state, (unsigned char*)&meta, sizeof(struct emailMeta)) != 0
+			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&email, sizeof(struct emailInfo)) != 0
+			) {
+				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
+				close(sockIc);
+				break;
+			}
+
+			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); close(sockIc); break;}
 
 			// Receive the email
 			unsigned char body[AEM_SMTP_CHUNKSIZE];
