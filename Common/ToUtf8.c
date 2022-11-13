@@ -3,6 +3,7 @@
 #include <string.h>
 #include <syslog.h>
 
+#include <sodium.h>
 #include <unicode/ucnv.h>
 
 #include "../Common/memeq.h"
@@ -24,7 +25,7 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 	if (input == NULL || lenInput < 1 || lenOut == NULL || charset == NULL) return NULL;
 
 	if (isUtf8(charset)) {
-		char * const new = malloc(lenInput + 1);
+		char * const new = sodium_malloc(lenInput + 1);
 		if (new == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 		memcpy(new, input, lenInput);
 		new[lenInput] = '\0';
@@ -34,14 +35,14 @@ char *toUtf8(const char * const input, const size_t lenInput, size_t * const len
 
 	const size_t maxLen = lenInput * 2;
 
-	char * const buf = malloc(maxLen + 1);
+	char * const buf = sodium_malloc(maxLen + 1);
 	if (buf == NULL) return NULL;
 
 	UErrorCode status = U_ZERO_ERROR;
 	const int newLen = ucnv_convert("utf-8", charset, buf, maxLen, input, lenInput, &status);
 
 	if (U_FAILURE(status) || newLen < 1) {
-		free(buf);
+		sodium_free(buf);
 		return NULL;
 	}
 

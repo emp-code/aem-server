@@ -74,7 +74,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	if (email->dkimCount > 1) lenUncomp += email->dkim[1].lenDomain;
 	if (email->dkimCount > 0) lenUncomp += email->dkim[0].lenDomain;
 
-	unsigned char * const uncomp = malloc(lenUncomp);
+	unsigned char * const uncomp = sodium_malloc(lenUncomp);
 	if (uncomp == NULL) return NULL;
 
 	size_t offset = 0;
@@ -113,32 +113,33 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 
 	// Compress the data
 	size_t lenComp = lenUncomp + 256; // +256 in case compressed is larger
-	unsigned char * const comp = malloc(lenComp);
+	unsigned char * const comp = sodium_malloc(lenComp);
 	if (comp == NULL) {
-		free(uncomp);
+		sodium_free(uncomp);
 		return NULL;
 	}
 
 	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenComp, comp) == BROTLI_FALSE) {
-		free(uncomp);
-		free(comp);
+		sodium_free(uncomp);
+		sodium_free(comp);
 		return NULL;
 	}
 
-	free(uncomp);
+	sodium_free(uncomp);
 
 	// Create the ExtMsg
 	const size_t lenContent = 23 + (email->dkimCount * 3) + lenComp;
 	if (lenContent + crypto_sign_BYTES + crypto_box_SEALBYTES > 1048752) { // ((2^16 - 1) + 12) * 16
-		free(comp);
+		sodium_free(comp);
 		return NULL;
 	}
 
-	unsigned char * const content = calloc(lenContent, 1);
+	unsigned char * const content = sodium_malloc(lenContent);
 	if (content == NULL) {
-		free(comp);
+		sodium_free(comp);
 		return NULL;
 	}
+	bzero(content, lenContent);
 
 	// Universal Part
 	content[0] = msg_getPadAmount(lenContent);
@@ -213,7 +214,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 
 	// The compressed body
 	memcpy(content + offset, comp, lenComp);
-	free(comp);
+	sodium_free(comp);
 
 	// Encrypt into the final form
 	unsigned char throwaway[crypto_box_PUBLICKEYBYTES];
@@ -223,7 +224,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	bzero(zero, crypto_box_PUBLICKEYBYTES);
 
 	unsigned char * const encrypted = msg_encrypt((memeq(zero, upk, crypto_box_PUBLICKEYBYTES)) ? throwaway : upk, content, lenContent, lenOut);
-	free(content);
+	sodium_free(content);
 	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
 
 	return encrypted;

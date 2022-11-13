@@ -199,7 +199,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 					lenOut += lenOriginal;
 				}
 
-				if (decUtf8 != NULL) free(decUtf8);
+				if (decUtf8 != NULL) sodium_free(decUtf8);
 			}
 
 			i += lenOriginal;
@@ -250,7 +250,7 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	email->lenHead = hend - data;
 	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
 
-	email->head = malloc(email->lenHead + 1);
+	email->head = sodium_malloc(email->lenHead + 1);
 	if (email->head == NULL) {syslog(LOG_ERR, "Failed allocation"); email->lenHead = 0; return -1;}
 	memcpy(email->head, data, email->lenHead);
 	email->head[email->lenHead] = '\0';
@@ -304,14 +304,14 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 
 	switch(cte) {
 		case MTA_PROCESSING_CTE_QP:
-			new = malloc(*lenSrc + 1);
+			new = sodium_malloc(*lenSrc + 1);
 			if (new == NULL) return NULL;
 			memcpy(new, src, *lenSrc);
 			decodeQuotedPrintable(new, lenSrc);
 		break;
 
 		case MTA_PROCESSING_CTE_B64:
-			new = malloc(*lenSrc);
+			new = sodium_malloc(*lenSrc);
 			if (new == NULL) return NULL;
 
 			size_t lenNew;
@@ -320,7 +320,7 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 		break;
 
 		default:
-			new = malloc(*lenSrc + 1);
+			new = sodium_malloc(*lenSrc + 1);
 			if (new == NULL) return NULL;
 			memcpy(new, src, *lenSrc);
 	}
@@ -336,7 +336,7 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
 	if (utf8 == NULL) return;
 
-	free(*src);
+	sodium_free(*src);
 	*src = utf8;
 	*lenSrc = lenUtf8;
 }
@@ -428,11 +428,11 @@ static size_t getNameHeader(const unsigned char * const src, const size_t lenSrc
 	return lenFn;
 }
 
-static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
-	const size_t lenSrc = *outLen;
+static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, struct emailInfo * const email, unsigned char * const bound0, const size_t lenBound0) {
+	const size_t lenSrc = *lenOut;
 
 	unsigned char *out = NULL;
-	*outLen = 0;
+	*lenOut = 0;
 
 	int boundCount = 1;
 	unsigned char *bound[AEM_LIMIT_MULTIPARTS];
@@ -502,38 +502,41 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 			cleanText(new, &lenNew, !isHtml);
 			new[lenNew] = '\0';
 
-			if (*outLen == 0) {
-				out = malloc(lenNew);
-				if (out == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
-				memcpy(out, new, lenNew);
-				*outLen += lenNew;
+			if (out == NULL) {
+				out = new;
+				*lenOut = lenNew;
 			} else {
-				unsigned char * const out2 = realloc(out, *outLen + lenNew + 1);
+				unsigned char * const out2 = sodium_malloc(*lenOut + lenNew + 1);
 				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+				memcpy(out2, out, *lenOut);
+				sodium_free(out);
 				out = out2;
 
-				out[*outLen] = AEM_CET_CHAR_SEP;
-				memcpy(out + *outLen + 1, new, lenNew);
-				*outLen += lenNew + 1;
+				out[*lenOut] = AEM_CET_CHAR_SEP;
+				memcpy(out + *lenOut + 1, new, lenNew);
+				sodium_free(new);
+				*lenOut += lenNew + 1;
 			}
 		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 			const size_t lenAtt = 17 + lenFn + lenNew;
 			if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
-				email->attachment[email->attachCount] = malloc(lenAtt);
+				email->attachment[email->attachCount] = sodium_malloc(lenAtt);
 
 				if (email->attachment[email->attachCount] != NULL) {
 					email->attachment[email->attachCount][0] = (lenFn - 1);
 					// 16 bytes reserved for MsgId
 					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
 					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
+					sodium_free(new);
 
 					email->lenAttachment[email->attachCount] = lenAtt;
 					(email->attachCount)++;
 				} else syslog(LOG_ERR, "Failed allocation");
-			} // else attachment too large
+			} else { // attachment too large
+				sodium_free(new);
+			}
 		}
 
-		free(new);
 		searchBegin = boundEnd;
 	}
 
@@ -541,7 +544,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *outLen, 
 	return out;
 }
 
-void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * const email) {
+void processEmail(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
 	processDkim(src, lenSrc, email);
 
 	if (getHeaders(src, lenSrc, email) != 0) return;
@@ -610,9 +613,6 @@ void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * 
 			email->lenBody = *lenSrc;
 		}
 	} else { // Single-part body
-		email->body = src;
-		email->lenBody = *lenSrc;
-
 		unsigned char tmp[255];
 		uint8_t lenTmp = 0;
 		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, (unsigned char*)tmp, &lenTmp, 255);
@@ -622,8 +622,9 @@ void processEmail(unsigned char *src, size_t * const lenSrc, struct emailInfo * 
 		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
-		unsigned char * const new = decodeCte(cte, email->body, &email->lenBody);
-		if (new != NULL) email->body = new;
+		email->body = decodeCte(cte, src, lenSrc);
+		if (email->body == NULL) email->body = src;
+		email->lenBody = *lenSrc;
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
 			unsigned char * const cs = getCharset(ct, lenCt);

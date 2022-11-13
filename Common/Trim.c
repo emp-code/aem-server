@@ -2,13 +2,15 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <sodium.h>
+
 #include "Trim.h"
 
 // Converts HT/NBSP/etc to SP; Converts VT/FF to LF; Removes other control characters
 void removeControlChars(unsigned char * const text, size_t * const len) {
 	if (text == NULL || len == NULL) return;
 
-	unsigned char * const new = malloc(*len);
+	unsigned char * const new = sodium_malloc(*len);
 	if (new == NULL) return;
 
 	size_t lenNew = 0;
@@ -35,7 +37,7 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 	}
 
 	memcpy(text, new, lenNew);
-	free(new);
+	sodium_free(new);
 	*len = lenNew;
 }
 
@@ -43,7 +45,7 @@ void removeControlChars(unsigned char * const text, size_t * const len) {
 void cleanText(unsigned char * const text, size_t * const len, const bool removeControl) {
 	if (text == NULL || len == NULL) return;
 
-	unsigned char * const new = malloc(*len);
+	unsigned char * const new = sodium_malloc(*len);
 	if (new == NULL) return;
 
 	size_t lenNew = 0;
@@ -88,7 +90,7 @@ void cleanText(unsigned char * const text, size_t * const len, const bool remove
 	while (skip < lenNew && (new[skip] == '\n' || new[skip] == ' ')) skip++;
 
 	memcpy(text, new + skip, lenNew - skip);
-	free(new);
+	sodium_free(new);
 	*len = lenNew - skip;
 
 	while (*len > 0 && (text[*len - 1] == '\n' || text[*len - 1] == ' ')) (*len)--;

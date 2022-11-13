@@ -3,6 +3,6 @@
 
 #include "../Common/Email.h"
 
-void processEmail(unsigned char *source, size_t * const lenSource, struct emailInfo * const email);
+void processEmail(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email);
 
 #endif
