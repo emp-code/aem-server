@@ -59,9 +59,19 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	src[*lenSrc + 2] = '\0';
 	(*lenSrc) += 2;
 
+	email->head = NULL;
+	email->body = NULL;
+
 	processEmail(src, lenSrc, email);
 
 	const int32_t ret = storeMessage(meta, email, srcBr, lenSrcBr);
 	if (srcBr != NULL) sodium_free(srcBr);
+
+	if (email->head != NULL) sodium_free(email->head);
+	if (email->body != NULL && email->body != src) sodium_free(email->body);
+	for (int i = 0; i < email->attachCount; i++) {
+		sodium_free(email->attachment[i]);
+	}
+
 	return ret;
 }
