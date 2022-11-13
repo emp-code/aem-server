@@ -265,7 +265,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 				if (email->attachment[j] == NULL) {syslog(LOG_ERR, "Attachment null"); break;}
 
 				const size_t lenAtt = 5 + email->lenAttachment[j];
-				unsigned char * const att = malloc(lenAtt);
+				unsigned char * const att = sodium_malloc(lenAtt);
 				if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 
 				att[0] = msg_getPadAmount(lenAtt) | 32;
@@ -274,7 +274,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 				memcpy(att + 6, msgId, 16);
 
 				enc = msg_encrypt(meta->toUpk[i], att, lenAtt, &lenEnc);
-				free(att);
+				sodium_free(att);
 
 				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
 				free(enc);
