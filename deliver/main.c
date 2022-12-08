@@ -18,7 +18,7 @@
 
 #include "../Global.h"
 #include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Server.h"
+#include "../Common/IntCom_Stream_Server.h"
 #include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-DLV"

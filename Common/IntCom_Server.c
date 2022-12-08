@@ -14,9 +14,6 @@
 
 #if defined(AEM_ACCOUNT)
 	#include "../account/IntCom_Action.h"
-#elif defined(AEM_DELIVER)
-	#include "../Common/Email.h"
-	#include "../deliver/deliver.h"
 #elif defined(AEM_ENQUIRY)
 	#include "../enquiry/IntCom_Action.h"
 #elif defined(AEM_STORAGE)
@@ -44,8 +41,6 @@ static int bindSocket(const int sock) {
 	memcpy(sa.sun_path,
 #if defined(AEM_ACCOUNT)
 		AEM_SOCKPATH_ACCOUNT
-#elif defined(AEM_DELIVER)
-		AEM_SOCKPATH_DELIVER
 #elif defined(AEM_ENQUIRY)
 		AEM_SOCKPATH_ENQUIRY
 #elif defined(AEM_STORAGE)
@@ -56,7 +51,6 @@ static int bindSocket(const int sock) {
 	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + 4);
 }
 
-#if defined(AEM_ACCOUNT) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
 static const unsigned char *intcom_keys[] = {
 #if defined(AEM_ACCOUNT)
 	AEM_KEY_INTCOM_ACCOUNT_API,
@@ -70,7 +64,6 @@ static const unsigned char *intcom_keys[] = {
 	AEM_KEY_INTCOM_STORAGE_ACC
 #endif
 };
-#endif
 
 #if defined(AEM_ACCOUNT) || defined(AEM_ENQUIRY)
 #define AEM_KEY_INTCOM_COUNT 2
@@ -93,86 +86,6 @@ void takeConnections(void) {
 			continue;
 		}
 
-#ifdef AEM_DELIVER // Stream
-		crypto_secretstream_xchacha20poly1305_state ss_state;
-		unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-		if (recv(sock, ss_header, crypto_secretstream_xchacha20poly1305_HEADERBYTES, MSG_WAITALL) != crypto_secretstream_xchacha20poly1305_HEADERBYTES) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed receiving header"); continue;}
-		if (crypto_secretstream_xchacha20poly1305_init_pull(&ss_state, ss_header, AEM_KEY_INTCOM_STREAM) != 0) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed init"); continue;}
-
-		unsigned char ss_tag = 0xFF;
-		unsigned char enc[AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES];
-
-		unsigned char *dec = sodium_malloc(sizeof(struct emailMeta) + sizeof(struct emailInfo) + 4 + AEM_SMTP_MAX_SIZE_BODY);
-		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo)] = '\n';
-
-		size_t lenEnc = 0;
-
-		if (
-		   recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
-		|| lenEnc != sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
-		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec,                            NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
-		|| ss_tag != 0
-		|| recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
-		|| lenEnc != sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
-		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta), NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
-		|| ss_tag != 0
-		) {
-			close(sock);
-			syslog(LOG_WARNING, "IntCom[SS] Failed receiving/decrypting metadata");
-			sodium_free(dec);
-			continue;
-		}
-
-		size_t lenBody = 1;
-		while(1) {
-			if (recv(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
-				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
-				sodium_free(dec);
-				dec = NULL;
-				break;
-			}
-
-			if (lenEnc == SIZE_MAX) { // Finished
-				crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
-				break;
-			}
-
-			if (lenEnc <= crypto_secretstream_xchacha20poly1305_ABYTES || lenEnc > AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES) {
-				syslog(LOG_WARNING, "IntCom[SS] Invalid message length");
-				sodium_free(dec);
-				dec = NULL;
-				break;
-			}
-
-			if (recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc) {
-				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message");
-				sodium_free(dec);
-				dec = NULL;
-				break;
-			}
-
-			if (crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody, NULL, &ss_tag, enc, lenEnc, NULL, 0) != 0 || (ss_tag != 0)) {
-				close(sock);
-				syslog(LOG_WARNING, "IntCom[SS] Failed decrypting message (%zu bytes)", lenEnc);
-				sodium_free(dec);
-				dec = NULL;
-				break;
-			}
-
-			lenBody += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
-		}
-
-		if (dec == NULL) {
-			close(sock);
-			continue;
-		}
-
-		const int32_t ret = deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody);
-		sodium_free(dec);
-		send(sock, &ret, sizeof(int32_t), 0);
-#else
 		const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
 		if (recv(sock, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
@@ -235,9 +148,7 @@ void takeConnections(void) {
 		} else {
 			switch (encHdr[0]) {
 				case AEM_IDENTIFIER_API: resCode = conn_api(type, NULL, 0, &res); break;
-#ifdef AEM_DELIVER
-				case AEM_IDENTIFIER_MTA: resCode = conn_mta(type, NULL, 0, &res); break;
-#elif defined(AEM_STORAGE)
+#if defined(AEM_STORAGE)
 				case AEM_IDENTIFIER_ACC: resCode = conn_acc(type, NULL, 0, &res); break;
 				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, NULL, 0, &res); break;
 #endif
@@ -270,7 +181,6 @@ void takeConnections(void) {
 
 			sodium_free(res);
 		}
-#endif
 
 		close(sock);
 	}
