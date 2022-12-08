@@ -237,7 +237,7 @@ static int setCaps(const int type) {
 	// Ambient capabilities
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 
-	cap_value_t cap[4];
+	cap_value_t cap[5];
 	cap[0] = CAP_SYS_ADMIN;
 	cap[1] = CAP_SYS_CHROOT;
 	int numCaps;
@@ -251,11 +251,16 @@ static int setCaps(const int type) {
 			numCaps = 3;
 		break;
 
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
 		case AEM_PROCESSTYPE_MTA:
+			cap[2] = CAP_IPC_LOCK;
+			cap[3] = CAP_NET_BIND_SERVICE;
+			cap[4] = CAP_NET_RAW;
+			numCaps = 5;
+
+		case AEM_PROCESSTYPE_WEB_CLR:
+		case AEM_PROCESSTYPE_WEB_ONI:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
 			numCaps = 4;
@@ -269,6 +274,7 @@ static int setCaps(const int type) {
 	|| prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[1], 0, 0) != 0
 	|| prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[2], 0, 0) != 0
 	|| (numCaps > 3 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[3], 0, 0) != 0)
+	|| (numCaps > 4 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[4], 0, 0) != 0)
 	) return -1;
 
 	// Allow changing SecureBits for the next part

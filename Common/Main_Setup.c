@@ -10,10 +10,6 @@
 	openlog(AEM_LOGNAME, LOG_PID, LOG_MAIL);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-#ifndef AEM_WEB
-	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
-#endif
-
 	if (getuid() == 0 || getgid() == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
 	if (setSignals() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
 	if (setRlimits() != 0) {syslog(LOG_ERR, "Terminating: Failed settings rlimits"); return EXIT_FAILURE;}
@@ -26,7 +22,11 @@
 	umask(0777);
 #endif
 
-#if defined(AEM_ACCOUNT) || defined(AEM_DELIVER) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
-	if (setCaps(CAP_IPC_LOCK) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+#ifndef AEM_WEB
 	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {syslog(LOG_ERR, "Terminating: Failed locking memory"); return EXIT_FAILURE;}
+	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
+#endif
+
+#if defined(AEM_ACCOUNT) || defined(AEM_DELIVER) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
+	if (setCaps(0) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 #endif
