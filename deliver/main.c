@@ -7,8 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
+#include <sys/mman.h> // for mlockall
 #include <sys/mount.h>
 #include <sys/socket.h>
+#include <sys/stat.h> // for umask
 #include <syslog.h>
 #include <unistd.h>
 
@@ -66,6 +68,13 @@ static int pipeLoadKeys(void) {
 
 int main(void) {
 #include "../Common/MainSetup.c"
+	umask(0077);
+
+	if (
+	   setCaps(CAP_IPC_LOCK) != 0
+	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
+	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+
 	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
