@@ -1,6 +1,8 @@
 #ifndef AEM_STORAGE_IO_H
 #define AEM_STORAGE_IO_H
 
+#include <stdint.h>
+
 // Account
 int32_t acc_storage_amount(unsigned char **res);
 int32_t acc_storage_levels(const unsigned char * const msg, const size_t lenMsg);
