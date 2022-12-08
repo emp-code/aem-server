@@ -1,5 +1,18 @@
-#include <sys/resource.h>
+#include <locale.h> // for setlocale
+#include <signal.h>
+#include <sys/capability.h>
+#include <sys/mman.h> // for mlockall
+#include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/resource.h>
+#include <sys/stat.h> // for umask
+
+#include <sodium.h>
+
+#include "../Common/SetCaps.h"
+
+volatile sig_atomic_t terminate;
+static void sigTerm(const int sig) {terminate = 1;}
 
 static int setSignals(void) {
 	struct sigaction sa;

@@ -1,11 +1,3 @@
-#include <arpa/inet.h>
-#include <locale.h> // for setlocale
-#include <signal.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/capability.h>
-#include <sys/mount.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -17,13 +9,7 @@
 
 #define AEM_LOGNAME "AEM-WOn"
 
-static bool terminate = false;
-
-static void sigTerm() {
-	terminate = true;
-}
-
-#include "../Common/main_all.c"
+#include "../Common/Main_Include.c"
 
 static void acceptClients(void) {
 	const int sock = createSocket(AEM_PORT_WEB_ONI, true, 10, 10);
@@ -45,8 +31,9 @@ static void acceptClients(void) {
 }
 
 int main(void) {
-#include "../Common/MainSetup.c"
+#include "../Common/Main_Setup.c"
 
+	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");

@@ -1,10 +1,3 @@
-#include <arpa/inet.h>
-#include <locale.h> // for setlocale
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/capability.h>
-#include <sys/mount.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -13,17 +6,10 @@
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
-#include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-Web"
 
-static void sigTerm(const int sig) {
-	syslog(LOG_INFO, "Terminating");
-	tlsFree();
-	exit(EXIT_SUCCESS);
-}
-
-#include "../Common/main_all.c"
+#include "../Common/Main_Include.c"
 
 static void acceptClients(void) {
 	const int sock = createSocket(AEM_PORT_WEB, false, 10, 10);
@@ -43,11 +29,13 @@ static void acceptClients(void) {
 }
 
 int main(void) {
-#include "../Common/MainSetup.c"
+#include "../Common/Main_Setup.c"
 
 	if (tlsSetup() != 0) return EXIT_FAILURE;
 
+	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
+	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

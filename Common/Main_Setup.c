@@ -13,8 +13,20 @@
 #ifndef AEM_WEB
 	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 #endif
+
 	if (getuid() == 0 || getgid() == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
 	if (setSignals() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
 	if (setRlimits() != 0) {syslog(LOG_ERR, "Terminating: Failed settings rlimits"); return EXIT_FAILURE;}
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl 1"); return EXIT_FAILURE;}
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)        != 0) {syslog(LOG_ERR, "Failed prctl 2"); return EXIT_FAILURE;} // Disable core dumps and ptrace
+
+#ifndef AEM_STORAGE
+	umask(0077);
+#else
+	umask(0777);
+#endif
+
+#if defined(AEM_ACCOUNT) || defined(AEM_DELIVER) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
+	if (setCaps(CAP_IPC_LOCK) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {syslog(LOG_ERR, "Terminating: Failed locking memory"); return EXIT_FAILURE;}
+#endif

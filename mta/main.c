@@ -1,25 +1,13 @@
-#include <arpa/inet.h>
-#include <locale.h> // for setlocale
-#include <net/if.h>
-#include <signal.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/capability.h>
-#include <sys/mount.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
-
-#include <sodium.h>
 
 #include "smtp.h"
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/IntCom_Client.h"
-#include "../Common/SetCaps.h"
 #include "../Common/ValidIp.h"
 
 #define AEM_LOGNAME "AEM-MTA"
@@ -27,23 +15,7 @@
 #define AEM_MAXLEN_PIPEREAD 8192
 #define AEM_MINLEN_PIPEREAD 128
 
-static bool terminate = false;
-
-static void sigTerm(const int sig) {
-	terminate = true;
-
-	if (sig == SIGUSR1) {
-		syslog(LOG_INFO, "Terminating after next connection");
-		return;
-	}
-
-	// SIGUSR2: Fast kill
-	tlsFree();
-	syslog(LOG_INFO, "Terminating immediately");
-	exit(EXIT_SUCCESS);
-}
-
-#include "../Common/main_all.c"
+#include "../Common/Main_Include.c"
 
 __attribute__((warn_unused_result))
 static int pipeLoadPids(void) {
@@ -76,13 +48,17 @@ static void acceptClients(void) {
 }
 
 int main(void) {
-#include "../Common/MainSetup.c"
+#include "../Common/Main_Setup.c"
+
 	if (pipeLoadPids() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
 
 	tlsSetup();
+
+	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
+	syslog(LOG_INFO, "Terminating");
 	tlsFree();
 	return EXIT_SUCCESS;
 }

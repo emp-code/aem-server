@@ -1,13 +1,3 @@
-#include <locale.h> // for setlocale
-#include <signal.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h> // for mlockall
-#include <sys/mount.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
 #include <syslog.h>
 #include <unistd.h>
 
@@ -16,24 +6,11 @@
 #include "../Global.h"
 #include "../Common/IntCom_Client.h"
 #include "../Common/IntCom_Server.h"
-#include "../Common/SetCaps.h"
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Acc"
 
-static void sigTerm(const int sig) {
-	if (sig == SIGUSR1) {
-		tc_term();
-		syslog(LOG_INFO, "Terminating after next connection");
-		return;
-	}
-
-	ioFree();
-	syslog(LOG_INFO, "Terminating immediately");
-	exit(EXIT_SUCCESS);
-}
-
-#include "../Common/main_all.c"
+#include "../Common/Main_Include.c"
 
 static int setupIo(void) {
 	pid_t storagePid;
@@ -60,20 +37,15 @@ static int setupIo(void) {
 }
 
 int main(void) {
-#include "../Common/MainSetup.c"
-	umask(0077);
-
-	if (
-	   setCaps(CAP_IPC_LOCK) != 0
-	|| mlockall(MCL_CURRENT | MCL_FUTURE) != 0
-	) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
+#include "../Common/Main_Setup.c"
 
 	sleep(1);
 	if (setupIo() != 0) return EXIT_FAILURE;
+
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
 
-	ioFree();
 	syslog(LOG_INFO, "Terminating");
+	ioFree();
 	return EXIT_SUCCESS;
 }
