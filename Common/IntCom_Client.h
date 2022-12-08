@@ -1,6 +1,8 @@
 #ifndef AEM_INTCOM_CLIENT_H
 #define AEM_INTCOM_CLIENT_H
 
+#include <stdint.h>
+
 typedef enum {
 	AEM_INTCOM_TYPE_ACCOUNT,
 	AEM_INTCOM_TYPE_DELIVER,
