@@ -28,7 +28,7 @@ aem-api-oni: api/*.c
 	$(CC) $(CFLAGS) -DAEM_API_ONI -DAEM_API -DAEM_IS_ONION -o aem-api-oni api/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/aes.c Common/memeq.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-deliver: deliver/*.c
-	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-deliver deliver/*.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/IntCom_Client.c Common/IntCom_Server.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-deliver deliver/*.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/IntCom_Client.c Common/IntCom_Stream_Server.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/memeq.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
