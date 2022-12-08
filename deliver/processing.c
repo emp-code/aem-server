@@ -199,7 +199,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 					lenOut += lenOriginal;
 				}
 
-				if (decUtf8 != NULL) sodium_free(decUtf8);
+				if (decUtf8 != NULL) free(decUtf8);
 			}
 
 			i += lenOriginal;
@@ -250,7 +250,7 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	email->lenHead = hend - data;
 	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
 
-	email->head = sodium_malloc(email->lenHead + 1);
+	email->head = malloc(email->lenHead + 1);
 	if (email->head == NULL) {syslog(LOG_ERR, "Failed allocation"); email->lenHead = 0; return -1;}
 	memcpy(email->head, data, email->lenHead);
 	email->head[email->lenHead] = '\0';
@@ -304,14 +304,14 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 
 	switch(cte) {
 		case MTA_PROCESSING_CTE_QP:
-			new = sodium_malloc(*lenSrc + 1);
+			new = malloc(*lenSrc + 1);
 			if (new == NULL) return NULL;
 			memcpy(new, src, *lenSrc);
 			decodeQuotedPrintable(new, lenSrc);
 		break;
 
 		case MTA_PROCESSING_CTE_B64:
-			new = sodium_malloc(*lenSrc);
+			new = malloc(*lenSrc);
 			if (new == NULL) return NULL;
 
 			size_t lenNew;
@@ -320,7 +320,7 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 		break;
 
 		default:
-			new = sodium_malloc(*lenSrc + 1);
+			new = malloc(*lenSrc + 1);
 			if (new == NULL) return NULL;
 			memcpy(new, src, *lenSrc);
 	}
@@ -336,7 +336,7 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
 	if (utf8 == NULL) return;
 
-	sodium_free(*src);
+	free(*src);
 	*src = utf8;
 	*lenSrc = lenUtf8;
 }
@@ -506,34 +506,34 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				out = new;
 				*lenOut = lenNew;
 			} else {
-				unsigned char * const out2 = sodium_malloc(*lenOut + lenNew + 1);
+				unsigned char * const out2 = malloc(*lenOut + lenNew + 1);
 				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
 				memcpy(out2, out, *lenOut);
-				sodium_free(out);
+				free(out);
 				out = out2;
 
 				out[*lenOut] = AEM_CET_CHAR_SEP;
 				memcpy(out + *lenOut + 1, new, lenNew);
-				sodium_free(new);
+				free(new);
 				*lenOut += lenNew + 1;
 			}
 		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 			const size_t lenAtt = 17 + lenFn + lenNew;
 			if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
-				email->attachment[email->attachCount] = sodium_malloc(lenAtt);
+				email->attachment[email->attachCount] = malloc(lenAtt);
 
 				if (email->attachment[email->attachCount] != NULL) {
 					email->attachment[email->attachCount][0] = (lenFn - 1);
 					// 16 bytes reserved for MsgId
 					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
 					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
-					sodium_free(new);
+					free(new);
 
 					email->lenAttachment[email->attachCount] = lenAtt;
 					(email->attachCount)++;
 				} else syslog(LOG_ERR, "Failed allocation");
 			} else { // attachment too large
-				sodium_free(new);
+				free(new);
 			}
 		}
 

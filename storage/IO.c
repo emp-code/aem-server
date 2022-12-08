@@ -42,7 +42,7 @@ static size_t getUserStorageAmount(const int num) {
 
 int32_t acc_storage_amount(unsigned char ** const res) {
 	const int32_t resSize = stindexCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t));
-	*res = sodium_malloc(resSize);
+	*res = malloc(resSize);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	for (int i = 0; i < stindexCount; i++) {
@@ -274,7 +274,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	}
 	if (stindexNum < 0) return 0; // Stindex for account doesn't exist (new account, no messages received yet)
 
-	*out = sodium_malloc(AEM_MAXLEN_MSGDATA);
+	*out = malloc(AEM_MAXLEN_MSGDATA);
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 //	bzero(*msgData, AEM_MAXLEN_MSGDATA);
 	browse_infoBytes(*out, stindexNum);

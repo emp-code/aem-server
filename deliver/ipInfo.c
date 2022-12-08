@@ -13,7 +13,7 @@ static bool isIpBlacklisted(const uint8_t * const ip) {
 	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, (unsigned char*)dnsbl_domain, strlen(dnsbl_domain), &dnsbl_ip, 4) != 4) return false;
 
 	const bool ret = (*((uint32_t*)dnsbl_ip) == 1);
-	sodium_free(dnsbl_ip);
+	free(dnsbl_ip);
 	return ret;
 }
 
@@ -22,7 +22,7 @@ static bool greetingDomainMatchesIp(const unsigned char * const greet, const siz
 	if (intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_A, greet, lenGreet, &greet_ip, 4) != 4) return false;
 
 	const bool ret = (ip == *((uint32_t*)greet_ip));
-	sodium_free(greet_ip);
+	free(greet_ip);
 	return ret;
 }
 
@@ -34,7 +34,7 @@ void getIpInfo(struct emailInfo * const email) {
 	unsigned char *ipInfo = NULL;
 	const int32_t lenIpInfo = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_IP, (unsigned char*)&email->ip, 4, &ipInfo, 0);
 	if (lenIpInfo < 1) return;
-	if (lenIpInfo < 4) {sodium_free(ipInfo); return;}
+	if (lenIpInfo < 4) {free(ipInfo); return;}
 
 	memcpy(email->ccBytes, ipInfo, 2);
 
@@ -50,7 +50,7 @@ void getIpInfo(struct emailInfo * const email) {
 		memcpy(email->auSys, ipInfo + 4 + email->lenRvDns, email->lenAuSys);
 	}
 
-	sodium_free(ipInfo);
+	free(ipInfo);
 
 	email->ipMatchGreeting = greetingDomainMatchesIp(email->greet, email->lenGreet, email->ip);
 	email->ipBlacklisted = isIpBlacklisted((uint8_t*)&email->ip);

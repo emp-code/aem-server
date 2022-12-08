@@ -8,7 +8,7 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 	const size_t lenPadded = lenContent + padAmount + crypto_sign_BYTES;
 	if (lenPadded < AEM_MSG_MINSIZE_DEC) return NULL;
 
-	unsigned char * const clear = sodium_malloc((lenPadded < AEM_MSG_MINSIZE_DEC) ? AEM_MSG_MINSIZE_DEC : lenPadded);
+	unsigned char * const clear = malloc((lenPadded < AEM_MSG_MINSIZE_DEC) ? AEM_MSG_MINSIZE_DEC : lenPadded);
 	if (clear == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
 	memcpy(clear, content, lenContent);
@@ -17,11 +17,11 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 
 	*lenEncrypted = crypto_box_PUBLICKEYBYTES + lenPadded + crypto_box_SEALBYTES;
 	unsigned char *encrypted = malloc(*lenEncrypted);
-	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); sodium_free(clear); return NULL;}
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); return NULL;}
 
 	memcpy(encrypted, pk, crypto_box_PUBLICKEYBYTES);
 	const int ret = crypto_box_seal(encrypted + crypto_box_PUBLICKEYBYTES, clear, lenPadded, pk);
-	sodium_free(clear);
+	free(clear);
 
 	if (ret != 0) {
 		free(encrypted);

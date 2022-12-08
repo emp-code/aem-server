@@ -155,13 +155,13 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); syslog(LOG_WARNING, "IntCom[C]: Response does not match expected length"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Receive response message
-	*out = sodium_malloc(lenOut);
+	*out = malloc(lenOut);
 	if (*out == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 	unsigned char mac[crypto_secretbox_MACBYTES];
 
 	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {
 		close(sock);
-		sodium_free(*out);
+		free(*out);
 		*out = NULL;
 		syslog(LOG_ERR, "IntCom[C]: Failed receiving message: %m");
 		return AEM_INTCOM_RESPONSE_ERR;
@@ -169,7 +169,7 @@ int32_t intcom(const aem_intcom_type_t intcom_type, const int operation, const u
 	close(sock);
 
 	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-	if (crypto_secretbox_open_detached(*out, *out, mac, lenOut, encHdr + 1, intcom_keys[intcom_type]) != 0) {sodium_free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
+	if (crypto_secretbox_open_detached(*out, *out, mac, lenOut, encHdr + 1, intcom_keys[intcom_type]) != 0) {free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
 
 	return lenOut;
 }

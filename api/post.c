@@ -60,10 +60,10 @@ void setSigKey(const unsigned char * const seed) {
 int aem_api_init(void) {
 	if (tlsSetup_sendmail() != 0) return -1;
 
-	req = sodium_malloc(sizeof(struct postRequest));
+	req = malloc(sizeof(struct postRequest));
 	if (req == NULL) return -1;
 
-	response = sodium_malloc(AEM_MAXLEN_MSGDATA + AEM_MAXLEN_UINFO + 250);
+	response = malloc(AEM_MAXLEN_MSGDATA + AEM_MAXLEN_UINFO + 250);
 	if (response == NULL) return -1;
 
 	return 0;
@@ -73,7 +73,8 @@ void aem_api_free(void) {
 	sodium_memzero(spk, crypto_box_PUBLICKEYBYTES);
 	sodium_memzero(ssk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
-	sodium_free(req);
+	free(req);
+	free(response);
 
 	tlsFree_sendmail();
 }
@@ -198,12 +199,12 @@ static void account_browse(void) {
 	if (clr == NULL || lenClr < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (lenClr < 10) {
-		sodium_free(clr);
+		free(clr);
 		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
 	longResponse(clr, lenClr);
-	sodium_free(clr);
+	free(clr);
 }
 
 static void account_create(void) {
@@ -271,12 +272,12 @@ static void address_create(void) {
 
 	if (req->lenPost == 6 && lenResp == 18) { // Shield address OK
 		shortResponse(resp, 18);
-		sodium_free(resp);
+		free(resp);
 		return;
 	}
 
 	if (lenResp > 0) {
-		sodium_free(resp);
+		free(resp);
 		return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
 
@@ -327,7 +328,7 @@ static void message_browse(void) {
 
 		if (lenUsr < (int32_t)AEM_MINLEN_UINFO) {
 			syslog(LOG_ERR, "Invalid Account response length");
-			if (usr != NULL) sodium_free(usr);
+			if (usr != NULL) free(usr);
 			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 	}
@@ -335,13 +336,13 @@ static void message_browse(void) {
 	// Message data
 	unsigned char *msg = NULL;
 	const int32_t lenMsg = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((req->lenPost == 17) ? req->lenPost : 0), &msg, 0);
-	if (lenMsg < 0) {sodium_free(usr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenMsg < 0) {free(usr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-	unsigned char *clr = sodium_malloc(lenUsr + lenMsg);
+	unsigned char *clr = malloc(lenUsr + lenMsg);
 	if (lenUsr > 0) memcpy(clr, usr, lenUsr);
 	if (lenMsg > 0) memcpy(clr + lenUsr, msg, lenMsg);
-	if (usr != NULL) sodium_free(usr);
-	if (msg != NULL) sodium_free(msg);
+	if (usr != NULL) free(usr);
+	if (msg != NULL) free(msg);
 
 	const size_t lenClr = lenUsr + lenMsg;
 	if (lenClr <= 32) {
@@ -350,7 +351,7 @@ static void message_browse(void) {
 		longResponse(clr, lenClr);
 	}
 
-	sodium_free(clr);
+	free(clr);
 }
 
 static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
@@ -413,7 +414,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	const size_t lenBody     = strlen(email->body);
 
 	const size_t lenOutput = 19 + lenAddressT + lenAddressF + lenMxDomain + lenGreeting + lenSubject + lenBody;
-	*output = sodium_malloc(lenOutput);
+	*output = malloc(lenOutput);
 	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
 
 	const uint16_t cs16 = (info->tls_ciphersuite > UINT16_MAX || info->tls_ciphersuite < 0) ? 1 : info->tls_ciphersuite;
@@ -443,7 +444,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(req->upk, *output, lenOutput, &lenEnc);
 	if (enc == NULL) {
-		sodium_free(*output);
+		free(*output);
 		syslog(LOG_ERR, "Failed creating encrypted message");
 		return 0;
 	}
@@ -456,7 +457,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 
 static size_t deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte, unsigned char ** const output) {
 	const size_t lenOutput = (isEncrypted? (43 + crypto_kx_PUBLICKEYBYTES) : 43) + lenSubj + lenBody;
-	*output = sodium_malloc(lenOutput);
+	*output = malloc(lenOutput);
 	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
 
 	(*output)[16] = msg_getPadAmount(lenOutput) | 48; // 48=OutMsg (DeliveryReport)
@@ -587,21 +588,24 @@ static void message_create_ext(void) {
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO); // 5=@a.bc
+	if (emailDomain == NULL || strlen(emailDomain) < 5) {
+		free(email.body);
+		return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO); // 5=@a.bc
+	}
 
 	unsigned char *mx = NULL;
 	const int32_t lenMx = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
-	if (lenMx < 1 || mx == NULL) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	if (lenMx < 10) {sodium_free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenMx < 1 || mx == NULL) {free(email.body); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenMx < 10) {free(email.body); free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	const size_t lenMxDomain = lenMx - 6;
-	if (lenMxDomain < 4) {sodium_free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);} // a.bc
+	if (lenMxDomain < 4) {free(email.body); free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);} // a.bc
 
 	memcpy((unsigned char*)(&email.ip), mx, 4);
 	memcpy((unsigned char*)(&email.cc), mx + 4, 2);
 	memcpy(email.mxDomain, mx + 6, lenMxDomain);
 	email.mxDomain[lenMxDomain] = '\0';
-	sodium_free(mx);
+	free(mx);
 
 	// Deliver
 	const unsigned char ret = sendMail(req->upk, userLevel, &email, &info);
@@ -611,18 +615,19 @@ static void message_create_ext(void) {
 		unsigned char *report = NULL;
 		const size_t lenReport = deliveryReport_ext(&email, &info, &report, msgId);
 		if (lenReport == 0 || report == NULL) {
+			free(email.body);
 			return shortResponse(NULL, 0); // TODO
 		}
 
 		const size_t lenFinal = 16 + lenReport;
-		unsigned char * const final = sodium_malloc(lenFinal);
-		if (final == NULL) {sodium_free(report); return;}
+		unsigned char * const final = malloc(lenFinal);
+		if (final == NULL) {free(report); free(email.body); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 		memcpy(final, msgId, 16);
 		memcpy(final + 16, report, lenReport);
-		sodium_free(report);
+		free(report);
 
 		longResponse(final, lenFinal);
-		sodium_free(final);
+		free(final);
 	} else if (ret > 32) {
 		shortResponse(NULL, ret);
 	} else {
@@ -676,10 +681,10 @@ static void message_create_int(void) {
 	memcpy(icMsg + crypto_box_PUBLICKEYBYTES + 1, toAddr32, 10);
 
 	unsigned char *toPubKey = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toPubKey, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toPubKey, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-	if (memeq(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
-	if (memeq(toPubKey, req->upk, crypto_box_PUBLICKEYBYTES)) {sodium_free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
+	if (memeq(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
+	if (memeq(toPubKey, req->upk, crypto_box_PUBLICKEYBYTES)) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
 
 	// Create message
 	const size_t lenContent = 6 + lenData;
@@ -691,7 +696,7 @@ static void message_create_int(void) {
 
 	size_t lenEnc;
 	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
-	sodium_free(toPubKey);
+	free(toPubKey);
 	sodium_memzero(content, lenContent);
 	if (enc == NULL) {
 		syslog(LOG_ERR, "Failed creating encrypted message");
@@ -709,7 +714,7 @@ static void message_create_int(void) {
 	}
 
 	longResponse(report, lenReport);
-	sodium_free(report);
+	free(report);
 }
 
 static void message_create(void) {
@@ -729,7 +734,7 @@ static void message_public(void) {
 	unsigned char *upks = NULL;
 	const int32_t lenUpks = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
 	if (lenUpks < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {sodium_free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	// Create message
 	const uint32_t ts = (uint32_t)time(NULL);
@@ -750,7 +755,7 @@ static void message_public(void) {
 		if (enc == NULL) {
 			syslog(LOG_ERR, "Failed creating encrypted message");
 			sodium_memzero(content, lenContent);
-			sodium_free(upks);
+			free(upks);
 			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 
@@ -760,14 +765,14 @@ static void message_public(void) {
 		if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 			free(enc);
 			sodium_memzero(content, lenContent);
-			sodium_free(upks);
+			free(upks);
 			return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 		}
 
 		free(enc);
 	}
 
-	sodium_free(upks);
+	free(upks);
 	sodium_memzero(content, lenContent);
 	shortResponse(msgId, 16);
 }
@@ -779,7 +784,7 @@ static void message_sender(void) {
 	unsigned char *upks = NULL;
 	const int32_t lenUpks = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
 	if (lenUpks < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
-	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {sodium_free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	uint32_t ts;
 	memcpy(&ts, req->post + 48, 4);
@@ -802,7 +807,7 @@ static void message_sender(void) {
 		shortResponse(upks + (result * crypto_box_PUBLICKEYBYTES), crypto_box_PUBLICKEYBYTES);
 	}
 
-	sodium_free(upks);
+	free(upks);
 }
 
 static void message_upload(void) {
@@ -848,12 +853,10 @@ int32_t aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 
 	if (labs((long)time(NULL) - *((uint32_t*)(sealDec + 1))) > AEM_API_TIMEOUT) return AEM_INTCOM_RESPONSE_LIMIT;
 
-	sodium_mprotect_readwrite(req);
 	req->postCmd = sealDec[0];
 	memcpy(req->nonce, sealDec + 1, crypto_box_NONCEBYTES);
 	memcpy(req->upk, sealDec + 1 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 	req->keepAlive = ka;
-	sodium_mprotect_readonly(req);
 
 	return intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_EXIST, req->upk, crypto_box_PUBLICKEYBYTES, NULL, 0);
 }
@@ -862,14 +865,11 @@ __attribute__((warn_unused_result))
 int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned char ** const response_p) {
 	if (req == NULL || box == NULL) return -1;
 
-	sodium_mprotect_readwrite(req);
 	if (crypto_box_open_easy(req->post, box, lenBox, req->nonce, req->upk, ssk) != 0) {
 		sodium_memzero(req, sizeof(struct postRequest));
-		sodium_mprotect_noaccess(req);
 		return -1;
 	}
 	req->lenPost = lenBox - crypto_box_MACBYTES;
-	sodium_mprotect_readonly(req);
 
 	lenResponse = AEM_API_ERR_MISC;
 
@@ -897,9 +897,7 @@ int aem_api_process(const unsigned char * const box, size_t lenBox, unsigned cha
 		default: shortResponse(NULL, AEM_API_ERR_CMD);
 	}
 
-	sodium_mprotect_readwrite(req);
 	sodium_memzero(req, sizeof(struct postRequest));
-	sodium_mprotect_noaccess(req);
 
 	*response_p = response;
 	return lenResponse;

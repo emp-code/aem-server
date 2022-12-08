@@ -25,12 +25,12 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 
 unsigned char *brCompress(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
 	*lenOutput = lenInput + 100; // Compressed version can be slightly larger
-	unsigned char * const output = sodium_malloc(*lenOutput);
+	unsigned char * const output = malloc(*lenOutput);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
 	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
-		sodium_free(output);
+		free(output);
 		return NULL;
 	} else {
 		return output;
@@ -49,6 +49,7 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	getIpInfo(email);
 
 	convertLineDots(src, lenSrc);
+	email->attachCount = 0;
 
 	size_t lenSrcBr = 0;
 	unsigned char * const srcBr = needOriginal(meta) ? brCompress(src, *lenSrc, &lenSrcBr) : NULL;
@@ -65,12 +66,12 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	processEmail(src, lenSrc, email);
 
 	const int32_t ret = storeMessage(meta, email, srcBr, lenSrcBr);
-	if (srcBr != NULL) sodium_free(srcBr);
+	if (srcBr != NULL) free(srcBr);
 
-	if (email->head != NULL) sodium_free(email->head);
-	if (email->body != NULL && email->body != src) sodium_free(email->body);
+	if (email->head != NULL) free(email->head);
+	if (email->body != NULL && email->body != src) free(email->body);
 	for (int i = 0; i < email->attachCount; i++) {
-		sodium_free(email->attachment[i]);
+		free(email->attachment[i]);
 	}
 
 	return ret;

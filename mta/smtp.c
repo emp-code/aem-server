@@ -188,11 +188,11 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	int32_t lenResp = intcom(AEM_INTCOM_TYPE_ACCOUNT, (addrChars == 16) ? AEM_MTA_GETPUBKEY_SHIELD : AEM_MTA_GETPUBKEY_NORMAL, addr32, 10, &resp, crypto_box_PUBLICKEYBYTES + 1);
 	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
-	if (lenResp != crypto_box_PUBLICKEYBYTES + 1) {sodium_free(resp); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
+	if (lenResp != crypto_box_PUBLICKEYBYTES + 1) {free(resp); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
 
 	memcpy(upk, resp, crypto_box_PUBLICKEYBYTES);
 	*addrFlags = resp[crypto_box_PUBLICKEYBYTES];
-	sodium_free(resp);
+	free(resp);
 	return 0;
 }
 

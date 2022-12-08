@@ -91,7 +91,7 @@ static int saveUser(void) {
 	const uint32_t lenPadding = lenBlock - (lenClear % lenBlock);
 
 	const size_t lenPadded = 4 + lenClear + lenPadding;
-	unsigned char * const padded = sodium_malloc(lenPadded);
+	unsigned char * const padded = malloc(lenPadded);
 	if (padded == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
 	memcpy(padded, &lenPadding, 4);
@@ -100,11 +100,11 @@ static int saveUser(void) {
 
 	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenPadded;
 	unsigned char * const encrypted = malloc(lenEncrypted);
-	if (encrypted == NULL) {sodium_free(padded); syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (encrypted == NULL) {free(padded); syslog(LOG_ERR, "Failed allocation"); return -1;}
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
-	sodium_free(padded);
+	free(padded);
 
 	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
@@ -143,11 +143,11 @@ static int loadUser(void) {
 	}
 	close(fd);
 
-	unsigned char * const decrypted = sodium_malloc(lenDecrypted);
+	unsigned char * const decrypted = malloc(lenDecrypted);
 	if (decrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
-		sodium_free(decrypted);
+		free(decrypted);
 		syslog(LOG_ERR, "Failed decrypting Account.aem");
 		return -1;
 	}
@@ -157,20 +157,20 @@ static int loadUser(void) {
 
 	const size_t lenUserData = lenDecrypted - 4 - lenPadding;
 	if (lenUserData % sizeof(struct aem_user) != 0) {
-		sodium_free(decrypted);
+		free(decrypted);
 		syslog(LOG_ERR, "Invalid size for account data");
 		return -1;
 	}
 
 	user = malloc(lenUserData);
 	if (user == NULL) {
-		sodium_free(decrypted);
+		free(decrypted);
 		syslog(LOG_ERR, "Failed allocation");
 		return -1;
 	}
 
 	memcpy(user, decrypted + 4, lenUserData);
-	sodium_free(decrypted);
+	free(decrypted);
 
 	userCount = lenUserData / sizeof(struct aem_user);
 	return 0;
@@ -178,13 +178,16 @@ static int loadUser(void) {
 
 static int updateStorageLevels(void) {
 	const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
-	unsigned char * const data = sodium_malloc(lenData);
+	unsigned char * const data = malloc(lenData);
 	for (int i = 0; i < userCount; i++) {
 		data[i * (crypto_box_PUBLICKEYBYTES + 1)] = user[i].info & AEM_USERLEVEL_MAX;
 		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].pubkey, crypto_box_PUBLICKEYBYTES);
 	}
 
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+	const int32_t ret = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0);
+	free(data);
+
+	if (ret != AEM_INTCOM_RESPONSE_OK) {
 		syslog(LOG_ERR, "updateStorageLevels: intcom failed");
 		return -1;
 	}
@@ -269,7 +272,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 	if (userCount <= 1 || res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	const uint32_t lenRes = 16 + ((userCount - 1) * 35); // Exclude own user
-	*res = sodium_malloc(lenRes);
+	*res = malloc(lenRes);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	memcpy(*res, (unsigned char*)limits, 12);
@@ -281,7 +284,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 
 	if ((size_t)lenStorage != userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) {
 		syslog(LOG_WARNING, "User storage data out of sync");
-		sodium_free(storage);
+		free(storage);
 		storage = NULL;
 	}
 
@@ -311,7 +314,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		memcpy(*res + 19 + ((i - skip) * 35), user[i].pubkey, 32);
 	}
 
-	if (storage != NULL) sodium_free(storage);
+	if (storage != NULL) free(storage);
 	return lenRes;
 }
 
@@ -420,7 +423,7 @@ int32_t api_address_create(const int num, const unsigned char * const msg, const
 	if (!isShield) return AEM_INTCOM_RESPONSE_OK;
 
 	// Shield address
-	*res = sodium_malloc(18);
+	*res = malloc(18);
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 	memcpy(*res, (unsigned char*)&hash, 8);
 	memcpy(*res + 8, addr32, 10);
@@ -506,7 +509,7 @@ int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const
 	const int userNum = hashToUserNum(hash, isShield, &flags);
 	if (userNum < 0 || ((user[num].info & 3) != 3 && (flags & AEM_ADDR_FLAG_ACCINT) == 0)) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
-	*res = sodium_malloc(crypto_box_PUBLICKEYBYTES);
+	*res = malloc(crypto_box_PUBLICKEYBYTES);
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	memcpy(*res, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
@@ -529,7 +532,7 @@ int32_t api_internal_myadr(const int num, const unsigned char * const msg, const
 }
 
 int32_t api_internal_uinfo(const int num, unsigned char **res) {
-	*res = sodium_malloc(AEM_MAXLEN_UINFO);
+	*res = malloc(AEM_MAXLEN_UINFO);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	size_t lenRes = 4;
@@ -550,7 +553,7 @@ int32_t api_internal_uinfo(const int num, unsigned char **res) {
 int32_t api_internal_pubks(const int num, unsigned char **res) {
 	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
 
-	*res = sodium_malloc(userCount * crypto_box_PUBLICKEYBYTES);
+	*res = malloc(userCount * crypto_box_PUBLICKEYBYTES);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	for (int i = 0; i < userCount; i++) {
@@ -589,7 +592,7 @@ int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, u
 	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
 
 	// Respond
-	*res = sodium_malloc(crypto_box_PUBLICKEYBYTES + 1);
+	*res = malloc(crypto_box_PUBLICKEYBYTES + 1);
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	const bool sendFake = (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0);

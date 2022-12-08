@@ -50,7 +50,7 @@ int main(void) {
 
 	// Pad
 	const size_t lenPadded = 4 + sizeof(struct aem_user) * 1024;
-	unsigned char * const padded = sodium_malloc(lenPadded);
+	unsigned char * const padded = malloc(lenPadded);
 	if (padded == NULL) return EXIT_FAILURE;
 
 	const uint32_t padAmount = sizeof(struct aem_user) * 1023;
@@ -61,10 +61,10 @@ int main(void) {
 	// Encrypt with Account Key
 	const size_t lenEncrypted = lenPadded + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 	unsigned char * const encrypted = malloc(lenEncrypted);
-	if (encrypted == NULL) {sodium_free(padded); return EXIT_FAILURE;}
+	if (encrypted == NULL) {free(padded); return EXIT_FAILURE;}
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, key_account);
-	sodium_free(padded);
+	free(padded);
 
 	const int fd = open("Account.aem", O_WRONLY | O_CREAT | O_EXCL, S_IRUSR);
 	if (fd < 0) {

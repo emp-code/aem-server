@@ -186,7 +186,7 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 }
 
 static int loadExec(void) {
-	unsigned char * const tmp = sodium_malloc(AEM_MAXSIZE_EXEC);
+	unsigned char * const tmp = malloc(AEM_MAXSIZE_EXEC);
 	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
 	size_t lenTmp;
@@ -201,7 +201,7 @@ static int loadExec(void) {
 				syslog(LOG_ERR, "Invalid fd: expected %d, got %d", AEM_BINFD_OFFSET + i, binfd);
 			}
 
-			sodium_free(tmp);
+			free(tmp);
 			return -1;
 		}
 
@@ -211,12 +211,12 @@ static int loadExec(void) {
 		|| fcntl(binfd, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
 		) {
 			syslog(LOG_ERR, "Failed loadExec: %m");
-			sodium_free(tmp);
+			free(tmp);
 			return -1;
 		}
 	}
 
-	sodium_free(tmp);
+	free(tmp);
 	return 0;
 }
 

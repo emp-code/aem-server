@@ -37,9 +37,9 @@ void respondClient(int sock) {
 #endif
 
 	unsigned char buf[AEM_MAXLEN_REQ];
-	unsigned char * const box = sodium_malloc(AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES);
+	unsigned char * const box = malloc(AEM_API_BOX_SIZE_MAX + crypto_box_MACBYTES);
 	if (box == NULL) {
-		syslog(LOG_ERR, "Failed sodium_malloc()");
+		syslog(LOG_ERR, "Failed malloc()");
 #ifdef AEM_API_CLR
 		mbedtls_ssl_close_notify(&ssl);
 		mbedtls_ssl_session_reset(&ssl);
@@ -141,7 +141,7 @@ void respondClient(int sock) {
 		if (!keepAlive) break;
 	}
 
-	sodium_free(box);
+	free(box);
 #ifdef AEM_API_CLR
 	mbedtls_ssl_close_notify(&ssl);
 	mbedtls_ssl_session_reset(&ssl);

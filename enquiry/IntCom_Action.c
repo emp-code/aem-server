@@ -35,7 +35,7 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 			const uint16_t cc = getCountryCode(ip);
 			const uint8_t ld = lenMxDomain;
 
-			*res = sodium_malloc(6 + ld);
+			*res = malloc(6 + ld);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 			memcpy(*res, (unsigned char*)&ip, 4);
 			memcpy(*res + 4, (unsigned char*)&cc, 2);
@@ -57,7 +57,7 @@ int32_t conn_dlv(const uint8_t type, const unsigned char * const msg, const size
 			const uint32_t ip = *((uint32_t*)msg);
 			if (validIp(ip) == 1) return AEM_INTCOM_RESPONSE_ERR;
 
-			*res = sodium_malloc(260); // 2 + 2 + 128 + 128
+			*res = malloc(260); // 2 + 2 + 128 + 128
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 			const uint16_t cc = getCountryCode(ip);
@@ -81,7 +81,7 @@ int32_t conn_dlv(const uint8_t type, const unsigned char * const msg, const size
 
 			const uint32_t ip = queryDns_a(msg, lenMsg);
 
-			*res = sodium_malloc(4);
+			*res = malloc(4);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 			memcpy(*res, (unsigned char*)&ip, 4);
 			return 4;
@@ -96,7 +96,7 @@ int32_t conn_dlv(const uint8_t type, const unsigned char * const msg, const size
 			queryDns_dkim(msg, slash - msg, slash + 1, (msg + lenMsg) - (slash + 1), dkimRecord, &lenDkimRecord);
 			if (lenDkimRecord < 1) return AEM_INTCOM_RESPONSE_ERR;
 
-			*res = sodium_malloc(lenDkimRecord + 1);
+			*res = malloc(lenDkimRecord + 1);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 			memcpy(*res, dkimRecord, lenDkimRecord);
 			return lenDkimRecord + 1;

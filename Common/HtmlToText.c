@@ -150,7 +150,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 }
 
 static void html2cet(char * const src, size_t * const lenSrc) {
-	char * const out = sodium_malloc(*lenSrc);
+	char * const out = malloc(*lenSrc);
 	if (out == NULL) return;
 	size_t lenOut = 0;
 
@@ -199,7 +199,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					size_t lenAttrName = 0;
 					for (size_t j = 1;; j++) {
 						if (src[i - offset - j] == ' ') break;
-						if (src[i - offset - j] == '<') {sodium_free(out); return;} // Should not happen
+						if (src[i - offset - j] == '<') {free(out); return;} // Should not happen
 
 						lenAttrName++;
 						if (lenAttrName > 9) break; // todo
@@ -281,7 +281,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 
 						if (styleEnd == NULL) {
 							memcpy(src, out, lenOut);
-							sodium_free(out);
+							free(out);
 							*lenSrc = lenOut;
 							return;
 						}
@@ -295,7 +295,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 
 						if (cEnd == NULL) {
 							memcpy(src, out, lenOut);
-							sodium_free(out);
+							free(out);
 							*lenSrc = lenOut;
 							return;
 						}
@@ -313,13 +313,13 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 			break;}
 
 			default:
-				sodium_free(out);
+				free(out);
 				return;
 		}
 	}
 
 	memcpy(src, out, lenOut);
-	sodium_free(out);
+	free(out);
 	*lenSrc = lenOut;
 }
 

@@ -120,15 +120,15 @@ void takeConnections(void) {
 		int32_t resCode = AEM_INTCOM_RESPONSE_ERR;
 
 		if (lenMsg > 0) {
-			unsigned char * const msg = sodium_malloc(lenMsg + crypto_secretbox_MACBYTES);
+			unsigned char * const msg = malloc(lenMsg + crypto_secretbox_MACBYTES);
 			if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); close(sock); continue;}
-			if (recv(sock, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "IntCom[S]: Failed receiving message: %m"); close(sock); sodium_free(msg); continue;}
+			if (recv(sock, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "IntCom[S]: Failed receiving message: %m"); close(sock); free(msg); continue;}
 
 			sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 			if (crypto_secretbox_open_easy(msg, msg, lenMsg + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
 				syslog(LOG_ERR, "IntCom[S]: Failed decrypting message: %m");
 				close(sock);
-				sodium_free(msg);
+				free(msg);
 				continue;
 			}
 
@@ -144,7 +144,7 @@ void takeConnections(void) {
 #endif
 			}
 
-			sodium_free(msg);
+			free(msg);
 		} else {
 			switch (encHdr[0]) {
 				case AEM_IDENTIFIER_API: resCode = conn_api(type, NULL, 0, &res); break;
@@ -158,7 +158,7 @@ void takeConnections(void) {
 		if (res == NULL && resCode > 0) {
 			resCode = AEM_INTCOM_RESPONSE_ERR;
 		} else if (res != NULL && resCode <= 0) {
-			sodium_free(res);
+			free(res);
 		}
 
 		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
@@ -175,11 +175,11 @@ void takeConnections(void) {
 			if (send(sock, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sock, res, resCode, 0) != resCode) {
 				syslog(LOG_ERR, "IntCom[S]: Failed sending message: %m");
 				close(sock);
-				sodium_free(res);
+				free(res);
 				continue;
 			}
 
-			sodium_free(res);
+			free(res);
 		}
 
 		close(sock);
