@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <sodium.h>
+
 typedef enum {
 	AEM_INTCOM_TYPE_ACCOUNT,
 	AEM_INTCOM_TYPE_DELIVER,

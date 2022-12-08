@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include <sodium.h>
+
 // Account
 int32_t acc_storage_amount(unsigned char **res);
 int32_t acc_storage_levels(const unsigned char * const msg, const size_t lenMsg);
