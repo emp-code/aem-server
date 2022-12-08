@@ -364,7 +364,6 @@ static int process_new(const int type) {
 
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
-	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0)       != 0) {syslog(LOG_ERR, "[%d] Failed prctl()",       type); exit(EXIT_FAILURE);}
 
 	if (cgroupMove()       != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",   type); exit(EXIT_FAILURE);}
 	if (createMount(type)  != 0) {syslog(LOG_ERR, "[%d] Failed createMount()",  type); exit(EXIT_FAILURE);} // fd0 becomes pivot-dir fd

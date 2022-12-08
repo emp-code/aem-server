@@ -1,4 +1,5 @@
 #include <sys/resource.h>
+#include <sys/prctl.h>
 
 static int setSignals(void) {
 	struct sigaction sa;
