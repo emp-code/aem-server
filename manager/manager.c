@@ -258,6 +258,7 @@ static int setCaps(const int type) {
 			cap[3] = CAP_NET_BIND_SERVICE;
 			cap[4] = CAP_NET_RAW;
 			numCaps = 5;
+		break;
 
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
