@@ -130,7 +130,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 
 	const char * const conn = onion? "://"AEM_ONIONID".onion" : "s://"AEM_DOMAIN;
 	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion\r\n";
-	const char * const tlsHeaders = onion? "" : "Expect-CT: enforce, max-age=99999999\r\nStrict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
+	const char * const tlsHeaders = onion? "" : "Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
 
 	// Headers
 	char headers[4096];
