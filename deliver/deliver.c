@@ -32,9 +32,9 @@ unsigned char *brCompress(const unsigned char * const input, const size_t lenInp
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;
-	} else {
-		return output;
 	}
+
+	return output;
 }
 
 static bool needOriginal(const struct emailMeta * const meta) {
