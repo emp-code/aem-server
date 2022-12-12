@@ -108,15 +108,13 @@ static void getStorageKey(unsigned char * const target, const unsigned char * co
 	memcpy(&keyId, &sze, 2);
 	memcpy((unsigned char*)&keyId + 2, upk, 6);
 
-	// Uses random key for 'Trash'; the extra kdf/random is to resist timing attacks
-	unsigned char empty[crypto_box_PUBLICKEYBYTES];
-	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
-	if (memeq(empty, upk, crypto_box_PUBLICKEYBYTES)) {
+	// Redundancy to resist timing attacks
+	if (sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES) == 1) { // Undesired trash - use random key
 		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
 		randombytes_buf(target, 32);
-	} else {
+	} else { // Message accepted, use real key
+		randombytes_buf(target, 32);
 		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
-		randombytes_buf(empty, crypto_box_PUBLICKEYBYTES);
 	}
 }
 

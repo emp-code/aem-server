@@ -589,7 +589,7 @@ int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, u
 	if (((fakeHash >> 24) & 7) == 0) fakeFlags |= AEM_ADDR_FLAG_ORIGIN; // 12.5% chance (1 in 8)
 
 	unsigned char empty[crypto_box_PUBLICKEYBYTES];
-	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
+	sodium_memzero(empty, crypto_box_PUBLICKEYBYTES);
 
 	// Respond
 	*res = malloc(crypto_box_PUBLICKEYBYTES + 1);
