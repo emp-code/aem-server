@@ -33,6 +33,7 @@
 #define AEM_LEN_FILE_MAX 128
 
 #define AEM_FD_SERVER 0
+#define AEM_FD_CLIENT (AEM_BINFD_OFFSET + AEM_PROCESSTYPES_COUNT)
 // AEM_FD_PIPE_RD in Global.h
 #define AEM_FD_PIPE_WR (AEM_FD_PIPE_RD + 1)
 
@@ -500,7 +501,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 	kill(pid, sig);
 }
 
-static void cryptSend(const int sock) {
+static void cryptSend(void) {
 	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
@@ -512,7 +513,7 @@ static void cryptSend(const int sock) {
 	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 	if (crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_RESLEN_DECRYPTED, encrypted, key_mng) == 0) {
-		if (send(sock, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+		if (send(AEM_FD_CLIENT, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
 			syslog(LOG_WARNING, "Failed send");
 		}
 	} else {
@@ -520,15 +521,15 @@ static void cryptSend(const int sock) {
 	}
 }
 
-static void respond_manager(const int sock) {
+static void respond_manager(void) {
 	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
-	if (recv(sock, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
+	if (recv(AEM_FD_CLIENT, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
 		syslog(LOG_WARNING, "Failed recv");
-		close(sock);
+		close(AEM_FD_CLIENT);
 		return;
 	}
 
-	close(sock);
+	close(AEM_FD_CLIENT);
 
 	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
 	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_CMDLEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) {
@@ -566,7 +567,7 @@ static void respond_manager(const int sock) {
 	}
 
 	refreshPids();
-//	cryptSend(sock);
+//	cryptSend();
 }
 
 static bool verifyStatus(void) {
@@ -596,9 +597,8 @@ int receiveConnections(void) {
 	bzero(aemPid, sizeof(aemPid));
 
 	while (!terminate) {
-		const int sockClient = accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC);
-		if (sockClient < 0) continue;
-		respond_manager(sockClient);
+		if (accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_CLIENT) continue;
+		respond_manager();
 
 //		if (!verifyStatus()) {
 //			killAll(SIGUSR1);
