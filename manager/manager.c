@@ -32,6 +32,7 @@
 
 #define AEM_LEN_FILE_MAX 128
 
+#define AEM_FD_SERVER 0
 // AEM_FD_PIPE_RD in Global.h
 #define AEM_FD_PIPE_WR (AEM_FD_PIPE_RD + 1)
 
@@ -52,7 +53,6 @@ static pid_t pid_enquiry = 0;
 static pid_t pid_storage = 0;
 static pid_t aemPid[5][AEM_MAXPROCESSES];
 
-static int sockMain = -1;
 static bool terminate = false;
 
 int getMasterKey(void) {
@@ -358,7 +358,7 @@ static int cgroupMove(void) {
 
 static int process_new(const int type) {
 	wipeKeys();
-	close(sockMain); // fd0 freed
+	close(AEM_FD_SERVER);
 
 	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
 		// This process type uses a pipe, but doesn't need its writing side
@@ -579,8 +579,7 @@ static bool verifyStatus(void) {
 }
 
 int receiveConnections(void) {
-	sockMain = createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND);
-	if (sockMain != 0) {syslog(LOG_ERR, "sm=%d", sockMain); return -1;}
+	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {syslog(LOG_ERR, "Failed creating socket"); return -1;}
 	if (loadFiles() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
 
 	if (
@@ -597,7 +596,7 @@ int receiveConnections(void) {
 	bzero(aemPid, sizeof(aemPid));
 
 	while (!terminate) {
-		const int sockClient = accept4(sockMain, NULL, NULL, SOCK_CLOEXEC); // fd=1
+		const int sockClient = accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC);
 		if (sockClient < 0) continue;
 		respond_manager(sockClient);
 
@@ -607,7 +606,7 @@ int receiveConnections(void) {
 //		}
 	}
 
-	close(sockMain);
+	close(AEM_FD_SERVER);
 	wipeKeys();
 	return 0;
 }
