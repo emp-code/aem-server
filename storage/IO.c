@@ -207,10 +207,7 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 
 	sodium_bin2hex(path + 12, 65, pkEnc, 32);
 
-	unsigned char empty[crypto_box_PUBLICKEYBYTES];
-	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
-
-	if (memeq(empty, upk, crypto_box_PUBLICKEYBYTES)) {
+	if (sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES)) {
 		strcpy(path, "MessageData/Trash");
 	} else {
 		memcpy(path, "MessageData/", 12);
@@ -448,10 +445,7 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 
 	// Stindex
 	const unsigned char * const upk = req;
-
-	unsigned char empty[crypto_box_PUBLICKEYBYTES];
-	memset(empty, 0xFF, crypto_box_PUBLICKEYBYTES);
-	const bool isTrash = memeq(empty, upk, crypto_box_PUBLICKEYBYTES);
+	const bool isTrash = sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES);
 
 	int num = -1;
 	if (!isTrash) {
