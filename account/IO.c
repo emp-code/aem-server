@@ -38,7 +38,6 @@ static struct aem_user *user = NULL;
 static int userCount = 0;
 
 static unsigned char accountKey[crypto_secretbox_KEYBYTES];
-static unsigned char saltNormal[crypto_pwhash_SALTBYTES];
 static unsigned char saltShield[crypto_shorthash_KEYBYTES];
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 
@@ -165,7 +164,6 @@ static int updateStorageLevels(void) {
 
 int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
 	crypto_kdf_derive_from_key(accountKey, crypto_secretbox_KEYBYTES, 1, "AEM_Acc1", baseKey);
-	crypto_kdf_derive_from_key(saltNormal, crypto_pwhash_SALTBYTES,   1, "AEM_Nrm1", baseKey);
 	crypto_kdf_derive_from_key(saltShield, crypto_shorthash_KEYBYTES, 1, "AEM_Shd1", baseKey);
 
 	if (loadUser() != 0) return -1;
