@@ -2,8 +2,6 @@
 
 ## Status ##
 
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/emp-code/aem-server.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/emp-code/aem-server/alerts/)
-
 [![CodeFactor](https://www.codefactor.io/repository/github/emp-code/aem-server/badge)](https://www.codefactor.io/repository/github/emp-code/aem-server)
 
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/9266bf412f484c5abe967883146ad3b3)](https://www.codacy.com/gh/emp-code/aem-server/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emp-code/aem-server&amp;utm_campaign=Badge_Grade)
