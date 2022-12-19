@@ -111,8 +111,6 @@ Web is the only process type to run completely isolated with no capability to in
 The `Data` folder contains header files which supply data to various parts of All-Ears. They must be carefully configured/generated before compilation.
 
 The `utils` folder contains:
-* `Accgen`: Generates Account.aem
-* `Keygen`: Generates key files
 * `BinCrypt`: Encrypts the All-Ears executable files for Manager
 * `ManagerClient`: Connects to Manager to get information about processes, and start or stop them
 
