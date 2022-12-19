@@ -153,7 +153,6 @@ enum aem_api_commands {
 };
 
 enum aem_mta_commands {
-	AEM_MTA_ADREXISTS_SHIELD,
 	AEM_MTA_GETPUBKEY_NORMAL,
 	AEM_MTA_GETPUBKEY_SHIELD
 };
