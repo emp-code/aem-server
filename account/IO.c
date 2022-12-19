@@ -181,7 +181,7 @@ static int updateStorageLevels(void) {
 	unsigned char * const data = malloc(lenData);
 	for (int i = 0; i < userCount; i++) {
 		data[i * (crypto_box_PUBLICKEYBYTES + 1)] = user[i].info & AEM_USERLEVEL_MAX;
-		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].upk, crypto_box_PUBLICKEYBYTES);
 	}
 
 	const int32_t ret = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0);
@@ -248,9 +248,9 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 	return halves[0] ^ halves[1];
 }
 
-int userNumFromPubkey(const unsigned char * const pubkey) {
+int userNumFromUpk(const unsigned char * const upk) {
 	for (int i = 0; i < userCount; i++) {
-		if (memeq(pubkey, user[i].pubkey, crypto_box_PUBLICKEYBYTES)) return i;
+		if (memeq(upk, user[i].upk, crypto_box_PUBLICKEYBYTES)) return i;
 	}
 
 	return -1;
@@ -293,7 +293,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		if (i == num) {skip = 1; continue;} // Skip own user
 
 		uint32_t kib64;
-		if (storage != NULL && lenStorage > 0 && memeq(user[i].pubkey, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES)) {
+		if (storage != NULL && lenStorage > 0 && memeq(user[i].upk, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) + sizeof(uint32_t), crypto_box_PUBLICKEYBYTES)) {
 			uint32_t storageBytes;
 			memcpy((unsigned char*)&storageBytes, storage + (i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))), sizeof(uint32_t));
 			kib64 = round((double)storageBytes / 65536);
@@ -311,7 +311,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 		const uint16_t u16 = (user[i].info & 3) | ((numAddresses(i, false) & 31) << 2) | ((numAddresses(i, true) & 31) << 7) | ((kib64 & 3840) << 4);
 		memcpy(*res + 16 + ((i - skip) * 35), &u16, 2);
 		(*res)[18 + ((i - skip) * 35)] = kib64 & 255;
-		memcpy(*res + 19 + ((i - skip) * 35), user[i].pubkey, 32);
+		memcpy(*res + 19 + ((i - skip) * 35), user[i].upk, 32);
 	}
 
 	if (storage != NULL) free(storage);
@@ -322,19 +322,19 @@ int32_t api_account_create(const int num, const unsigned char * const msg, const
 	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
 	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
-	// Forbidden pubkeys
-	unsigned char pubkey_inv[crypto_box_PUBLICKEYBYTES];
-	memset(pubkey_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memeq(msg, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
-	memset(pubkey_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memeq(msg, pubkey_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
+	// Forbidden UPKs
+	unsigned char upk_inv[crypto_box_PUBLICKEYBYTES];
+	memset(upk_inv, 0x00, crypto_box_PUBLICKEYBYTES); if (memeq(msg, upk_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
+	memset(upk_inv, 0xFF, crypto_box_PUBLICKEYBYTES); if (memeq(msg, upk_inv, crypto_box_PUBLICKEYBYTES)) return AEM_INTCOM_RESPONSE_USAGE;
 
-	if (userNumFromPubkey(msg) >= 0) return AEM_INTCOM_RESPONSE_EXIST;
+	if (userNumFromUpk(msg) >= 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	struct aem_user *user2 = realloc(user, (userCount + 1) * sizeof(struct aem_user));
 	if (user2 == NULL) {syslog(LOG_ERR, "Failed allocaction"); return AEM_INTCOM_RESPONSE_ERR;}
 	user = user2;
 
 	bzero(&(user[userCount]), sizeof(struct aem_user));
-	memcpy(user[userCount].pubkey, msg, crypto_box_PUBLICKEYBYTES);
+	memcpy(user[userCount].upk, msg, crypto_box_PUBLICKEYBYTES);
 
 	userCount++;
 	saveUser();
@@ -344,7 +344,7 @@ int32_t api_account_create(const int num, const unsigned char * const msg, const
 int32_t api_account_delete(const int num, const unsigned char * const msg, const size_t lenMsg) {
 	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
-	const int delNum = userNumFromPubkey(msg);
+	const int delNum = userNumFromUpk(msg);
 	if (delNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
 
 	// Users can only delete themselves
@@ -364,7 +364,7 @@ int32_t api_account_update(const int num, const unsigned char * const msg, const
 	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES + 1) return AEM_INTCOM_RESPONSE_ERR;
 	if (msg[0] > AEM_USERLEVEL_MAX) return AEM_INTCOM_RESPONSE_USAGE;
 
-	const int updateNum = userNumFromPubkey(msg + 1);
+	const int updateNum = userNumFromUpk(msg + 1);
 	if (updateNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
 
 	// If not admin && (updating another user || new-level >= current-level)
@@ -512,7 +512,7 @@ int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const
 	*res = malloc(crypto_box_PUBLICKEYBYTES);
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
-	memcpy(*res, user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
+	memcpy(*res, user[userNum].upk, crypto_box_PUBLICKEYBYTES);
 	return crypto_box_PUBLICKEYBYTES;
 }
 
@@ -557,13 +557,13 @@ int32_t api_internal_pubks(const int num, unsigned char **res) {
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	for (int i = 0; i < userCount; i++) {
-		memcpy(*res + (i * crypto_box_PUBLICKEYBYTES), user[i].pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(*res + (i * crypto_box_PUBLICKEYBYTES), user[i].upk, crypto_box_PUBLICKEYBYTES);
 	}
 
 	return userCount * crypto_box_PUBLICKEYBYTES;
 }
 
-int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, unsigned char **res) {
+int32_t mta_getUpk(const unsigned char * const addr32, const bool isShield, unsigned char **res) {
 	const uint64_t hash = addressToHash(addr32, isShield);
 	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
@@ -596,7 +596,7 @@ int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, u
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	const bool sendFake = (userNum < 0 || (flags & AEM_ADDR_FLAG_ACCEXT) == 0);
-	memcpy(*res, sendFake? empty : user[userNum].pubkey, crypto_box_PUBLICKEYBYTES);
+	memcpy(*res, sendFake? empty : user[userNum].upk, crypto_box_PUBLICKEYBYTES);
 	(*res)[crypto_box_PUBLICKEYBYTES] = sendFake? fakeFlags : flags;
 	return crypto_box_PUBLICKEYBYTES + 1;
 }

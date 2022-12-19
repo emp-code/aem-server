@@ -6,7 +6,7 @@
 int ioSetup(const unsigned char * const newAccountKey, const unsigned char * const newSaltShield);
 void ioFree(void);
 
-int userNumFromPubkey(const unsigned char * const pubkey);
+int userNumFromUpk(const unsigned char * const upk);
 
 int32_t api_account_browse(const int num, unsigned char **res);
 int32_t api_account_create(const int num, const unsigned char * const msg, const size_t lenMsg);
@@ -26,6 +26,6 @@ int32_t api_internal_myadr(const int num);
 int32_t api_internal_uinfo(const int num, unsigned char **res);
 int32_t api_internal_pubks(const int num, unsigned char **res);
 
-int32_t mta_getPubKey(const unsigned char * const addr32, const bool isShield, unsigned char **res);
+int32_t mta_getUpk(const unsigned char * const addr32, const bool isShield, unsigned char **res);
 
 #endif

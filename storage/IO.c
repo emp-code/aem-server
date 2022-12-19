@@ -21,7 +21,7 @@ static unsigned char stindexKey[AEM_LEN_KEY_STI];
 static unsigned char storageKey[AEM_LEN_KEY_STO];
 
 struct aem_stindex {
-	unsigned char pubkey[crypto_box_PUBLICKEYBYTES];
+	unsigned char upk[crypto_box_PUBLICKEYBYTES];
 	uint16_t msgCount;
 	uint8_t level;
 	uint16_t *msg;
@@ -48,7 +48,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 	for (int i = 0; i < stindexCount; i++) {
 		const uint32_t bytes = getUserStorageAmount(i);
 		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (unsigned char*)&bytes, sizeof(uint32_t));
-		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].upk, crypto_box_PUBLICKEYBYTES);
 	}
 
 	return resSize;
@@ -65,7 +65,7 @@ int32_t acc_storage_levels(const unsigned char * const data, const size_t lenDat
 	for (int i = 0; i < recCount; i++) {
 		const size_t s = sizeof(struct aem_stindex);
 
-		if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) { // In sync
+		if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[i].upk, crypto_box_PUBLICKEYBYTES)) { // In sync
 			memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + i * s, s);
 		} else { // Out of sync
 			syslog(LOG_WARNING, "updateLevels: Out of sync");
@@ -74,7 +74,7 @@ int32_t acc_storage_levels(const unsigned char * const data, const size_t lenDat
 			bool found = false;
 
 			for (int j = 0; j < stindexCount; j++) {
-				if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[j].pubkey, crypto_box_PUBLICKEYBYTES)) { // Match
+				if (memeq(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, stindex[j].upk, crypto_box_PUBLICKEYBYTES)) { // Match
 					memcpy((unsigned char*)newStindex + i * s, (unsigned char*)stindex + j * s, s);
 					found = true;
 					break;
@@ -82,7 +82,7 @@ int32_t acc_storage_levels(const unsigned char * const data, const size_t lenDat
 			}
 
 			if (!found) {
-				memcpy(newStindex[i].pubkey, data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, crypto_box_PUBLICKEYBYTES);
+				memcpy(newStindex[i].upk, data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, crypto_box_PUBLICKEYBYTES);
 				newStindex[i].msgCount = 0;
 				newStindex[i].msg = NULL;
 			}
@@ -136,7 +136,7 @@ static int saveStindex(void) {
 	size_t skip = 2;
 
 	for (int i = 0; i < stindexCount; i++) {
-		memcpy(clear + skip, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES);
+		memcpy(clear + skip, stindex[i].upk, crypto_box_PUBLICKEYBYTES);
 		skip += crypto_box_PUBLICKEYBYTES;
 
 		memcpy(clear + skip, &(stindex[i].msgCount), 2);
@@ -173,7 +173,7 @@ static bool idMatch(const int fdMsg, const int stindexNum, const int sze, const 
 	}
 
 	unsigned char aesKey[32];
-	getStorageKey(aesKey, stindex[stindexNum].pubkey, sze);
+	getStorageKey(aesKey, stindex[stindexNum].upk, sze);
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
 	sodium_memzero(aesKey, 32);
@@ -189,7 +189,7 @@ static bool idMatch(const int fdMsg, const int stindexNum, const int sze, const 
 	return true;
 }
 
-// Encrypts pubkey to obscure file-owner connection
+// Encrypts UPK to obscure file-owner connection
 static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICKEYBYTES]) {
 	unsigned char aesKey[32];
 	struct AES_ctx aes;
@@ -225,7 +225,7 @@ int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk)
 
 	int delNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memeq(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES)) {
+		if (memeq(stindex[i].upk, upk, crypto_box_PUBLICKEYBYTES)) {
 			delNum = i;
 			break;
 		}
@@ -262,7 +262,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memeq(stindex[i].pubkey, upk, crypto_box_PUBLICKEYBYTES)) {
+		if (memeq(stindex[i].upk, upk, crypto_box_PUBLICKEYBYTES)) {
 			stindexNum = i;
 			break;
 		}
@@ -275,7 +275,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	browse_infoBytes(*out, stindexNum);
 
 	char path[77];
-	getMsgPath(path, stindex[stindexNum].pubkey);
+	getMsgPath(path, stindex[stindexNum].upk);
 	const int fdMsg = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) return AEM_INTCOM_RESPONSE_ERR;
 
@@ -333,7 +333,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 		}
 
 		unsigned char aesKey[32];
-		getStorageKey(aesKey, stindex[stindexNum].pubkey, stindex[stindexNum].msg[i]);
+		getStorageKey(aesKey, stindex[stindexNum].upk, stindex[stindexNum].msg[i]);
 		struct AES_ctx aes;
 		AES_init_ctx(&aes, aesKey);
 		sodium_memzero(aesKey, 32);
@@ -358,16 +358,16 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 
 	int stindexNum = -1;
 	for (int i = 0; i < stindexCount; i++) {
-		if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
+		if (memeq(upk, stindex[i].upk, crypto_box_PUBLICKEYBYTES)) {
 			stindexNum = i;
 			break;
 		}
 	}
 
-	if (stindexNum == -1) {syslog(LOG_NOTICE, "Invalid pubkey in delete request"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (stindexNum == -1) {syslog(LOG_NOTICE, "Invalid UPK in delete request"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	char path[77];
-	getMsgPath(path, stindex[stindexNum].pubkey);
+	getMsgPath(path, stindex[stindexNum].upk);
 
 	if (lenReq == crypto_box_PUBLICKEYBYTES + 1) { // Delete all
 		const int fd = open(path, O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
@@ -450,7 +450,7 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 	int num = -1;
 	if (!isTrash) {
 		for (int i = 0; i < stindexCount; i++) {
-			if (memeq(upk, stindex[i].pubkey, crypto_box_PUBLICKEYBYTES)) {
+			if (memeq(upk, stindex[i].upk, crypto_box_PUBLICKEYBYTES)) {
 				num = i;
 				break;
 			}
@@ -499,7 +499,7 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 		stindex = stindex2;
 
 		num = stindexCount - 1;
-		memcpy(stindex[num].pubkey, upk, crypto_box_PUBLICKEYBYTES);
+		memcpy(stindex[num].upk, upk, crypto_box_PUBLICKEYBYTES);
 		stindex[num].msgCount = 0;
 		stindex[num].msg = malloc(2);
 		if (stindex[num].msg == NULL) {
@@ -559,7 +559,7 @@ static int loadStindex(void) {
 	for (int i = 0; i < stindexCount; i++) {
 		stindex[i].level = 0;
 
-		memcpy(stindex[i].pubkey, data + skip, crypto_box_PUBLICKEYBYTES);
+		memcpy(stindex[i].upk, data + skip, crypto_box_PUBLICKEYBYTES);
 		skip += crypto_box_PUBLICKEYBYTES;
 
 		memcpy(&(stindex[i].msgCount), data + skip, 2);

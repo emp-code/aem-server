@@ -164,8 +164,8 @@ static void longResponse(const unsigned char * const data, const size_t lenData)
 	}
 }
 
-static unsigned char getUserLevel(const unsigned char * const pubkey) {
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_LEVEL, pubkey, crypto_box_PUBLICKEYBYTES, NULL, 0)) {
+static unsigned char getUserLevel(const unsigned char * const upk) {
+	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_LEVEL, upk, crypto_box_PUBLICKEYBYTES, NULL, 0)) {
 		case -1: return 1;
 		case -2: return 2;
 		case -3: return 3;
@@ -354,7 +354,7 @@ static void message_browse(void) {
 	free(clr);
 }
 
-static bool addr32OwnedByPubkey(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
+static bool addr32OwnedByUpk(const unsigned char * const ver_pk, const unsigned char * const ver_addr32, const bool shield) {
 	unsigned char icMsg[crypto_box_PUBLICKEYBYTES + 11];
 	memcpy(icMsg, ver_pk, crypto_box_PUBLICKEYBYTES);
 	icMsg[crypto_box_PUBLICKEYBYTES] = shield? 'S' : 'N';
@@ -402,7 +402,7 @@ static bool addrOwned(const char * const addr) {
 	unsigned char addrFrom32[10];
 	bool fromShield = false;
 	if (getAddr32(addrFrom32, addr, strlen(addr), &fromShield) != 0) return false;
-	return addr32OwnedByPubkey(req->upk, addrFrom32, fromShield);
+	return addr32OwnedByUpk(req->upk, addrFrom32, fromShield);
 }
 
 static size_t deliveryReport_ext(const struct outEmail * const email, const struct outInfo * const info, unsigned char ** const output, unsigned char * msgId) {
@@ -455,7 +455,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	return lenOutput;
 }
 
-static size_t deliveryReport_int(const unsigned char * const recvPubKey, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte, unsigned char ** const output) {
+static size_t deliveryReport_int(const unsigned char * const recvUpk, const unsigned char * const ts, const unsigned char * const fromAddr32, const unsigned char * const toAddr32, const unsigned char * const subj, const size_t lenSubj, const unsigned char * const body, const size_t lenBody, const bool isEncrypted, const unsigned char infoByte, unsigned char ** const output) {
 	const size_t lenOutput = (isEncrypted? (43 + crypto_kx_PUBLICKEYBYTES) : 43) + lenSubj + lenBody;
 	*output = malloc(lenOutput);
 	if (*output == NULL) {syslog(LOG_ERR, "Failed allocation"); return 0;}
@@ -468,7 +468,7 @@ static size_t deliveryReport_int(const unsigned char * const recvPubKey, const u
 	memcpy(*output + 33, toAddr32, 10);
 
 	if (isEncrypted) {
-		memcpy(*output + 43, recvPubKey, crypto_kx_PUBLICKEYBYTES);
+		memcpy(*output + 43, recvUpk, crypto_kx_PUBLICKEYBYTES);
 		memcpy(*output + 43 + crypto_kx_PUBLICKEYBYTES, subj, lenSubj);
 		memcpy(*output + 43 + crypto_kx_PUBLICKEYBYTES + lenSubj, body, lenBody);
 	} else {
@@ -652,7 +652,7 @@ static void message_create_int(void) {
 	const bool fromShield  = (infoByte &  8) > 0;
 	const bool toShield    = (infoByte &  4) > 0;
 
-	if (req->lenPost < (isEncrypted? 106 : 128)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TOOSHORT); // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (pubkey/ts): 96/106; +32 for non-E2EE DR
+	if (req->lenPost < (isEncrypted? 106 : 128)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TOOSHORT); // 1+10+10+32+1 = 54; 177-48-64-5=60; 60-54=6; Non-E2EE: 54+6=60; E2EE (MAC): 54+16 = 70; +36 (UPK/ts): 96/106; +32 for non-E2EE DR
 
 	unsigned char ts_sender[4];
 	if (isEncrypted) {
@@ -672,19 +672,19 @@ static void message_create_int(void) {
 	const unsigned char * const fromAddr32 = msgData;
 	const unsigned char * const toAddr32   = msgData + 10;
 
-	if (!addr32OwnedByPubkey(req->upk, fromAddr32, fromShield)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_ADDR_NOTOWN);
+	if (!addr32OwnedByUpk(req->upk, fromAddr32, fromShield)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_ADDR_NOTOWN);
 
-	// Get receiver's pubkey
+	// Get receiver's UPK
 	unsigned char icMsg[crypto_box_PUBLICKEYBYTES + 11];
 	memcpy(icMsg, req->upk, crypto_box_PUBLICKEYBYTES);
 	icMsg[crypto_box_PUBLICKEYBYTES] = toShield? 'S' : 'N';
 	memcpy(icMsg + crypto_box_PUBLICKEYBYTES + 1, toAddr32, 10);
 
-	unsigned char *toPubKey = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toPubKey, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	unsigned char *toUpk = NULL;
+	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toUpk, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
-	if (memeq(toPubKey, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
-	if (memeq(toPubKey, req->upk, crypto_box_PUBLICKEYBYTES)) {free(toPubKey); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
+	if (memeq(toUpk, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
+	if (memeq(toUpk, req->upk, crypto_box_PUBLICKEYBYTES)) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
 
 	// Create message
 	const size_t lenContent = 6 + lenData;
@@ -695,8 +695,8 @@ static void message_create_int(void) {
 	memcpy(content + 6, msgData, lenData);
 
 	size_t lenEnc;
-	unsigned char * const enc = msg_encrypt(toPubKey, content, lenContent, &lenEnc);
-	free(toPubKey);
+	unsigned char * const enc = msg_encrypt(toUpk, content, lenContent, &lenEnc);
+	free(toUpk);
 	sodium_memzero(content, lenContent);
 	if (enc == NULL) {
 		syslog(LOG_ERR, "Failed creating encrypted message");

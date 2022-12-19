@@ -13,7 +13,7 @@
 int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, unsigned char **res) {
 	if (lenMsg < crypto_box_PUBLICKEYBYTES) {syslog(LOG_WARNING, "Rejected: missing UPK"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	const int num = userNumFromPubkey(msg);
+	const int num = userNumFromUpk(msg);
 	if (num < 0) {syslog(LOG_WARNING, "Rejected: non-existing UPK"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
 
 	msg += crypto_box_PUBLICKEYBYTES;
@@ -34,7 +34,7 @@ int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, un
 
 		// Internal
 		case AEM_API_INTERNAL_ADRPK: return api_internal_adrpk(num, msg, lenMsg, res);
-		case AEM_API_INTERNAL_EXIST: return AEM_INTCOM_RESPONSE_OK; // Existence verified by userNumFromPubkey()
+		case AEM_API_INTERNAL_EXIST: return AEM_INTCOM_RESPONSE_OK; // Existence verified by userNumFromUpk()
 		case AEM_API_INTERNAL_LEVEL: return api_internal_level(num);
 		case AEM_API_INTERNAL_MYADR: return api_internal_myadr(num);
 		case AEM_API_INTERNAL_UINFO: return api_internal_uinfo(num, res);
@@ -50,8 +50,8 @@ int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size
 	if (lenMsg != 10) return AEM_INTCOM_RESPONSE_ERR;
 
 	switch (type) {
-		case AEM_MTA_GETPUBKEY_NORMAL: return mta_getPubKey(msg, false, res);
-		case AEM_MTA_GETPUBKEY_SHIELD: return mta_getPubKey(msg, true, res);
+		case AEM_MTA_GETUPK_NORMAL: return mta_getUpk(msg, false, res);
+		case AEM_MTA_GETUPK_SHIELD: return mta_getUpk(msg, true, res);
 
 		default: syslog(LOG_ERR, "Invalid command: %u", type);
 	}

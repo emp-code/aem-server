@@ -37,7 +37,7 @@ int main(void) {
 	struct aem_user admin;
 	bzero(&admin, sizeof(struct aem_user));
 	admin.info = 3;
-	memcpy(admin.pubkey, pk, crypto_box_PUBLICKEYBYTES);
+	memcpy(admin.upk, pk, crypto_box_PUBLICKEYBYTES);
 
 	// Private data field, encrypted zeroes
 	const size_t lenZero = AEM_LEN_PRIVATE - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
