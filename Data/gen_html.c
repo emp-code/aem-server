@@ -337,7 +337,6 @@ static void printSts(void) {
 		"Connection: close\r\n"
 		"Content-Length: %d\r\n"
 		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Expect-CT: enforce; max-age=99999999\r\n"
 		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
 		"Tk: N\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
