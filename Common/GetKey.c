@@ -1,10 +1,5 @@
-#include <stdbool.h>
-#include <termios.h>
 #include <ctype.h> // for isxdigit
-#include <fcntl.h> // for open
 #include <stdio.h>
-#include <string.h>
-#include <unistd.h> // for write
 
 #include <sodium.h>
 
