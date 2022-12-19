@@ -21,8 +21,8 @@ The full UPK and timestamp are used to calculate the hash:
 
 static unsigned char msgid_derivkey[crypto_kdf_KEYBYTES];
 
-void setMsgIdKey(const unsigned char * const src) {
-	crypto_kdf_derive_from_key(msgid_derivkey, crypto_kdf_KEYBYTES, 0, "AEM-MIDr", src);
+void setMsgIdKey(const unsigned char * const baseKey) {
+	crypto_kdf_derive_from_key(msgid_derivkey, crypto_kdf_KEYBYTES, 0, "AEM_MID1", baseKey);
 }
 
 void delMsgIdKey(void) {
@@ -35,7 +35,7 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 	memcpy(hashSrc, upk + 12, 20);
 
 	unsigned char hashKey[crypto_generichash_KEYBYTES];
-	crypto_kdf_derive_from_key(hashKey, crypto_generichash_KEYBYTES, *((uint64_t*)upk), "AEM-MIHs", msgid_derivkey);
+	crypto_kdf_derive_from_key(hashKey, crypto_generichash_KEYBYTES, *((uint64_t*)upk), "AEM_MIH2", msgid_derivkey);
 
 	unsigned char hash[48]; // 384-bit
 	crypto_generichash(hash, 48, hashSrc, 20, hashKey, crypto_generichash_KEYBYTES);
@@ -49,7 +49,7 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 	memcpy((unsigned char*)&aesKey_nr + 4, (unsigned char*)&ts, 4);
 
 	unsigned char aesKey[32];
-	crypto_kdf_derive_from_key(aesKey, 32, aesKey_nr, "AEM-MIEn", msgid_derivkey);
+	crypto_kdf_derive_from_key(aesKey, 32, aesKey_nr, "AEM_MIE2", msgid_derivkey);
 	sodium_memzero(&aesKey_nr, 4);
 
 	struct AES_ctx aes;

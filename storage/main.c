@@ -11,16 +11,17 @@
 #include "../Common/Main_Include.c"
 
 static int setupIo(void) {
-	unsigned char storageKey[AEM_LEN_KEY_STO];
-	if (read(AEM_FD_PIPE_RD, storageKey, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO) {
+	unsigned char baseKey[crypto_kdf_KEYBYTES];
+	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) {
 		close(AEM_FD_PIPE_RD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe: %m");
 		return -1;
 	}
-
 	close(AEM_FD_PIPE_RD);
-	ioSetup(storageKey);
-	sodium_memzero(storageKey, AEM_LEN_KEY_STO);
+
+	ioSetup(baseKey);
+
+	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
 	return 0;
 }
 

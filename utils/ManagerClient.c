@@ -1,7 +1,6 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <locale.h> // for setlocale
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -16,9 +15,9 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/LoadEnc.h"
+#include "../Common/GetKey.h"
 
-static unsigned char key_manager[crypto_secretbox_KEYBYTES];
+static unsigned char key_mng[crypto_secretbox_KEYBYTES];
 
 static int makeSocket(const char * const host) {
 	struct addrinfo hints;
@@ -57,7 +56,7 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 
 	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_CMDLEN_DECRYPTED, encrypted, key_manager);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_CMDLEN_DECRYPTED, encrypted, key_mng);
 
 	return (send(sock, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) == AEM_MANAGER_CMDLEN_ENCRYPTED) ? 0 : -1;
 }
@@ -75,11 +74,13 @@ static char numToChar(const unsigned char n) {
 }
 
 int main(int argc, char *argv[]) {
-	setlocale(LC_ALL, "C");
-
 	if (argc < 2) {puts("Usage: ManagerClient domain.tld instructions"); return EXIT_FAILURE;}
 	if (sodium_init() == -1) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
-	if (loadEnc(AEM_PATH_KEY_MNG, crypto_secretbox_KEYBYTES, key_manager) != 0) return EXIT_FAILURE;
+
+	unsigned char master[crypto_kdf_KEYBYTES];
+	if (getKey(master) != 0) return EXIT_FAILURE;
+	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
+	sodium_memzero(master, crypto_kdf_KEYBYTES);
 
 	int sock = makeSocket(argv[1]);
 	if (sock < 0) return EXIT_FAILURE;
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
-	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_RESLEN_DECRYPTED + crypto_secretbox_MACBYTES, encrypted, key_manager) != 0) {
+	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_RESLEN_DECRYPTED + crypto_secretbox_MACBYTES, encrypted, key_mng) != 0) {
 		puts("Failed decrypt");
 		close(sock);
 		return EXIT_FAILURE;

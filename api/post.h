@@ -3,8 +3,7 @@
 
 #include <sodium.h>
 
-void setApiKey(const unsigned char * const seed);
-void setSigKey(const unsigned char * const seed);
+void setApiKeys(const unsigned char baseKey[crypto_kdf_KEYBYTES]);
 
 void setAccountPid(const pid_t pid);
 void setStoragePid(const pid_t pid);

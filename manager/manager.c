@@ -37,14 +37,13 @@
 // AEM_FD_PIPE_RD in Global.h
 #define AEM_FD_PIPE_WR (AEM_FD_PIPE_RD + 1)
 
-static unsigned char master[AEM_LEN_KEY_MASTER];
-static unsigned char key_mng[AEM_LEN_KEY_MNG];
-static unsigned char key_acc[AEM_LEN_KEY_ACC];
-static unsigned char key_api[AEM_LEN_KEY_API];
-static unsigned char key_mng[AEM_LEN_KEY_MNG];
-static unsigned char key_sig[AEM_LEN_KEY_SIG];
-static unsigned char key_sto[AEM_LEN_KEY_STO];
-static unsigned char slt_shd[AEM_LEN_SLT_SHD];
+static unsigned char master[crypto_kdf_KEYBYTES];
+static unsigned char key_bin[crypto_secretbox_KEYBYTES];
+static unsigned char key_mng[crypto_secretbox_KEYBYTES];
+static unsigned char key_acc[crypto_kdf_KEYBYTES];
+static unsigned char key_dlv[crypto_kdf_KEYBYTES];
+static unsigned char key_sto[crypto_kdf_KEYBYTES];
+static unsigned char key_api[crypto_kdf_KEYBYTES];
 
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
@@ -57,18 +56,25 @@ static pid_t aemPid[5][AEM_MAXPROCESSES];
 static bool terminate = false;
 
 int getMasterKey(void) {
-	return getKey(master);
+	if (getKey(master) != 0) return -1;
+
+	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
+	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
+	crypto_kdf_derive_from_key(key_acc, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
+	crypto_kdf_derive_from_key(key_dlv, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
+	crypto_kdf_derive_from_key(key_sto, crypto_kdf_KEYBYTES, 1, "AEM_Sto0", master);
+	crypto_kdf_derive_from_key(key_api, crypto_kdf_KEYBYTES, 1, "AEM_Api0", master);
+
+	sodium_memzero(master, crypto_kdf_KEYBYTES);
+	return 0;
 }
 
 static void wipeKeys(void) {
-	sodium_memzero(master, AEM_LEN_KEY_MASTER);
-	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
-	sodium_memzero(key_acc, AEM_LEN_KEY_ACC);
-	sodium_memzero(key_api, AEM_LEN_KEY_API);
-	sodium_memzero(key_mng, AEM_LEN_KEY_MNG);
-	sodium_memzero(key_sig, AEM_LEN_KEY_SIG);
-	sodium_memzero(key_sto, AEM_LEN_KEY_STO);
-	sodium_memzero(slt_shd, AEM_LEN_SLT_SHD);
+	sodium_memzero(key_mng, crypto_secretbox_KEYBYTES);
+	sodium_memzero(key_acc, crypto_kdf_KEYBYTES);
+	sodium_memzero(key_dlv, crypto_kdf_KEYBYTES);
+	sodium_memzero(key_sto, crypto_kdf_KEYBYTES);
+	sodium_memzero(key_api, crypto_kdf_KEYBYTES);
 }
 
 static bool process_exists(const pid_t pid) {
@@ -178,7 +184,7 @@ static int loadFile(const char * const path, unsigned char * const target, size_
 
 	if (len != NULL) *len = bytes - crypto_secretbox_MACBYTES;
 
-	if (crypto_secretbox_open_easy(target, enc, bytes, nonce, master) != 0) {
+	if (crypto_secretbox_open_easy(target, enc, bytes, nonce, key_bin) != 0) {
 		syslog(LOG_ERR, "Failed decrypting %s", path);
 		return -1;
 	}
@@ -219,17 +225,6 @@ static int loadExec(void) {
 
 	free(tmp);
 	return 0;
-}
-
-int loadFiles(void) {
-	return (
-	   loadFile(AEM_PATH_KEY_ACC, key_acc, NULL, AEM_LEN_KEY_ACC, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_API, key_api, NULL, AEM_LEN_KEY_API, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_MNG, key_mng, NULL, AEM_LEN_KEY_MNG, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_SIG, key_sig, NULL, AEM_LEN_KEY_SIG, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_KEY_STO, key_sto, NULL, AEM_LEN_KEY_STO, AEM_LEN_FILE_MAX) == 0
-	&& loadFile(AEM_PATH_SLT_SHD, slt_shd, NULL, AEM_LEN_SLT_SHD, AEM_LEN_FILE_MAX) == 0
-	) ? loadExec() : -1;
 }
 
 static int setCaps(const int type) {
@@ -426,20 +421,19 @@ static int process_spawn(const int type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 			fail = (
 			   write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(AEM_FD_PIPE_WR, key_acc, AEM_LEN_KEY_ACC) != AEM_LEN_KEY_ACC
-			|| write(AEM_FD_PIPE_WR, slt_shd, AEM_LEN_SLT_SHD) != AEM_LEN_SLT_SHD
+			|| write(AEM_FD_PIPE_WR, key_acc, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
 			);
 		break;
 
 		case AEM_PROCESSTYPE_DELIVER:
 			fail = (
 			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_enquiry, pid_storage}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
-			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			|| write(AEM_FD_PIPE_WR, key_dlv, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
 			);
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-			fail = (write(AEM_FD_PIPE_WR, key_sto, AEM_LEN_KEY_STO) != AEM_LEN_KEY_STO);
+			fail = (write(AEM_FD_PIPE_WR, key_sto, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES);
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
@@ -450,8 +444,7 @@ static int process_spawn(const int type) {
 		case AEM_PROCESSTYPE_API_ONI:
 			fail = (
 			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
-			|| write(AEM_FD_PIPE_WR, key_api, AEM_LEN_KEY_API) != AEM_LEN_KEY_API
-			|| write(AEM_FD_PIPE_WR, key_sig, AEM_LEN_KEY_SIG) != AEM_LEN_KEY_SIG
+			|| write(AEM_FD_PIPE_WR, key_api, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
 			);
 		break;
 
@@ -581,7 +574,7 @@ static bool verifyStatus(void) {
 
 int receiveConnections(void) {
 	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {syslog(LOG_ERR, "Failed creating socket"); return -1;}
-	if (loadFiles() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
+	if (loadExec() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
 
 	if (
 	   process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0

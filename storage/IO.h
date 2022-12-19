@@ -5,6 +5,10 @@
 
 #include <sodium.h>
 
+// main
+int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]);
+void ioFree(void);
+
 // Account
 int32_t acc_storage_amount(unsigned char **res);
 int32_t acc_storage_levels(const unsigned char * const msg, const size_t lenMsg);
@@ -17,9 +21,5 @@ int32_t api_message_delete(const unsigned char req[crypto_box_PUBLICKEYBYTES], c
 
 // API/MTA
 int32_t storage_write(unsigned char * const req, const size_t lenReq);
-
-// main
-int ioSetup(const unsigned char * const storageKey);
-void ioFree(void);
 
 #endif

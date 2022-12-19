@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
@@ -33,23 +33,17 @@ aem-deliver: deliver/*.c
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/memeq.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
-utils/Accgen: utils/Accgen.c
-	$(CC) $(CFLAGS) -o utils/Accgen utils/Accgen.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium
-
 utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
-utils/Keygen: utils/Keygen.c
-	$(CC) $(CFLAGS) -o utils/Keygen utils/Keygen.c -lsodium
-
 utils/ManagerClient: utils/ManagerClient.c
-	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium
+	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
 Data/gen_address: Data/gen_address.c
 	$(CC) $(CFLAGS) -o Data/gen_address Data/gen_address.c -lsodium
 
 Data/gen_html: Data/gen_html.c
-	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/LoadEnc.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
+	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/Brotli.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
 
 Data/gen_internal: Data/gen_internal.c
 	$(CC) $(CFLAGS) -o Data/gen_internal Data/gen_internal.c -lsodium
@@ -62,4 +56,4 @@ Data/gen_tls: Data/gen_tls.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/Accgen utils/BinCrypt utils/Keygen utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls

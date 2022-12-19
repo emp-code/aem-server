@@ -9,9 +9,9 @@
 #include <sodium.h>
 #include <zopfli/zopfli.h>
 
-#include "../Common/Brotli.c"
-#include "../Common/LoadEnc.h"
 #include "../Global.h"
+#include "../Common/Brotli.h"
+#include "../Common/GetKey.h"
 
 #include "address.h" // for normal salt
 #include "domain.h"
@@ -19,37 +19,65 @@
 #include "../Common/PrintDef.c"
 
 static int html_putKeys(char * const src, const size_t lenSrc) {
-	unsigned char key_api[AEM_LEN_KEY_API];
-	unsigned char key_sig[AEM_LEN_KEY_API];
-	if (loadEnc(AEM_PATH_KEY_SIG, AEM_LEN_KEY_SIG, key_sig) != 0 || loadEnc(AEM_PATH_KEY_API, AEM_LEN_KEY_API, key_api) != 0) return -1;
+	unsigned char master[crypto_kdf_KEYBYTES];
+	if (getKey(master) != 0) return -1;
+
+	unsigned char baseKey[crypto_kdf_KEYBYTES];
+
+	// API PK
+	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Api0", master);
+
+	unsigned char box_seed[crypto_box_SEEDBYTES];
+	unsigned char box_pk[crypto_box_PUBLICKEYBYTES];
+	unsigned char box_sk[crypto_box_SECRETKEYBYTES];
+	crypto_kdf_derive_from_key(box_seed, crypto_box_SEEDBYTES, 1, "AEM_API1", baseKey);
+	crypto_box_seed_keypair(box_pk, box_sk, box_seed);
+	sodium_memzero(box_sk, crypto_box_SECRETKEYBYTES);
+	sodium_memzero(box_seed, crypto_box_SEEDBYTES);
 
 	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("API-Placeholder not found", stderr); return -1;}
-	unsigned char api_tmp[crypto_box_SECRETKEYBYTES];
-	unsigned char api_pub[crypto_box_PUBLICKEYBYTES];
-	char api_hex[65];
-	crypto_box_seed_keypair(api_pub, api_tmp, key_api);
-	sodium_memzero(key_api, AEM_LEN_KEY_API);
-	sodium_memzero(api_tmp, crypto_box_SECRETKEYBYTES);
-	sodium_bin2hex(api_hex, 65, api_pub, crypto_box_PUBLICKEYBYTES);
-	memcpy(placeholder, api_hex, crypto_box_PUBLICKEYBYTES * 2);
+	if (placeholder == NULL) {fputs("API placeholder not found", stderr); return -1;}
+	sodium_bin2hex(placeholder, 999, box_pk, crypto_box_PUBLICKEYBYTES);
+	placeholder[crypto_box_PUBLICKEYBYTES * 2] = '"';
 
-	placeholder = memmem(src, lenSrc, "All-Ears Mail Sig PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("Sig-Placeholder not found", stderr); return -1;}
-	unsigned char sig_tmp[crypto_sign_SECRETKEYBYTES];
-	unsigned char sig_pub[crypto_sign_PUBLICKEYBYTES];
-	char sig_hex[65];
-	crypto_sign_seed_keypair(sig_pub, sig_tmp, key_sig);
-	sodium_memzero(key_api, AEM_LEN_KEY_SIG);
-	sodium_memzero(sig_tmp, crypto_sign_SECRETKEYBYTES);
-	sodium_bin2hex(sig_hex, 65, sig_pub, crypto_sign_PUBLICKEYBYTES);
-	memcpy(placeholder, sig_hex, crypto_sign_PUBLICKEYBYTES * 2);
+	// API Sig PK
+	unsigned char sig_seed[crypto_sign_SEEDBYTES];
+	unsigned char sig_pk[crypto_sign_PUBLICKEYBYTES];
+	unsigned char sig_sk[crypto_sign_SECRETKEYBYTES];
+
+	crypto_kdf_derive_from_key(sig_seed, crypto_box_SEEDBYTES, 1, "AEM_Sig1", baseKey);
+	crypto_sign_seed_keypair(sig_pk, sig_sk, sig_seed);
+	sodium_memzero(sig_seed, crypto_sign_SEEDBYTES);
+	sodium_memzero(sig_sk, crypto_sign_SECRETKEYBYTES);
+
+	placeholder = memmem(src, lenSrc, "All-Ears Mail API SigPubKey placeholder, replaced automatically.", 64);
+	if (placeholder == NULL) {fputs("API-Sig placeholder not found", stderr); return -1;}
+	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
+	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
+
+	// Dlv Sig PK
+	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
+
+	crypto_kdf_derive_from_key(sig_seed, crypto_sign_SEEDBYTES, 1, "AEM_Dlv1", baseKey);
+	crypto_sign_seed_keypair(sig_pk, sig_sk, sig_seed);
+	sodium_memzero(sig_sk, crypto_sign_SECRETKEYBYTES);
+	sodium_memzero(sig_seed, crypto_sign_SEEDBYTES);
+
+	placeholder = memmem(src, lenSrc, "All-Ears Mail Dlv SigPubKey placeholder, replaced automatically.", 64);
+	if (placeholder == NULL) {fputs("Dlv-Sig placeholder not found", stderr); return -1;}
+	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
+	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
+
+	// Normal Salt
+	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
+
+	unsigned char salt[crypto_pwhash_SALTBYTES];
+	crypto_kdf_derive_from_key(salt, crypto_pwhash_SALTBYTES, 1, "AEM_Nrm1", baseKey);
 
 	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
-	if (placeholder == NULL) {fputs("Slt-Placeholder not found", stderr); return -1;}
-	char slt_hex[33];
-	sodium_bin2hex(slt_hex, 33, AEM_SLT_NRM, AEM_LEN_SLT_NRM);
-	memcpy(placeholder, slt_hex, AEM_LEN_SLT_NRM * 2);
+	if (placeholder == NULL) {fputs("Salt placeholder not found", stderr); return -1;}
+	sodium_bin2hex(placeholder, 999, salt, crypto_pwhash_SALTBYTES);
+	placeholder[crypto_pwhash_SALTBYTES * 2] = '"';
 
 	return 0;
 }

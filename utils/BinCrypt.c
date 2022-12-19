@@ -8,21 +8,24 @@
 #include <sodium.h>
 
 #include "../Global.h"
-
 #include "../Common/GetKey.h"
-
-static unsigned char master[crypto_secretbox_KEYBYTES];
 
 int main(int argc, char *argv[]) {
 	puts("BinCrypt: Encrypt All-Ears Mail binaries");
 
 	if (argc != 2) {printf("Usage: %s input.file\n", argv[0]); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
+
+	unsigned char master[crypto_kdf_KEYBYTES];
 	if (getKey(master) != 0) {puts("Terminating: Failed reading key"); return EXIT_FAILURE;}
+
+	unsigned char binKey[crypto_secretbox_KEYBYTES];
+	crypto_kdf_derive_from_key(binKey, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
+	sodium_memzero(master, crypto_kdf_KEYBYTES);
 
 	int fd = open(argv[1], O_RDONLY);
 	if (fd < 0) {
-		sodium_memzero(master, crypto_secretbox_KEYBYTES);
+		sodium_memzero(binKey, crypto_secretbox_KEYBYTES);
 		puts("Terminating: Failed opening file");
 		return EXIT_FAILURE;
 	}
@@ -33,7 +36,7 @@ int main(int argc, char *argv[]) {
 	close(fd);
 
 	if (readBytes != lenClear) {
-		sodium_memzero(master, crypto_secretbox_KEYBYTES);
+		sodium_memzero(binKey, crypto_secretbox_KEYBYTES);
 		puts("Terminating: Failed reading file");
 		return EXIT_FAILURE;
 	}
@@ -44,8 +47,8 @@ int main(int argc, char *argv[]) {
 	unsigned char nonce[crypto_secretbox_NONCEBYTES];
 	randombytes_buf(nonce, crypto_secretbox_NONCEBYTES);
 
-	crypto_secretbox_easy(encrypted, clear, lenClear, nonce, master);
-	sodium_memzero(master, crypto_secretbox_KEYBYTES);
+	crypto_secretbox_easy(encrypted, clear, lenClear, nonce, binKey);
+	sodium_memzero(binKey, crypto_secretbox_KEYBYTES);
 
 	char pathEnc[strlen(argv[1]) + 5];
 	sprintf(pathEnc, "%s.enc", argv[1]);

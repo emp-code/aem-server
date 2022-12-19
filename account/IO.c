@@ -37,8 +37,9 @@ static unsigned char limits[AEM_USERLEVEL_MAX + 1][3] = {
 static struct aem_user *user = NULL;
 static int userCount = 0;
 
-static unsigned char accountKey[AEM_LEN_KEY_ACC];
-static unsigned char saltShield[AEM_LEN_SLT_SHD];
+static unsigned char accountKey[crypto_secretbox_KEYBYTES];
+static unsigned char saltNormal[crypto_pwhash_SALTBYTES];
+static unsigned char saltShield[crypto_shorthash_KEYBYTES];
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 
 static int saveSettings(void) {
@@ -84,27 +85,15 @@ static int loadSettings(void) {
 }
 
 static int saveUser(void) {
-	if (userCount <= 0) return -1;
-
+	if (userCount < 1) return -1;
 	const size_t lenClear = sizeof(struct aem_user) * userCount;
-	const size_t lenBlock = sizeof(struct aem_user) * 1024;
-	const uint32_t lenPadding = lenBlock - (lenClear % lenBlock);
 
-	const size_t lenPadded = 4 + lenClear + lenPadding;
-	unsigned char * const padded = malloc(lenPadded);
-	if (padded == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
-
-	memcpy(padded, &lenPadding, 4);
-	memcpy(padded + 4, (unsigned char*)user, lenClear);
-	randombytes_buf_deterministic(padded + 4 + lenClear, lenPadded - 4 - lenClear, padded);
-
-	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenPadded;
+	const size_t lenEncrypted = crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES + lenClear;
 	unsigned char * const encrypted = malloc(lenEncrypted);
-	if (encrypted == NULL) {free(padded); syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
 
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, padded, lenPadded, encrypted, accountKey);
-	free(padded);
+	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, (unsigned char*)user, lenClear, encrypted, accountKey);
 
 	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
@@ -115,8 +104,8 @@ static int saveUser(void) {
 
 	const ssize_t ret = write(fd, encrypted, lenEncrypted);
 	free(encrypted);
-
 	close(fd);
+
 	return (ret == (ssize_t)lenEncrypted) ? 0 : -1;
 }
 
@@ -126,10 +115,9 @@ static int loadUser(void) {
 	const int fd = open("Account.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening Account.aem: %m"); return -1;}
 
-	const size_t lenBlock = sizeof(struct aem_user) * 1024;
 	const off_t lenEncrypted = lseek(fd, 0, SEEK_END);
 	const off_t lenDecrypted = lenEncrypted - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES;
-	if (lenDecrypted < 1 || lenDecrypted % lenBlock != 4) {
+	if (lenDecrypted < 1 || lenDecrypted % sizeof(struct aem_user) != 0) {
 		close(fd);
 		syslog(LOG_ERR, "Invalid size for Account.aem");
 		return -1;
@@ -143,36 +131,16 @@ static int loadUser(void) {
 	}
 	close(fd);
 
-	unsigned char * const decrypted = malloc(lenDecrypted);
-	if (decrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+	user = malloc(lenDecrypted);
+	if (user == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
 
-	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
-		free(decrypted);
+	if (crypto_secretbox_open_easy((unsigned char*)user, encrypted + crypto_secretbox_NONCEBYTES, lenEncrypted - crypto_secretbox_NONCEBYTES, encrypted, accountKey) != 0) {
+		free(user);
 		syslog(LOG_ERR, "Failed decrypting Account.aem");
 		return -1;
 	}
 
-	uint32_t lenPadding;
-	memcpy(&lenPadding, decrypted, 4);
-
-	const size_t lenUserData = lenDecrypted - 4 - lenPadding;
-	if (lenUserData % sizeof(struct aem_user) != 0) {
-		free(decrypted);
-		syslog(LOG_ERR, "Invalid size for account data");
-		return -1;
-	}
-
-	user = malloc(lenUserData);
-	if (user == NULL) {
-		free(decrypted);
-		syslog(LOG_ERR, "Failed allocation");
-		return -1;
-	}
-
-	memcpy(user, decrypted + 4, lenUserData);
-	free(decrypted);
-
-	userCount = lenUserData / sizeof(struct aem_user);
+	userCount = lenDecrypted / sizeof(struct aem_user);
 	return 0;
 }
 
@@ -195,9 +163,11 @@ static int updateStorageLevels(void) {
 	return 0;
 }
 
-int ioSetup(const unsigned char * const newAccountKey, const unsigned char * const newSaltShield) {
-	memcpy(accountKey, newAccountKey, AEM_LEN_KEY_ACC);
-	memcpy(saltShield, newSaltShield, AEM_LEN_SLT_SHD);
+int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
+	crypto_kdf_derive_from_key(accountKey, crypto_secretbox_KEYBYTES, 1, "AEM_Acc1", baseKey);
+	crypto_kdf_derive_from_key(saltNormal, crypto_pwhash_SALTBYTES,   1, "AEM_Nrm1", baseKey);
+	crypto_kdf_derive_from_key(saltShield, crypto_shorthash_KEYBYTES, 1, "AEM_Shd1", baseKey);
+
 	if (loadUser() != 0) return -1;
 	loadSettings(); // Ignore errors
 	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
@@ -211,8 +181,8 @@ int ioSetup(const unsigned char * const newAccountKey, const unsigned char * con
 }
 
 void ioFree(void) {
-	sodium_memzero(accountKey, AEM_LEN_KEY_ACC);
-	sodium_memzero(saltShield, AEM_LEN_SLT_SHD);
+	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
+	sodium_memzero(saltShield, crypto_shorthash_KEYBYTES);
 	free(user);
 }
 

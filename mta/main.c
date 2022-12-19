@@ -12,9 +12,6 @@
 
 #define AEM_LOGNAME "AEM-MTA"
 
-#define AEM_MAXLEN_PIPEREAD 8192
-#define AEM_MINLEN_PIPEREAD 128
-
 #include "../Common/Main_Include.c"
 
 __attribute__((warn_unused_result))

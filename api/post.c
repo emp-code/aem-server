@@ -48,13 +48,16 @@ static unsigned char spk[crypto_box_PUBLICKEYBYTES];
 static unsigned char ssk[crypto_box_SECRETKEYBYTES];
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
-void setApiKey(const unsigned char * const seed) {
-	crypto_box_seed_keypair(spk, ssk, seed);
-}
+void setApiKeys(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
+	unsigned char seed[128];
 
-void setSigKey(const unsigned char * const seed) {
-	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
-	crypto_sign_seed_keypair(tmp, sign_skey, seed);
+	crypto_kdf_derive_from_key(seed, crypto_sign_SEEDBYTES, 1, "AEM_Sig1", baseKey);
+	crypto_sign_seed_keypair(spk, sign_skey, seed);
+
+	crypto_kdf_derive_from_key(seed, crypto_box_SEEDBYTES, 1, "AEM_API1", baseKey);
+	crypto_box_seed_keypair(spk, ssk, seed);
+
+	sodium_memzero(seed, 128);
 }
 
 int aem_api_init(void) {
@@ -73,6 +76,7 @@ void aem_api_free(void) {
 	sodium_memzero(spk, crypto_box_PUBLICKEYBYTES);
 	sodium_memzero(ssk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
+
 	free(req);
 	free(response);
 

@@ -22,9 +22,15 @@
 
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
-void setSignKey(const unsigned char * const seed) {
+void setSignKey(const unsigned char * const baseKey) {
+	unsigned char seed[crypto_sign_SEEDBYTES];
+	crypto_kdf_derive_from_key(seed, crypto_sign_SEEDBYTES, 1, "AEM_Dlv1", baseKey);
+
 	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
 	crypto_sign_seed_keypair(tmp, sign_skey, seed);
+
+	sodium_memzero(tmp, crypto_sign_PUBLICKEYBYTES);
+	sodium_memzero(seed, crypto_sign_SEEDBYTES);
 }
 
 void delSignKey(void) {

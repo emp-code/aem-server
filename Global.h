@@ -32,24 +32,7 @@ enum aem_internal_enquiry {
 	AEM_ENQUIRY_DKIM
 };
 
-#define AEM_LEN_KEY_MASTER crypto_secretbox_KEYBYTES
-
-#define AEM_LEN_KEY_ACC crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_API crypto_box_SECRETKEYBYTES
-#define AEM_LEN_KEY_MNG crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_SIG crypto_sign_SEEDBYTES
-#define AEM_LEN_KEY_STI crypto_secretbox_KEYBYTES
-#define AEM_LEN_KEY_STO 32 // AES-256
-
 #define AEM_PATH_CONF "/etc/allears"
-
-#define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
-#define AEM_PATH_KEY_ACC AEM_PATH_CONF"/Account.key"
-#define AEM_PATH_KEY_API AEM_PATH_CONF"/API.key"
-#define AEM_PATH_KEY_MNG AEM_PATH_CONF"/Manager.key"
-#define AEM_PATH_KEY_SIG AEM_PATH_CONF"/Signing.key"
-#define AEM_PATH_KEY_STO AEM_PATH_CONF"/Storage.key"
-#define AEM_PATH_SLT_SHD AEM_PATH_CONF"/Shield.slt"
 
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 #define AEM_MINLEN_UINFO (4 + AEM_LEN_PRIVATE)

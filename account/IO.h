@@ -3,7 +3,9 @@
 
 #include <stdbool.h>
 
-int ioSetup(const unsigned char * const newAccountKey, const unsigned char * const newSaltShield);
+#include <sodium.h>
+
+int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]);
 void ioFree(void);
 
 int userNumFromUpk(const unsigned char * const upk);

@@ -15,8 +15,6 @@
 #define AEM_LOGNAME "AEM-AOn"
 #endif
 
-#define AEM_MAXLEN_PIPEREAD 64
-
 #include "../Common/Main_Include.c"
 
 __attribute__((warn_unused_result))
@@ -32,16 +30,13 @@ static int pipeLoadPids(void) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
-	unsigned char buf[AEM_MAXLEN_PIPEREAD];
+	unsigned char baseKey[crypto_kdf_KEYBYTES];
+	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) return -1;
 
-	if (read(AEM_FD_PIPE_RD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_API) return -1;
-	setApiKey(buf);
-	setMsgIdKey(buf);
+	setApiKeys(baseKey);
+	setMsgIdKey(baseKey);
 
-	if (read(AEM_FD_PIPE_RD, buf, AEM_MAXLEN_PIPEREAD) != AEM_LEN_KEY_SIG) return -1;
-	setSigKey(buf);
-
-	sodium_memzero(buf, AEM_MAXLEN_PIPEREAD);
+	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
 	return 0;
 }
 

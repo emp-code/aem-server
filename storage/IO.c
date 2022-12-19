@@ -17,8 +17,8 @@
 
 #define AEM_STINDEX_PAD 90000 // 36B * 2500
 
-static unsigned char stindexKey[AEM_LEN_KEY_STI];
-static unsigned char storageKey[AEM_LEN_KEY_STO];
+static unsigned char stindexKey[crypto_secretbox_KEYBYTES];
+static unsigned char storageKey[crypto_kdf_KEYBYTES];
 
 struct aem_stindex {
 	unsigned char upk[crypto_box_PUBLICKEYBYTES];
@@ -103,19 +103,21 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
-static void getStorageKey(unsigned char * const target, const unsigned char * const upk, const uint16_t sze) {
+static void getMessageKey(unsigned char * const target, const unsigned char * const upk, const uint16_t sze) {
 	uint64_t keyId;
 	memcpy(&keyId, &sze, 2);
 	memcpy((unsigned char*)&keyId + 2, upk, 6);
 
 	// Redundancy to resist timing attacks
 	if (sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES) == 1) { // Undesired trash - use random key
-		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+		crypto_kdf_derive_from_key(target, 32, keyId, "AEM_Msg2", storageKey);
 		randombytes_buf(target, 32);
 	} else { // Message accepted, use real key
 		randombytes_buf(target, 32);
-		crypto_kdf_derive_from_key(target, 32, keyId, "AEM-Sto0", storageKey);
+		crypto_kdf_derive_from_key(target, 32, keyId, "AEM_Msg2", storageKey);
 	}
+
+	sodium_memzero(&keyId, sizeof(uint64_t));
 }
 
 static int saveStindex(void) {
@@ -173,7 +175,7 @@ static bool idMatch(const int fdMsg, const int stindexNum, const int sze, const 
 	}
 
 	unsigned char aesKey[32];
-	getStorageKey(aesKey, stindex[stindexNum].upk, sze);
+	getMessageKey(aesKey, stindex[stindexNum].upk, sze);
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
 	sodium_memzero(aesKey, 32);
@@ -194,7 +196,7 @@ static void getMsgPath(char path[77], const unsigned char upk[crypto_box_PUBLICK
 	unsigned char aesKey[32];
 	struct AES_ctx aes;
 
-	crypto_kdf_derive_from_key(aesKey, 32, 1, "AEM-Stp0", storageKey);
+	crypto_kdf_derive_from_key(aesKey, 32, 1, "AEM_Pth2", storageKey);
 	AES_init_ctx(&aes, aesKey);
 	sodium_memzero(aesKey, 32);
 
@@ -267,7 +269,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 			break;
 		}
 	}
-	if (stindexNum < 0) return 0; // Stindex for account doesn't exist (new account, no messages received yet)
+	if (stindexNum < 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	*out = malloc(AEM_MAXLEN_MSGDATA);
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
@@ -275,7 +277,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	browse_infoBytes(*out, stindexNum);
 
 	char path[77];
-	getMsgPath(path, stindex[stindexNum].upk);
+	getMsgPath(path, upk);
 	const int fdMsg = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) return AEM_INTCOM_RESPONSE_ERR;
 
@@ -333,7 +335,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 		}
 
 		unsigned char aesKey[32];
-		getStorageKey(aesKey, stindex[stindexNum].upk, stindex[stindexNum].msg[i]);
+		getMessageKey(aesKey, stindex[stindexNum].upk, stindex[stindexNum].msg[i]);
 		struct AES_ctx aes;
 		AES_init_ctx(&aes, aesKey);
 		sodium_memzero(aesKey, 32);
@@ -469,7 +471,7 @@ int32_t storage_write(unsigned char * const req, const size_t lenReq) {
 
 	// Encrypt & Write
 	unsigned char aesKey[32];
-	getStorageKey(aesKey, upk, sze);
+	getMessageKey(aesKey, upk, sze);
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
 	sodium_memzero(aesKey, 32);
@@ -533,7 +535,7 @@ static int loadStindex(void) {
 	if (fd < 0) return -1;
 
 	const off_t sz = lseek(fd, 0, SEEK_END);
-	if (sz == 0) {
+	if (sz < 1) {
 		close(fd);
 		stindexCount = 0;
 		stindex = malloc(1);
@@ -581,9 +583,9 @@ static int loadStindex(void) {
 	return 0;
 }
 
-int ioSetup(const unsigned char * const newStorageKey) {
-	memcpy(storageKey, newStorageKey, AEM_LEN_KEY_STO);
-	crypto_kdf_derive_from_key(stindexKey, AEM_LEN_KEY_STI, 1, "AEM-Sti0", storageKey);
+int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
+	crypto_kdf_derive_from_key(stindexKey, crypto_secretbox_KEYBYTES, 1, "AEM_Sti1", baseKey);
+	crypto_kdf_derive_from_key(storageKey, crypto_kdf_KEYBYTES, 1, "AEM_Sto1", baseKey);
 	return loadStindex();
 }
 
@@ -598,7 +600,7 @@ static void freeStindex(void) {
 }
 
 void ioFree(void) {
-	sodium_memzero(stindexKey, 32);
-	sodium_memzero(storageKey, 32);
+	sodium_memzero(stindexKey, crypto_secretbox_KEYBYTES);
+	sodium_memzero(storageKey, crypto_kdf_KEYBYTES);
 	freeStindex();
 }
