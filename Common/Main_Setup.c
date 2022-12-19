@@ -16,7 +16,7 @@
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Failed prctl 1"); return EXIT_FAILURE;}
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)        != 0) {syslog(LOG_ERR, "Failed prctl 2"); return EXIT_FAILURE;} // Disable core dumps and ptrace
 
-#ifndef AEM_STORAGE
+#ifdef AEM_STORAGE
 	umask(0077);
 #else
 	umask(0777);
