@@ -62,7 +62,7 @@ For each user, the following is stored:
 
 The `private` data field can be used by clients to store up to 3,784 bytes. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The intent is to provide a client-side encrypted storage for data needed by clients (such as the corresponding address for each hash).
 
-Account holds the user data in memory, and writes it to `/var/lib/allears/Account.aem`. Prior to writing, it pads the data to a multiple of 1024 users (4 MiB), and encrypts it with libsodium's Secret Box.
+Account holds the user data in memory, and writes it to `/var/lib/allears/Account.aem`, encrypted with libsodium's Secret Box.
 
 ## Deliver ##
 
