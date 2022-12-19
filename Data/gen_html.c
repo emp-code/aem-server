@@ -68,16 +68,10 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
 	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
 
-	// Normal Salt
-	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
-
-	unsigned char salt[crypto_pwhash_SALTBYTES];
-	crypto_kdf_derive_from_key(salt, crypto_pwhash_SALTBYTES, 1, "AEM_Nrm1", baseKey);
-
 	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
 	if (placeholder == NULL) {fputs("Salt placeholder not found", stderr); return -1;}
-	sodium_bin2hex(placeholder, 999, salt, crypto_pwhash_SALTBYTES);
-	placeholder[crypto_pwhash_SALTBYTES * 2] = '"';
+	sodium_bin2hex(placeholder, 999, AEM_SLT_NRM, AEM_LEN_SLT_NRM);
+	placeholder[AEM_LEN_SLT_NRM * 2] = '"';
 
 	return 0;
 }
