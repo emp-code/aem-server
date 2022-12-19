@@ -3,7 +3,7 @@
 
 #warning address.h not set up
 
-#define AEM_SLT_NRM (const unsigned char[]) {0}
+#define AEM_SLT_NRM (const unsigned char[AEM_LEN_SLT_NRM]) {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
 
 #define AEM_HASH_PUBLIC 0
 #define AEM_HASH_SYSTEM 0
