@@ -17,11 +17,6 @@
 
 #include "../Global.h"
 
-#ifndef MS_NOSYMFOLLOW
-#define MS_NOSYMFOLLOW 0
-#warning Missing support for MS_NOSYMFOLLOW
-#endif
-
 #define AEM_MOUNTDIR_FLAGS (MS_NOSUID | MS_NOATIME | MS_SILENT | MS_NOSYMFOLLOW)
 
 #define AEM_MODE_RO (S_IRUSR | S_IRGRP)
