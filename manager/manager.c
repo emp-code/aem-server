@@ -30,8 +30,6 @@
 
 #include "manager.h"
 
-#define AEM_LEN_FILE_MAX 128
-
 #define AEM_FD_SERVER 0
 #define AEM_FD_CLIENT (AEM_BINFD_OFFSET + AEM_PROCESSTYPES_COUNT)
 // AEM_FD_PIPE_RD in Global.h
