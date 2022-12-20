@@ -3,7 +3,6 @@
 
 void killAll(int sig);
 int getMasterKey(void);
-int loadFiles(void);
 int receiveConnections(void);
 
 #endif
