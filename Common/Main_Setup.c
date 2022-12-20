@@ -22,7 +22,9 @@
 	umask(0777);
 #endif
 
-#ifndef AEM_WEB
+#ifdef AEM_WEB
+	close(AEM_FD_PIPE_RD);
+#else
 	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {syslog(LOG_ERR, "Terminating: Failed locking memory"); return EXIT_FAILURE;}
 	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 #endif
