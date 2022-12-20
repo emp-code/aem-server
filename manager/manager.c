@@ -31,9 +31,7 @@
 #include "manager.h"
 
 #define AEM_FD_SERVER 0
-#define AEM_FD_CLIENT (AEM_BINFD_OFFSET + AEM_PROCESSTYPES_COUNT)
-// AEM_FD_PIPE_RD in Global.h
-#define AEM_FD_PIPE_WR (AEM_FD_PIPE_RD + 1)
+#define AEM_FD_CLIENT 1
 
 static unsigned char master[crypto_kdf_KEYBYTES];
 static unsigned char key_bin[crypto_secretbox_KEYBYTES];
@@ -159,66 +157,46 @@ void killAll(int sig) {
 	exit(EXIT_SUCCESS);
 }
 
-static int loadFile(const char * const path, unsigned char * const target, size_t * const len, const off_t expectedLen, const off_t maxLen) {
-	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path); return -1;}
+static int loadExec(const int type) {
+	if (memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING) != AEM_FD_BINARY) {
+		syslog(LOG_ERR, "Failed memfd_create: %m");
+		return -1;
+	}
 
-	off_t bytes = lseek(fd, 0, SEEK_END);
-	if (bytes < 1 || lseek(fd, 0, SEEK_SET) != 0 || bytes > maxLen - crypto_secretbox_NONCEBYTES || (expectedLen != 0 && bytes != expectedLen + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES)) {
-		syslog(LOG_ERR, "Failed lseek or invalid length on %s", path);
+	const char * const path[] = AEM_PATH_EXE;
+	const int fd = open(path[type], O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); return -1;}
+
+	const off_t bytes = lseek(fd, 0, SEEK_END);
+	if (bytes < 1 || bytes > AEM_MAXSIZE_EXEC) {
+		syslog(LOG_ERR, "Invalid length on %s", path[type]);
 		close(fd);
 		return -1;
 	}
 
-	unsigned char nonce[crypto_secretbox_NONCEBYTES];
-	off_t readBytes = read(fd, nonce, crypto_secretbox_NONCEBYTES);
-	if (readBytes != crypto_secretbox_NONCEBYTES) {syslog(LOG_ERR, "Failed reading %s", path); close(fd); return -1;}
-	bytes -= crypto_secretbox_NONCEBYTES;
-
-	unsigned char enc[bytes];
-	readBytes = read(fd, enc, bytes);
-	close(fd);
-	if (readBytes != bytes) {syslog(LOG_ERR, "Failed reading %s", path); return -1;}
-
-	if (len != NULL) *len = bytes - crypto_secretbox_MACBYTES;
-
-	if (crypto_secretbox_open_easy(target, enc, bytes, nonce, key_bin) != 0) {
-		syslog(LOG_ERR, "Failed decrypting %s", path);
+	unsigned char * const tmp = malloc(bytes);
+	if (pread(fd, tmp, bytes, 0) != bytes) {
+		syslog(LOG_ERR, "Failed reading %s: %m", path[type]);
+		close(fd);
+		free(tmp);
 		return -1;
 	}
 
-	return 0;
-}
+	close(fd);
 
-static int loadExec(void) {
-	unsigned char * const tmp = malloc(AEM_MAXSIZE_EXEC);
-	if (tmp == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (crypto_secretbox_open_easy(tmp + crypto_secretbox_NONCEBYTES, tmp + crypto_secretbox_NONCEBYTES, bytes - crypto_secretbox_NONCEBYTES, tmp, key_bin) != 0) {
+		syslog(LOG_ERR, "Failed decrypting %s", path[type]);
+		free(tmp);
+		return -1;
+	}
 
-	size_t lenTmp;
-	const char * const path[] = AEM_PATH_EXE;
-
-	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		const int binfd = memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-		if (binfd != AEM_BINFD_OFFSET + i) {
-			if (binfd < 0) {
-				syslog(LOG_ERR, "Failed memfd_create: %m");
-			} else {
-				syslog(LOG_ERR, "Invalid fd: expected %d, got %d", AEM_BINFD_OFFSET + i, binfd);
-			}
-
-			free(tmp);
-			return -1;
-		}
-
-		if (
-		   loadFile(path[i], tmp, &lenTmp, 0, AEM_MAXSIZE_EXEC) != 0
-		|| write(binfd, tmp, lenTmp) != (ssize_t)lenTmp
-		|| fcntl(binfd, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
-		) {
-			syslog(LOG_ERR, "Failed loadExec: %m");
-			free(tmp);
-			return -1;
-		}
+	if (
+	   write(AEM_FD_BINARY, tmp + crypto_secretbox_NONCEBYTES, bytes - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES) != bytes - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES
+	|| fcntl(AEM_FD_BINARY, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
+	) {
+		syslog(LOG_ERR, "Failed loadExec: %m");
+		free(tmp);
+		return -1;
 	}
 
 	free(tmp);
@@ -294,7 +272,7 @@ static int setCaps(const int type) {
 	) ? 0 : -1;
 }
 
-static int setSubLimits(const int type) {
+static int setLimits(const int type) {
 	struct rlimit rlim;
 
 	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
@@ -304,14 +282,14 @@ static int setSubLimits(const int type) {
 	}
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: rlim.rlim_cur = 4; break;
-		case AEM_PROCESSTYPE_DELIVER: rlim.rlim_cur = 4; break;
 		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
 		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
 
-		case AEM_PROCESSTYPE_MTA:     rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_DELIVER:
+		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI: rlim.rlim_cur = 3; break;
+		case AEM_PROCESSTYPE_WEB_ONI:
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI: rlim.rlim_cur = 4; break;
 	}
@@ -352,31 +330,24 @@ static int cgroupMove(void) {
 
 static int process_new(const int type) {
 	wipeKeys();
-	close(AEM_FD_SERVER);
+	close(AEM_FD_SERVER); // fd0 freed
+	close(AEM_FD_PIPE_WR); // fd2 freed
 
-	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
-		// This process type uses a pipe, but doesn't need its writing side
-		close(AEM_FD_PIPE_WR);
-	}
-
-	for (int i = 0; i < AEM_PROCESSTYPES_COUNT; i++) {
-		if (i != type) close(AEM_BINFD_OFFSET + i);
-	}
-
+	if (loadExec(type) != 0) return -1; // fd0=AEM_FD_BINARY
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
+	if (cgroupMove()      != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",  type); exit(EXIT_FAILURE);}
+	if (createMount(type) != 0) {syslog(LOG_ERR, "[%d] Failed createMount()", type); exit(EXIT_FAILURE);} // fd2=AEM_FD_ROOT
+	if (setLimits(type)   != 0) {syslog(LOG_ERR, "[%d] Failed setLimits()",   type); exit(EXIT_FAILURE);}
+	if (dropRoot()        != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",    type); exit(EXIT_FAILURE);}
+	if (setCaps(type)     != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",     type); exit(EXIT_FAILURE);}
 
-	if (cgroupMove()       != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",   type); exit(EXIT_FAILURE);}
-	if (createMount(type)  != 0) {syslog(LOG_ERR, "[%d] Failed createMount()",  type); exit(EXIT_FAILURE);} // fd0 becomes pivot-dir fd
-	if (setSubLimits(type) != 0) {syslog(LOG_ERR, "[%d] Failed setSubLimits()", type); exit(EXIT_FAILURE);}
-	if (dropRoot()         != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",     type); exit(EXIT_FAILURE);}
-	if (setCaps(type)      != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",      type); exit(EXIT_FAILURE);}
-
-	fexecve(AEM_BINFD_OFFSET + type, (char*[]){NULL}, (char*[]){NULL});
+	fexecve(AEM_FD_BINARY, (char*[]){NULL}, (char*[]){NULL});
 
 	// Only runs if exec failed
-	close(0); // pivot-dir fd
-	close(AEM_BINFD_OFFSET + type);
+	close(AEM_FD_BINARY);  // fd0
+	close(AEM_FD_PIPE_RD); // fd1
+	close(AEM_FD_ROOT);    // fd2
 	syslog(LOG_ERR, "[%d] Failed starting process: %m", type);
 	exit(EXIT_FAILURE);
 }
@@ -394,10 +365,14 @@ static int process_spawn(const int type) {
 		if (freeSlot < 0) return -1;
 	}
 
-	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
-		int fd[2];
-		if (pipe2(fd, O_DIRECT) < 0 || fd[0] < 0 || fd[1] < 0) {syslog(LOG_ERR, "Failed creating pipes: %m"); return -1;}
-		if (fd[0] != AEM_FD_PIPE_RD || fd[1] != AEM_FD_PIPE_WR) {syslog(LOG_ERR, "Failed creating pipes: %d/%d", fd[0], fd[1]); return -1;}
+	int fd[2];
+	if (
+	   pipe2(fd, O_DIRECT) != 0
+	|| fd[0] != AEM_FD_PIPE_RD
+	|| fd[1] != AEM_FD_PIPE_WR
+	) {
+		syslog(LOG_ERR, "Failed creating pipes: %d/%d; %m", fd[0], fd[1]);
+		return -1;
 	}
 
 	struct clone_args cloneArgs;
@@ -409,10 +384,7 @@ static int process_spawn(const int type) {
 	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return -1;}
 	if (pid == 0) exit(process_new(type));
 
-	if (type != AEM_PROCESSTYPE_ENQUIRY && type != AEM_PROCESSTYPE_WEB_CLR && type != AEM_PROCESSTYPE_WEB_ONI) {
-		// This process type uses a pipe, but Manager doesn't need its reading side
-		close(AEM_FD_PIPE_RD);
-	}
+	close(AEM_FD_PIPE_RD); // fd1 freed
 
 	bool fail = false;
 	switch (type) {
@@ -453,11 +425,10 @@ static int process_spawn(const int type) {
 		*/
 	}
 
-	if (fail) kill(pid, SIGKILL);
-
 	close(AEM_FD_PIPE_WR);
 
 	if (fail) {
+		kill(pid, SIGKILL);
 		syslog(LOG_ERR, "Failed writing to pipe: %m");
 		return -1;
 	}
@@ -572,7 +543,6 @@ static bool verifyStatus(void) {
 
 int receiveConnections(void) {
 	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {syslog(LOG_ERR, "Failed creating socket"); return -1;}
-	if (loadExec() != 0) {syslog(LOG_ERR, "Failed loading files"); return -1;}
 
 	if (
 	   process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0

@@ -137,16 +137,13 @@ int createMount(const int type) {
 	if (mkdir(AEM_PATH_MOUNTDIR"/old_root", 1000) != 0) return -1;
 
 	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
-		umask(0777);
 		if (mount(NULL, AEM_PATH_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts) != 0) return -1;
-	} else {
-		umask(0077);
 	}
 
 	if (syscall(SYS_pivot_root, AEM_PATH_MOUNTDIR, AEM_PATH_MOUNTDIR"/old_root") != 0) return -1;
 
 	const int fdRoot = open("/", O_PATH | O_DIRECTORY | O_NOFOLLOW);
-	if (fdRoot != 0) {syslog(LOG_ERR, "fdRoot failed: fd=%d; %m", fdRoot); return -1;}
+	if (fdRoot != AEM_FD_ROOT) {syslog(LOG_ERR, "fdRoot failed: fd=%d; %m", fdRoot); return -1;}
 
 	return (chroot("/old_root") == 0 && chdir("/") == 0) ? 0 : -1;
 }

@@ -9,6 +9,7 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/SetCaps.h"
 
 volatile sig_atomic_t terminate;

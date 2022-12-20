@@ -1,6 +1,6 @@
 	if ( // Exit and unmount the chroot
-	   fchdir(0) != 0 // 0 = fd to pivoted root
-	|| close(0) != 0
+	   fchdir(AEM_FD_ROOT) != 0
+	|| close(AEM_FD_ROOT) != 0
 	|| chroot(".") != 0 // Undo Manager's chroot
 	|| chdir("/") != 0
 	|| umount2("/old_root", MNT_DETACH) != 0

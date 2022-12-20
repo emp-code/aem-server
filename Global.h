@@ -5,8 +5,10 @@
 
 #define UINT24_MAX 16777215UL
 
-#define AEM_BINFD_OFFSET 1 // See manager/manager.c -- 0:sockMain
-#define AEM_FD_PIPE_RD (AEM_BINFD_OFFSET + AEM_PROCESSTYPES_COUNT)
+#define AEM_FD_BINARY 0
+#define AEM_FD_PIPE_RD 1
+#define AEM_FD_PIPE_WR 2
+#define AEM_FD_ROOT 2
 
 #define AEM_INTCOM_RESPONSE_OK       INT32_MIN
 #define AEM_INTCOM_RESPONSE_ERR      (INT32_MIN + 1)
