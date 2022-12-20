@@ -14,6 +14,7 @@
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
+#include <sys/stat.h> // for umask
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <syslog.h>
@@ -341,6 +342,7 @@ static int process_new(const int type) {
 	if (setLimits(type)   != 0) {syslog(LOG_ERR, "[%d] Failed setLimits()",   type); exit(EXIT_FAILURE);}
 	if (dropRoot()        != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",    type); exit(EXIT_FAILURE);}
 	if (setCaps(type)     != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",     type); exit(EXIT_FAILURE);}
+	umask((type == AEM_PROCESSTYPE_STORAGE) ? 0077 : 0777);
 
 	fexecve(AEM_FD_BINARY, (char*[]){NULL}, (char*[]){NULL});
 
