@@ -76,7 +76,6 @@ int main(void) {
 #endif
 	if (aem_api_init() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing API"); return EXIT_FAILURE;}
 
-	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");

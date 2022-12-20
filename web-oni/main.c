@@ -33,7 +33,6 @@ static void acceptClients(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");

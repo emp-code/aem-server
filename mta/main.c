@@ -51,8 +51,6 @@ int main(void) {
 	close(AEM_FD_PIPE_RD);
 
 	tlsSetup();
-
-	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");

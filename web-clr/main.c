@@ -33,7 +33,6 @@ int main(void) {
 
 	if (tlsSetup() != 0) return EXIT_FAILURE;
 
-	syslog(LOG_INFO, "Ready");
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");
