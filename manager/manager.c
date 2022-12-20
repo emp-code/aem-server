@@ -526,12 +526,11 @@ static int takeConnections(void) {
 
 int setupManager(void) {
 	unsigned char master[crypto_kdf_KEYBYTES];
-	if (getKey(master) != 0) {puts("Failed getting Master Key"); return 51;}
-	if (close_range(0, UINT_MAX, 0) != 0) return 52;
+	if (getKey(master) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 51;}
+	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 52;}
+	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 53;}
 
-	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) return 53;
 	bzero(aemPid, sizeof(aemPid));
-
 	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
 
 	unsigned char key_tmp[crypto_kdf_KEYBYTES];
@@ -553,6 +552,7 @@ int setupManager(void) {
 
 	if (ret != 0) {
 		sodium_memzero(key_bin, crypto_kdf_KEYBYTES);
+		sodium_memzero(master, crypto_kdf_KEYBYTES);
 		return ret;
 	}
 
