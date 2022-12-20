@@ -34,12 +34,8 @@
 #define AEM_FD_SERVER 0
 #define AEM_FD_CLIENT 1
 
-static unsigned char master[crypto_kdf_KEYBYTES];
 static unsigned char key_bin[crypto_secretbox_KEYBYTES];
 static unsigned char key_mng[crypto_secretbox_KEYBYTES];
-static unsigned char key_acc[crypto_kdf_KEYBYTES];
-static unsigned char key_dlv[crypto_kdf_KEYBYTES];
-static unsigned char key_sto[crypto_kdf_KEYBYTES];
 static unsigned char key_api[crypto_kdf_KEYBYTES];
 
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
@@ -52,25 +48,8 @@ static pid_t aemPid[5][AEM_MAXPROCESSES];
 
 static bool terminate = false;
 
-int getMasterKey(void) {
-	if (getKey(master) != 0) return -1;
-
-	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
-	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
-	crypto_kdf_derive_from_key(key_acc, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
-	crypto_kdf_derive_from_key(key_dlv, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
-	crypto_kdf_derive_from_key(key_sto, crypto_kdf_KEYBYTES, 1, "AEM_Sto0", master);
-	crypto_kdf_derive_from_key(key_api, crypto_kdf_KEYBYTES, 1, "AEM_Api0", master);
-
-	sodium_memzero(master, crypto_kdf_KEYBYTES);
-	return 0;
-}
-
 static void wipeKeys(void) {
 	sodium_memzero(key_mng, crypto_secretbox_KEYBYTES);
-	sodium_memzero(key_acc, crypto_kdf_KEYBYTES);
-	sodium_memzero(key_dlv, crypto_kdf_KEYBYTES);
-	sodium_memzero(key_sto, crypto_kdf_KEYBYTES);
 	sodium_memzero(key_api, crypto_kdf_KEYBYTES);
 }
 
@@ -96,6 +75,7 @@ static void refreshPids(void) {
 // SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
 void killAll(int sig) {
 	wipeKeys();
+	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
 	refreshPids();
 
 	if (sig != SIGUSR1 && sig != SIGUSR2) sig = SIGUSR1;
@@ -334,7 +314,8 @@ static int process_new(const int type) {
 	close(AEM_FD_SERVER); // fd0 freed
 	close(AEM_FD_PIPE_WR); // fd2 freed
 
-	if (loadExec(type) != 0) return -1; // fd0=AEM_FD_BINARY
+	if (loadExec(type) != 0) exit(EXIT_FAILURE); // fd0=AEM_FD_BINARY
+	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
 	if (cgroupMove()      != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",  type); exit(EXIT_FAILURE);}
@@ -354,7 +335,7 @@ static int process_new(const int type) {
 	exit(EXIT_FAILURE);
 }
 
-static int process_spawn(const int type) {
+static int process_spawn(const int type, const unsigned char * const key_forward) {
 	int freeSlot = -1;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
@@ -364,7 +345,7 @@ static int process_spawn(const int type) {
 			}
 		}
 
-		if (freeSlot < 0) return -1;
+		if (freeSlot < 0) return 60;
 	}
 
 	int fd[2];
@@ -372,10 +353,7 @@ static int process_spawn(const int type) {
 	   pipe2(fd, O_DIRECT) != 0
 	|| fd[0] != AEM_FD_PIPE_RD
 	|| fd[1] != AEM_FD_PIPE_WR
-	) {
-		syslog(LOG_ERR, "Failed creating pipes: %d/%d; %m", fd[0], fd[1]);
-		return -1;
-	}
+	) return 61;
 
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
@@ -383,7 +361,7 @@ static int process_spawn(const int type) {
 	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
-	if (pid < 0) {syslog(LOG_ERR, "Failed clone3: %m"); return -1;}
+	if (pid < 0) return 62;
 	if (pid == 0) exit(process_new(type));
 
 	close(AEM_FD_PIPE_RD); // fd1 freed
@@ -391,21 +369,11 @@ static int process_spawn(const int type) {
 	bool fail = false;
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
-			fail = (
-			   write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t)
-			|| write(AEM_FD_PIPE_WR, key_acc, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
-			);
+			fail = (write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
 		case AEM_PROCESSTYPE_DELIVER:
-			fail = (
-			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_enquiry, pid_storage}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
-			|| write(AEM_FD_PIPE_WR, key_dlv, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
-			);
-		break;
-
-		case AEM_PROCESSTYPE_STORAGE:
-			fail = (write(AEM_FD_PIPE_WR, key_sto, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES);
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_enquiry, pid_storage}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
@@ -414,25 +382,26 @@ static int process_spawn(const int type) {
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
-			fail = (
-			   write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3
-			|| write(AEM_FD_PIPE_WR, key_api, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
-			);
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
 		break;
 
 		/* Nothing:
 		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
 		*/
+	}
+
+	if (!fail && key_forward != NULL) {
+		fail = (write(AEM_FD_PIPE_WR, key_forward, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES);
 	}
 
 	close(AEM_FD_PIPE_WR);
 
 	if (fail) {
 		kill(pid, SIGKILL);
-		syslog(LOG_ERR, "Failed writing to pipe: %m");
-		return -1;
+		return 63;
 	}
 
 	switch (type) {
@@ -521,7 +490,7 @@ static void respond_manager(void) {
 			if (num > AEM_MAXPROCESSES) return;
 
 			for (unsigned int i = 0; i < num; i++) {
-				if (process_spawn(decrypted[1]) != 0) return;
+				if (process_spawn(decrypted[1], (decrypted[1] == AEM_PROCESSTYPE_API_CLR || decrypted[1] == AEM_PROCESSTYPE_API_ONI) ? key_api : NULL) != 0) return;
 			}
 
 			break;
@@ -543,33 +512,53 @@ static bool verifyStatus(void) {
 	);
 }
 
-int receiveConnections(void) {
-	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {syslog(LOG_ERR, "Failed creating socket"); return -1;}
-
-	if (
-	   process_spawn(AEM_PROCESSTYPE_ENQUIRY) != 0
-	|| process_spawn(AEM_PROCESSTYPE_STORAGE) != 0
-	|| process_spawn(AEM_PROCESSTYPE_DELIVER) != 0
-	|| process_spawn(AEM_PROCESSTYPE_ACCOUNT) != 0
-	) {
-		wipeKeys();
-		syslog(LOG_ERR, "Failed starting T2 processes");
-		return -1;
-	}
-
-	bzero(aemPid, sizeof(aemPid));
-
+static int takeConnections(void) {
 	while (!terminate) {
 		if (accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_CLIENT) continue;
 		respond_manager();
-
-//		if (!verifyStatus()) {
-//			killAll(SIGUSR1);
-//			return 100;
-//		}
 	}
 
 	close(AEM_FD_SERVER);
 	wipeKeys();
+	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
 	return 0;
+}
+
+int setupManager(void) {
+	unsigned char master[crypto_kdf_KEYBYTES];
+	if (getKey(master) != 0) {puts("Failed getting Master Key"); return 51;}
+	if (close_range(0, UINT_MAX, 0) != 0) return 52;
+
+	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) return 53;
+	bzero(aemPid, sizeof(aemPid));
+
+	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
+
+	unsigned char key_tmp[crypto_kdf_KEYBYTES];
+	int ret = (process_spawn(AEM_PROCESSTYPE_ENQUIRY, NULL));
+	if (ret == 0) {
+		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Sto0", master);
+		ret = process_spawn(AEM_PROCESSTYPE_STORAGE, key_tmp);
+	}
+	if (ret == 0) {
+		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
+		ret = process_spawn(AEM_PROCESSTYPE_DELIVER, key_tmp);
+	}
+	if (ret == 0) {
+		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
+		ret = process_spawn(AEM_PROCESSTYPE_ACCOUNT, key_tmp);
+	}
+
+	sodium_memzero(key_tmp, crypto_kdf_KEYBYTES);
+
+	if (ret != 0) {
+		sodium_memzero(key_bin, crypto_kdf_KEYBYTES);
+		return ret;
+	}
+
+	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
+	crypto_kdf_derive_from_key(key_api, crypto_kdf_KEYBYTES,       1, "AEM_Api0", master);
+
+	sodium_memzero(master, crypto_kdf_KEYBYTES);
+	return takeConnections();
 }

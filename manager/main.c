@@ -214,12 +214,12 @@ static int setCgroup(void) {
 int main(void) {
 	setlocale(LC_ALL, "C");
 
-	if (getuid() != 0) {puts("Terminating: Must be started as root"); return 1;}
-	if (!ptraceDisabled()) {puts("Terminating: Failed disabling ptrace"); return 2;}
+	if (getuid() != 0) return 1;
+	if (!ptraceDisabled()) return 2;
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) return 10;
-	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0) return 11; // Disable core dumps and ptrace
-	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 12; // Kill early if memory corruption detected
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)         != 0) return 3;
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)             != 0) return 4; // Disable core dumps and ptrace
+	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 5; // Kill early if memory corruption detected
 
 	if (unshare(
 		  CLONE_FILES // File descriptor table
@@ -228,23 +228,17 @@ int main(void) {
 		| CLONE_NEWNS // Mount namespace
 		| CLONE_NEWUTS // Hostname
 		| CLONE_SYSVSEM // Unused
-	) != 0) return 13;
+	) != 0) return 6;
 
-	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 14;
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 15;
+	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 7;
+	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 8;
 
-	if (sodium_init() < 0) return 20;
-	if (setCgroup()  != 0) return 21;
-	if (setSignals() != 0) return 22;
-	if (setLimits()  != 0) return 23;
-	if (setCaps()    != 0) return 24;
-	if (dropBounds() != 0) return 25;
+	if (sodium_init() != 0) return 10;
+	if (setCgroup()   != 0) return 11;
+	if (setSignals()  != 0) return 12;
+	if (setLimits()   != 0) return 13;
+	if (setCaps()     != 0) return 14;
+	if (dropBounds()  != 0) return 15;
 
-	if (getMasterKey() != 0) {puts("Terminating: Failed reading Master Key"); return 40;}
-	if (close_range(0, UINT_MAX, 0) != 0) {puts("Terminating: Failed closing file descriptors"); return 42;}
-	openlog("AEM-Man", LOG_PID, LOG_MAIL);
-
-	receiveConnections();
-	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {syslog(LOG_ERR, "Failed cgroup2 unmount: %m"); return 50;}
-	return 0;
+	return setupManager();
 }
