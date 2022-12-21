@@ -313,10 +313,9 @@ int32_t api_account_delete(const int num, const unsigned char * const msg, const
 	if (msg == NULL || lenMsg != crypto_box_PUBLICKEYBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
 	const int delNum = userNumFromUpk(msg);
-	if (delNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
-
-	// Users can only delete themselves
-	if ((user[num].info & 3) != 3 && delNum != num) return AEM_INTCOM_RESPONSE_PERM;
+	if ((user[num].info & 3) != 3 && delNum != num) return AEM_INTCOM_RESPONSE_PERM; // Non-administrators can only delete themselves
+	if (delNum < 0) return AEM_INTCOM_RESPONSE_NOTEXIST;
+	if (delNum == 0) return AEM_INTCOM_RESPONSE_FORBID; // Forbid deleting the Master Administrator account
 
 	if (delNum < (userCount - 1)) {
 		const size_t s = sizeof(struct aem_user);

@@ -239,9 +239,9 @@ static void account_delete(void) {
 			shortResponse(NULL, (ret == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_ACCOUNT_DELETE_NOSTORAGE);
 		break;}
 
-		case AEM_INTCOM_RESPONSE_PERM: {
-			shortResponse(NULL, AEM_API_ERR_ADMINONLY);
-		break;}
+		case AEM_INTCOM_RESPONSE_PERM:     shortResponse(NULL, AEM_API_ERR_ADMINONLY); break;
+		case AEM_INTCOM_RESPONSE_NOTEXIST: shortResponse(NULL, AEM_API_ERR_ACCOUNT_DELETE_NOTEXIST); break;
+		case AEM_INTCOM_RESPONSE_FORBID:   shortResponse(NULL, AEM_API_ERR_ACCOUNT_DELETE_NOMASTER); break;
 
 		default: shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	}
