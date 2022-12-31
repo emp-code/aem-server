@@ -68,6 +68,7 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
 	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
 
+	// Normal Salt
 	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
 	if (placeholder == NULL) {fputs("Salt placeholder not found", stderr); return -1;}
 	sodium_bin2hex(placeholder, 999, AEM_SLT_NRM, AEM_LEN_SLT_NRM);
