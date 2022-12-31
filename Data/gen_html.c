@@ -35,8 +35,8 @@ static int html_putKeys(char * const src, const size_t lenSrc) {
 	sodium_memzero(box_sk, crypto_box_SECRETKEYBYTES);
 	sodium_memzero(box_seed, crypto_box_SEEDBYTES);
 
-	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API PublicKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("API placeholder not found", stderr); return -1;}
+	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API BoxPubKey placeholder, replaced automatically.", 64);
+	if (placeholder == NULL) {fputs("API-Box placeholder not found", stderr); return -1;}
 	sodium_bin2hex(placeholder, 999, box_pk, crypto_box_PUBLICKEYBYTES);
 	placeholder[crypto_box_PUBLICKEYBYTES * 2] = '"';
 
