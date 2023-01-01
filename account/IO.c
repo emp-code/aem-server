@@ -333,6 +333,7 @@ int32_t api_account_update(const int num, const unsigned char * const msg, const
 
 	const int updateNum = userNumFromUpk(msg + 1);
 	if (updateNum < 0) return AEM_INTCOM_RESPONSE_USAGE;
+	if (updateNum == 0) return AEM_INTCOM_RESPONSE_FORBID; // Forbid changing the Master Administrator account level
 
 	// If not admin && (updating another user || new-level >= current-level)
 	if ((user[num].info & 3) != 3 && (updateNum != num || msg[0] >= (user[num].info & 3))) return AEM_INTCOM_RESPONSE_PERM;

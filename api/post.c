@@ -260,6 +260,10 @@ static void account_update(void) {
 			shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 			break;
 
+		case AEM_INTCOM_RESPONSE_FORBID:
+			shortResponse(NULL, AEM_API_ERR_ACCOUNT_DELETE_NOMASTER);
+			break;
+
 		default:
 			shortResponse(NULL, AEM_API_ERR_FIXME);
 	}
