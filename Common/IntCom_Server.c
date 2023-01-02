@@ -18,6 +18,8 @@
 	#include "../enquiry/IntCom_Action.h"
 #elif defined(AEM_STORAGE)
 	#include "../storage/IntCom_Action.h"
+#else
+	#error No IntCom_Action defined
 #endif
 
 #include "IntCom_Server.h"
