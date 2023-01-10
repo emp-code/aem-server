@@ -5,7 +5,7 @@
 
 #include <sodium.h>
 
-#include "IntCom_KeyBundle.h"
+#include "KeyBundle.h"
 
 void intcom_setKeys_client(const unsigned char newKeys[AEM_INTCOM_SERVER_COUNT][crypto_secretbox_KEYBYTES]);
 

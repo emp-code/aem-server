@@ -10,7 +10,7 @@
 
 #include "../Global.h"
 
-#include "IntCom_Client.h"
+#include "Client.h"
 
 static pid_t intcom_pids[AEM_INTCOM_SERVER_COUNT];
 

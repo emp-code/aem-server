@@ -10,7 +10,7 @@
 
 #include "../Global.h"
 
-#include "IntCom_Client.h"
+#include "Stream_Client.h"
 
 static unsigned char intcom_key[crypto_secretbox_KEYBYTES];
 static pid_t intcom_pid;

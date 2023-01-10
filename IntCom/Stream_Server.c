@@ -14,7 +14,7 @@
 #include "../Common/Email.h"
 #include "../deliver/deliver.h"
 
-#include "IntCom_Stream_Server.h"
+#include "Stream_Server.h"
 
 static bool terminate = false;
 static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];

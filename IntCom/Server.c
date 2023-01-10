@@ -21,7 +21,7 @@
 	#error No IntCom_Action defined
 #endif
 
-#include "IntCom_Server.h"
+#include "Server.h"
 
 static bool terminate = false;
 
