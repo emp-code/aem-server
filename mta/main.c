@@ -5,11 +5,12 @@
 
 #include "smtp.h"
 
-#include "../Global.h"
 #include "../Common/CreateSocket.h"
-#include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Stream_Client.h"
 #include "../Common/ValidIp.h"
+#include "../IntCom/Client.h"
+#include "../IntCom/Stream_Client.h"
+
+#include "../Global.h"
 
 #define AEM_LOGNAME "AEM-MTA"
 

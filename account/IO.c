@@ -11,9 +11,10 @@
 
 #include <sodium.h>
 
-#include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Server.h"
 #include "../Common/memeq.h"
+#include "../IntCom/Client.h"
+#include "../IntCom/Server.h"
+
 #include "../Data/address.h"
 #include "../Global.h"
 

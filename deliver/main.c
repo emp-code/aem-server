@@ -1,9 +1,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "../IntCom/Client.h"
+#include "../IntCom/Stream_Server.h"
+
 #include "../Global.h"
-#include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Stream_Server.h"
 
 #include "store.h"
 

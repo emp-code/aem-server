@@ -1,7 +1,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include "../Common/IntCom_Server.h"
+#include "../IntCom/Server.h"
 
 #define AEM_LOGNAME "AEM-Enq"
 

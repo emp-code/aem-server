@@ -14,8 +14,9 @@
 
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
-#include "../Common/IntCom_Client.h"
 #include "../Common/memeq.h"
+#include "../IntCom/Client.h"
+
 #include "../Global.h"
 
 #include "store.h"

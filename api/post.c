@@ -13,12 +13,13 @@
 
 #include <sodium.h>
 
-#include "../Global.h"
 #include "../Common/Addr32.h"
-#include "../Common/IntCom_Client.h"
 #include "../Common/ValidEmail.h"
 #include "../Common/ValidUtf8.h"
 #include "../Common/memeq.h"
+#include "../IntCom/Client.h"
+
+#include "../Global.h"
 #include "../Data/domain.h"
 #include "../Data/welcome.h"
 

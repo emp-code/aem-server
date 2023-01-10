@@ -11,14 +11,14 @@
 #include <sodium.h>
 
 #include "../Common/Addr32.h"
-#include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Stream_Client.h"
+#include "../Common/Email.h"
 #include "../Common/memeq.h"
+#include "../IntCom/Client.h"
+#include "../IntCom/Stream_Client.h"
+
+#include "../Global.h"
 
 #include "smtp.h"
-
-#include "../Common/Email.h"
-#include "../Global.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
 #define AEM_SMTP_MAX_ROUNDS 500

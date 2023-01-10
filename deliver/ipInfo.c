@@ -3,7 +3,7 @@
 #include <syslog.h>
 
 #include "../Common/Email.h"
-#include "../Common/IntCom_Client.h"
+#include "../IntCom/Client.h"
 
 static bool isIpBlacklisted(const uint8_t * const ip) {
 	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];

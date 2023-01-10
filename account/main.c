@@ -5,9 +5,9 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/IntCom_KeyBundle.h"
-#include "../Common/IntCom_Client.h"
-#include "../Common/IntCom_Server.h"
+#include "../IntCom/KeyBundle.h"
+#include "../IntCom/Client.h"
+#include "../IntCom/Server.h"
 #include "IO.h"
 
 #define AEM_LOGNAME "AEM-Acc"

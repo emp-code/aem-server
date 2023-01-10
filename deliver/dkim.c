@@ -12,8 +12,8 @@
 #include <mbedtls/x509.h> // For RSA
 #include <sodium.h>
 
-#include "../Common/IntCom_Client.h"
 #include "../Common/memeq.h"
+#include "../IntCom/Client.h"
 
 #include "dkim.h"
 

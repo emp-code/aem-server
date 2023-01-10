@@ -2,9 +2,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include "../Global.h"
 #include "../Common/CreateSocket.h"
-#include "../Common/IntCom_Client.h"
+#include "../IntCom/Client.h"
+
+#include "../Global.h"
 
 #include "http.h"
 #include "MessageId.h"

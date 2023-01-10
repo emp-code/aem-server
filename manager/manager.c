@@ -24,9 +24,10 @@
 #include <sodium.h>
 
 #include "../Common/CreateSocket.h"
-#include "../Common/IntCom_KeyBundle.h"
 #include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
+#include "../IntCom/KeyBundle.h"
+
 #include "../Global.h"
 
 #include "mount.h"
