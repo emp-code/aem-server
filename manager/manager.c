@@ -67,6 +67,7 @@ static bool terminate = false;
 static void wipeKeys(void) {
 	sodium_memzero(key_mng, crypto_secretbox_KEYBYTES);
 	sodium_memzero(key_api, crypto_kdf_KEYBYTES);
+	sodium_memzero(key_ic,  crypto_kdf_KEYBYTES);
 }
 
 static bool process_exists(const pid_t pid) {
