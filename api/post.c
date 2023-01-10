@@ -169,7 +169,7 @@ static void longResponse(const unsigned char * const data, const size_t lenData)
 }
 
 static unsigned char getUserLevel(const unsigned char * const upk) {
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_LEVEL, upk, crypto_box_PUBLICKEYBYTES, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_LEVEL, upk, crypto_box_PUBLICKEYBYTES, NULL, 0)) {
 		case -1: return 1;
 		case -2: return 2;
 		case -3: return 3;
@@ -191,7 +191,7 @@ static void systemMessage(unsigned char toUpk[crypto_box_PUBLICKEYBYTES], const 
 
 	size_t lenEnc = 0;
 	unsigned char * const enc = msg_encrypt(toUpk, content, lenContent, &lenEnc);
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {syslog(LOG_WARNING, "Failed delivering system message");}
+	if (intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {syslog(LOG_WARNING, "Failed delivering system message");}
 	free(enc);
 }
 
@@ -199,7 +199,7 @@ static void account_browse(void) {
 	if (req->lenPost != 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	unsigned char *clr = NULL;
-	const int32_t lenClr = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ACCOUNT_BROWSE, req->upk, crypto_box_PUBLICKEYBYTES, &clr, 0);
+	const int32_t lenClr = intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ACCOUNT_BROWSE, req->upk, crypto_box_PUBLICKEYBYTES, &clr, 0);
 	if (clr == NULL || lenClr < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 	if (lenClr < 10) {
@@ -215,7 +215,7 @@ static void account_create(void) {
 	if (req->lenPost != crypto_box_PUBLICKEYBYTES) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 	if (getUserLevel(req->upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ACCOUNT_CREATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ACCOUNT_CREATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
 		case AEM_INTCOM_RESPONSE_OK:
 			systemMessage(req->post, AEM_WELCOME, AEM_WELCOME_LEN);
 			return shortResponse(NULL, 0);
@@ -233,9 +233,9 @@ static void account_create(void) {
 static void account_delete(void) {
 	if (req->lenPost != crypto_box_PUBLICKEYBYTES) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ACCOUNT_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ACCOUNT_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
 		case AEM_INTCOM_RESPONSE_OK: {
-			const int32_t ret = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_INTERNAL_ERASE, req->post, req->lenPost, NULL, 0);
+			const int32_t ret = intcom(AEM_INTCOM_SERVER_STO, AEM_API_INTERNAL_ERASE, req->post, req->lenPost, NULL, 0);
 			shortResponse(NULL, (ret == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_ACCOUNT_DELETE_NOSTORAGE);
 		break;}
 
@@ -250,7 +250,7 @@ static void account_delete(void) {
 static void account_update(void) {
 	if (req->lenPost != crypto_box_PUBLICKEYBYTES + 1) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ACCOUNT_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ACCOUNT_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
 		case AEM_INTCOM_RESPONSE_OK:
 			systemMessage(req->post + 1, (const unsigned char[]){'A','c','c','o','u','n','t',' ','l','e','v','e','l',' ','s','e','t',' ','t','o',' ','0' + req->post[0],'\n','Y','o','u','r',' ','a','c','c','o','u','n','t',' ','l','e','v','e','l',' ','h','a','s',' ','b','e','e','n',' ','s','e','t',' ','t','o',' ','0' + req->post[0],'.'}, 60);
 			shortResponse(NULL, 0);
@@ -273,7 +273,7 @@ static void address_create(void) {
 	if (req->lenPost != 8 && (req->lenPost != 6 || !memeq(req->post, "SHIELD", 6))) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
 	unsigned char *resp = NULL;
-	const int32_t lenResp = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ADDRESS_CREATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, &resp, 0);
+	const int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ADDRESS_CREATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, &resp, 0);
 
 	if (lenResp == AEM_INTCOM_RESPONSE_LIMIT) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 	if (lenResp == AEM_INTCOM_RESPONSE_EXIST) return shortResponse(NULL, AEM_API_ERR_ADDRESS_CREATE_INUSE);
@@ -295,7 +295,7 @@ static void address_create(void) {
 static void address_delete(void) {
 	if (req->lenPost != 8) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ADDRESS_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ADDRESS_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
 		case AEM_INTCOM_RESPONSE_OK: return shortResponse(NULL, 0);
 		case AEM_INTCOM_RESPONSE_PARTIAL: return shortResponse(NULL, AEM_API_ERR_ADDRESS_DELETE_SOMEFOUND);
 		case AEM_INTCOM_RESPONSE_NOTEXIST: return shortResponse(NULL, AEM_API_ERR_ADDRESS_DELETE_NONEFOUND);
@@ -311,7 +311,7 @@ static void address_lookup(void) {
 static void address_update(void) {
 	if (req->lenPost % 9 != 0) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 
-	switch (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_ADDRESS_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
+	switch (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_ADDRESS_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0)) {
 		case AEM_INTCOM_RESPONSE_OK: return shortResponse(NULL, 0);
 		case AEM_INTCOM_RESPONSE_PARTIAL: return shortResponse(NULL, AEM_API_ERR_ADDRESS_UPDATE_SOMEFOUND);
 		case AEM_INTCOM_RESPONSE_NOTEXIST: return shortResponse(NULL, AEM_API_ERR_ADDRESS_UPDATE_NONEFOUND);
@@ -331,7 +331,7 @@ static void message_browse(void) {
 	int32_t lenUsr = 0;
 
 	if (req->post[0] & AEM_FLAG_UINFO) {
-		lenUsr = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_UINFO, req->upk, crypto_box_PUBLICKEYBYTES, &usr, 0);
+		lenUsr = intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_UINFO, req->upk, crypto_box_PUBLICKEYBYTES, &usr, 0);
 		if (lenUsr < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
 		if (lenUsr < (int32_t)AEM_MINLEN_UINFO) {
@@ -343,7 +343,7 @@ static void message_browse(void) {
 
 	// Message data
 	unsigned char *msg = NULL;
-	const int32_t lenMsg = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((req->lenPost == 17) ? req->lenPost : 0), &msg, 0);
+	const int32_t lenMsg = intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_BROWSE, sockMsg, crypto_box_PUBLICKEYBYTES + ((req->lenPost == 17) ? req->lenPost : 0), &msg, 0);
 	if (lenMsg < 0) {free(usr); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	unsigned char *clr = malloc(lenUsr + lenMsg);
@@ -368,7 +368,7 @@ static bool addr32OwnedByUpk(const unsigned char * const ver_pk, const unsigned 
 	icMsg[crypto_box_PUBLICKEYBYTES] = shield? 'S' : 'N';
 	memcpy(icMsg + crypto_box_PUBLICKEYBYTES + 1, ver_addr32, 10);
 
-	return (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_MYADR, icMsg, crypto_box_PUBLICKEYBYTES + 11, NULL, 0) == AEM_INTCOM_RESPONSE_OK);
+	return (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_MYADR, icMsg, crypto_box_PUBLICKEYBYTES + 11, NULL, 0) == AEM_INTCOM_RESPONSE_OK);
 }
 
 static int getAddr32(unsigned char target[10], const char * const src, const size_t lenSrc, bool * const isShield) {
@@ -458,7 +458,7 @@ static size_t deliveryReport_ext(const struct outEmail * const email, const stru
 	}
 	memcpy(msgId, enc, 16);
 
-	intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0);
+	intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0);
 	free(enc);
 	return lenOutput;
 }
@@ -489,7 +489,7 @@ static size_t deliveryReport_int(const unsigned char * const recvUpk, const unsi
 	if (enc == NULL) {syslog(LOG_ERR, "Failed creating encrypted message"); return 0;}
 	memcpy(*output, enc, 16);
 
-	intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0);
+	intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0);
 	free(enc);
 	return lenOutput;
 }
@@ -602,7 +602,7 @@ static void message_create_ext(void) {
 	}
 
 	unsigned char *mx = NULL;
-	const int32_t lenMx = intcom(AEM_INTCOM_TYPE_ENQUIRY, AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
+	const int32_t lenMx = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_MX, (unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
 	if (lenMx < 1 || mx == NULL) {free(email.body); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	if (lenMx < 10) {free(email.body); free(mx); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
@@ -689,7 +689,7 @@ static void message_create_int(void) {
 	memcpy(icMsg + crypto_box_PUBLICKEYBYTES + 1, toAddr32, 10);
 
 	unsigned char *toUpk = NULL;
-	if (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toUpk, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_ADRPK, icMsg, crypto_box_PUBLICKEYBYTES + 11, &toUpk, crypto_box_PUBLICKEYBYTES) != crypto_box_PUBLICKEYBYTES) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
 	if (memeq(toUpk, (unsigned char[]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, 32)) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTACCEPT);}
 	if (memeq(toUpk, req->upk, crypto_box_PUBLICKEYBYTES)) {free(toUpk); return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);} // Forbid messaging oneself (pointless; not designed for it)
@@ -712,7 +712,7 @@ static void message_create_int(void) {
 	}
 
 	// Store message
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {free(enc); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
+	if (intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {free(enc); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 	free(enc);
 
 	unsigned char *report = NULL;
@@ -731,7 +731,7 @@ static void message_create(void) {
 
 static void message_delete(void) {
 	if (req->lenPost != 1 && req->lenPost != 16) return shortResponse(NULL, AEM_API_ERR_FORMAT);
-	shortResponse(NULL, (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
+	shortResponse(NULL, (intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_DELETE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 	if (req->lenPost == 1) systemMessage(req->upk, (unsigned char*)"Storage emptied\nBy your request, all your messages have been deleted.", 69);
 }
 
@@ -740,7 +740,7 @@ static void message_public(void) {
 	if (getUserLevel(req->upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	unsigned char *upks = NULL;
-	const int32_t lenUpks = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
+	const int32_t lenUpks = intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
 	if (lenUpks < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
@@ -770,7 +770,7 @@ static void message_public(void) {
 		if (memeq(toUpk, req->upk, crypto_box_PUBLICKEYBYTES)) memcpy(msgId, enc, 16);
 
 		// Store message
-		if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		if (intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 			free(enc);
 			sodium_memzero(content, lenContent);
 			free(upks);
@@ -790,7 +790,7 @@ static void message_sender(void) {
 	if (getUserLevel(req->upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
 
 	unsigned char *upks = NULL;
-	const int32_t lenUpks = intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
+	const int32_t lenUpks = intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_PUBKS, req->upk, crypto_box_PUBLICKEYBYTES, &upks, 0);
 	if (lenUpks < 1) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 	if (lenUpks % crypto_box_PUBLICKEYBYTES != 0) {free(upks); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}
 
@@ -833,7 +833,7 @@ static void message_upload(void) {
 	free(msg);
 	if (enc == NULL) return shortResponse(NULL, AEM_API_ERR_INTERNAL);
 
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) == AEM_INTCOM_RESPONSE_OK) {
+	if (intcom(AEM_INTCOM_SERVER_STO, AEM_API_MESSAGE_UPLOAD, enc, lenEnc, NULL, 0) == AEM_INTCOM_RESPONSE_OK) {
 		shortResponse(enc + crypto_box_PUBLICKEYBYTES, 16);
 	} else {
 		shortResponse(NULL, AEM_API_ERR_INTERNAL);
@@ -844,13 +844,13 @@ static void message_upload(void) {
 
 static void private_update(void) {
 	if (req->lenPost != AEM_LEN_PRIVATE) return shortResponse(NULL, AEM_API_ERR_FORMAT);
-	shortResponse(NULL, (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_PRIVATE_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
+	shortResponse(NULL, (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_PRIVATE_UPDATE, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 
 static void setting_limits(void) {
 	if (req->lenPost != 12) return shortResponse(NULL, AEM_API_ERR_FORMAT);
 	if (getUserLevel(req->upk) != AEM_USERLEVEL_MAX) return shortResponse(NULL, AEM_API_ERR_ADMINONLY);
-	shortResponse(NULL, (intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_SETTING_LIMITS, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
+	shortResponse(NULL, (intcom(AEM_INTCOM_SERVER_ACC, AEM_API_SETTING_LIMITS, req->upk, crypto_box_PUBLICKEYBYTES + req->lenPost, NULL, 0) == AEM_INTCOM_RESPONSE_OK) ? 0 : AEM_API_ERR_INTERNAL);
 }
 
 int32_t aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
@@ -866,7 +866,7 @@ int32_t aem_api_prepare(const unsigned char * const sealEnc, const bool ka) {
 	memcpy(req->upk, sealDec + 1 + crypto_box_NONCEBYTES, crypto_box_PUBLICKEYBYTES);
 	req->keepAlive = ka;
 
-	return intcom(AEM_INTCOM_TYPE_ACCOUNT, AEM_API_INTERNAL_EXIST, req->upk, crypto_box_PUBLICKEYBYTES, NULL, 0);
+	return intcom(AEM_INTCOM_SERVER_ACC, AEM_API_INTERNAL_EXIST, req->upk, crypto_box_PUBLICKEYBYTES, NULL, 0);
 }
 
 __attribute__((warn_unused_result))

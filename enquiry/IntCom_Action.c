@@ -13,7 +13,6 @@
 #include "../Common/ValidIp.h"
 #include "../Common/memeq.h"
 #include "../Data/domain.h"
-#include "../Data/internal.h"
 #include "../Global.h"
 
 #include "Geo.h"

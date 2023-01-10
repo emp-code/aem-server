@@ -21,13 +21,6 @@
 #define AEM_INTCOM_RESPONSE_CRYPTO   (INT32_MIN + 8)
 #define AEM_INTCOM_RESPONSE_FORBID   (INT32_MIN + 9)
 
-enum aem_intcom_identifier {
-	AEM_IDENTIFIER_API = 0,
-	AEM_IDENTIFIER_MTA = 1,
-	AEM_IDENTIFIER_DLV = 1,
-	AEM_IDENTIFIER_ACC = 2
-};
-
 enum aem_internal_enquiry {
 	AEM_ENQUIRY_MX,
 	AEM_ENQUIRY_A,
@@ -111,6 +104,12 @@ enum aem_internal_enquiry {
 #define AEM_TIMEOUT_MANAGER_SND 3
 
 #define AEM_MAXSIZE_EXEC 131072 // 128 KiB
+
+#define AEM_INTCOM_SOCKPATH_LEN 23
+#define AEM_INTCOM_SOCKPATH_ACCOUNT "\0All-Ears Mail: Account"
+#define AEM_INTCOM_SOCKPATH_DELIVER "\0All-Ears Mail: Deliver"
+#define AEM_INTCOM_SOCKPATH_ENQUIRY "\0All-Ears Mail: Enquiry"
+#define AEM_INTCOM_SOCKPATH_STORAGE "\0All-Ears Mail: Storage"
 
 enum aem_api_commands {
 	AEM_API_ACCOUNT_BROWSE,

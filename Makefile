@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-O2 -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration
+CFLAGS=-O2 -march=native -pipe -Wall -Wextra -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration -Werror=discarded-array-qualifiers
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_html Data/gen_tls
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
@@ -31,7 +31,7 @@ aem-deliver: deliver/*.c
 	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-deliver deliver/*.c Common/CreateSocket.c Common/HtmlRefs.c Common/HtmlToText.c Common/IntCom_Client.c Common/IntCom_Stream_Server.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/memeq.c Common/ref2codepoint.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/memeq.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/IntCom_Client.c Common/IntCom_Stream_Client.c Common/memeq.c Common/ValidIp.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/GetKey.c Common/ToggleEcho.c -lsodium
@@ -45,9 +45,6 @@ Data/gen_address: Data/gen_address.c
 Data/gen_html: Data/gen_html.c
 	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/Brotli.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
 
-Data/gen_internal: Data/gen_internal.c
-	$(CC) $(CFLAGS) -o Data/gen_internal Data/gen_internal.c -lsodium
-
 Data/gen_dkim: Data/gen_dkim.c
 	$(CC) $(CFLAGS) -o Data/gen_dkim Data/gen_dkim.c
 
@@ -56,4 +53,4 @@ Data/gen_tls: Data/gen_tls.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_internal Data/gen_html Data/gen_tls
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web-clr aem-web-oni aem-api-clr aem-api-oni utils/BinCrypt utils/ManagerClient Data/gen_address Data/gen_dkim Data/gen_html Data/gen_tls

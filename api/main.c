@@ -4,6 +4,7 @@
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
+#include "../Common/IntCom_Client.h"
 
 #include "http.h"
 #include "MessageId.h"
@@ -31,12 +32,17 @@ static int pipeLoadPids(void) {
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
 	unsigned char baseKey[crypto_kdf_KEYBYTES];
+	struct intcom_keyBundle bundle;
+
 	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) return -1;
+	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
 	setApiKeys(baseKey);
 	setMsgIdKey(baseKey);
+	intcom_setKeys_client(bundle.client);
 
 	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }
 

@@ -151,7 +151,7 @@ static int updateStorageLevels(void) {
 		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].upk, crypto_box_PUBLICKEYBYTES);
 	}
 
-	const int32_t ret = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0);
+	const int32_t ret = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_LEVELS, data, lenData, NULL, 0);
 	free(data);
 
 	if (ret != AEM_INTCOM_RESPONSE_OK) {
@@ -170,7 +170,7 @@ int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
 	loadSettings(); // Ignore errors
 	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
 
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+	if (intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 		syslog(LOG_ERR, "ioSetup: intcom failed");
 		return -1;
 	}
@@ -248,7 +248,7 @@ int32_t api_account_browse(const int num, unsigned char **res) {
 	memcpy(*res + 12, &u32, 4);
 
 	unsigned char *storage = NULL;
-	const int32_t lenStorage = intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
+	const int32_t lenStorage = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &storage, 0);
 
 	if ((size_t)lenStorage != userCount * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t))) {
 		syslog(LOG_WARNING, "User storage data out of sync");
@@ -459,7 +459,7 @@ int32_t api_setting_limits(const int num, const unsigned char * const msg, const
 	if ((user[num].info & 3) != 3) return AEM_INTCOM_RESPONSE_PERM;
 	if (lenMsg != 12) return AEM_INTCOM_RESPONSE_ERR;
 
-	if (intcom(AEM_INTCOM_TYPE_STORAGE, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){msg[0], msg[3], msg[6], msg[9]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) return AEM_INTCOM_RESPONSE_ERR;
+	if (intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){msg[0], msg[3], msg[6], msg[9]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) return AEM_INTCOM_RESPONSE_ERR;
 
 	memcpy((unsigned char*)limits, msg, 12);
 	saveSettings();

@@ -12,12 +12,12 @@
 
 #include "../Common/Addr32.h"
 #include "../Common/IntCom_Client.h"
+#include "../Common/IntCom_Stream_Client.h"
 #include "../Common/memeq.h"
 
 #include "smtp.h"
 
 #include "../Common/Email.h"
-#include "../Data/internal.h"
 #include "../Global.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
@@ -185,7 +185,7 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 	addr32_store(addr32, addr, addrChars);
 
 	unsigned char *resp = NULL;
-	int32_t lenResp = intcom(AEM_INTCOM_TYPE_ACCOUNT, (addrChars == 16) ? AEM_MTA_GETUPK_SHIELD : AEM_MTA_GETUPK_NORMAL, addr32, 10, &resp, crypto_box_PUBLICKEYBYTES + 1);
+	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, (addrChars == 16) ? AEM_MTA_GETUPK_SHIELD : AEM_MTA_GETUPK_NORMAL, addr32, 10, &resp, crypto_box_PUBLICKEYBYTES + 1);
 	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 	if (lenResp != crypto_box_PUBLICKEYBYTES + 1) {free(resp); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
@@ -423,26 +423,21 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			// Setup IntCom SecretStream to Deliver
-			crypto_secretstream_xchacha20poly1305_state ss_state;
-			unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-			crypto_secretstream_xchacha20poly1305_init_push(&ss_state, ss_header, AEM_KEY_INTCOM_STREAM);
-			const int sockIc = intcom_stream_open(ss_header);
-
-			if (sockIc < 0) {
+			if (intcom_stream_open() != 0) {
 				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
 				break;
 			}
 
 			if (
-			   intcom_stream_send(sockIc, &ss_state, (unsigned char*)&meta, sizeof(struct emailMeta)) != 0
-			|| intcom_stream_send(sockIc, &ss_state, (unsigned char*)&email, sizeof(struct emailInfo)) != 0
+			   intcom_stream_send((unsigned char*)&meta, sizeof(struct emailMeta)) != 0
+			|| intcom_stream_send((unsigned char*)&email, sizeof(struct emailInfo)) != 0
 			) {
+				intcom_stream_end();
 				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
-				close(sockIc);
 				break;
 			}
 
-			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); close(sockIc); break;}
+			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); intcom_stream_end(); break;}
 
 			// Receive the email
 			unsigned char body[AEM_SMTP_CHUNKSIZE];
@@ -459,7 +454,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 					lenBody = AEM_SMTP_MAX_SIZE_BODY; // end loop
 				} else lenBody += bytes;
 
-				intcom_stream_send(sockIc, &ss_state, body, bytes);// TODO check if fail
+				intcom_stream_send(body, bytes);// TODO check if fail
 			}
 
 			sodium_memzero(body, AEM_SMTP_CHUNKSIZE);
@@ -467,7 +462,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			sodium_memzero(&meta, sizeof(struct emailMeta));
 
 			bool retOk;
-			switch (intcom_stream_end(sockIc, &ss_state)) {
+			switch (intcom_stream_end()) {
 				case AEM_INTCOM_RESPONSE_OK:    retOk = send_aem(sock, tls, "250 Message delivered\r\n", 23); break;
 				case AEM_INTCOM_RESPONSE_USAGE: retOk = send_aem(sock, tls, "554 5.3.4 Message too big\r\n", 27); break;
 				case AEM_INTCOM_RESPONSE_LIMIT: retOk = send_aem(sock, tls, "452 4.2.2 Recipient mailbox full\r\n", 34); break;

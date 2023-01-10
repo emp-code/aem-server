@@ -12,7 +12,12 @@
 
 static int setupIo(void) {
 	unsigned char baseKey[crypto_kdf_KEYBYTES];
-	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) {
+	struct intcom_keyBundle bundle;
+
+	if (
+	   read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
+	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
+	) {
 		close(AEM_FD_PIPE_RD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe: %m");
 		return -1;
@@ -20,8 +25,10 @@ static int setupIo(void) {
 	close(AEM_FD_PIPE_RD);
 
 	ioSetup(baseKey);
+	intcom_setKeys_server(bundle.server);
 
 	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }
 

@@ -258,7 +258,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
 
 		// Deliver
-		int32_t deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
+		int32_t deliveryStatus = intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0);
 		free(enc);
 
 		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
@@ -283,7 +283,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 				enc = msg_encrypt(meta->toUpk[i], att, lenAtt, &lenEnc);
 				free(att);
 
-				deliveryStatus = intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0);
+				deliveryStatus = intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0);
 				free(enc);
 
 				if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
@@ -312,7 +312,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			enc = msg_encrypt(meta->toUpk[i], att, lenAtt, &lenEnc);
 			free(att);
 
-			intcom(AEM_INTCOM_TYPE_STORAGE, 0, enc, lenEnc, NULL, 0); // Ignore failure
+			intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0); // Ignore failure
 			free(enc);
 		}
 	}

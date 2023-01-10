@@ -9,7 +9,6 @@
 
 #include <sodium.h>
 
-#include "../Data/internal.h"
 #include "../Global.h"
 
 #include "../Common/Email.h"
@@ -18,9 +17,14 @@
 #include "IntCom_Stream_Server.h"
 
 static bool terminate = false;
+static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 
 void tc_term(void) {
 	terminate = true;
+}
+
+void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {
+	memcpy(intcom_key, newKey, crypto_secretstream_xchacha20poly1305_KEYBYTES);
 }
 
 static bool peerOk(const int sock) {
@@ -33,9 +37,9 @@ static bool peerOk(const int sock) {
 static int bindSocket(const int sock) {
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
-	memcpy(sa.sun_path, AEM_SOCKPATH_DELIVER, AEM_SOCKPATH_LEN);
+	memcpy(sa.sun_path, AEM_INTCOM_SOCKPATH_DELIVER, AEM_INTCOM_SOCKPATH_LEN);
 
-	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + 4);
+	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_INTCOM_SOCKPATH_LEN);
 }
 
 void takeConnections(void) {
@@ -59,7 +63,7 @@ void takeConnections(void) {
 		crypto_secretstream_xchacha20poly1305_state ss_state;
 		unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
 		if (recv(sock, ss_header, crypto_secretstream_xchacha20poly1305_HEADERBYTES, MSG_WAITALL) != crypto_secretstream_xchacha20poly1305_HEADERBYTES) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed receiving header"); continue;}
-		if (crypto_secretstream_xchacha20poly1305_init_pull(&ss_state, ss_header, AEM_KEY_INTCOM_STREAM) != 0) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed init"); continue;}
+		if (crypto_secretstream_xchacha20poly1305_init_pull(&ss_state, ss_header, intcom_key) != 0) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed init"); continue;}
 
 		unsigned char ss_tag = 0xFF;
 		unsigned char enc[AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES];

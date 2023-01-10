@@ -8,6 +8,7 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/IntCom_Client.h"
+#include "../Common/IntCom_Stream_Client.h"
 #include "../Common/ValidIp.h"
 
 #define AEM_LOGNAME "AEM-MTA"
@@ -15,12 +16,27 @@
 #include "../Common/Main_Include.c"
 
 __attribute__((warn_unused_result))
-static int pipeLoadPids(void) {
+static int pipeRead(void) {
 	pid_t pids[2];
-	if (read(AEM_FD_PIPE_RD, pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2) return -1;
+	struct intcom_keyBundle bundle;
+
+	if (
+	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
+	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
+	) {
+		close(AEM_FD_PIPE_RD);
+		syslog(LOG_ERR, "Terminating: Failed reading pipe");
+		return -1;
+	}
+	close(AEM_FD_PIPE_RD);
 
 	setAccountPid(pids[0]);
-	setDeliverPid(pids[1]);
+	intcom_setPid_stream(pids[1]);
+
+	intcom_setKeys_client(bundle.client);
+	intcom_setKey_stream(bundle.stream);
+
+	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }
 
@@ -47,7 +63,7 @@ static void acceptClients(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeLoadPids() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
+	if (pipeRead() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
 
 	tlsSetup();

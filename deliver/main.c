@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 #include "../Global.h"
-#include "../Common/IntCom_Client.h" // for setting pids
+#include "../Common/IntCom_Client.h"
 #include "../Common/IntCom_Stream_Server.h"
 
 #include "store.h"
@@ -25,11 +25,19 @@ static int pipeLoadPids(void) {
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
 	unsigned char baseKey[crypto_kdf_KEYBYTES];
-	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) return -1;
+	struct intcom_keyBundle bundle;
+
+	if (
+	   read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
+	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
+	) return -1;
 
 	setSignKey(baseKey);
-	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	intcom_setKeys_client(bundle.client);
+	intcom_setKey_stream(bundle.stream);
 
+	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }
 

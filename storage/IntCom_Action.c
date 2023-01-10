@@ -11,7 +11,6 @@
 
 #include "IO.h"
 
-#include "../Data/internal.h"
 #include "../Global.h"
 
 #include "IntCom_Action.h"

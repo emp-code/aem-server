@@ -9,7 +9,6 @@
 
 #include <sodium.h>
 
-#include "../Data/internal.h"
 #include "../Global.h"
 
 #if defined(AEM_ACCOUNT)
@@ -25,6 +24,12 @@
 #include "IntCom_Server.h"
 
 static bool terminate = false;
+
+static unsigned char intcom_keys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBYTES]; // The server's keys for each client
+
+void intcom_setKeys_server(const unsigned char newKeys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBYTES]) {
+	memcpy(intcom_keys, newKeys, AEM_INTCOM_CLIENT_COUNT * crypto_secretbox_KEYBYTES);
+}
 
 void tc_term(void) {
 	terminate = true;
@@ -42,36 +47,18 @@ static int bindSocket(const int sock) {
 	sa.sun_family = AF_UNIX;
 	memcpy(sa.sun_path,
 #if defined(AEM_ACCOUNT)
-		AEM_SOCKPATH_ACCOUNT
+		AEM_INTCOM_SOCKPATH_ACCOUNT
 #elif defined(AEM_ENQUIRY)
-		AEM_SOCKPATH_ENQUIRY
+		AEM_INTCOM_SOCKPATH_ENQUIRY
 #elif defined(AEM_STORAGE)
-		AEM_SOCKPATH_STORAGE
+		AEM_INTCOM_SOCKPATH_STORAGE
+#else
+	#error No path for bindSocket()
 #endif
-		, AEM_SOCKPATH_LEN);
+		, AEM_INTCOM_SOCKPATH_LEN);
 
-	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + 4);
+	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_INTCOM_SOCKPATH_LEN);
 }
-
-static const unsigned char *intcom_keys[] = {
-#if defined(AEM_ACCOUNT)
-	AEM_KEY_INTCOM_ACCOUNT_API,
-	AEM_KEY_INTCOM_ACCOUNT_MTA
-#elif defined(AEM_ENQUIRY)
-	AEM_KEY_INTCOM_ENQUIRY_API,
-	AEM_KEY_INTCOM_ENQUIRY_DLV
-#elif defined(AEM_STORAGE)
-	AEM_KEY_INTCOM_STORAGE_API,
-	AEM_KEY_INTCOM_STORAGE_DLV,
-	AEM_KEY_INTCOM_STORAGE_ACC
-#endif
-};
-
-#if defined(AEM_ACCOUNT) || defined(AEM_ENQUIRY)
-#define AEM_KEY_INTCOM_COUNT 2
-#elif defined(AEM_STORAGE)
-#define AEM_KEY_INTCOM_COUNT 3
-#endif
 
 void takeConnections(void) {
 	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
@@ -83,29 +70,19 @@ void takeConnections(void) {
 		if (sock < 0) continue;
 
 		if (!peerOk(sock)) {
-			syslog(LOG_WARNING, "Connection rejected from invalid peer");
+			syslog(LOG_WARNING, "IntCom[S]: Connection rejected from invalid peer");
 			close(sock);
 			continue;
 		}
 
 		const size_t lenEncHdr = 5 + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
-		if (recv(sock, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
+		if (recv(sock, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed receiving header: %m"); close(sock); continue;}
 
-		switch (encHdr[0]) {
-			case AEM_IDENTIFIER_API:
-			case AEM_IDENTIFIER_MTA: // including AEM_IDENTIFIER_DLV
-			case AEM_IDENTIFIER_ACC: break;
-			default:
-				syslog(LOG_WARNING, "Invalid identifier: %u", encHdr[0]);
+		if (encHdr[0] >= AEM_INTCOM_CLIENT_COUNT) {
+				syslog(LOG_WARNING, "IntCom[S]: Invalid identifier: %u", encHdr[0]);
 				close(sock);
 				continue;
-		}
-
-		if (encHdr[0] >= AEM_KEY_INTCOM_COUNT) {
-			syslog(LOG_ERR, "IntCom[S]: Invalid header: %d", encHdr[0]);
-			close(sock);
-			continue;
 		}
 
 		uint32_t hdr;
@@ -135,24 +112,24 @@ void takeConnections(void) {
 			}
 
 			switch (encHdr[0]) {
-				case AEM_IDENTIFIER_API: resCode = conn_api(type, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_API: resCode = conn_api(type, msg, lenMsg, &res); break;
 #if defined(AEM_ACCOUNT)
-				case AEM_IDENTIFIER_MTA: resCode = conn_mta(type, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_MTA: resCode = conn_mta(type, msg, lenMsg, &res); break;
 #elif defined(AEM_ENQUIRY)
-				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;
 #elif defined(AEM_STORAGE)
-				case AEM_IDENTIFIER_ACC: resCode = conn_acc(type, msg, lenMsg, &res); break;
-				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_ACC: resCode = conn_acc(type, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(type, msg, lenMsg, &res); break;
 #endif
 			}
 
 			free(msg);
 		} else {
 			switch (encHdr[0]) {
-				case AEM_IDENTIFIER_API: resCode = conn_api(type, NULL, 0, &res); break;
+				case AEM_INTCOM_CLIENT_API: resCode = conn_api(type, NULL, 0, &res); break;
 #if defined(AEM_STORAGE)
-				case AEM_IDENTIFIER_ACC: resCode = conn_acc(type, NULL, 0, &res); break;
-				case AEM_IDENTIFIER_DLV: resCode = conn_dlv(type, NULL, 0, &res); break;
+				case AEM_INTCOM_CLIENT_ACC: resCode = conn_acc(type, NULL, 0, &res); break;
+				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(type, NULL, 0, &res); break;
 #endif
 			}
 		}
