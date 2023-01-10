@@ -28,8 +28,6 @@ enum aem_internal_enquiry {
 	AEM_ENQUIRY_DKIM
 };
 
-#define AEM_PATH_CONF "/etc/allears"
-
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 #define AEM_MINLEN_UINFO (4 + AEM_LEN_PRIVATE)
 #define AEM_MAXLEN_UINFO (AEM_MINLEN_UINFO + (AEM_ADDRESSES_PER_USER * 9))
@@ -164,15 +162,15 @@ enum aem_process_types {
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_CONF"/bin/aem-web-clr", \
-	AEM_PATH_CONF"/bin/aem-web-oni", \
-	AEM_PATH_CONF"/bin/aem-api-clr", \
-	AEM_PATH_CONF"/bin/aem-api-oni", \
-	AEM_PATH_CONF"/bin/aem-mta", \
-	AEM_PATH_CONF"/bin/aem-account", \
-	AEM_PATH_CONF"/bin/aem-deliver", \
-	AEM_PATH_CONF"/bin/aem-enquiry", \
-	AEM_PATH_CONF"/bin/aem-storage" \
+	AEM_PATH_HOME"/bin/aem-web-clr", \
+	AEM_PATH_HOME"/bin/aem-web-oni", \
+	AEM_PATH_HOME"/bin/aem-api-clr", \
+	AEM_PATH_HOME"/bin/aem-api-oni", \
+	AEM_PATH_HOME"/bin/aem-mta", \
+	AEM_PATH_HOME"/bin/aem-account", \
+	AEM_PATH_HOME"/bin/aem-deliver", \
+	AEM_PATH_HOME"/bin/aem-enquiry", \
+	AEM_PATH_HOME"/bin/aem-storage" \
 }
 
 #define AEM_NICE { \
