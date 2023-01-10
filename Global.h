@@ -183,7 +183,7 @@ enum aem_process_types {
 	/*MTA*/      -8, \
 	/*Account*/ -16, \
 	/*Deliver*/  -3, \
-	/*Enquiry*/ -18, \
+	/*Enquiry*/ -10, \
 	/*Storage*/ -18 \
 }
 
