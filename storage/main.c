@@ -41,7 +41,7 @@ int main(void) {
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
 
-	syslog(LOG_INFO, "Terminating");
 	ioFree();
+	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

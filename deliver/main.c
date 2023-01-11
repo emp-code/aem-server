@@ -52,7 +52,7 @@ int main(void) {
 	syslog(LOG_INFO, "Ready");
 	takeConnections();
 
-	syslog(LOG_INFO, "Terminating");
 	delSignKey();
+	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

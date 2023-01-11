@@ -58,11 +58,11 @@ int main(void) {
 
 	acceptClients();
 
-	syslog(LOG_INFO, "Terminating");
 	aem_api_free();
 	delMsgIdKey();
 #ifdef AEM_API_CLR
 	tlsFree();
 #endif
+	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }
