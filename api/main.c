@@ -1,14 +1,11 @@
-#include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
 
-#include "../Common/CreateSocket.h"
+#include "../Common/AcceptClients.h"
 #include "../IntCom/Client.h"
 
-#include "../Global.h"
-
-#include "http.h"
 #include "MessageId.h"
+#include "respond.h"
 #include "post.h"
 
 #ifdef AEM_API_CLR
@@ -45,30 +42,6 @@ static int pipeLoadKeys(void) {
 	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
-}
-
-static void acceptClients(void) {
-	const int sock = createSocket(AEM_PORT_API,
-#ifdef AEM_API_CLR
-	false,
-#else
-	true,
-#endif
-	10, 10);
-
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (setCaps(0) != 0) return;
-
-	syslog(LOG_INFO, "Ready");
-
-	while (!terminate) {
-		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
-		if (newSock < 0) continue;
-		respondClient(newSock);
-		close(newSock);
-	}
-
-	close(sock);
 }
 
 int main(void) {

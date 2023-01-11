@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,11 +17,16 @@
 
 #include "Stream_Server.h"
 
-static bool terminate = false;
 static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 
-void tc_term(void) {
-	terminate = true;
+static volatile sig_atomic_t terminate = 0;
+int sockListen = -1;
+int sock = -1;
+
+void sigTerm() {
+	terminate = 1;
+	close(sockListen);
+	close(sock);
 }
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {
@@ -43,15 +49,15 @@ static int bindSocket(const int sock) {
 }
 
 void takeConnections(void) {
-	const int sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
 	listen(sockListen, 50);
 
 	unsigned char * const dec = malloc(sizeof(struct emailMeta) + sizeof(struct emailInfo) + 4 + AEM_SMTP_MAX_SIZE_BODY);
 	if (dec == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
-	while (!terminate) {
-		const int sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
+	while (terminate == 0) {
+		sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
 		if (sock < 0) continue;
 
 		if (!peerOk(sock)) {
@@ -132,5 +138,4 @@ void takeConnections(void) {
 	}
 
 	free(dec);
-	close(sockListen);
 }

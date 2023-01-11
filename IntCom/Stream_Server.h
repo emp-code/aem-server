@@ -2,8 +2,7 @@
 #define AEM_INTCOM_STREAMSERVER_H
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]);
-
-void tc_term(void);
+void sigTerm();
 void takeConnections(void);
 
 #endif

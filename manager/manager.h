@@ -1,7 +1,7 @@
 #ifndef AEM_MANAGER_H
 #define AEM_MANAGER_H
 
-void killAll(int sig);
+void sigTerm();
 int setupManager(void);
 
 #endif

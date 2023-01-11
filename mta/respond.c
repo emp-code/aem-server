@@ -18,7 +18,7 @@
 
 #include "../Global.h"
 
-#include "smtp.h"
+#include "respond.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
 #define AEM_SMTP_MAX_ROUNDS 500

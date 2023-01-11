@@ -9,17 +9,18 @@
 	#include <sys/types.h>
 #endif
 
-#define AEM_MAXLEN_REQ 500
-
-#include "../Global.h"
 #include "isRequestValid.h"
 #include "post.h"
+
+#include "respond.h"
+
+#include "../Global.h"
 
 #ifdef AEM_API_CLR
 	#include "../Common/tls_setup.c"
 #endif
 
-#include "http.h"
+#define AEM_MAXLEN_REQ 500
 
 void respondClient(int sock) {
 #ifdef AEM_API_CLR

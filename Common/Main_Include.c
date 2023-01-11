@@ -11,9 +11,6 @@
 #include "../Global.h"
 #include "../Common/SetCaps.h"
 
-volatile sig_atomic_t terminate;
-static void sigTerm(const int sig) {terminate = 1;}
-
 static int setSignals(void) {
 	struct sigaction sa;
 	sa.sa_handler = sigTerm;

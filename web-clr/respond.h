@@ -1,5 +1,5 @@
-#ifndef AEM_WEB_HTTPS_H
-#define AEM_WEB_HTTPS_H
+#ifndef AEM_RESPOND_H
+#define AEM_RESPOND_H
 
 int tlsSetup(void);
 void tlsFree(void);

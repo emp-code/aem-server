@@ -1,5 +1,5 @@
-#ifndef AEM_MTA_SMTP_H
-#define AEM_MTA_SMTP_H
+#ifndef AEM_RESPOND_H
+#define AEM_RESPOND_H
 
 int tlsSetup(void);
 void tlsFree(void);

@@ -1,12 +1,10 @@
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
 
-#include "smtp.h"
+#include "respond.h"
 
-#include "../Common/CreateSocket.h"
-#include "../Common/ValidIp.h"
+#include "../Common/AcceptClients.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Client.h"
 
@@ -39,26 +37,6 @@ static int pipeRead(void) {
 
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
-}
-
-static void acceptClients(void) {
-	const int sock = createSocket(AEM_PORT_MTA, false, 10, 10);
-	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
-	if (setCaps(0) != 0) return;
-
-	syslog(LOG_INFO, "Ready");
-
-	struct sockaddr_in clientAddr;
-	unsigned int clen = sizeof(clientAddr);
-
-	while (!terminate) {
-		const int newSock = accept4(sock, (struct sockaddr*)&clientAddr, &clen, SOCK_CLOEXEC);
-		if (newSock < 0) continue;
-		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
-		close(newSock);
-	}
-
-	close(sock);
 }
 
 int main(void) {

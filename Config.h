@@ -6,11 +6,18 @@
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
 // Port numbers
-#define AEM_PORT_MTA 25
-#define AEM_PORT_WEB 443
-#define AEM_PORT_API 302
-#define AEM_PORT_WEB_ONI 880 // Actual port is 80 (HTTP), this is just Tor's localhost port
-#define AEM_PORT_MANAGER 940
+#if defined(AEM_MTA)
+	#define AEM_PORT 25
+#elif defined(AEM_API)
+	#define AEM_PORT 302
+#elif defined(AEM_WEB)
+	#define AEM_PORT 443
+#elif defined(AEM_WEB_ONI)
+	#define AEM_PORT 880
+#elif defined(AEM_MANAGER)
+	#define AEM_PORT 940
+#endif
+
 #define AEM_PORT_MANAGER_STR "940"
 
 // DNS

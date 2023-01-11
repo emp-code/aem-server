@@ -5,8 +5,9 @@
 #include <string.h>
 #include <net/if.h>
 
+#include "memeq.h"
+
 #include "../Global.h"
-#include "../Common/memeq.h"
 
 #include "CreateSocket.h"
 
@@ -24,13 +25,13 @@ static int setSocketTimeout(const int sock, const time_t rcvSec, const time_t sn
 }
 
 __attribute__((warn_unused_result))
-int createSocket(const int port, const bool loopback, const time_t rcvTimeout, const time_t sndTimeout) {
+int createSocket(const bool loopback, const time_t rcvTimeout, const time_t sndTimeout) {
 	const int sock = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
 
 	struct sockaddr_in servAddr;
 	bzero((char*)&servAddr, sizeof(servAddr));
 	servAddr.sin_family = AF_INET;
-	servAddr.sin_port = htons(port);
+	servAddr.sin_port = htons(AEM_PORT);
 
 	const int intTrue = 1;
 #ifndef AEM_MANAGER

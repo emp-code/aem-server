@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -9,16 +10,19 @@
 
 #define AEM_LOGNAME "AEM-WOn"
 
+static volatile sig_atomic_t terminate = 0;
+static void sigTerm() {terminate = 1;}
+
 #include "../Common/Main_Include.c"
 
 static void acceptClients(void) {
-	const int sock = createSocket(AEM_PORT_WEB_ONI, true, 10, 10);
+	const int sock = createSocket(true, 10, 10);
 	if (sock < 0) {syslog(LOG_ERR, "Failed creating socket"); return;}
 	if (setCaps(0) != 0) return;
 
 	syslog(LOG_INFO, "Ready");
 
-	while (!terminate) {
+	while (terminate == 0) {
 		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
 		if (newSock < 0) continue;
 

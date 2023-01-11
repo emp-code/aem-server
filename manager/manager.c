@@ -62,7 +62,7 @@ static pid_t pid_enquiry = 0;
 static pid_t pid_storage = 0;
 static pid_t aemPid[5][AEM_MAXPROCESSES];
 
-static bool terminate = false;
+static volatile sig_atomic_t terminate = 0;
 
 static void wipeKeys(void) {
 	sodium_memzero(key_mng, crypto_secretbox_KEYBYTES);
@@ -89,70 +89,32 @@ static void refreshPids(void) {
 	if (pid_storage != 0 && !process_exists(pid_storage)) pid_storage = 0;
 }
 
-// SIGUSR1 = Allow processing one more connection; SIGUSR2 = Immediate termination
-void killAll(int sig) {
-	wipeKeys();
-	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
-	refreshPids();
+static void killAll(const int sig) {
+	if (pid_account > 0) kill(pid_account, sig);
+	if (pid_deliver > 0) kill(pid_deliver, sig);
+	if (pid_enquiry > 0) kill(pid_enquiry, sig);
+	if (pid_storage > 0) kill(pid_storage, sig);
 
-	if (sig != SIGUSR1 && sig != SIGUSR2) sig = SIGUSR1;
 
-	for (int type = 0; type < 3; type++) {
+	for (int type = 0; type < 5; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] > 0) kill(aemPid[type][i], sig); // Request process to terminate
+			if (aemPid[type][i] > 0) kill(aemPid[type][i], sig);
 		}
 	}
+}
 
-	if (sig == SIGUSR1) {
-		// TODO: Connect to each service to make sure they'll terminate
-	} else {
-		if (pid_account > 0) kill(pid_account, SIGUSR2);
-		if (pid_deliver > 0) kill(pid_deliver, SIGUSR2);
-		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
-		if (pid_storage > 0) kill(pid_storage, SIGUSR2);
-	}
+void sigTerm() {
+	terminate = 1;
+	close(AEM_FD_SERVER);
+	close(AEM_FD_CLIENT);
 
-	// Processes should have terminated after one second
-	sleep(1);
 	refreshPids();
-
-	if (sig == SIGUSR1) {
-		for (int type = 0; type < 3; type++) {
-			for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-				if (aemPid[type][i] > 0) kill(aemPid[type][i], SIGUSR2);
-			}
-		}
-
-		if (pid_account > 0) kill(pid_account, SIGUSR1);
-		if (pid_deliver > 0) kill(pid_deliver, SIGUSR1);
-		if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR1);
-		if (pid_storage > 0) kill(pid_storage, SIGUSR1);
-
-		sleep(1);
-		refreshPids();
-	}
-
-	for (int type = 0; type < 3; type++) {
-		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] > 0) kill(aemPid[type][i], SIGKILL);
-		}
-	}
-
-	if (pid_account > 0) kill(pid_account, SIGUSR2);
-	if (pid_deliver > 0) kill(pid_deliver, SIGUSR2);
-	if (pid_enquiry > 0) kill(pid_enquiry, SIGUSR2);
-	if (pid_storage > 0) kill(pid_storage, SIGUSR2);
+	killAll(SIGINT);
 
 	sleep(1);
+
 	refreshPids();
-
-	if (pid_account > 0) kill(pid_account, SIGKILL);
-	if (pid_deliver > 0) kill(pid_deliver, SIGKILL);
-	if (pid_enquiry > 0) kill(pid_enquiry, SIGKILL);
-	if (pid_storage > 0) kill(pid_storage, SIGKILL);
-
-	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
-	exit(EXIT_SUCCESS);
+	killAll(SIGKILL);
 }
 
 static int loadExec(const int type) {
@@ -588,14 +550,15 @@ static bool verifyStatus(void) {
 }
 
 static int takeConnections(void) {
-	while (!terminate) {
+	while (terminate == 0) {
 		if (accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_CLIENT) continue;
 		respond_manager();
 	}
 
-	close(AEM_FD_SERVER);
 	wipeKeys();
 	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
+	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
+	syslog(LOG_INFO, "Terminating");
 	return 0;
 }
 
@@ -603,7 +566,7 @@ int setupManager(void) {
 	unsigned char master[crypto_kdf_KEYBYTES];
 	if (getKey(master) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 51;}
 	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 52;}
-	if (createSocket(AEM_PORT_MANAGER, false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 53;}
+	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 53;}
 
 	bzero(aemPid, sizeof(aemPid));
 	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
