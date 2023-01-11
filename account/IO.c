@@ -182,7 +182,9 @@ int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]) {
 void ioFree(void) {
 	sodium_memzero(accountKey, crypto_secretbox_KEYBYTES);
 	sodium_memzero(saltShield, crypto_shorthash_KEYBYTES);
+	sodium_memzero(user, sizeof(struct aem_user) * userCount);
 	free(user);
+	userCount = 0;
 }
 
 static int hashToUserNum(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
