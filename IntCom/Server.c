@@ -65,7 +65,7 @@ static int bindSocket(const int sock) {
 	return bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_INTCOM_SOCKPATH_LEN);
 }
 
-void takeConnections(void) {
+void intcom_serve(void) {
 	sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
 	listen(sockListen, 50);

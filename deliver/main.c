@@ -50,7 +50,7 @@ int main(void) {
 	close(AEM_FD_PIPE_RD);
 
 	syslog(LOG_INFO, "Ready");
-	takeConnections();
+	intcom_serve_stream();
 
 	delSignKey();
 	syslog(LOG_INFO, "Terminating");

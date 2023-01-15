@@ -29,7 +29,7 @@ int main(void) {
 	if (readKeys() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
-	takeConnections();
+	intcom_serve();
 
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;

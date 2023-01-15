@@ -5,6 +5,6 @@
 
 void intcom_setKeys_server(const unsigned char newKeys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBYTES]);
 void sigTerm();
-void takeConnections(void);
+void intcom_serve(void);
 
 #endif

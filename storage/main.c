@@ -39,7 +39,7 @@ int main(void) {
 	if (setupIo() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
-	takeConnections();
+	intcom_serve();
 
 	ioFree();
 	syslog(LOG_INFO, "Terminating");
