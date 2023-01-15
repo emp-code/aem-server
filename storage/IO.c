@@ -553,6 +553,7 @@ static int loadStindex(void) {
 	free(encd);
 
 	memcpy(&stindexCount, data, 2);
+	if (stindexCount < 1) return -1;
 	size_t skip = 2;
 
 	stindex = malloc(sizeof(struct aem_stindex) * stindexCount);
