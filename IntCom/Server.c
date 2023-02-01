@@ -128,6 +128,7 @@ void intcom_serve(void) {
 #endif
 			}
 
+			sodium_memzero(msg, lenMsg + crypto_secretbox_MACBYTES);
 			free(msg);
 		} else {
 			switch (encHdr[0]) {
