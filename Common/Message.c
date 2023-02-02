@@ -8,7 +8,7 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 	const size_t lenPadded = lenContent + padAmount + crypto_sign_BYTES;
 	if (lenPadded < AEM_MSG_MINSIZE_DEC) return NULL;
 
-	unsigned char * const clear = malloc((lenPadded < AEM_MSG_MINSIZE_DEC) ? AEM_MSG_MINSIZE_DEC : lenPadded);
+	unsigned char * const clear = malloc(lenPadded);
 	if (clear == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
 	memcpy(clear, content, lenContent);
