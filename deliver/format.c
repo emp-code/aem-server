@@ -82,7 +82,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * 
 		+ email->lenMsgId
 		+ email->lenSbjct
 		+ ((email->lenHead <= 1) ? 0 : email->lenHead - 1)
-		+ ((email->lenBody <= 0) ? 0 : email->lenBody + 1);
+		+ ((email->lenBody <  1) ? 0 : email->lenBody + 1);
 
 	if (email->dkimCount > 7) email->dkimCount = 7;
 	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain;
