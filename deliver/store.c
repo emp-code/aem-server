@@ -227,10 +227,7 @@ static unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned 
 	unsigned char throwaway[crypto_box_PUBLICKEYBYTES];
 	randombytes_buf(throwaway, crypto_box_PUBLICKEYBYTES);
 
-	unsigned char zero[crypto_box_PUBLICKEYBYTES];
-	bzero(zero, crypto_box_PUBLICKEYBYTES);
-
-	unsigned char * const encrypted = msg_encrypt((memeq(zero, upk, crypto_box_PUBLICKEYBYTES)) ? throwaway : upk, content, lenContent, lenOut);
+	unsigned char * const encrypted = msg_encrypt(sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES) ? throwaway : upk, content, lenContent, lenOut);
 	free(content);
 	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
 
