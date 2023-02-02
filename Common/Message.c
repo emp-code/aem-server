@@ -11,16 +11,17 @@ static unsigned char *msg_encrypt(const unsigned char * const upk, const unsigne
 	unsigned char * const clear = malloc(lenPadded);
 	if (clear == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
-	memcpy(clear, content, lenContent);
-	randombytes_buf_deterministic(clear + lenContent, padAmount, clear); // First randombytes_SEEDBYTES of message determine the padding bytes
-	crypto_sign_detached(clear + lenPadded - crypto_sign_BYTES, NULL, clear, lenPadded - crypto_sign_BYTES, sign_skey);
-
 	*lenEncrypted = crypto_box_PUBLICKEYBYTES + lenPadded + crypto_box_SEALBYTES;
 	unsigned char *encrypted = malloc(*lenEncrypted);
 	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); return NULL;}
 
+	memcpy(clear, content, lenContent);
+	randombytes_buf_deterministic(clear + lenContent, padAmount, clear); // First randombytes_SEEDBYTES of message determine the padding bytes
+	crypto_sign_detached(clear + lenPadded - crypto_sign_BYTES, NULL, clear, lenPadded - crypto_sign_BYTES, sign_skey);
+
 	memcpy(encrypted, upk, crypto_box_PUBLICKEYBYTES); // Tells the Storage process whose data this is, not a part of the actual stored message
 	const int ret = crypto_box_seal(encrypted + crypto_box_PUBLICKEYBYTES, clear, lenPadded, upk);
+	sodium_memzero(clear, lenPadded);
 	free(clear);
 
 	if (ret != 0) {
