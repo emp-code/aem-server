@@ -395,6 +395,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			sodium_memzero(body, AEM_SMTP_CHUNKSIZE);
 			sodium_memzero(&email, sizeof(struct emailInfo));
 			sodium_memzero(&meta, sizeof(struct emailMeta));
+			deliveryOk = true;
 
 			bool retOk;
 			switch (intcom_stream_end()) {
