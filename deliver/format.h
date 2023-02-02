@@ -1,6 +1,7 @@
 #ifndef AEM_FORMAT_H
 #define AEM_FORMAT_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 void setSignKey(const unsigned char * const baseKey);
