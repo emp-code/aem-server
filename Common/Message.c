@@ -13,7 +13,7 @@ static unsigned char *msg_encrypt(const unsigned char * const upk, const unsigne
 
 	*lenEncrypted = crypto_box_PUBLICKEYBYTES + lenPadded + crypto_box_SEALBYTES;
 	unsigned char *encrypted = malloc(*lenEncrypted);
-	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); return NULL;}
+	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); *lenEncrypted = 0; return NULL;}
 
 	memcpy(clear, content, lenContent);
 	randombytes_buf_deterministic(clear + lenContent, padAmount, clear); // First randombytes_SEEDBYTES of message determine the padding bytes
@@ -26,6 +26,7 @@ static unsigned char *msg_encrypt(const unsigned char * const upk, const unsigne
 
 	if (ret != 0) {
 		free(encrypted);
+		*lenEncrypted = 0;
 		return NULL;
 	}
 
