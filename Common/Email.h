@@ -69,7 +69,7 @@ struct emailInfo {
 	uint16_t tls_ciphersuite;
 	uint8_t tlsInfo;
 
-	// The four short-text fields
+	// The five short-text fields
 	uint8_t lenEnvTo;
 	uint8_t lenHdrTo;
 	uint8_t lenGreet;
