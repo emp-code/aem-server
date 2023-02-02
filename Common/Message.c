@@ -3,7 +3,7 @@ static uint8_t msg_getPadAmount(const size_t lenContent) {
 	return ((lenUnpadded + crypto_box_SEALBYTES) % 16 == 0) ? 0 : 16 - ((lenUnpadded + crypto_box_SEALBYTES) % 16);
 }
 
-static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned char * const content, const size_t lenContent, size_t * const lenEncrypted) {
+static unsigned char *msg_encrypt(const unsigned char * const upk, const unsigned char * const content, const size_t lenContent, size_t * const lenEncrypted) {
 	const uint8_t padAmount = msg_getPadAmount(lenContent);
 	const size_t lenPadded = lenContent + padAmount + crypto_sign_BYTES;
 	if (lenPadded < AEM_MSG_MINSIZE_DEC) return NULL;
@@ -19,8 +19,8 @@ static unsigned char *msg_encrypt(const unsigned char * const pk, const unsigned
 	unsigned char *encrypted = malloc(*lenEncrypted);
 	if (encrypted == NULL) {syslog(LOG_ERR, "Failed allocation"); free(clear); return NULL;}
 
-	memcpy(encrypted, pk, crypto_box_PUBLICKEYBYTES);
-	const int ret = crypto_box_seal(encrypted + crypto_box_PUBLICKEYBYTES, clear, lenPadded, pk);
+	memcpy(encrypted, upk, crypto_box_PUBLICKEYBYTES); // Tells the Storage process whose data this is, not a part of the actual stored message
+	const int ret = crypto_box_seal(encrypted + crypto_box_PUBLICKEYBYTES, clear, lenPadded, upk);
 	free(clear);
 
 	if (ret != 0) {
