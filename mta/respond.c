@@ -18,6 +18,8 @@
 
 #include "../Global.h"
 
+#include "cert.h"
+
 #include "respond.h"
 
 #define AEM_SMTP_MAX_SIZE_CMD 512 // RFC5321: min. 512
@@ -39,76 +41,6 @@
 static struct emailInfo email;
 
 #include "../Common/tls_setup.c"
-
-static uint16_t getCertType(const mbedtls_x509_crt * const cert) {
-	if (cert == NULL) return AEM_EMAIL_CERT_NONE;
-
-	const size_t keyBits = mbedtls_pk_get_bitlen(&cert->pk);
-
-	if (memeq(mbedtls_pk_get_name(&cert->pk), "RSA", 3)) {
-		if      (keyBits >= 4096) return AEM_EMAIL_CERT_RSA4K;
-		else if (keyBits >= 2048) return AEM_EMAIL_CERT_RSA2K;
-		else if (keyBits >= 1024) return AEM_EMAIL_CERT_RSA1K;
-	} else if (memeq(mbedtls_pk_get_name(&cert->pk), "EC", 2)) {
-		if      (keyBits >= 521) return AEM_EMAIL_CERT_EC521;
-		else if (keyBits >= 384) return AEM_EMAIL_CERT_EC384;
-		else if (keyBits >= 256) return AEM_EMAIL_CERT_EC256;
-	} else if (memeq(mbedtls_pk_get_name(&cert->pk), "EDDSA", 5)) return AEM_EMAIL_CERT_EDDSA;
-
-	return AEM_EMAIL_CERT_NONE;
-}
-
-static void getCertName(const mbedtls_x509_crt * const cert) {
-	if (cert == NULL) return;
-
-	size_t lenEnvFr = 0;
-	const unsigned char *envFr = memchr(email.envFr, '@', email.lenEnvFr);
-	if (envFr != NULL) {
-		envFr++;
-		lenEnvFr = email.lenEnvFr - (envFr - email.envFr);
-	}
-
-	size_t lenHdrFr = 0;
-	const unsigned char *hdrFr = memchr(email.hdrFr, '@', email.lenHdrFr);
-	if (hdrFr != NULL) {
-		hdrFr++;
-		lenHdrFr = email.lenHdrFr - (hdrFr - email.hdrFr);
-	}
-
-	bool firstDone = false;
-	const mbedtls_asn1_sequence *s = &cert->subject_alt_names;
-
-	while(1) {
-		size_t lenName;
-		const unsigned char *name;
-
-		if (!firstDone) {
-			lenName = cert->subject.val.len;
-			name = cert->subject.val.p;
-			firstDone = true;
-		} else {
-			if (s == NULL) break;
-			lenName = s->buf.len;
-			name = s->buf.p;
-			s = s->next;
-		}
-
-		if (name == NULL || lenName < 4) continue; // a.bc
-
-		if (memeq(name, "*.", 2)) { // Wildcard: remove the asterisk and see if the ends match
-			lenName--;
-			name++;
-
-			if (lenName < lenHdrFr       && memeq(hdrFr       + lenHdrFr       - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
-			if (lenName < lenEnvFr       && memeq(envFr       + lenEnvFr       - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			if (lenName < email.lenGreet && memeq(email.greet + email.lenGreet - lenName, name, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
-		} else {
-			if      (lenName == lenHdrFr       && memeq(name, hdrFr,       lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_HDRFR; break;}
-			else if (lenName == lenEnvFr       && memeq(name, envFr,       lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_ENVFR; break;}
-			else if (lenName == email.lenGreet && memeq(name, email.greet, lenName)) {email.tlsInfo |= AEM_EMAIL_CERT_MATCH_GREET; break;}
-		}
-	}
-}
 
 __attribute__((warn_unused_result))
 static int recv_aem(const int sock, mbedtls_ssl_context * const tls, unsigned char * const buf, const size_t maxSize) {
@@ -338,8 +270,11 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		const mbedtls_x509_crt *clientCert = mbedtls_ssl_get_peer_cert(tls);
-		email.tlsInfo = getCertType(clientCert) | getTlsVersion(tls);
-		getCertName(clientCert);
+		email.tlsInfo =
+			getTlsVersion(tls)
+		|	cert_getTlsInfo_type(clientCert)
+		|	cert_getTlsInfo_name(clientCert, email.greet, email.lenGreet, email.envFr, email.lenEnvFr, email.hdrFr, email.lenHdrFr);
+
 		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
 	}
 
