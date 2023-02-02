@@ -24,16 +24,24 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 }
 
 unsigned char *brCompress(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
-	*lenOutput = lenInput + 100; // Compressed version can be slightly larger
-	unsigned char * const output = malloc(*lenOutput);
+	const char * const fn = "src.eml.br";
+	const size_t lenFn = 10;
+
+	*lenOutput = lenInput + 300; // Compressed version can be slightly larger
+	unsigned char * const output = malloc(*lenOutput + 17 + lenFn);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output) == BROTLI_FALSE) {
+	output[0] = lenFn - 1;
+	// 16 bytes of MsgId
+	memcpy(output + 17, fn, lenFn);
+
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + 17 + lenFn) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;
 	}
 
+	*lenOutput += 17 + lenFn;
 	return output;
 }
 
