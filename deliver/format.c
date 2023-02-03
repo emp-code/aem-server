@@ -205,6 +205,8 @@ unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * 
 
 	// DKIM
 	offset = 28;
+	bzero(content + offset, email->dkimCount * 3);
+
 	for (int i = 0; i < email->dkimCount; i++) {
 		if (email->dkim[i].algoRsa)    content[offset] |= 128;
 		if (email->dkim[i].algoSha256) content[offset] |=  64;
