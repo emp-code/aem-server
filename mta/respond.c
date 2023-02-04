@@ -130,7 +130,7 @@ static int getUpk(const char * const addr, const size_t addrChars, unsigned char
 
 #define AEM_ADDROUR_MIN (AEM_DOMAIN_LEN + 2)
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char *buf, size_t len, char to[32], unsigned char * const toUpk, unsigned char * const addrFlags, const bool isSecure) {
+static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], unsigned char * const toUpk, unsigned char * const addrFlags, const bool isSecure) {
 	if (buf == NULL || len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	for (size_t i = 0; i < len; i++) {
@@ -154,7 +154,7 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[32], unsi
 	}
 
 	if (len < AEM_ADDROUR_MIN || buf[len - AEM_DOMAIN_LEN - 1] != '@' || !memeq_anycase(buf + len - AEM_DOMAIN_LEN, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
-	if (len - AEM_DOMAIN_LEN - 1 > 31) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (len - AEM_DOMAIN_LEN - 1 > 63) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	char addr[AEM_MAXLEN_ADDR32];
 	size_t addrChars = 0;
