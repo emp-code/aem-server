@@ -53,25 +53,25 @@ static bool needOriginal(const struct emailMeta * const meta) {
 	return false;
 }
 
-int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * const email, unsigned char * const src, size_t * const lenSrc) {
+int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * const email, unsigned char * const src, size_t lenSrc) {
 	getIpInfo(email);
 
-	convertLineDots(src, lenSrc);
+	convertLineDots(src, &lenSrc);
 	email->attachCount = 0;
 
 	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? brCompress(src, *lenSrc, &lenSrcBr) : NULL;
+	unsigned char * const srcBr = needOriginal(meta) ? brCompress(src, lenSrc, &lenSrcBr) : NULL;
 
 	// Add final CRLF for DKIM
-	src[*lenSrc + 0] = '\r';
-	src[*lenSrc + 1] = '\n';
-	src[*lenSrc + 2] = '\0';
-	(*lenSrc) += 2;
+	src[lenSrc + 0] = '\r';
+	src[lenSrc + 1] = '\n';
+	src[lenSrc + 2] = '\0';
+	lenSrc += 2;
 
 	email->head = NULL;
 	email->body = NULL;
 
-	processEmail(src, lenSrc, email);
+	processEmail(src, &lenSrc, email);
 
 	const int32_t ret = storeMessage(meta, email, srcBr, lenSrcBr);
 	if (srcBr != NULL) free(srcBr);

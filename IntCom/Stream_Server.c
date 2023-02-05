@@ -17,6 +17,13 @@
 
 #include "Stream_Server.h"
 
+struct dlvEmail {
+	struct emailMeta meta;
+	struct emailInfo info;
+	unsigned char src[AEM_SMTP_MAX_SIZE_BODY];
+	size_t lenSrc;
+};
+
 static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 
 static volatile sig_atomic_t terminate = 0;
@@ -53,8 +60,8 @@ void intcom_serve_stream(void) {
 	if (bindSocket(sockListen) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
 	listen(sockListen, 50);
 
-	unsigned char * const dec = malloc(sizeof(struct emailMeta) + sizeof(struct emailInfo) + 4 + AEM_SMTP_MAX_SIZE_BODY);
-	if (dec == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	struct dlvEmail *dlv = malloc(sizeof(struct dlvEmail));
+	if (dlv == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	while (terminate == 0) {
 		sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
@@ -74,20 +81,18 @@ void intcom_serve_stream(void) {
 		unsigned char ss_tag = 0xFF;
 		unsigned char enc[AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES];
 
-		dec[sizeof(struct emailMeta) + sizeof(struct emailInfo)] = '\n';
-
 		size_t lenEnc = 0;
 
 		if (
 		   recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES
 		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
-		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec,                            NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
+		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->meta, NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
 		|| recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES
 		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
-		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta), NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
+		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->info, NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
 		) {
 			close(sock);
@@ -95,14 +100,16 @@ void intcom_serve_stream(void) {
 			continue;
 		}
 
-		size_t lenDec = 1;
+		dlv->src[0] = '\n';
+		dlv->lenSrc = 1;
+
 		while(1) {
 			if (recv(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
 				break;
 			}
 
-			if (lenEnc == SIZE_MAX || lenDec + (lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES) > AEM_SMTP_MAX_SIZE_BODY) { // Finished
+			if (lenEnc == SIZE_MAX || dlv->lenSrc + (lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES) > AEM_SMTP_MAX_SIZE_BODY) { // Finished
 				crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
 				break;
 			}
@@ -117,25 +124,25 @@ void intcom_serve_stream(void) {
 				break;
 			}
 
-			if (crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenDec, NULL, &ss_tag, enc, lenEnc, NULL, 0) != 0 || (ss_tag != 0)) {
+			if (crypto_secretstream_xchacha20poly1305_pull(&ss_state, dlv->src + dlv->lenSrc, NULL, &ss_tag, enc, lenEnc, NULL, 0) != 0 || (ss_tag != 0)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed decrypting message (%zu bytes)", lenEnc);
 				break;
 			}
 
-			lenDec += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
+			dlv->lenSrc += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
 		}
 
-		if (lenDec <= 1) {
+		if (dlv->lenSrc <= 1) {
 			close(sock);
 			continue;
 		}
 
-		const int32_t ret = deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenDec);
-		sodium_memzero(dec, sizeof(struct emailMeta) + sizeof(struct emailInfo) + 4 + AEM_SMTP_MAX_SIZE_BODY);
+		const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
+		sodium_memzero(dlv, sizeof(struct dlvEmail));
 		send(sock, &ret, sizeof(int32_t), 0);
 
 		close(sock);
 	}
 
-	free(dec);
+	free(dlv);
 }
