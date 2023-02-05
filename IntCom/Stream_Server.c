@@ -95,14 +95,14 @@ void intcom_serve_stream(void) {
 			continue;
 		}
 
-		size_t lenBody = 1;
+		size_t lenDec = 1;
 		while(1) {
 			if (recv(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
 				break;
 			}
 
-			if (lenEnc == SIZE_MAX || lenBody + lenEnc > AEM_SMTP_MAX_SIZE_BODY) { // Finished
+			if (lenEnc == SIZE_MAX || lenDec + lenEnc > AEM_SMTP_MAX_SIZE_BODY) { // Finished
 				crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
 				break;
 			}
@@ -117,20 +117,20 @@ void intcom_serve_stream(void) {
 				break;
 			}
 
-			if (crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenBody, NULL, &ss_tag, enc, lenEnc, NULL, 0) != 0 || (ss_tag != 0)) {
+			if (crypto_secretstream_xchacha20poly1305_pull(&ss_state, dec + sizeof(struct emailMeta) + sizeof(struct emailInfo) + lenDec, NULL, &ss_tag, enc, lenEnc, NULL, 0) != 0 || (ss_tag != 0)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed decrypting message (%zu bytes)", lenEnc);
 				break;
 			}
 
-			lenBody += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
+			lenDec += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
 		}
 
-		if (lenBody <= 1) {
+		if (lenDec <= 1) {
 			close(sock);
 			continue;
 		}
 
-		const int32_t ret = deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenBody);
+		const int32_t ret = deliverEmail((struct emailMeta*)dec, (struct emailInfo*)(dec + sizeof(struct emailMeta)), dec + sizeof(struct emailMeta) + sizeof(struct emailInfo), &lenDec);
 		sodium_memzero(dec, sizeof(struct emailMeta) + sizeof(struct emailInfo) + 4 + AEM_SMTP_MAX_SIZE_BODY);
 		send(sock, &ret, sizeof(int32_t), 0);
 
