@@ -102,7 +102,7 @@ void intcom_serve_stream(void) {
 				break;
 			}
 
-			if (lenEnc == SIZE_MAX) { // Finished
+			if (lenEnc == SIZE_MAX || lenBody + lenEnc > AEM_SMTP_MAX_SIZE_BODY) { // Finished
 				crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
 				break;
 			}
