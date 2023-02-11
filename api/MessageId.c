@@ -54,6 +54,7 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
+	sodium_memzero(aesKey, 32);
 
 	AES_ECB_encrypt(&aes, hash);
 	AES_ECB_encrypt(&aes, hash + 16);
