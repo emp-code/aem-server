@@ -50,10 +50,11 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 
 	unsigned char aesKey[32];
 	crypto_kdf_derive_from_key(aesKey, 32, aesKey_nr, "AEM_MIE2", msgid_derivkey);
-	sodium_memzero(&aesKey_nr, 4);
+	sodium_memzero(&aesKey_nr, sizeof(uint64_t));
 
 	struct AES_ctx aes;
 	AES_init_ctx(&aes, aesKey);
+
 	AES_ECB_encrypt(&aes, hash);
 	AES_ECB_encrypt(&aes, hash + 16);
 	AES_ECB_encrypt(&aes, hash + 32);
