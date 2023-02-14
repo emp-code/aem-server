@@ -74,10 +74,11 @@ void cleanText(unsigned char * const c, size_t * const len) {
 
 			x = charSpace(c + i, *len - i);
 			if (x > 0) {
-				if (
-					(charNewline(c + i + x, *len - i - x) > 0) // This space is followed by a newline
-				|| (newLen > 0 && (c[newLen - 1] == ' ' || c[newLen - 1] == '\n')) // or preceded by a space/newline
-				) {i += x - 1; continue;} // delete this space
+				if (newLen < 1 // First character shouldn't be space
+				|| charNewline(c + i + x, *len - i - x) > 0 // This space is followed by a newline
+				|| c[newLen - 1] == ' ' // Preceded by a space
+				|| c[newLen - 1] == '\n' // Preceded by a newline
+				) {i += x - 1; continue;} // Delete this space
 
 				// Add a normal space
 				c[newLen] = ' ';
@@ -88,7 +89,7 @@ void cleanText(unsigned char * const c, size_t * const len) {
 
 			x = charNewline(c + i, *len - i);
 			if (x > 0) {
-				if (newLen > 1 && c[newLen - 1] == '\n' && c[newLen - 2] == '\n') { // This newline is preceded by 2 newlines - delete this newline
+				if (newLen < 1 || (newLen > 1 && c[newLen - 1] == '\n' && c[newLen - 2] == '\n')) { // This newline is the first character, or is preceded by 2 newlines - delete this newline
 					i += x - 1;
 					continue;
 				}
