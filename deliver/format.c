@@ -35,21 +35,15 @@ void delSignKey(void) {
 #include "../Common/Message.c"
 
 __attribute__((warn_unused_result))
-unsigned char *makeAttachment(const unsigned char * const upk, const unsigned char * const data, const size_t lenData, const uint32_t ts, const unsigned char parentId[16], size_t * const lenEnc) {
-	if (data == NULL || lenData < 1) return NULL;
-
-	const size_t lenAtt = 5 + lenData;
-	unsigned char * const att = malloc(lenAtt);
-	if (att == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
+unsigned char *makeAttachment(const unsigned char * const upk, unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16], size_t * const lenEnc) {
+	if (att == NULL || lenAtt < 1) return NULL;
 
 	att[0] = msg_getPadAmount(lenAtt) | 32;
 	memcpy(att + 1, &ts, 4);
-	memcpy(att + 5, data, lenData);
-	memcpy(att + 6, parentId, 16); // missing in original data
+	// att[5]: lenFn
+	memcpy(att + 6, parentId, 16);
 
 	unsigned char * const enc = msg_encrypt(upk, att, lenAtt, lenEnc);
-	sodium_memzero(att, lenAtt);
-	free(att);
 	return enc;
 }
 

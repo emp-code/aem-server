@@ -40,7 +40,6 @@ static void processDkim(unsigned char * const src, size_t * const lenSrc, struct
 		memmove(start, start + offset, (src + *lenSrc) - (start + offset));
 		(*lenSrc) -= offset;
 	}
-
 	// Remove the CRLF added for DKIM
 	(*lenSrc) -= 2;
 	src[*lenSrc] = '\0';
@@ -232,22 +231,22 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 	chReplace(data, lenData, out, lenOut);
 }
 
-static int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
-	if (data == NULL || *lenData < 1) return -1;
+static int getHeaders(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
+	if (src == NULL || *lenSrc < 1) return -1;
 
-	unsigned char *hend = memmem(data, *lenData, "\n\n", 2);
+	unsigned char *hend = memmem(src, *lenSrc, "\n\n", 2);
 	if (hend == NULL) return -1;
 
-	email->lenHead = hend - data;
+	email->lenHead = hend - src;
 	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
 
 	email->head = malloc(email->lenHead + 1);
 	if (email->head == NULL) {syslog(LOG_ERR, "Failed allocation"); email->lenHead = 0; return -1;}
-	memcpy(email->head, data, email->lenHead);
+	memcpy(email->head, src, email->lenHead);
 	email->head[email->lenHead] = '\0';
 
-	memmove(data, hend + 2, (data + *lenData) - (hend + 2));
-	*lenData -= (email->lenHead + 2);
+	memmove(src, hend + 1, (src + *lenSrc) - (hend + 1));
+	*lenSrc -= (email->lenHead + 1);
 
 	cleanHeaders(email->head, &email->lenHead);
 
@@ -255,12 +254,12 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	return 0;
 }
 
-static void moveHeader(unsigned char * const data, size_t * const lenData, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
-	unsigned char * const hdr = (unsigned char*)strcasestr((char*)data, needle);
+static void moveHeader(unsigned char * const src, size_t * const lenSrc, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
+	unsigned char * const hdr = (unsigned char*)strcasestr((char*)src, needle);
 	if (hdr == NULL) return;
 
-	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (data + *lenData) - (hdr + lenNeedle));
-	if (hdrEnd == NULL) hdrEnd = data + *lenData;
+	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (src + *lenSrc) - (hdr + lenNeedle));
+	if (hdrEnd == NULL) hdrEnd = src + *lenSrc;
 
 	if (target != NULL && lenTarget != NULL) {
 		const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
@@ -269,12 +268,12 @@ static void moveHeader(unsigned char * const data, size_t * const lenData, const
 		memcpy(target, hdr + lenNeedle, *lenTarget);
 	}
 
-	const size_t lenMove = (data + *lenData) - hdrEnd;
+	const size_t lenMove = (src + *lenSrc) - hdrEnd;
 	if (lenMove > 0) memmove(hdr, hdrEnd, lenMove);
 
 	const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
-	*lenData -= lenDelete;
-	data[*lenData] = '\0';
+	*lenSrc -= lenDelete;
+	src[*lenSrc] = '\0';
 }
 
 static int getCte(const unsigned char * const h, const size_t len) {
@@ -381,13 +380,14 @@ static unsigned char* getBound(const unsigned char * const src, const size_t len
 		end = mempbrk(start, (src + lenSrc) - start, (unsigned char[]){';', ' ', '\n'}, 3);
 	}
 
-	*lenBound = 4 + ((end != NULL) ? end : src + lenSrc) - start;
+	*lenBound = 3 + ((end != NULL) ? end : src + lenSrc) - start;
 	unsigned char *bound = malloc(*lenBound);
 	if (bound == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 	bound[0] = '\n';
 	bound[1] = '-';
 	bound[2] = '-';
 	memcpy(bound + 3, start, *lenBound - 3);
+
 	return bound;
 }
 
@@ -434,8 +434,9 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 
 	const unsigned char *searchBegin = src;
 	for (int i = 0; i < boundCount;) {
-		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i] + ((i == 0) ? 1 : 0), lenBound[i]);
+		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i], lenBound[i]);
 		if (begin == NULL) break;
+
 		begin += lenBound[i];
 
 		if (begin[0] == '-' && begin[1] == '-') {
@@ -478,54 +479,54 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				boundCount++;
 				if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
 			}
-		}
+		} else {
+			const unsigned char cte = getCte(partHeaders, lenPartHeaders);
+			unsigned char *new = decodeCte(cte, hend, &lenNew);
+			if (new == NULL) break;
 
-		const unsigned char cte = getCte(partHeaders, lenPartHeaders);
-		unsigned char *new = decodeCte(cte, hend, &lenNew);
-		if (new == NULL) break;
+			if (isText) {
+				unsigned char * const cs = getCharset(ct, (partHeaders + lenPartHeaders) - ct);
+				convertToUtf8((char**)&new, &lenNew, (char*)cs);
+				if (cs != NULL) free(cs);
 
-		if (isText) {
-			unsigned char * const cs = getCharset(ct, (partHeaders + lenPartHeaders) - ct);
-			convertToUtf8((char**)&new, &lenNew, (char*)cs);
-			if (cs != NULL) free(cs);
+				if (isHtml)
+					htmlToText((char*)new, &lenNew);
+				else
+					cleanText(new, &lenNew);
 
-			if (isHtml)
-				htmlToText((char*)new, &lenNew);
-			else
-				cleanText(new, &lenNew);
+				if (out == NULL) {
+					out = new;
+					*lenOut = lenNew;
+				} else {
+					unsigned char * const out2 = malloc(*lenOut + lenNew + 1);
+					if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
+					memcpy(out2, out, *lenOut);
+					free(out);
+					out = out2;
 
-			if (out == NULL) {
-				out = new;
-				*lenOut = lenNew;
-			} else {
-				unsigned char * const out2 = malloc(*lenOut + lenNew + 1);
-				if (out2 == NULL) {syslog(LOG_ERR, "Failed allocation"); break;}
-				memcpy(out2, out, *lenOut);
-				free(out);
-				out = out2;
-
-				out[*lenOut] = AEM_CET_CHAR_SEP;
-				memcpy(out + *lenOut + 1, new, lenNew);
-				free(new);
-				*lenOut += lenNew + 1;
-			}
-		} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-			const size_t lenAtt = 17 + lenFn + lenNew;
-			if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
-				email->attachment[email->attachCount] = malloc(lenAtt);
-
-				if (email->attachment[email->attachCount] != NULL) {
-					email->attachment[email->attachCount][0] = (lenFn - 1);
-					// 16 bytes reserved for MsgId
-					memcpy(email->attachment[email->attachCount] + 17, fn, lenFn);
-					memcpy(email->attachment[email->attachCount] + 17 + lenFn, new, lenNew);
+					out[*lenOut] = AEM_CET_CHAR_SEP;
+					memcpy(out + *lenOut + 1, new, lenNew);
 					free(new);
+					*lenOut += lenNew + 1;
+				}
+			} else if (!multip && email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
+				const size_t lenAtt = 22 + lenFn + lenNew;
+				if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
+					email->attachment[email->attachCount] = malloc(lenAtt);
+					if (email->attachment[email->attachCount] != NULL) {
+						// Bytes 0-4 reserved for InfoByte and timestamp
+						email->attachment[email->attachCount][5] = (lenFn - 1);
+						// 16 bytes reserved for MsgId
+						memcpy(email->attachment[email->attachCount] + 22, fn, lenFn);
+						memcpy(email->attachment[email->attachCount] + 22 + lenFn, new, lenNew);
+						free(new);
 
-					email->lenAttachment[email->attachCount] = lenAtt;
-					(email->attachCount)++;
-				} else {free(new); syslog(LOG_ERR, "Failed allocation");}
-			} else free(new); // attachment too large
-		} else free(new);
+						email->lenAttachment[email->attachCount] = lenAtt;
+						(email->attachCount)++;
+					} else {free(new); syslog(LOG_ERR, "Failed allocation");}
+				} else free(new); // Attachment too large
+			} else free(new);
+		}
 
 		searchBegin = boundEnd;
 	}
@@ -591,7 +592,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 
 		if (bound != NULL) {
 			email->lenBody = *lenSrc;
-			email->body = decodeMp(src, &email->lenBody, email, bound, lenBound - 2);
+			email->body = decodeMp(src, &email->lenBody, email, bound, lenBound);
 			// bound is free'd by decodeMp()
 
 			if (email->body == NULL) { // Error - decodeMp() failed

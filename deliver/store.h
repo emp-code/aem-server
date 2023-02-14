@@ -3,6 +3,6 @@
 
 #include "../Common/Email.h"
 
-int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, const unsigned char * const srcBr, const size_t lenSrcBr);
+int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, unsigned char * const srcBr, const size_t lenSrcBr);
 
 #endif

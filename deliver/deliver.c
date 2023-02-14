@@ -23,25 +23,25 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 	}
 }
 
-unsigned char *brCompress(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
+unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
 	const char * const fn = "src.eml.br";
 	const size_t lenFn = 10;
 
 	*lenOutput = lenInput + 300; // Compressed version can be slightly larger
-	unsigned char * const output = malloc(*lenOutput + 17 + lenFn);
+	unsigned char * const output = malloc(*lenOutput + 22 + lenFn);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
-	output[0] = lenFn - 1;
+	output[5] = lenFn - 1;
 	// 16 bytes of MsgId
-	memcpy(output + 17, fn, lenFn);
+	memcpy(output + 22, fn, lenFn);
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + 17 + lenFn) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + 22 + lenFn) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;
 	}
 
-	*lenOutput += 17 + lenFn;
+	*lenOutput += 22 + lenFn;
 	return output;
 }
 
@@ -60,7 +60,7 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	email->attachCount = 0;
 
 	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? brCompress(src, lenSrc, &lenSrcBr) : NULL;
+	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src, lenSrc, &lenSrcBr) : NULL;
 
 	// Add final CRLF for DKIM
 	src[lenSrc + 0] = '\r';
