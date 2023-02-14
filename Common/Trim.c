@@ -2,96 +2,110 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <sodium.h>
-
 #include "Trim.h"
 
-// Converts HT/NBSP/etc to SP; Converts VT/FF to LF; Removes other control characters
-void removeControlChars(unsigned char * const text, size_t * const len) {
-	if (text == NULL || len == NULL) return;
-
-	unsigned char * const new = malloc(*len);
-	if (new == NULL) return;
-
-	size_t lenNew = 0;
+void removeControlChars(unsigned char * const c, size_t * const len) {
+	size_t newLen = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && (text[i + 2] >= 0x80 && text[i + 2] <= 0x8A)) { // Whitespace of various sizes
-			new[lenNew] = ' ';
-			lenNew++;
-			i += 2;
-		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
-			new[lenNew] = ' ';
-			lenNew++;
-			i++;
-		} else if (text[i] >= 32 && text[i] != 127) { // 127=DEL
-			new[lenNew] = text[i];
-			lenNew++;
-		} else if (text[i] == '\n' || text[i] == '\v' || text[i] == '\f') {
-			new[lenNew] = '\n';
-			lenNew++;
-		} else if (text[i] == '\t') {
-			new[lenNew] = ' ';
-			lenNew++;
+		if (c[i] == ' ' || c[i] == '\n' || (c[i] >= 32 && c[i] != 127)) {
+			c[newLen] = c[i];
+			newLen++;
+		} else if (c[i] == '\t') {
+			c[newLen] = ' ';
+			newLen++;
 		}
 	}
 
-	memcpy(text, new, lenNew);
-	free(new);
-	*len = lenNew;
+	*len = newLen;
 }
 
-// Compresses multiple LF/SP to one; Removes SP followed by/following LF; Removes control characters
-void cleanText(unsigned char * const text, size_t * const len, const bool removeControl) {
-	if (text == NULL || len == NULL) return;
+static size_t charInvisible(const unsigned char * const c, const size_t len) {
+	if (len > 1 && c[0] == 0xCD && c[1] == 0x8F) return 2; // CGJ
 
-	unsigned char * const new = malloc(*len);
-	if (new == NULL) return;
+	if (len > 2 && (
+	   (c[0] == 0xE2 && c[1] == 0x80 && (c[2] >= 0x8B && c[2] <= 0x8D)) // ZWSP/ZWNJ/ZWJ
+	|| (c[0] == 0xE2 && c[1] == 0x81 && c[2] == 0xA0) // WJ
+	|| (c[0] == 0xEF && c[1] == 0xBB && c[2] == 0xBF) // ZWNBSP
+	)) return 3;
 
-	size_t lenNew = 0;
+	return 0;
+}
+
+static size_t charSpace(const unsigned char * const c, const size_t len) {
+	if (len > 0 && (c[0] == ' ' || c[0] == '\t')) return 1;
+
+	if (len > 1 && c[0] == 0xC2 && c[1] == 0xA0) return 2; // NBSP
+
+	if (len > 2
+	&& (c[0] == 0xE1 && c[1] == 0x9A && c[2] == 0x80) // OSM
+	&& (c[0] == 0xE2 && c[1] == 0x80 && (c[2] >= 0x80 && c[2] <= 0x8A)) // Various size spaces
+	&& (c[0] == 0xE2 && c[1] == 0x80 && c[2] >= 0xAF) // ?
+	&& (c[0] == 0xE2 && c[1] == 0x81 && c[2] >= 0x9F) // ?
+	&& (c[0] == 0xE3 && c[1] == 0x80 && c[2] >= 0x80) // ?
+	) return 3;
+
+	return 0;
+}
+
+static size_t charNewline(const unsigned char * const c, const size_t len) {
+	if (len > 0 && c[0] == '\n') return 1;
+	if (len > 1 && c[0] == 0xC2 && c[1] == 0x85) return 2; // NL
+	if (len > 2 && c[0] == 0xE2 && c[1] == 0x80 && (c[2] == 0xA8 || c[2] == 0xA9)) return 3; // Line/Paragraph Separator
+
+	return 0;
+}
+
+void cleanText(unsigned char * const c, size_t * const len) {
+	size_t newLen = 0;
+	size_t noCheck = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if ((i + 2 < *len) && text[i] == 0xEF && text[i + 1] == 0xBB && text[i + 2] == 0xBF) { // BOM - useless in UTF-8
-			i += 2;
-			continue;
-		} else if ((i + 2 < *len) && text[i] == 0xE2 && text[i + 1] == 0x80 && (text[i + 2] == 0x8B || text[i + 2] == 0x8C)) { // ZWSP/ZWNJ
-			if (lenNew > 0 && new[lenNew - 1] == '\n') {i += 2; continue;} // Follows LF - skip
-			if ((i + 3 < *len) && (text[i + 3] == ' ' || text[i + 3] == '\n')) {i += 2; continue;} // Followed by SP/LF - skip
-			new[lenNew] = text[i];
-			new[lenNew + 1] = text[i + 1];
-			new[lenNew + 2] = text[i + 2];
-			lenNew += 3;
-			i += 2;
-			continue;
-		} else if ((i + 1 < *len) && text[i] == 0xC2 && text[i + 1] == 0xA0) { // NBSP
-			if (lenNew > 0 && new[lenNew - 1] == '\n') {i++; continue;} // follows LF - skip
-			if (i + 4 < *len && text[i + 2] == 0xE2 && text[i + 3] == 0x80 && (text[i + 4] == 0x8B || text[i + 4] == 0x8C)) {i += 4; continue;} // Followed by ZWSP/ZWNJ
-			if ((i + 2 < *len) && (text[i + 2] == ' ' || text[i + 2] == '\n')) {i++; continue;} // Followed by SP/LF - skip
-			new[lenNew] = text[i];
-			new[lenNew + 1] = text[i + 1];
-			lenNew += 2;
-			i++;
-			continue;
-		} else if (text[i] == ' ') {
-			if (lenNew > 0 && new[lenNew - 1] == '\n') continue; // follows LF - skip
-			if ((i + 1 < *len) && (text[i + 1] == ' ' || text[i + 1] == '\n')) continue; // Followed by SP/LF - skip
-			if (i + 3 < *len && text[i + 1] == 0xE2 && text[i + 2] == 0x80 && (text[i + 3] == 0x8B || text[i + 3] == 0x8C)) {i += 3; continue;} // Followed by ZWSP/ZWNJ - skip
-		} else if (text[i] == '\n') {
-			if (lenNew > 1 && new[lenNew - 1] == '\n' && new[lenNew - 2] == '\n') continue; // Follows 2 LF - skip
-		} else if (removeControl && (text[i] < 32 || text[i] == 127)) { // 127=DEL
-			continue;
+		if (noCheck == 0) {
+			size_t x = charInvisible(c + i, *len - i);
+			if (x > 0) {
+				if (charSpace(c + i + x, *len - i - x) > 0 || charNewline(c + i + x, *len - i - x) > 0) {i += x - 1; continue;} // A space/newline follows this invisible character - delete this invisble character
+
+				const size_t y = charInvisible(c + i + x, *len - i - x);
+				if (y > 0) {i += x + y - 1; continue;} // Another invisible characters follows this one - delete both
+
+				noCheck = x - 1; // Allow through
+			}
+
+			x = charSpace(c + i, *len - i);
+			if (x > 0) {
+				if (
+					(charNewline(c + i + x, *len - i - x) > 0) // This space is followed by a newline
+				|| (newLen > 0 && (c[newLen - 1] == ' ' || c[newLen - 1] == '\n')) // or preceded by a space/newline
+				) {i += x - 1; continue;} // delete this space
+
+				// Add a normal space
+				c[newLen] = ' ';
+				newLen++;
+				i += x - 1;
+				continue;
+			}
+
+			x = charNewline(c + i, *len - i);
+			if (x > 0) {
+				if (newLen > 1 && c[newLen - 1] == '\n' && c[newLen - 2] == '\n') { // This newline is preceded by 2 newlines - delete this newline
+					i += x - 1;
+					continue;
+				}
+
+				// Add a normal newline
+				c[newLen] = '\n';
+				newLen++;
+				i += x - 1;
+				continue;
+			}
+		} else {
+			noCheck--;
 		}
 
-		new[lenNew] = text[i];
-		lenNew++;
+		c[newLen] = c[i];
+		newLen++;
 	}
 
-	size_t skip = 0;
-	while (skip < lenNew && (new[skip] == '\n' || new[skip] == ' ')) skip++;
-
-	memcpy(text, new + skip, lenNew - skip);
-	free(new);
-	*len = lenNew - skip;
-
-	while (*len > 0 && (text[*len - 1] == '\n' || text[*len - 1] == ' ')) (*len)--;
+	*len = newLen;
 }

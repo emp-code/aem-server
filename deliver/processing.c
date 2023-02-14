@@ -48,12 +48,6 @@ static void processDkim(unsigned char * const src, size_t * const lenSrc, struct
 
 // "abc" <def@ghj> --> abcAEM_CET_CHAR_SEPdef@ghj
 static void minifyHeaderAddress(unsigned char *src, uint8_t * const lenSrc) {
-	while(1) {
-		unsigned char *r = memchr(src, '\r', *lenSrc);
-		if (r == NULL) break;
-		*r = ' ';
-	}
-
 	unsigned char *addrStart = memchr(src, '<', *lenSrc);
 	unsigned char *addrEnd = memchr(src, '>', *lenSrc);
 	if (addrStart == NULL || addrEnd == NULL || addrEnd < addrStart) return;
@@ -156,7 +150,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
-				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \t\v\f\r\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return chReplace(data, lenData, out, lenOut);
+				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return chReplace(data, lenData, out, lenOut);
 			} else {
 				memcpy(dec, ewStart, lenEw);
 				lenDec = lenEw;
@@ -221,7 +215,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				lenOut++;
 			}
 		} else if (!afterColon && data[i] == ':') {
-			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\t' || data[i + 1] == '\r' || data[i + 1] == '\n')) i++; // Skip space after header name (colon)
+			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\n')) i++; // Skip space after header name (colon)
 
 			out[lenOut] = ':';
 			lenOut++;
@@ -241,11 +235,8 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 static int getHeaders(unsigned char * const data, size_t * const lenData, struct emailInfo * const email) {
 	if (data == NULL || *lenData < 1) return -1;
 
-	unsigned char *hend = memmem(data, *lenData, "\r\n\r\n", 4);
-	unsigned char *hend2 = memmem(data, *lenData, "\n\n", 2);
-	if (hend == NULL || (hend2 != NULL && hend2 < hend)) hend = hend2;
+	unsigned char *hend = memmem(data, *lenData, "\n\n", 2);
 	if (hend == NULL) return -1;
-	const size_t lenHend = (hend == hend2) ? 2 : 4;
 
 	email->lenHead = hend - data;
 	if (email->lenHead < 5) {email->lenHead = 0; return -1;}
@@ -255,8 +246,8 @@ static int getHeaders(unsigned char * const data, size_t * const lenData, struct
 	memcpy(email->head, data, email->lenHead);
 	email->head[email->lenHead] = '\0';
 
-	memmove(data, hend + lenHend, (data + *lenData) - (hend + lenHend));
-	*lenData -= (email->lenHead + lenHend);
+	memmove(data, hend + 2, (data + *lenData) - (hend + 2));
+	*lenData -= (email->lenHead + 2);
 
 	cleanHeaders(email->head, &email->lenHead);
 
@@ -315,7 +306,8 @@ static unsigned char *decodeCte(const int cte, const unsigned char * const src, 
 			if (new == NULL) return NULL;
 
 			size_t lenNew;
-			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \t\v\f\r\n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(new); return NULL;}
+			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(new); return NULL;}
+			removeControlChars(new, &lenNew);
 			*lenSrc = lenNew;
 		break;
 
@@ -335,6 +327,7 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	size_t lenUtf8;
 	char * const utf8 = toUtf8(*src, *lenSrc, &lenUtf8, charset);
 	if (utf8 == NULL) return;
+	removeControlChars((unsigned char*)utf8, &lenUtf8);
 
 	free(*src);
 	*src = utf8;
@@ -360,7 +353,7 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 		if (csEnd == NULL) return NULL;
 		cs++;
 	} else {
-		csEnd = mempbrk(cs, (ct + lenCt) - cs, (unsigned char[]){';', ' ', '\t', '\v', '\f', '\r', '\n'}, 7);
+		csEnd = mempbrk(cs, (ct + lenCt) - cs, (unsigned char[]){';', ' ', '\n'}, 3);
 		if (csEnd == NULL) csEnd = ct + lenCt;
 	}
 
@@ -385,17 +378,16 @@ static unsigned char* getBound(const unsigned char * const src, const size_t len
 		end = memchr(start + 1, *start, (src + lenSrc) - (start + 1));
 		start++;
 	} else {
-		end = mempbrk(start, (src + lenSrc) - start, (unsigned char[]){';', ' ', '\t', '\v', '\f', '\r', '\n'}, 7);
+		end = mempbrk(start, (src + lenSrc) - start, (unsigned char[]){';', ' ', '\n'}, 3);
 	}
 
 	*lenBound = 4 + ((end != NULL) ? end : src + lenSrc) - start;
 	unsigned char *bound = malloc(*lenBound);
 	if (bound == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
-	bound[0] = '\r';
-	bound[1] = '\n';
+	bound[0] = '\n';
+	bound[1] = '-';
 	bound[2] = '-';
-	bound[3] = '-';
-	memcpy(bound + 4, start, *lenBound - 4);
+	memcpy(bound + 3, start, *lenBound - 3);
 	return bound;
 }
 
@@ -415,10 +407,10 @@ static size_t getNameHeader(const unsigned char * const src, const size_t lenSrc
 	const unsigned char *end;
 	if (*fn == '"' || *fn == '\'') {
 		fn++;
-		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){*(fn - 1), '\v', '\r', '\n', '\0'}, 4);
+		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){*(fn - 1), '\n', '\0'}, 3);
 		if (end == NULL) return 1;
 	} else {
-		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){'\v', '\r', '\n', '\0', '\t', ' ', ';'}, 7);
+		end = mempbrk(fn, (src + lenSrc) - fn, (const unsigned char[]){';', ' ', '\n', '\0'}, 4);
 		if (end == NULL) return 1;
 	}
 
@@ -442,7 +434,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 
 	const unsigned char *searchBegin = src;
 	for (int i = 0; i < boundCount;) {
-		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i] + ((i == 0) ? 2 : 0), lenBound[i]);
+		const unsigned char *begin = memmem(searchBegin, (src + lenSrc) - searchBegin, bound[i] + ((i == 0) ? 1 : 0), lenBound[i]);
 		if (begin == NULL) break;
 		begin += lenBound[i];
 
@@ -452,9 +444,9 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			continue;
 		}
 
-		const unsigned char *hend = memmem(begin, (src + lenSrc) - begin, (unsigned char[]){'\r','\n','\r','\n'}, 4);
+		const unsigned char *hend = memmem(begin, (src + lenSrc) - begin, (unsigned char[]){'\n','\n'}, 2);
 		if (hend == NULL) break;
-		hend += 3;
+		hend++;
 
 		size_t lenPartHeaders = hend - begin;
 		if (lenPartHeaders > 9999) break;
@@ -497,10 +489,10 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			convertToUtf8((char**)&new, &lenNew, (char*)cs);
 			if (cs != NULL) free(cs);
 
-			if (isHtml) htmlToText((char*)new, &lenNew);
-
-			cleanText(new, &lenNew, !isHtml);
-			new[lenNew] = '\0';
+			if (isHtml)
+				htmlToText((char*)new, &lenNew);
+			else
+				cleanText(new, &lenNew);
 
 			if (out == NULL) {
 				out = new;
@@ -546,7 +538,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 
 void processEmail(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
 	processDkim(src, lenSrc, email);
-
+	removeControlChars(src, lenSrc);
 	if (getHeaders(src, lenSrc, email) != 0) return;
 
 	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->hdrFr, &email->lenHdrFr, 255); // Removed/ignored
@@ -601,7 +593,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 
 		if (bound != NULL) {
 			email->lenBody = *lenSrc;
-			email->body = decodeMp(src, &(email->lenBody), email, bound, lenBound - 2);
+			email->body = decodeMp(src, &email->lenBody, email, bound, lenBound - 2);
 			// bound is free'd by decodeMp()
 
 			if (email->body == NULL) { // Error - decodeMp() failed
@@ -634,7 +626,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 			if (lenCt >= 9 && memeq_anycase(ct + 5, "html", 4))
 				htmlToText((char*)email->body, &email->lenBody);
 			else
-				cleanText(email->body, &email->lenBody, true);
+				cleanText(email->body, &email->lenBody);
 		}
 	}
 

@@ -25,12 +25,16 @@ void decodeQuotedPrintable(unsigned char * const data, size_t * const lenData) {
 		i++; // Skip '='
 		if (i >= *lenData) break;
 		if (i >= *lenData - 1) break;
-		if (data[i] == '\r' && data[i + 1] == '\n') {i++; continue;}
+		if (data[i] == '\n') continue;
 
 		if (isxdigit(data[i]) && isxdigit(data[i + 1])) {
-			const unsigned char h = hexToChar(data + i);
-			memcpy(new + lenNew, &h, 1);
-			lenNew++;
+			unsigned char h = hexToChar(data + i);
+			if (h == '\t') h = ' ';
+
+			if (h == '\n' || (h >= 32 && h != 127)) {
+				memcpy(new + lenNew, &h, 1);
+				lenNew++;
+			}
 		} else {
 			memcpy(new + lenNew, data + i - 1, 3); // Include '='
 			lenNew += 3;

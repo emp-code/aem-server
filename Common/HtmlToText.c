@@ -323,9 +323,8 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 	*lenSrc = lenOut;
 }
 
-void htmlToText(char * const text, size_t * const len) {
-	removeControlChars((unsigned char*)text, len);
-	html2cet(text, len);
-	decodeHtmlRefs((unsigned char*)text, len);
-	cleanText((unsigned char*)text, len, false);
+void htmlToText(char * const src, size_t * const lenSrc) {
+	html2cet(src, lenSrc);
+	decodeHtmlRefs((unsigned char*)src, lenSrc);
+	cleanText((unsigned char*)src, lenSrc);
 }
