@@ -1,6 +1,8 @@
 #ifndef AEM_FORMAT_H
 #define AEM_FORMAT_H
 
+#include "../Common/Email.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 
