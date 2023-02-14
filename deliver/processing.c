@@ -523,11 +523,9 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 
 					email->lenAttachment[email->attachCount] = lenAtt;
 					(email->attachCount)++;
-				} else syslog(LOG_ERR, "Failed allocation");
-			} else { // attachment too large
-				free(new);
-			}
-		}
+				} else {free(new); syslog(LOG_ERR, "Failed allocation");}
+			} else free(new); // attachment too large
+		} else free(new);
 
 		searchBegin = boundEnd;
 	}
