@@ -108,5 +108,11 @@ void cleanText(unsigned char * const c, size_t * const len) {
 		newLen++;
 	}
 
+	// Remove whitespace at the end
+	for (int i = newLen - 1; i >= 0; i--) {
+		if (c[i] != ' ' && c[i] != '\n') break;
+		newLen--;
+	}
+
 	*len = newLen;
 }
