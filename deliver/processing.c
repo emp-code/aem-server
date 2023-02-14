@@ -196,7 +196,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				if (decUtf8 != NULL) free(decUtf8);
 			}
 
-			i += lenOriginal;
+			i += lenOriginal - 1;
 
 			wasEw = true;
 		} else if (i < (*lenData - 1) && data[i] == '\n' && isspace(data[i + 1])) {
