@@ -104,21 +104,23 @@ void intcom_serve_stream(void) {
 		dlv->lenSrc = 1;
 
 		while(1) {
+			// Receive size
 			if (recv(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
 				break;
 			}
 
-			if (lenEnc == SIZE_MAX || dlv->lenSrc + (lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES) > AEM_SMTP_MAX_SIZE_BODY) { // Finished
-				crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
-				break;
-			}
-
+			if (lenEnc == SIZE_MAX) break; // Finished
 			if (lenEnc <= crypto_secretstream_xchacha20poly1305_ABYTES || lenEnc > AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES) {
 				syslog(LOG_WARNING, "IntCom[SS] Invalid message length");
 				break;
 			}
+			if (lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES + dlv->lenSrc > AEM_SMTP_MAX_SIZE_BODY) {
+				syslog(LOG_WARNING, "IntCom[SS] Client sent too much data");
+				break;
+			}
 
+			// Receive message
 			if (recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message");
 				break;
@@ -132,15 +134,14 @@ void intcom_serve_stream(void) {
 			dlv->lenSrc += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
 		}
 
-		if (dlv->lenSrc <= 1) {
-			close(sock);
-			continue;
+		crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
+
+		if (dlv->lenSrc > 1) {
+			const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
+			send(sock, &ret, sizeof(int32_t), 0);
 		}
 
-		const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
 		sodium_memzero(dlv, sizeof(struct dlvEmail));
-		send(sock, &ret, sizeof(int32_t), 0);
-
 		close(sock);
 	}
 
