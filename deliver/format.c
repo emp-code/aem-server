@@ -36,7 +36,7 @@ void delSignKey(void) {
 
 __attribute__((warn_unused_result))
 unsigned char *makeAttachment(const unsigned char * const upk, unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16], size_t * const lenEnc) {
-	if (att == NULL || lenAtt < 1) return NULL;
+	if (att == NULL || lenAtt < 23) return NULL;
 
 	att[0] = msg_getPadAmount(lenAtt) | 32;
 	memcpy(att + 1, &ts, 4);
