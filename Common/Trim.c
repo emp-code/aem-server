@@ -37,13 +37,13 @@ static size_t charSpace(const unsigned char * const c, const size_t len) {
 
 	if (len > 1 && c[0] == 0xC2 && c[1] == 0xA0) return 2; // NBSP
 
-	if (len > 2
-	&& (c[0] == 0xE1 && c[1] == 0x9A && c[2] == 0x80) // OSM
-	&& (c[0] == 0xE2 && c[1] == 0x80 && (c[2] >= 0x80 && c[2] <= 0x8A)) // Various size spaces
-	&& (c[0] == 0xE2 && c[1] == 0x80 && c[2] >= 0xAF) // ?
-	&& (c[0] == 0xE2 && c[1] == 0x81 && c[2] >= 0x9F) // ?
-	&& (c[0] == 0xE3 && c[1] == 0x80 && c[2] >= 0x80) // ?
-	) return 3;
+	if (len > 2 && (
+	   (c[0] == 0xE1 && c[1] == 0x9A && c[2] == 0x80) // OSM
+	|| (c[0] == 0xE2 && c[1] == 0x80 && (c[2] >= 0x80 && c[2] <= 0x8A)) // Various size spaces
+	|| (c[0] == 0xE2 && c[1] == 0x80 && c[2] >= 0xAF) // NARROW NO-BREAK SPACE
+	|| (c[0] == 0xE2 && c[1] == 0x81 && c[2] >= 0x9F) // MEDIUM MATHEMATICAL SPACE
+	|| (c[0] == 0xE3 && c[1] == 0x80 && c[2] >= 0x80) // IDEOGRAPHIC SPACE
+	)) return 3;
 
 	return 0;
 }
