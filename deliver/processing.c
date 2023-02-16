@@ -315,16 +315,13 @@ static void getCharset(char * const target, const unsigned char *ct, const size_
 	target[0] = '\0';
 
 	const unsigned char *cs = memcasemem(ct, lenCt, "charset", 7);
-	if (cs == NULL) return;
-	cs = memchr(cs + 7, '=', (ct + lenCt) - (cs + 7));
-	if (cs == NULL) return;
+	if (cs == NULL || ((ct + lenCt) - cs) < 10) return;
+	cs += 7;
+	if (isspace(*cs)) cs++;
 
-	while(1) {
-		cs++;
-		if (cs == ct + lenCt) return;
-
-		if (!isspace(*cs)) break;
-	}
+	if (*cs != '=') return;
+	cs++;
+	if (isspace(*cs)) cs++;
 
 	const unsigned char *csEnd;
 	if (*cs == '"' || *cs == '\'') {
@@ -337,7 +334,7 @@ static void getCharset(char * const target, const unsigned char *ct, const size_
 	}
 
 	const size_t lenCs = csEnd - cs;
-	if (lenCs > 49) return;
+	if (lenCs >= 50) return;
 
 	memcpy(target, cs, lenCs);
 	target[lenCs] = '\0';
