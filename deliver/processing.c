@@ -93,44 +93,30 @@ static void minifyHeaderAddress(unsigned char *src, uint8_t * const lenSrc) {
 	return;
 }
 
-#define AEM_CLEANHEADERS_PLACEHOLDER_SPACE 0x01
-static void chReplace(unsigned char * const target, size_t * const lenTarget, const unsigned char * const src, const size_t lenSrc) {
-	for (size_t i = 0; i < lenSrc; i++) {
-		if (src[i] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE)
-			target[i] = ' ';
-		else
-			target[i] = src[i];
-	}
-
-	*lenTarget = lenSrc;
-}
-
 static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
-	unsigned char out[*lenData];
-	size_t lenOut = 0;
-
+	size_t lenNew = 0;
 	bool wasEw = false;
 	bool afterColon = false;
 
-	for (size_t i = 0; i < *lenData && lenOut < *lenData; i++) {
+	for (size_t i = 0; i < *lenData; i++) {
 		if (i < *lenData - 1 && data[i] == '=' && data[i + 1] == '?') { // Encoded-Word; e.g. =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
-			if (wasEw && lenOut > 0) {
+			if (wasEw && lenNew > 0) {
 				// This is EW follows another: remove all spaces between the two
-				while (lenOut > 0 && out[lenOut - 1] == AEM_CLEANHEADERS_PLACEHOLDER_SPACE) lenOut--;
+				while (lenNew > 0 && data[lenNew - 1] == ' ') lenNew--;
 			}
 
 			const unsigned char * const charsetEnd = memchr(data + i + 2, '?', *lenData - (i + 2));
 			const size_t lenCharset = (charsetEnd == NULL) ? 0 : charsetEnd - (data + i + 2);
-			if (lenCharset < 1 || lenCharset > 30) return chReplace(data, lenData, out, lenOut);
+			if (lenCharset < 1 || lenCharset > 30) break;
 
 			char charset[lenCharset + 1];
 			memcpy(charset, data + i + 2, lenCharset);
 			charset[lenCharset] = '\0';
 
-			if (data[i + 2 + lenCharset] != '?' || data[i + 4 + lenCharset] != '?') return chReplace(data, lenData, out, lenOut);
+			if (data[i + 2 + lenCharset] != '?' || data[i + 4 + lenCharset] != '?') break;
 
 			const bool isBase64 = (toupper(data[i + 3 + lenCharset]) == 'B');
-			if (!isBase64 && toupper(data[i + 3 + lenCharset]) != 'Q') return chReplace(data, lenData, out, lenOut);
+			if (!isBase64 && toupper(data[i + 3 + lenCharset]) != 'Q') break;
 
 			const unsigned char * const ewStart = data + i + 5 + lenCharset;
 			const unsigned char * const ewEnd = memmem(ewStart, *lenData - (i + 5 + lenCharset), "?=", 2);
@@ -149,7 +135,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
-				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return chReplace(data, lenData, out, lenOut);
+				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) break;
 			} else {
 				memcpy(dec, ewStart, lenEw);
 				lenDec = lenEw;
@@ -168,13 +154,11 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				filterUtf8(dec, lenDec, false);
 
 				if (lenDec <= lenOriginal) {
-					if (lenOut + lenDec >= *lenData) return;
-					memcpy(out + lenOut, dec, lenDec);
-					lenOut += lenDec;
-				} else {
-					if (lenOut + lenOriginal >= *lenData) return;
-					memset(out + lenOut, '?', lenOriginal);
-					lenOut += lenOriginal;
+					memcpy(data + lenNew, dec, lenDec);
+					lenNew += lenDec;
+				} else { // Decoded longer than original, not supported for now
+					memset(data + lenNew, '?', lenOriginal);
+					lenNew += lenOriginal;
 				}
 			} else {
 				size_t lenDecUtf8 = 0;
@@ -182,14 +166,11 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 
 				if (decUtf8 != NULL && lenDecUtf8 > 0 && lenDecUtf8 <= lenOriginal) {
 					filterUtf8(decUtf8, lenDecUtf8, false);
-
-					if (lenOut + lenDecUtf8 >= *lenData) return;
-					memcpy(out + lenOut, decUtf8, lenDecUtf8);
-					lenOut += lenDecUtf8;
+					memcpy(data + lenNew, decUtf8, lenDecUtf8);
+					lenNew += lenDecUtf8;
 				} else {
-					if (lenOut + lenOriginal >= *lenData) return;
-					memset(out + lenOut, '?', lenOriginal);
-					lenOut += lenOriginal;
+					memset(data + lenNew, '?', lenOriginal);
+					lenNew += lenOriginal;
 				}
 
 				if (decUtf8 != NULL) free(decUtf8);
@@ -198,37 +179,36 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			i += lenOriginal - 1;
 
 			wasEw = true;
-		} else if (i < (*lenData - 1) && data[i] == '\n' && isspace(data[i + 1])) {
-			// This linebreak is followed by a space -> unfold the header by ignoring this linebreak
-			continue;
+		} else if (i < (*lenData - 1) && data[i] == '\n' && data[i + 1] == ' ') {
+			continue; // Unfold the header by ignoring this linebreak before a space
 		} else if (data[i] == '\n') {
-			if (lenOut > 0 && out[lenOut - 1] == ' ') lenOut--;
+			while (lenNew > 0 && data[lenNew - 1] == ' ') lenNew--;
 
-			out[lenOut] = '\n';
-			lenOut++;
+			data[lenNew] = '\n';
+			lenNew++;
 
 			afterColon = false;
-		} else if (data[i] == ' ' || data[i] == '\t') {
-			if (lenOut < 1 || out[lenOut - 1] != AEM_CLEANHEADERS_PLACEHOLDER_SPACE) {
-				out[lenOut] = AEM_CLEANHEADERS_PLACEHOLDER_SPACE;
-				lenOut++;
+		} else if (data[i] == ' ') {
+			if (lenNew < 1 || data[lenNew - 1] != ' ') {
+				data[lenNew] = ' ';
+				lenNew++;
 			}
 		} else if (!afterColon && data[i] == ':') {
 			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\n')) i++; // Skip space after header name (colon)
 
-			out[lenOut] = ':';
-			lenOut++;
+			data[lenNew] = ':';
+			lenNew++;
 
 			afterColon = true;
 		} else if (data[i] > 32 && data[i] < 127) {
-			out[lenOut] = data[i];
-			lenOut++;
+			data[lenNew] = data[i];
+			lenNew++;
 
 			wasEw = false;
 		} // else skipped
 	}
 
-	chReplace(data, lenData, out, lenOut);
+	*lenData = lenNew;
 }
 
 static int getHeaders(unsigned char * const src, size_t * const lenSrc, struct emailInfo * const email) {
