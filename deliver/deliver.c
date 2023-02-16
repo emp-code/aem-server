@@ -60,7 +60,7 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	email->attachCount = 0;
 
 	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src, lenSrc, &lenSrcBr) : NULL;
+	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr) : NULL;
 
 	// Add final CRLF for DKIM
 	src[lenSrc + 0] = '\r';
