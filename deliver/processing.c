@@ -268,10 +268,10 @@ static int getCte(const unsigned char * const h, const size_t len) {
 	return MTA_PROCESSING_CTE_NONE;
 }
 
-static unsigned char *decodeCte(const int cte, const unsigned char * const src, size_t * const lenSrc) {
+static unsigned char *decodeCte(const unsigned char * const src, size_t * const lenSrc, const int cte) {
 	unsigned char *new;
 
-	switch(cte) {
+	switch (cte) {
 		case MTA_PROCESSING_CTE_QP:
 			new = malloc(*lenSrc + 1);
 			if (new == NULL) return NULL;
@@ -457,7 +457,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			}
 		} else {
 			const unsigned char cte = getCte(partHeaders, lenPartHeaders);
-			unsigned char *new = decodeCte(cte, hend, &lenNew);
+			unsigned char *new = decodeCte(hend, &lenNew, cte);
 			if (new == NULL) break;
 
 			if (isText) {
@@ -587,7 +587,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
-		email->body = decodeCte(cte, src, lenSrc);
+		email->body = decodeCte(src, lenSrc, cte);
 		if (email->body == NULL) email->body = src;
 		email->lenBody = *lenSrc;
 
