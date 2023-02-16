@@ -311,15 +311,17 @@ static void convertToUtf8(char ** const src, size_t * const lenSrc, const char *
 	*lenSrc = lenUtf8;
 }
 
-static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
+static void getCharset(char * const target, const unsigned char *ct, const size_t lenCt) {
+	target[0] = '\0';
+
 	const unsigned char *cs = memcasemem(ct, lenCt, "charset", 7);
-	if (cs == NULL) return NULL;
+	if (cs == NULL) return;
 	cs = memchr(cs + 7, '=', (ct + lenCt) - (cs + 7));
-	if (cs == NULL) return NULL;
+	if (cs == NULL) return;
 
 	while(1) {
 		cs++;
-		if (cs == ct + lenCt) return NULL;
+		if (cs == ct + lenCt) return;
 
 		if (!isspace(*cs)) break;
 	}
@@ -327,7 +329,7 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 	const unsigned char *csEnd;
 	if (*cs == '"' || *cs == '\'') {
 		csEnd = memchr(cs + 1, *cs, (ct + lenCt) - (cs + 1));
-		if (csEnd == NULL) return NULL;
+		if (csEnd == NULL) return;
 		cs++;
 	} else {
 		csEnd = mempbrk(cs, (ct + lenCt) - cs, (unsigned char[]){';', ' ', '\n'}, 3);
@@ -335,12 +337,10 @@ static unsigned char *getCharset(const unsigned char *ct, const size_t lenCt) {
 	}
 
 	const size_t lenCs = csEnd - cs;
-	unsigned char * const charset = malloc(lenCs + 1);
-	if (charset == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
+	if (lenCs > 49) return;
 
-	memcpy(charset, cs, lenCs);
-	charset[lenCs] = '\0';
-	return charset;
+	memcpy(target, cs, lenCs);
+	target[lenCs] = '\0';
 }
 
 static unsigned char* getBound(const unsigned char * const src, const size_t lenSrc, size_t * const lenBound) {
@@ -463,9 +463,9 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			if (new == NULL) break;
 
 			if (isText) {
-				unsigned char * const cs = getCharset(ct, (partHeaders + lenPartHeaders) - ct);
-				convertToUtf8((char**)&new, &lenNew, (char*)cs);
-				if (cs != NULL) free(cs);
+				char cs[50];
+				getCharset(cs, ct, (partHeaders + lenPartHeaders) - ct);
+				convertToUtf8((char**)&new, &lenNew, cs);
 
 				if (isHtml)
 					htmlToText((char*)new, &lenNew);
@@ -594,9 +594,9 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		email->lenBody = *lenSrc;
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
-			unsigned char * const cs = getCharset(ct, lenCt);
-			convertToUtf8((char**)&email->body, &email->lenBody, (char*)cs);
-			if (cs != NULL) free(cs);
+			char cs[50];
+			getCharset(cs, ct, lenCt);
+			convertToUtf8((char**)&email->body, &email->lenBody, cs);
 
 			if (lenCt >= 9 && memeq_anycase(ct + 5, "html", 4))
 				htmlToText((char*)email->body, &email->lenBody);
