@@ -236,7 +236,7 @@ static int getHeaders(unsigned char * const src, size_t * const lenSrc, struct e
 
 static void moveHeader(unsigned char * const src, size_t * const lenSrc, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
 	unsigned char * const hdr = (unsigned char*)strcasestr((char*)src, needle);
-	if (hdr == NULL) {*lenTarget = 0; return;}
+	if (hdr == NULL) return;
 
 	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (src + *lenSrc) - (hdr + lenNeedle));
 	if (hdrEnd == NULL) hdrEnd = src + *lenSrc;
@@ -519,7 +519,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 	removeControlChars(src, lenSrc);
 	if (getHeaders(src, lenSrc, email) != 0) return;
 
-	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, email->hdrFr, &email->lenHdrFr, 255); // Removed/ignored
+	moveHeader(email->head, &email->lenHead, "\nMIME-Version:", 14, NULL, NULL, 0);
 	moveHeader(email->head, &email->lenHead, "\nFrom:",          6, email->hdrFr, &email->lenHdrFr, 255);
 	moveHeader(email->head, &email->lenHead, "\nReply-To:",     10, email->hdrRt, &email->lenHdrRt, 255);
 	moveHeader(email->head, &email->lenHead, "\nTo:",            4, email->hdrTo, &email->lenHdrTo, 63);
@@ -562,9 +562,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 	// Content-Type
 	if (lenCt >= 9 && memeq_anycase(ct, "multipart", 9)) {
 		// CTE in headers: ignored
-		unsigned char ignore[255];
-		uint8_t lenIgnore;
-		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, ignore, &lenIgnore, 255);
+		moveHeader(email->head, &email->lenHead, "\nContent-Transfer-Encoding:", 27, NULL, NULL, 0);
 
 		size_t lenBound;
 		unsigned char * const bound = getBound(ct + 9, lenCt - 9, &lenBound);
