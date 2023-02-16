@@ -19,6 +19,7 @@
 #include "processing.h"
 
 #define AEM_LIMIT_MULTIPARTS 50
+#define AEM_DELIVER_MAXLEN_CHARSET 50
 
 #define MTA_PROCESSING_CTE_NONE 0
 #define MTA_PROCESSING_CTE_B64 1
@@ -334,7 +335,7 @@ static void getCharset(char * const target, const unsigned char *ct, const size_
 	}
 
 	const size_t lenCs = csEnd - cs;
-	if (lenCs >= 50) return;
+	if (lenCs >= AEM_DELIVER_MAXLEN_CHARSET) return;
 
 	memcpy(target, cs, lenCs);
 	target[lenCs] = '\0';
@@ -460,7 +461,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			if (new == NULL) break;
 
 			if (isText) {
-				char cs[50];
+				char cs[AEM_DELIVER_MAXLEN_CHARSET];
 				getCharset(cs, ct, (partHeaders + lenPartHeaders) - ct);
 				convertToUtf8((char**)&new, &lenNew, cs);
 
@@ -591,7 +592,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		email->lenBody = *lenSrc;
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
-			char cs[50];
+			char cs[AEM_DELIVER_MAXLEN_CHARSET];
 			getCharset(cs, ct, lenCt);
 			convertToUtf8((char**)&email->body, &email->lenBody, cs);
 
