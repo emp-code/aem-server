@@ -250,8 +250,7 @@ static void moveHeader(unsigned char * const src, size_t * const lenSrc, const c
 	const size_t lenMove = (src + *lenSrc) - hdrEnd;
 	if (lenMove > 0) memmove(hdr, hdrEnd, lenMove);
 
-	const size_t lenDelete = (hdrEnd - (hdr + lenNeedle)) + lenNeedle;
-	*lenSrc -= lenDelete;
+	*lenSrc -= (hdrEnd - hdr);
 	src[*lenSrc] = '\0';
 }
 
