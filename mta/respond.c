@@ -386,7 +386,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				const unsigned char * const end = (bytes < 5) ? NULL : memmem(body, bytes, "\r\n.\r\n", 5);
 				if (end != NULL) {
 					bytes = end - body;
-					lenBody = AEM_SMTP_MAX_SIZE_BODY; // end loop
+					if (bytes == 0) break;
+
+					lenBody = AEM_SMTP_MAX_SIZE_BODY; // Don't loop any more
 				} else lenBody += bytes;
 
 				intcom_stream_send(body, bytes);// TODO check if fail
