@@ -236,7 +236,7 @@ static int getHeaders(unsigned char * const src, size_t * const lenSrc, struct e
 
 static void moveHeader(unsigned char * const src, size_t * const lenSrc, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
 	unsigned char * const hdr = (unsigned char*)strcasestr((char*)src, needle);
-	if (hdr == NULL) return;
+	if (hdr == NULL) {*lenTarget = 0; return;}
 
 	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (src + *lenSrc) - (hdr + lenNeedle));
 	if (hdrEnd == NULL) hdrEnd = src + *lenSrc;
