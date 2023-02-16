@@ -243,8 +243,7 @@ static void moveHeader(unsigned char * const src, size_t * const lenSrc, const c
 
 	if (target != NULL && lenTarget != NULL) {
 		const size_t lenTgt = hdrEnd - (hdr + lenNeedle);
-		if (lenTgt > limit) return;
-		*lenTarget = lenTgt;
+		*lenTarget = (lenTgt > limit) ? limit : lenTgt;
 		memcpy(target, hdr + lenNeedle, *lenTarget);
 	}
 
