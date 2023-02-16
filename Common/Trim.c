@@ -8,7 +8,7 @@ void removeControlChars(unsigned char * const c, size_t * const len) {
 	size_t newLen = 0;
 
 	for (size_t i = 0; i < *len; i++) {
-		if (c[i] == ' ' || c[i] == '\n' || (c[i] >= 32 && c[i] != 127)) {
+		if (c[i] == '\n' || (c[i] >= 32 && c[i] != 127)) {
 			c[newLen] = c[i];
 			newLen++;
 		} else if (c[i] == '\t') {
