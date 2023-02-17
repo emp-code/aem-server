@@ -33,7 +33,7 @@ static size_t charInvisible(const unsigned char * const c, const size_t len) {
 }
 
 static size_t charSpace(const unsigned char * const c, const size_t len) {
-	if (len > 0 && (c[0] == ' ' || c[0] == '\t')) return 1;
+	if (len > 0 && c[0] == ' ') return 1;
 
 	if (len > 1 && c[0] == 0xC2 && c[1] == 0xA0) return 2; // NBSP
 
