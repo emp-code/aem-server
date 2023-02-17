@@ -96,6 +96,7 @@ static void minifyHeaderAddress(unsigned char *src, uint8_t * const lenSrc) {
 
 static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 	size_t lenNew = 0;
+	size_t lenKeep = 0;
 	bool wasEw = false;
 	bool afterColon = false;
 
@@ -103,7 +104,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 		if (i < *lenData - 1 && data[i] == '=' && data[i + 1] == '?') { // Encoded-Word; e.g. =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
 			if (wasEw && lenNew > 0) {
 				// This is EW follows another: remove all spaces between the two
-				while (lenNew > 0 && data[lenNew - 1] == ' ') lenNew--;
+				while (lenNew > 0 && lenNew > lenKeep && data[lenNew - 1] == ' ') lenNew--;
 			}
 
 			const unsigned char * const charsetEnd = memchr(data + i + 2, '?', *lenData - (i + 2));
@@ -157,6 +158,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				if (lenDec <= lenOriginal) {
 					memcpy(data + lenNew, dec, lenDec);
 					lenNew += lenDec;
+					lenKeep = lenNew;
 				} else { // Decoded longer than original, not supported for now
 					memset(data + lenNew, '?', lenOriginal);
 					lenNew += lenOriginal;
