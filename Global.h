@@ -68,8 +68,11 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 
-// Control-Enriched Text (CET) - Avoid common-use CCs (HTab/LF), 0 (NUL), and 127 (DEL)
-// 0x09 = HTab
+// Control-Enriched Text (CET)
+#define AEM_CET_CHAR_BLD 0x06 // Bold
+#define AEM_CET_CHAR_ITA 0x07 // Italics
+#define AEM_CET_CHAR_UNL 0x08 // Underline
+#define AEM_CET_CHAR_STR 0x09 // Strikethrough
 // 0x0A = LF
 #define AEM_CET_CHAR_SEP 0x0B // Separator (internal use)
 #define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)

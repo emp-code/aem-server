@@ -25,18 +25,22 @@ enum aem_html_type {
 enum aem_html_tag {
 	// Special use
 	AEM_HTML_TAG_NULL,
-	AEM_HTML_TAG_L1, // insert 1 linebreak
-	AEM_HTML_TAG_L2, // insert 2 linebreaks
-	// Opening tags
+	AEM_HTML_TAG_L1, // Insert 1 linebreak
+	AEM_HTML_TAG_L2, // Insert 2 linebreaks
+	// HTML tags
 	AEM_HTML_TAG_a,
 	AEM_HTML_TAG_audio,
+	AEM_HTML_TAG_b,
 	AEM_HTML_TAG_embed,
 	AEM_HTML_TAG_frame,
+	AEM_HTML_TAG_i,
 	AEM_HTML_TAG_iframe,
 	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_object,
+	AEM_HTML_TAG_s,
 	AEM_HTML_TAG_source,
 	AEM_HTML_TAG_track,
+	AEM_HTML_TAG_u,
 	AEM_HTML_TAG_video,
 };
 
@@ -55,19 +59,39 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 		case AEM_HTML_TAG_video: return (lenName == 3 && memeq(name, "src", 3)) ? AEM_CET_CHAR_FIL : 0;
 
 		case AEM_HTML_TAG_object: return (lenName == 4 && memeq(name, "data", 4)) ? AEM_CET_CHAR_FIL : 0;
-	}
 
-	return 0;
+		default: return 0;
+	}
 }
 
-static void addNewline(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
-	if (tag == AEM_HTML_TAG_L1) {
-		out[*lenOut] = '\n';
-		(*lenOut)++;
-	} else if (tag == AEM_HTML_TAG_L2) {
-		out[*lenOut]     = '\n';
-		out[*lenOut + 1] = '\n';
-		*lenOut += 2;
+static void addTagChar(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
+	switch (tag) {
+		case AEM_HTML_TAG_L1:
+			out[*lenOut] = '\n';
+			(*lenOut)++;
+		break;
+		case AEM_HTML_TAG_L2:
+			out[*lenOut]     = '\n';
+			out[*lenOut + 1] = '\n';
+			*lenOut += 2;
+		break;
+		case AEM_HTML_TAG_b:
+			out[*lenOut] = AEM_CET_CHAR_BLD;
+			(*lenOut)++;
+		break;
+		case AEM_HTML_TAG_i:
+			out[*lenOut] = AEM_CET_CHAR_ITA;
+			(*lenOut)++;
+		break;
+		case AEM_HTML_TAG_s:
+			out[*lenOut] = AEM_CET_CHAR_STR;
+			(*lenOut)++;
+		break;
+		case AEM_HTML_TAG_u:
+			out[*lenOut] = AEM_CET_CHAR_UNL;
+			(*lenOut)++;
+		break;
+		default: return;
 	}
 }
 
@@ -76,11 +100,21 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 
 	if (lenTagName > 1 && tagName[0] == '/') {
 		switch (tagName[1]) {
+			case 'b':
+				if (lenTagName == 2) return AEM_HTML_TAG_b;
+			break;
 			case 'd':
+				if (lenTagName == 4 && tagName[2] == 'e' && tagName[3] == 'l') return AEM_HTML_TAG_s;
 				if (lenTagName == 4 && tagName[2] == 'i' && tagName[3] == 'v') return AEM_HTML_TAG_L1;
+			break;
+			case 'e':
+				if (lenTagName == 3 && tagName[2] == 'm') return AEM_HTML_TAG_i;
 			break;
 			case 'h':
 				if (lenTagName == 3 && tagName[2] >= '1' && tagName[2] <= '6') return AEM_HTML_TAG_L1;
+			break;
+			case 'i':
+				if (lenTagName == 2) return AEM_HTML_TAG_i;
 			break;
 			case 'l':
 				if (lenTagName == 3 && tagName[2] == 'i') return AEM_HTML_TAG_L1;
@@ -88,10 +122,18 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			case 'p':
 				if (lenTagName == 2) return AEM_HTML_TAG_L1;
 			break;
+			case 's':
+				if (lenTagName == 2) return AEM_HTML_TAG_s;
+				if (lenTagName == 7 && memeq(tagName + 2, "trike", 5)) return AEM_HTML_TAG_s;
+				if (lenTagName == 7 && memeq(tagName + 2, "trong", 5)) return AEM_HTML_TAG_b;
+			break;
 			case 't':
 				if (lenTagName == 3 && (tagName[2] == 'd' || tagName[2] == 'r')) return AEM_HTML_TAG_L1;
 				if (lenTagName == 6 && memeq(tagName + 2, "able", 4)) return AEM_HTML_TAG_L2;
 				if (lenTagName == 6 && memeq(tagName + 2, "itle", 4)) return AEM_HTML_TAG_L2;
+			break;
+			case 'u':
+				if (lenTagName == 2) return AEM_HTML_TAG_u;
 			break;
 		}
 
@@ -104,12 +146,15 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			if (lenTagName == 5 && memeq(tagName + 1, "udio", 4)) return AEM_HTML_TAG_audio;
 		break;
 		case 'b':
+			if (lenTagName == 1) return AEM_HTML_TAG_b;
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
 		break;
 		case 'd':
+			if (lenTagName == 3 && tagName[1] == 'e' && tagName[2] == 'l') return AEM_HTML_TAG_s;
 			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_L1;
 		break;
 		case 'e':
+			if (lenTagName == 2 && tagName[1] == 'm') return AEM_HTML_TAG_i;
 			if (lenTagName == 5 && memeq(tagName + 1, "mbed", 4)) return AEM_HTML_TAG_embed;
 		break;
 		case 'f':
@@ -120,6 +165,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1;
 		break;
 		case 'i':
+			if (lenTagName == 1) return AEM_HTML_TAG_i;
 			if (lenTagName == 6 && memeq(tagName + 1, "frame", 5)) return AEM_HTML_TAG_iframe;
 			if (lenTagName == 3 && tagName[1] == 'm' && tagName[2] == 'g') return AEM_HTML_TAG_img;
 		break;
@@ -133,13 +179,19 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 			if (lenTagName == 1) return AEM_HTML_TAG_L1;
 		break;
 		case 's':
+			if (lenTagName == 1) return AEM_HTML_TAG_s;
 			if (lenTagName == 6 && memeq(tagName + 1, "ource", 5)) return AEM_HTML_TAG_source;
+			if (lenTagName == 6 && memeq(tagName + 1, "trike", 5)) return AEM_HTML_TAG_s;
+			if (lenTagName == 6 && memeq(tagName + 1, "trong", 5)) return AEM_HTML_TAG_b;
 		break;
 		case 't':
 			if (lenTagName == 5 && memeq(tagName + 1, "able", 4)) return AEM_HTML_TAG_L2;
 			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'r')) return AEM_HTML_TAG_L1;
 			if (lenTagName == 5 && memeq(tagName + 1, "rack", 4)) return AEM_HTML_TAG_track;
 			if (lenTagName == 5 && memeq(tagName + 1, "itle", 4)) return AEM_HTML_TAG_L2;
+		break;
+		case 'u':
+			if (lenTagName == 1) return AEM_HTML_TAG_u;
 		break;
 		case 'v':
 			if (lenTagName == 5 && memeq(tagName + 1, "ideo", 4)) return AEM_HTML_TAG_video;
@@ -171,7 +223,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					lenTagName = 0;
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
-					addNewline(out, &lenOut, getTagByName(tagName, lenTagName));
+					addTagChar(out, &lenOut, getTagByName(tagName, lenTagName));
 					lenTagName = 0;
 					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
@@ -187,7 +239,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_T2: { // Inside of tag
 				if (src[i] == '>') {
-					addNewline(out, &lenOut, tagType);
+					addTagChar(out, &lenOut, tagType);
 					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
