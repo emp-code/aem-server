@@ -61,17 +61,21 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 				}
 
-				sodium_memzero(enc, lenEnc);
-				free(enc);
+				if (enc != NULL) {
+					sodium_memzero(enc, lenEnc);
+					free(enc);
+				}
 			}
 		}
 
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
 			enc = makeAttachment(meta->toUpk[i], srcBr, lenSrcBr, email->timestamp, msgId, &lenEnc);
-			if (enc != NULL) intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0); // Ignore failure
-			sodium_memzero(enc, lenEnc);
-			free(enc);
+			if (enc != NULL) {
+				intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0); // Ignore failure
+				sodium_memzero(enc, lenEnc);
+				free(enc);
+			}
 		}
 	}
 
