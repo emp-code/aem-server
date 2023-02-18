@@ -64,6 +64,17 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 	}
 }
 
+static void atcAdd(char * const out, size_t * const lenOut, unsigned char chr) {
+	if (*lenOut > 0 && out[*lenOut - 1] == chr) {
+		// Empty tag; e.g. <b></b> - remove both
+		(*lenOut)--;
+		return;
+	}
+
+	out[*lenOut] = chr;
+	(*lenOut)++;
+}
+
 static void addTagChar(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
 	switch (tag) {
 		case AEM_HTML_TAG_L1:
@@ -75,22 +86,12 @@ static void addTagChar(char * const out, size_t * const lenOut, const enum aem_h
 			out[*lenOut + 1] = '\n';
 			*lenOut += 2;
 		break;
-		case AEM_HTML_TAG_b:
-			out[*lenOut] = AEM_CET_CHAR_BLD;
-			(*lenOut)++;
-		break;
-		case AEM_HTML_TAG_i:
-			out[*lenOut] = AEM_CET_CHAR_ITA;
-			(*lenOut)++;
-		break;
-		case AEM_HTML_TAG_s:
-			out[*lenOut] = AEM_CET_CHAR_STR;
-			(*lenOut)++;
-		break;
-		case AEM_HTML_TAG_u:
-			out[*lenOut] = AEM_CET_CHAR_UNL;
-			(*lenOut)++;
-		break;
+
+		case AEM_HTML_TAG_b: atcAdd(out, lenOut, AEM_CET_CHAR_BLD); break;
+		case AEM_HTML_TAG_i: atcAdd(out, lenOut, AEM_CET_CHAR_ITA); break;
+		case AEM_HTML_TAG_s: atcAdd(out, lenOut, AEM_CET_CHAR_STR); break;
+		case AEM_HTML_TAG_u: atcAdd(out, lenOut, AEM_CET_CHAR_UNL); break;
+
 		default: return;
 	}
 }
