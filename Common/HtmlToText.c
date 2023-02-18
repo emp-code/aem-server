@@ -224,8 +224,6 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
 					addTagChar(out, &lenOut, getTagByName(tagName, lenTagName));
-					lenTagName = 0;
-					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
 				} else if (lenTagName < 7) {
 					tagName[lenTagName] = tolower(src[i]);
@@ -240,7 +238,6 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_T2: { // Inside of tag
 				if (src[i] == '>') {
 					addTagChar(out, &lenOut, tagType);
-					tagType = AEM_HTML_TAG_NULL;
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
 					size_t offset = 0;
@@ -356,6 +353,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 						break;
 					}
 
+					lenTagName = 0;
 					type = AEM_HTML_TYPE_T1;
 					break;
 				}
