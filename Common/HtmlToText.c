@@ -62,33 +62,33 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 	}
 }
 
-static void atcAdd(char * const out, size_t * const lenOut, unsigned char chr) {
-	if (*lenOut > 0 && out[*lenOut - 1] == chr) {
+static void atcAdd(char * const src, size_t * const lenSrc, unsigned char chr) {
+	if (*lenSrc > 0 && src[*lenSrc - 1] == chr) {
 		// Empty tag; e.g. <b></b> - remove both
-		(*lenOut)--;
+		(*lenSrc)--;
 		return;
 	}
 
-	out[*lenOut] = chr;
-	(*lenOut)++;
+	src[*lenSrc] = chr;
+	(*lenSrc)++;
 }
 
-static void addTagChar(char * const out, size_t * const lenOut, const enum aem_html_tag tag) {
+static void addTagChar(char * const src, size_t * const lenSrc, const enum aem_html_tag tag) {
 	switch (tag) {
 		case AEM_HTML_TAG_L1:
-			out[*lenOut] = '\n';
-			(*lenOut)++;
+			src[*lenSrc] = '\n';
+			(*lenSrc)++;
 		break;
 		case AEM_HTML_TAG_L2:
-			out[*lenOut]     = '\n';
-			out[*lenOut + 1] = '\n';
-			*lenOut += 2;
+			src[*lenSrc]     = '\n';
+			src[*lenSrc + 1] = '\n';
+			*lenSrc += 2;
 		break;
 
-		case AEM_HTML_TAG_b: atcAdd(out, lenOut, AEM_CET_CHAR_BLD); break;
-		case AEM_HTML_TAG_i: atcAdd(out, lenOut, AEM_CET_CHAR_ITA); break;
-		case AEM_HTML_TAG_s: atcAdd(out, lenOut, AEM_CET_CHAR_STR); break;
-		case AEM_HTML_TAG_u: atcAdd(out, lenOut, AEM_CET_CHAR_UNL); break;
+		case AEM_HTML_TAG_b: atcAdd(src, lenSrc, AEM_CET_CHAR_BLD); break;
+		case AEM_HTML_TAG_i: atcAdd(src, lenSrc, AEM_CET_CHAR_ITA); break;
+		case AEM_HTML_TAG_s: atcAdd(src, lenSrc, AEM_CET_CHAR_STR); break;
+		case AEM_HTML_TAG_u: atcAdd(src, lenSrc, AEM_CET_CHAR_UNL); break;
 
 		default: return;
 	}
@@ -200,9 +200,7 @@ static enum aem_html_tag getTagByName(const char * const tagName, const size_t l
 	return AEM_HTML_TAG_NULL;
 }
 
-static void html2cet(char * const src, size_t * const lenSrc) {
-	char * const out = malloc(*lenSrc);
-	if (out == NULL) return;
+static size_t html2cet(char * const src, size_t * const lenSrc) {
 	size_t lenOut = 0;
 
 	enum aem_html_tag tagType = AEM_HTML_TAG_NULL;
@@ -222,7 +220,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					lenTagName = 0;
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
-					addTagChar(out, &lenOut, getTagByName(tagName, lenTagName));
+					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName));
 					type = AEM_HTML_TYPE_TX;
 				} else if (lenTagName < 7) {
 					tagName[lenTagName] = tolower(src[i]);
@@ -236,7 +234,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_T2: { // Inside of tag
 				if (src[i] == '>') {
-					addTagChar(out, &lenOut, tagType);
+					addTagChar(src, &lenOut, tagType);
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
 					size_t offset = 0;
@@ -247,7 +245,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					size_t lenAttrName = 0;
 					for (size_t j = 1;; j++) {
 						if (src[i - offset - j] == ' ') break;
-						if (src[i - offset - j] == '<') {free(out); return;} // Should not happen
+						if (src[i - offset - j] == '<') return lenOut; // Should not happen
 
 						lenAttrName++;
 						if (lenAttrName > 9) break; // todo
@@ -278,7 +276,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 				else if (memeq_anycase(src + i + 1, "https://", 8)) {i += 8; copyAttr++;}
 				else {copyAttr = 0; break;} // All others ignored/deleted
 
-				out[lenOut] = copyAttr;
+				src[lenOut] = copyAttr;
 				lenOut++;
 			break;}
 
@@ -286,18 +284,18 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_QS: {
 				if (src[i] == (char)type) { // End of attribute -> add end marker
 					if (copyAttr != 0) {
-						out[lenOut] = copyAttr;
+						src[lenOut] = copyAttr;
 						lenOut++;
 
 						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							out[lenOut] = '\n';
+							src[lenOut] = '\n';
 							lenOut++;
 						}
 					}
 
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					out[lenOut] = src[i];
+					src[lenOut] = src[i];
 					lenOut++;
 				}
 			break;}
@@ -305,11 +303,11 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_QN: {
 				if (src[i] == ' ' || src[i] == '>') { // End of attribute -> add end marker
 					if (copyAttr != 0) {
-						out[lenOut] = copyAttr;
+						src[lenOut] = copyAttr;
 						lenOut++;
 
 						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							out[lenOut] = '\n';
+							src[lenOut] = '\n';
 							lenOut++;
 						}
 					}
@@ -317,7 +315,7 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					i--;
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					out[lenOut] = src[i];
+					src[lenOut] = src[i];
 					lenOut++;
 				}
 			break;}
@@ -326,28 +324,14 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 				if (src[i] == '<') {
 					if (memeq_anycase(src + i + 1, "style", 5)) {
 						const char * const styleEnd = (const char * const)memcasemem((unsigned char*)src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
-
-						if (styleEnd == NULL) {
-							memcpy(src, out, lenOut);
-							free(out);
-							*lenSrc = lenOut;
-							return;
-						}
-
+						if (styleEnd == NULL) return lenOut;
 						i = styleEnd - src - 1;
 						break;
 					}
 
 					if (memeq_anycase(src + i + 1, "!--", 3)) {
 						const char * const cEnd = (const char * const)memcasemem((unsigned char*)src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
-
-						if (cEnd == NULL) {
-							memcpy(src, out, lenOut);
-							free(out);
-							*lenSrc = lenOut;
-							return;
-						}
-
+						if (cEnd == NULL) return lenOut;
 						i = cEnd - src + 2;
 						break;
 					}
@@ -357,23 +341,20 @@ static void html2cet(char * const src, size_t * const lenSrc) {
 					break;
 				}
 
-				out[lenOut] = src[i];
+				src[lenOut] = src[i];
 				lenOut++;
 			break;}
 
 			default:
-				free(out);
-				return;
+				return lenOut;
 		}
 	}
 
-	memcpy(src, out, lenOut);
-	free(out);
-	*lenSrc = lenOut;
+	return lenOut;
 }
 
 void htmlToText(char * const src, size_t * const lenSrc) {
-	html2cet(src, lenSrc);
+	*lenSrc = html2cet(src, lenSrc);
 	decodeHtmlRefs((unsigned char*)src, lenSrc);
 	cleanText((unsigned char*)src, lenSrc);
 }
