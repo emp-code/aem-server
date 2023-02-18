@@ -49,8 +49,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		free(enc);
 
 		if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
-			if (meta->toCount > 1) continue;
-			return deliveryStatus;
+			if (i + 1 == meta->toCount) return deliveryStatus; else continue;
 		}
 
 		// Store attachments, if requested
@@ -62,8 +61,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 				free(enc);
 
 				if (deliveryStatus != AEM_INTCOM_RESPONSE_OK) {
-					if (meta->toCount > 1) continue;
-					return deliveryStatus;
+					if (i + 1 == meta->toCount) return deliveryStatus;
 				}
 			}
 		}
