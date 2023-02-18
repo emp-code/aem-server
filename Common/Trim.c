@@ -56,6 +56,27 @@ static size_t charNewline(const unsigned char * const c, const size_t len) {
 	return 0;
 }
 
+// Get the prev/next character, ignoring CCs
+size_t prevCharAt(unsigned char * const src, const ssize_t start) {
+	if (start < 1) return 0;
+
+	const unsigned char *c = src + start;
+	while (c > src && ((*c < 32 && *c != '\n') || *c == 127)) {
+		c--;
+	}
+
+	return c - src;
+}
+
+size_t nextCharAt(unsigned char * const src, const size_t start, const size_t len) {
+	const unsigned char *c = src + start;
+	while (c < src + len && ((*c < 32 && *c != '\n') || *c == 127)) {
+		c++;
+	}
+
+	return c - src;
+}
+
 void cleanText(unsigned char * const c, size_t * const len) {
 	size_t newLen = 0;
 	size_t noCheck = 0;
@@ -64,7 +85,8 @@ void cleanText(unsigned char * const c, size_t * const len) {
 		if (noCheck == 0) {
 			size_t x = charInvisible(c + i, *len - i);
 			if (x > 0) {
-				if (charSpace(c + i + x, *len - i - x) > 0 || charNewline(c + i + x, *len - i - x) > 0) {i += x - 1; continue;} // A space/newline follows this invisible character - delete this invisble character
+				const size_t o1 = nextCharAt(c, i + x, *len);
+				if (charSpace(c + o1, *len - o1) > 0 || charNewline(c + o1, *len - o1) > 0) {i += x - 1; continue;} // A space/newline follows this invisible character - delete this invisble character
 
 				const size_t y = charInvisible(c + i + x, *len - i - x);
 				if (y > 0) {i += x + y - 1; continue;} // Another invisible characters follows this one - delete both
@@ -74,10 +96,13 @@ void cleanText(unsigned char * const c, size_t * const len) {
 
 			x = charSpace(c + i, *len - i);
 			if (x > 0) {
+				const size_t o1 = nextCharAt(c, i + x, *len);
+				const size_t o2 = prevCharAt(c, newLen - 1);
+
 				if (newLen < 1 // First character shouldn't be space
-				|| charNewline(c + i + x, *len - i - x) > 0 // This space is followed by a newline
-				|| c[newLen - 1] == ' ' // Preceded by a space
-				|| c[newLen - 1] == '\n' // Preceded by a newline
+				|| (c[o2] == ' ') // Preceded by a space
+				|| (c[o2] == '\n') // Preceded by a newline
+				|| charNewline(c + o1, *len - o1) > 0 // Followed by a newline
 				) {i += x - 1; continue;} // Delete this space
 
 				// Add a normal space
@@ -89,7 +114,10 @@ void cleanText(unsigned char * const c, size_t * const len) {
 
 			x = charNewline(c + i, *len - i);
 			if (x > 0) {
-				if (newLen < 1 || (newLen > 1 && c[newLen - 1] == '\n' && c[newLen - 2] == '\n')) { // This newline is the first character, or is preceded by 2 newlines - delete this newline
+				const size_t o1 = prevCharAt(c, newLen - 1);
+				const size_t o2 = prevCharAt(c, o1 - 1);
+
+				if (newLen < 2 || (c[o1] == '\n' && c[o2] == '\n')) { // This newline is the first character, or is preceded by 2 newlines - delete this newline
 					i += x - 1;
 					continue;
 				}
