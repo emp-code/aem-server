@@ -3,8 +3,6 @@
 #include <ctype.h> // for isupper/tolower
 #include <sys/types.h> // for ssize_t
 
-#include <sodium.h>
-
 #include "../Global.h"
 #include "memeq.h"
 #include "HtmlRefs.h"
