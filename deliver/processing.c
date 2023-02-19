@@ -158,7 +158,6 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 				if (lenDec <= lenOriginal) {
 					memcpy(data + lenNew, dec, lenDec);
 					lenNew += lenDec;
-					lenKeep = lenNew;
 				} else { // Decoded longer than original, not supported for now
 					memset(data + lenNew, '?', lenOriginal);
 					lenNew += lenOriginal;
@@ -180,7 +179,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			}
 
 			i += lenOriginal - 1;
-
+			lenKeep = lenNew;
 			wasEw = true;
 		} else if (i < (*lenData - 1) && data[i] == '\n' && data[i + 1] == ' ') {
 			continue; // Unfold the header by ignoring this linebreak before a space
