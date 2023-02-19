@@ -270,7 +270,7 @@ static int getCte(const unsigned char * const h, const size_t len) {
 	return MTA_PROCESSING_CTE_NONE;
 }
 
-static unsigned char *decodeCte(const unsigned char * const src, size_t * const lenSrc, const int cte) {
+static unsigned char *decodeCte(const unsigned char * const src, size_t * const lenSrc, const int cte, const bool isText) {
 	unsigned char *new;
 
 	switch (cte) {
@@ -287,7 +287,7 @@ static unsigned char *decodeCte(const unsigned char * const src, size_t * const 
 
 			size_t lenNew;
 			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(new); return NULL;}
-			removeControlChars(new, &lenNew);
+			if (isText) removeControlChars(new, &lenNew);
 			*lenSrc = lenNew;
 		break;
 
@@ -459,7 +459,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 			}
 		} else {
 			const unsigned char cte = getCte(partHeaders, lenPartHeaders);
-			unsigned char *new = decodeCte(hend, &lenNew, cte);
+			unsigned char *new = decodeCte(hend, &lenNew, cte, isText);
 			if (new == NULL) break;
 
 			if (isText) {
@@ -503,7 +503,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 						(email->attachCount)++;
 					} else {free(new); syslog(LOG_ERR, "Failed allocation");}
 				} else free(new); // Attachment too large
-			} else free(new);
+			} else free(new); // Attachment limit reached
 		}
 
 		searchBegin = boundEnd;
@@ -589,7 +589,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
-		email->body = decodeCte(src, lenSrc, cte);
+		email->body = decodeCte(src, lenSrc, cte, true);
 		if (email->body == NULL) email->body = src;
 		email->lenBody = *lenSrc;
 
