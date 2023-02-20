@@ -23,29 +23,35 @@ enum aem_html_type {
 enum aem_html_tag {
 	// Special use
 	AEM_HTML_TAG_NULL,
-	AEM_HTML_TAG_L1, // Insert 1 linebreak
-	AEM_HTML_TAG_L2, // Insert 2 linebreaks
-	// HTML tags
-	AEM_HTML_TAG_a,
-	AEM_HTML_TAG_audio,
+	AEM_HTML_TAG_BR,
+	// Simple tags
 	AEM_HTML_TAG_big,
 	AEM_HTML_TAG_bld,
-	AEM_HTML_TAG_embed,
-	AEM_HTML_TAG_frame,
-	AEM_HTML_TAG_iframe,
+	AEM_HTML_TAG_hrl,
 	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_ita,
-	AEM_HTML_TAG_hrl,
+	AEM_HTML_TAG_lli,
+	AEM_HTML_TAG_lol,
+	AEM_HTML_TAG_lul,
 	AEM_HTML_TAG_mno,
-	AEM_HTML_TAG_object,
 	AEM_HTML_TAG_sml,
-	AEM_HTML_TAG_source,
 	AEM_HTML_TAG_str,
 	AEM_HTML_TAG_sub,
 	AEM_HTML_TAG_sup,
-	AEM_HTML_TAG_track,
+	AEM_HTML_TAG_tbl,
+	AEM_HTML_TAG_ttd,
+	AEM_HTML_TAG_ttr,
 	AEM_HTML_TAG_unl,
-	AEM_HTML_TAG_video,
+	// Other tags
+	AEM_HTML_TAG_a,
+	AEM_HTML_TAG_audio,
+	AEM_HTML_TAG_embed,
+	AEM_HTML_TAG_frame,
+	AEM_HTML_TAG_iframe,
+	AEM_HTML_TAG_object,
+	AEM_HTML_TAG_source,
+	AEM_HTML_TAG_track,
+	AEM_HTML_TAG_video
 };
 
 static int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
@@ -68,41 +74,43 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 	}
 }
 
-static void atcAdd(char * const src, size_t * const lenSrc, unsigned char chr) {
-	if (*lenSrc > 0 && src[*lenSrc - 1] == chr) {
-		// Empty tag; e.g. <b></b> - remove both
-		(*lenSrc)--;
-		return;
+static unsigned char tag2char(const enum aem_html_tag tag) {
+	switch (tag) {
+		case AEM_HTML_TAG_big: return AEM_CET_CHAR_BIG;
+		case AEM_HTML_TAG_bld: return AEM_CET_CHAR_BLD;
+		case AEM_HTML_TAG_hrl: return AEM_CET_CHAR_HRL;
+		case AEM_HTML_TAG_ita: return AEM_CET_CHAR_ITA;
+		case AEM_HTML_TAG_lli: return AEM_CET_CHAR_LLI;
+		case AEM_HTML_TAG_lol: return AEM_CET_CHAR_LOL;
+		case AEM_HTML_TAG_lul: return AEM_CET_CHAR_LUL;
+		case AEM_HTML_TAG_mno: return AEM_CET_CHAR_MNO;
+		case AEM_HTML_TAG_sml: return AEM_CET_CHAR_SML;
+		case AEM_HTML_TAG_str: return AEM_CET_CHAR_STR;
+		case AEM_HTML_TAG_sub: return AEM_CET_CHAR_SUB;
+		case AEM_HTML_TAG_sup: return AEM_CET_CHAR_SUP;
+		case AEM_HTML_TAG_tbl: return AEM_CET_CHAR_TBL;
+		case AEM_HTML_TAG_ttd: return AEM_CET_CHAR_TTD;
+		case AEM_HTML_TAG_ttr: return AEM_CET_CHAR_TTR;
+		case AEM_HTML_TAG_unl: return AEM_CET_CHAR_UNL;
+		default: return 0;
 	}
-
-	src[*lenSrc] = chr;
-	(*lenSrc)++;
 }
 
 static void addTagChar(char * const src, size_t * const lenSrc, const enum aem_html_tag tag) {
-	switch (tag) {
-		case AEM_HTML_TAG_L1:
-			src[*lenSrc] = '\n';
+	if (tag == AEM_HTML_TAG_BR) {
+		src[*lenSrc] = '\n';
+		(*lenSrc)++;
+	} else {
+		const unsigned char chr = tag2char(tag);
+		if (chr == 0) return;
+
+		if (*lenSrc > 0 && src[*lenSrc - 1] == chr) {
+			// Empty tag; e.g. <b></b> - remove both
+			(*lenSrc)--;
+		} else {
+			src[*lenSrc] = chr;
 			(*lenSrc)++;
-		break;
-		case AEM_HTML_TAG_L2:
-			src[*lenSrc]     = '\n';
-			src[*lenSrc + 1] = '\n';
-			*lenSrc += 2;
-		break;
-
-		case AEM_HTML_TAG_big: atcAdd(src, lenSrc, AEM_CET_CHAR_BIG); break;
-		case AEM_HTML_TAG_bld: atcAdd(src, lenSrc, AEM_CET_CHAR_BLD); break;
-		case AEM_HTML_TAG_hrl: atcAdd(src, lenSrc, AEM_CET_CHAR_HRL); break;
-		case AEM_HTML_TAG_ita: atcAdd(src, lenSrc, AEM_CET_CHAR_ITA); break;
-		case AEM_HTML_TAG_mno: atcAdd(src, lenSrc, AEM_CET_CHAR_MNO); break;
-		case AEM_HTML_TAG_sml: atcAdd(src, lenSrc, AEM_CET_CHAR_SML); break;
-		case AEM_HTML_TAG_str: atcAdd(src, lenSrc, AEM_CET_CHAR_STR); break;
-		case AEM_HTML_TAG_sub: atcAdd(src, lenSrc, AEM_CET_CHAR_SUB); break;
-		case AEM_HTML_TAG_sup: atcAdd(src, lenSrc, AEM_CET_CHAR_SUP); break;
-		case AEM_HTML_TAG_unl: atcAdd(src, lenSrc, AEM_CET_CHAR_UNL); break;
-
-		default: return;
+		}
 	}
 }
 
@@ -120,15 +128,15 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'b':
 			if (lenTagName == 1) return AEM_HTML_TAG_bld; // b - bld
-			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_L1; // br - L1
-			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'g') return AEM_HTML_TAG_big; // big - big
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_BR;
+			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'g') return AEM_HTML_TAG_big;
 		break;
 		case 'c':
 			if (lenTagName == 4 && memeq(tagName + 1, "ode", 3)) return AEM_HTML_TAG_mno; // code - mono
 		break;
 		case 'd':
 			if (lenTagName == 3 && tagName[1] == 'e' && tagName[2] == 'l') return AEM_HTML_TAG_str; // del - ita
-			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_L1;  // div - L1
+			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_BR;
 		break;
 		case 'e':
 			if (lenTagName == 2 && tagName[1] == 'm') return AEM_HTML_TAG_ita; // em - ita
@@ -150,13 +158,14 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 3 && tagName[1] == 'b' && tagName[2] == 'd') return AEM_HTML_TAG_mno; // kbd - mono
 		break;
 		case 'l':
-			if (lenTagName == 2 && tagName[1] == 'i') return AEM_HTML_TAG_L1; // li - L1
+			if (lenTagName == 2 && tagName[1] == 'i') return AEM_HTML_TAG_lli;
 		break;
 		case 'o':
+			if (lenTagName == 2 && tagName[1] == 'l') return AEM_HTML_TAG_lol;
 			if (lenTagName == 6 && memeq(tagName + 1, "bject", 5)) return AEM_HTML_TAG_object;
 		break;
 		case 'p':
-			if (lenTagName == 1) return AEM_HTML_TAG_L1; // p - L1
+			if (lenTagName == 1) return AEM_HTML_TAG_BR;
 			if (lenTagName == 3 && tagName[1] == 'r' && tagName[2] == 'e') return AEM_HTML_TAG_mno; // pre - mono
 		break;
 		case 's':
@@ -170,13 +179,15 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 6 && memeq(tagName + 1, "ource", 5)) return AEM_HTML_TAG_source;
 		break;
 		case 't':
-			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'r')) return AEM_HTML_TAG_L1; // td/tr - L1
-			if (lenTagName == 5 && memeq(tagName + 1, "able",    4)) return AEM_HTML_TAG_L2;  // table - L2
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_ttr;
+			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'h')) return AEM_HTML_TAG_ttd;
+			if (lenTagName == 5 && memeq(tagName + 1, "able",    4)) return AEM_HTML_TAG_tbl;
 			if (lenTagName == 5 && memeq(tagName + 1, "rack",    4)) return AEM_HTML_TAG_track;
-			if (lenTagName == 8 && memeq(tagName + 1, "extarea", 7)) return AEM_HTML_TAG_mno; // textarea - mno
+			if (lenTagName == 8 && memeq(tagName + 1, "extarea", 7)) return AEM_HTML_TAG_mno; // textarea - mono
 		break;
 		case 'u':
 			if (lenTagName == 1) return AEM_HTML_TAG_unl; // u - unl
+			if (lenTagName == 2 && tagName[1] == 'u') return AEM_HTML_TAG_lul;
 		break;
 		case 'v':
 			if (lenTagName == 5 && memeq(tagName + 1, "ideo", 4)) return AEM_HTML_TAG_video;

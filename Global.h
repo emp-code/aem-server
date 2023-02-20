@@ -82,6 +82,13 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_HRL 0x0B // <hr>
 #define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
 #define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
+// 0x10..0x19 unused
+#define AEM_CET_CHAR_TBL 0x1A // table
+#define AEM_CET_CHAR_TTR 0x1B // tr
+#define AEM_CET_CHAR_TTD 0x1C // td
+#define AEM_CET_CHAR_LOL 0x1D // ol
+#define AEM_CET_CHAR_LUL 0x1E // ul
+#define AEM_CET_CHAR_LLI 0x1F // li
 #define AEM_CET_CHAR_SEP 0x7F // Separator (internal use)
 
 /*
