@@ -121,6 +121,11 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		lenTagName--;
 	}
 
+	if (tagName[lenTagName - 1] == '/') {
+		if (lenTagName == 1) return AEM_HTML_TAG_NULL;
+		lenTagName--;
+	}
+
 	switch (tagName[0]) {
 		case 'a':
 			if (lenTagName == 1) return AEM_HTML_TAG_a;
