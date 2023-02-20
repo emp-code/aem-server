@@ -74,9 +74,10 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_UNL 0x08 // Underline
 #define AEM_CET_CHAR_STR 0x09 // Strikethrough
 // 0x0A = LF
-#define AEM_CET_CHAR_SEP 0x0B // Separator (internal use)
+// 0x0B unused
 #define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
 #define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
+#define AEM_CET_CHAR_SEP 0x7F // Separator (internal use)
 
 /*
 	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.
