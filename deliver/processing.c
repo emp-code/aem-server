@@ -98,7 +98,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 	size_t lenNew = 0;
 	size_t lenKeep = 0;
 	bool wasEw = false;
-	bool afterColon = false;
+	int colonPos = -1;
 
 	for (size_t i = 0; i < *lenData; i++) {
 		if (i < *lenData - 1 && data[i] == '=' && data[i + 1] == '?') { // Encoded-Word; e.g. =?iso-8859-1?Q?=A1Hola,_se=F1or!?=
@@ -181,6 +181,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			i += lenOriginal - 1;
 			lenKeep = lenNew;
 			wasEw = true;
+			colonPos = 1;
 		} else if (i < (*lenData - 1) && data[i] == '\n' && data[i + 1] == ' ') {
 			continue; // Unfold the header by ignoring this linebreak before a space
 		} else if (data[i] == '\n') {
@@ -189,24 +190,25 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			data[lenNew] = '\n';
 			lenNew++;
 
-			afterColon = false;
+			colonPos = -1;
 		} else if (data[i] == ' ') {
-			if (lenNew < 1 || data[lenNew - 1] != ' ') {
+			if (lenNew < 1 || (data[lenNew - 1] != ' ' && colonPos > 0)) {
 				data[lenNew] = ' ';
 				lenNew++;
 			}
-		} else if (!afterColon && data[i] == ':') {
-			while (i < (*lenData - 1) && (data[i + 1] == ' ' || data[i + 1] == '\n')) i++; // Skip space after header name (colon)
+		} else if (colonPos < 0 && data[i] == ':') {
+			while (i < (*lenData - 1) && (data[i + 1] == ' ')) i++; // Skip space after header-colon
 
 			data[lenNew] = ':';
 			lenNew++;
 
-			afterColon = true;
+			colonPos = 0;
 		} else if (data[i] > 32 && data[i] < 127) {
 			data[lenNew] = data[i];
 			lenNew++;
 
 			wasEw = false;
+			if (colonPos == 0) colonPos = 1;
 		} // else skipped
 	}
 
