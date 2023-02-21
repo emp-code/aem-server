@@ -69,27 +69,31 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_NEWER 1
 
 // Control-Enriched Text (CET)
-#define AEM_CET_CHAR_BIG 0x01 // Big text
-#define AEM_CET_CHAR_SML 0x02 // Small text
-#define AEM_CET_CHAR_SUB 0x03 // Subscript
-#define AEM_CET_CHAR_SUP 0x04 // Superscript
-#define AEM_CET_CHAR_MNO 0x05 // Monospace
-#define AEM_CET_CHAR_BLD 0x06 // Bold
-#define AEM_CET_CHAR_ITA 0x07 // Italics
-#define AEM_CET_CHAR_UNL 0x08 // Underline
-#define AEM_CET_CHAR_STR 0x09 // Strikethrough
-//                       0x0A == <br>
-#define AEM_CET_CHAR_HRL 0x0B // <hr>
-#define AEM_CET_CHAR_LNK 0x0C // a, frame, iframe (+1 = HTTPS)
-#define AEM_CET_CHAR_FIL 0x0E // img, audio, video, source, object, embed (+1 = HTTPS)
-// 0x10..0x19 unused
+	// Tags with no open/close
+#define AEM_CET_CHAR_LBR 0x01 // Linebreak
+#define AEM_CET_CHAR_HRL 0x02 // Horizontal line
+	// Tags AEM closes automatically
+#define AEM_CET_CHAR_LNK 0x04 // Document link (+1 = HTTPS)
+#define AEM_CET_CHAR_FIL 0x06 // File link (+1 = HTTPS)
+	// Tags with open/close based on the input HTML
+#define AEM_CET_THRESHOLD_MANUAL 0x11
+#define AEM_CET_CHAR_BIG 0x11 // Big text
+#define AEM_CET_CHAR_SML 0x12 // Small text
+#define AEM_CET_CHAR_SUB 0x13 // Subscript
+#define AEM_CET_CHAR_SUP 0x14 // Superscript
+#define AEM_CET_CHAR_MNO 0x15 // Monospace
+#define AEM_CET_CHAR_BLD 0x16 // Bold
+#define AEM_CET_CHAR_ITA 0x17 // Italics
+#define AEM_CET_CHAR_UNL 0x18 // Underline
+#define AEM_CET_CHAR_STR 0x19 // Strikethrough
 #define AEM_CET_CHAR_TBL 0x1A // table
 #define AEM_CET_CHAR_TTR 0x1B // tr
 #define AEM_CET_CHAR_TTD 0x1C // td
 #define AEM_CET_CHAR_LOL 0x1D // ol
 #define AEM_CET_CHAR_LUL 0x1E // ul
 #define AEM_CET_CHAR_LLI 0x1F // li
-#define AEM_CET_CHAR_SEP 0x7F // Separator (internal use)
+// Internal use
+#define AEM_CET_CHAR_SEP 127 // Separator
 
 /*
 	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <ctype.h> // for isupper/tolower
 #include <sys/types.h> // for ssize_t
 
@@ -97,21 +98,36 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 }
 
 static void addTagChar(char * const src, size_t * const lenSrc, const enum aem_html_tag tag) {
-	if (tag == AEM_HTML_TAG_BR) {
-		src[*lenSrc] = '\n';
-		(*lenSrc)++;
-	} else {
-		const unsigned char chr = tag2char(tag);
-		if (chr == 0) return;
+	static uint32_t isTagOpen = 0;
 
-		if (*lenSrc > 0 && src[*lenSrc - 1] == chr) {
-			// Empty tag; e.g. <b></b> - remove both
-			(*lenSrc)--;
-		} else {
-			src[*lenSrc] = chr;
-			(*lenSrc)++;
+	const unsigned char chr = tag2char(tag);
+	if (chr == 0) return;
+
+	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
+		if (((isTagOpen >> (31 - chr)) & 1) == 1) {
+			// Closing the tag
+			isTagOpen &= ~(1 << (31 - chr));
+
+			// Find if there's meaningful content between this closing-tag and the opening-tag
+			size_t pos = *lenSrc - 1;
+			for (;; pos--) {
+				if (src[pos] > 32) break; // Meaningful content found - proceed
+
+				if (src[pos] == chr) {
+					// We've arrived at the opening tag without finding meaningful content - delete the opening tag and return
+					memmove(src + pos, src + pos + 1, *lenSrc - (pos + 1));
+					(*lenSrc)--;
+
+					return;
+				}
+			}
+		} else { // Opening a new tag
+			isTagOpen |= (1 << (31 - chr));
 		}
 	}
+
+	src[*lenSrc] = chr;
+	(*lenSrc)++;
 }
 
 static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
