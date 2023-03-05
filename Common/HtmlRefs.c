@@ -85,93 +85,87 @@ static size_t utf8char(unsigned char * const text, const unsigned int codepoint)
 	return 0;
 }
 
-void decodeHtmlRefs(unsigned char * const text, size_t * const lenText) {
-	unsigned char *c = memchr(text, '&', *lenText);
+static int decodeHtmlRef(unsigned char * const full, const size_t lenFull, const size_t posRef, size_t * const lenOut) {
+	size_t lenRef;
+	unsigned int codepoint1 = 0;
+	unsigned int codepoint2 = 0;
 
-	while (c != NULL) {
-		if ((text + *lenText) - c < 3) break;
+	const unsigned char * const src = full + posRef;
+	const size_t lenSrc = lenFull - posRef;
 
-		size_t lenRef;
-		unsigned int codepoint1 = 0;
-		unsigned int codepoint2 = 0;
+	if (src[1] == '#') { // Numeric reference
+		if (src[2] == 'x' || src[2] == 'X') { // Hex
+			const unsigned char * const end = memchr(src + 3, ';', lenSrc - 3);
+			if (end == NULL) return 0;
+			lenRef = end - src;
 
-		if (c[1] == '#') { // Numeric reference
-			if (c[2] == 'x' || c[2] == 'X') { // Hex
-				const unsigned char * const end = memchr(c + 3, ';', (text + *lenText) - c);
-				if (end == NULL) break;
-
-				lenRef = end - c;
-
-				for (const unsigned char *d = c + 3; d != end; d++) {
-					if (!isxdigit(*d)) {
-						lenRef = 0;
-						break;
-					}
-				}
-
-				if (lenRef < 1) break; // Invalid
-
-				codepoint1 = strtoul((char*)c + 3, NULL, 16);
-			} else { // Decimal
-				const unsigned char * const end = memchr(c + 2, ';', (text + *lenText) - c);
-				if (end == NULL) break;
-
-				lenRef = end - c;
-
-				for (const unsigned char *d = c + 2; d != end; d++) {
-					if (!isdigit(*d)) {
-						lenRef = 0;
-						break;
-					}
-				}
-
-				if (lenRef < 1) break; // Invalid
-
-				codepoint1 = strtoul((char*)c + 2, NULL, 10);
+			for (const unsigned char *c = src + 3; c < end; c++) {
+				if (!isxdigit(*c)) return 0;
 			}
 
-			if (codepoint1 >= 0x2000 && codepoint1 <= 0x200A) codepoint1 = ' '; // Various space characters
+			if (lenRef < 1) return 0; // Invalid
 
-			lenRef++; // Include semicolon
-		} else { // Named reference
-			lenRef = strspn((char*)c + 1, "12345678ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz"); // All alphanumerics except '0' and '9' occur in names
-			if (lenRef < 2 || lenRef > 31) {c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + 1 + lenRef)); continue;} // Invalid
-			if (c[lenRef + 1] == ';') lenRef++;
+			codepoint1 = strtoul((char*)src + 3, NULL, 16);
+		} else { // Decimal
+			const unsigned char * const end = memchr(src + 2, ';', lenSrc - 3);
+			if (end == NULL) return 0;
+			lenRef = end - src;
 
-			unsigned char ref[lenRef + 1];
-			memcpy(ref, c + 1, lenRef);
-			ref[lenRef] = '\0';
-			lenRef++; // Include ampersand
+			for (const unsigned char *c = src + 2; c < end; c++) {
+				if (!isdigit(*c)) return 0;
+			}
 
-			codepoint1 = ref2codepoint(ref);
-			if (codepoint1 == 0) ref2codepoint2(ref, &codepoint1, &codepoint2);
+			if (lenRef < 1) return 0; // Invalid
+
+			codepoint1 = strtoul((char*)src + 2, NULL, 10);
 		}
 
-		// We now have the codepoint(s)
-		unsigned char new1[4];
-		const size_t lenNew1 = utf8char(new1, codepoint1);
+		if (codepoint1 >= 0x2000 && codepoint1 <= 0x200A) codepoint1 = ' '; // Various space characters
 
-		unsigned char new2[4];
-		const size_t lenNew2 = utf8char(new2, codepoint2);
+		lenRef++; // Include semicolon
+	} else { // Named reference
+		lenRef = strspn((char*)src + 1, "12345678ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmonpqrstuvwxyz"); // All alphanumerics except '0' and '9' occur in names
+		if (lenRef < 2 || lenRef > 31) return 0; // Invalid
+		if (src[lenRef + 1] == ';') lenRef++;
 
-		if (lenNew1 + lenNew2 > 0) {
-			const size_t offset = (c - text) + lenNew1 + lenNew2;
+		unsigned char ref[lenRef + 1];
+		memcpy(ref, src + 1, lenRef);
+		ref[lenRef] = '\0';
+		lenRef++; // Include ampersand
 
-			if (lenNew1 + lenNew2 <= lenRef) {
-				memcpy(c, new1, lenNew1);
-				if (lenNew2 > 0) memcpy(c + lenNew1, new2, lenNew2);
-
-				if (lenNew1 + lenNew2 < lenRef) {
-					memmove(c + lenNew1 + lenNew2, c + lenRef, (text + *lenText) - (c + lenRef));
-					*lenText -= lenRef - (lenNew1 + lenNew2);
-					(text)[*lenText] = '\0';
-				}
-
-				c = memchr(text + offset, '&', *lenText - offset);
-			} else {
-				// Not supported, UTF-8 is larger than encoded form. Only &nGt; and &nLt (much greater/lesser than with vertical line).
-				c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + 1 + lenRef));
-			}
-		} else c = memchr(c + 1 + lenRef, '&', (text + *lenText) - (c + 1 + lenRef));
+		codepoint1 = ref2codepoint(ref);
+		if (codepoint1 == 0) ref2codepoint2(ref, &codepoint1, &codepoint2);
 	}
+
+	// We now have the codepoint(s)
+	unsigned char new1[4];
+	const size_t lenNew1 = utf8char(new1, codepoint1);
+
+	unsigned char new2[4];
+	const size_t lenNew2 = utf8char(new2, codepoint2);
+
+	if (lenNew1 > 0) memcpy(full + *lenOut,           new1, lenNew1);
+	if (lenNew2 > 0) memcpy(full + *lenOut + lenNew1, new2, lenNew2);
+	*lenOut += lenNew1 + lenNew2;
+	return lenRef;
+}
+
+int getHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_t posInput, size_t * const lenOut) {
+	const size_t lenInput = lenSrc - posInput;
+
+	if (lenInput >= 3 && src[posInput] == '&') {
+		const int ret = decodeHtmlRef(src, lenSrc, posInput, lenOut);
+		if (ret > 0) return ret;
+	} else if (src[posInput] == ' ') {
+		if (*lenOut < 1 // Space as first character
+		|| src[*lenOut - 1] == ' ' // Repated spaces
+		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Space after linebreak
+		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // Space as first character
+		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Space after layout element
+		) return 1;
+	}
+
+	src[*lenOut] = src[posInput];
+	(*lenOut)++;
+	return 1;
 }

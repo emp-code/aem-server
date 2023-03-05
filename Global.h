@@ -86,6 +86,7 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_ITA 0x17 // Italics
 #define AEM_CET_CHAR_UNL 0x18 // Underline
 #define AEM_CET_CHAR_STR 0x19 // Strikethrough
+#define AEM_CET_THRESHOLD_LAYOUT 0x1A
 #define AEM_CET_CHAR_TBL 0x1A // table
 #define AEM_CET_CHAR_TTR 0x1B // tr
 #define AEM_CET_CHAR_TTD 0x1C // td

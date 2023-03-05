@@ -469,7 +469,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				convertToUtf8((char**)&new, &lenNew, cs);
 
 				if (isHtml)
-					htmlToText((char*)new, &lenNew);
+					html2cet(new, &lenNew);
 				else
 					cleanText(new, &lenNew);
 
@@ -600,7 +600,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 			convertToUtf8((char**)&email->body, &email->lenBody, cs);
 
 			if (lenCt >= 9 && memeq_anycase(ct + 5, "html", 4))
-				htmlToText((char*)email->body, &email->lenBody);
+				html2cet(email->body, &email->lenBody);
 			else
 				cleanText(email->body, &email->lenBody);
 		}

@@ -1,6 +1,6 @@
-#ifndef AEM_HTMLTOTEXT_H
-#define AEM_HTMLTOTEXT_H
+#ifndef AEM_HTML2CET_H
+#define AEM_HTML2CET_H
 
-void htmlToText(char * const text, size_t * const len);
+void html2cet(unsigned char * const src, size_t * const lenSrc);
 
 #endif

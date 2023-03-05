@@ -24,7 +24,8 @@ enum aem_html_type {
 enum aem_html_tag {
 	// Special use
 	AEM_HTML_TAG_NULL,
-	AEM_HTML_TAG_BR,
+	AEM_HTML_TAG_br,
+	AEM_HTML_TAG_hr,
 	// Simple tags
 	AEM_HTML_TAG_big,
 	AEM_HTML_TAG_bld,
@@ -77,9 +78,11 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 
 static unsigned char tag2char(const enum aem_html_tag tag) {
 	switch (tag) {
+		case AEM_HTML_TAG_br: return AEM_CET_CHAR_LBR;
+		case AEM_HTML_TAG_hr: return AEM_CET_CHAR_HRL;
+
 		case AEM_HTML_TAG_big: return AEM_CET_CHAR_BIG;
 		case AEM_HTML_TAG_bld: return AEM_CET_CHAR_BLD;
-		case AEM_HTML_TAG_hrl: return AEM_CET_CHAR_HRL;
 		case AEM_HTML_TAG_ita: return AEM_CET_CHAR_ITA;
 		case AEM_HTML_TAG_lli: return AEM_CET_CHAR_LLI;
 		case AEM_HTML_TAG_lol: return AEM_CET_CHAR_LOL;
@@ -97,37 +100,45 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	}
 }
 
-static void addTagChar(char * const src, size_t * const lenSrc, const enum aem_html_tag tag) {
-	static uint32_t isTagOpen = 0;
+static void addTagChar(unsigned char * const src, size_t * const lenOut, const enum aem_html_tag tag, const bool closing) {
+	static uint32_t tagsOpen = 0;
 
 	const unsigned char chr = tag2char(tag);
 	if (chr == 0) return;
 
 	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
-		if (((isTagOpen >> (31 - chr)) & 1) == 1) {
+		if (((tagsOpen >> (31 - chr)) & 1) == 1) {
+			if (!closing) return; // Attempting to open another tag of the same type
+
 			// Closing the tag
-			isTagOpen &= ~(1 << (31 - chr));
+			tagsOpen &= ~(1 << (31 - chr));
 
 			// Find if there's meaningful content between this closing-tag and the opening-tag
-			size_t pos = *lenSrc - 1;
-			for (;; pos--) {
+			for (size_t pos = *lenOut - 1;; pos--) {
 				if (src[pos] > 32) break; // Meaningful content found - proceed
 
 				if (src[pos] == chr) {
-					// We've arrived at the opening tag without finding meaningful content - delete the opening tag and return
-					memmove(src + pos, src + pos + 1, *lenSrc - (pos + 1));
-					(*lenSrc)--;
-
+					// We've arrived at the opening tag without finding meaningful content
+					*lenOut = pos;
 					return;
 				}
 			}
 		} else { // Opening a new tag
-			isTagOpen |= (1 << (31 - chr));
+			if (closing) return; // Attempting to close a tag that hasn't been opened
+
+			if (chr == AEM_CET_CHAR_TBL && ((tagsOpen >> (31 - AEM_CET_CHAR_TTR)) & 1) == 1) return; // Trying to begin a new table with a tr already open
+			if (chr == AEM_CET_CHAR_TTR && ((tagsOpen >> (31 - AEM_CET_CHAR_TTD)) & 1) == 1) return; // Trying to begin a new tr with a td already open
+
+			tagsOpen |= (1 << (31 - chr));
 		}
+	} else if (chr == AEM_CET_CHAR_LBR) {
+		if (*lenOut == 0) return; // We don't want a linebreak as the first character
+		else if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
+		else if (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) return; // Already have 2 consecutive linebreaks - don't add more
 	}
 
-	src[*lenSrc] = chr;
-	(*lenSrc)++;
+	src[*lenOut] = chr;
+	(*lenOut)++;
 }
 
 static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
@@ -149,7 +160,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'b':
 			if (lenTagName == 1) return AEM_HTML_TAG_bld; // b - bld
-			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_BR;
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_br;
 			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'g') return AEM_HTML_TAG_big;
 		break;
 		case 'c':
@@ -157,7 +168,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'd':
 			if (lenTagName == 3 && tagName[1] == 'e' && tagName[2] == 'l') return AEM_HTML_TAG_str; // del - ita
-			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_BR;
+			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'v') return AEM_HTML_TAG_br;
 		break;
 		case 'e':
 			if (lenTagName == 2 && tagName[1] == 'm') return AEM_HTML_TAG_ita; // em - ita
@@ -186,7 +197,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 6 && memeq(tagName + 1, "bject", 5)) return AEM_HTML_TAG_object;
 		break;
 		case 'p':
-			if (lenTagName == 1) return AEM_HTML_TAG_BR;
+			if (lenTagName == 1) return AEM_HTML_TAG_br;
 			if (lenTagName == 3 && tagName[1] == 'r' && tagName[2] == 'e') return AEM_HTML_TAG_mno; // pre - mono
 		break;
 		case 's':
@@ -208,7 +219,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'u':
 			if (lenTagName == 1) return AEM_HTML_TAG_unl; // u - unl
-			if (lenTagName == 2 && tagName[1] == 'u') return AEM_HTML_TAG_lul;
+			if (lenTagName == 2 && tagName[1] == 'l') return AEM_HTML_TAG_lul;
 		break;
 		case 'v':
 			if (lenTagName == 5 && memeq(tagName + 1, "ideo", 4)) return AEM_HTML_TAG_video;
@@ -219,7 +230,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 	return AEM_HTML_TAG_NULL;
 }
 
-static size_t html2cet(char * const src, size_t * const lenSrc) {
+void html2cet(unsigned char * const src, size_t * const lenSrc) {
 	size_t lenOut = 0;
 
 	enum aem_html_tag tagType = AEM_HTML_TAG_NULL;
@@ -239,7 +250,7 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 					lenTagName = 0;
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
-					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName));
+					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName), tagName[0] == '/');
 					type = AEM_HTML_TYPE_TX;
 				} else if (lenTagName < 7) {
 					tagName[lenTagName] = tolower(src[i]);
@@ -253,7 +264,7 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_T2: { // Inside of tag
 				if (src[i] == '>') {
-					addTagChar(src, &lenOut, tagType);
+					addTagChar(src, &lenOut, tagType, tagName[0] == '/');
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
 					size_t offset = 0;
@@ -264,7 +275,7 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 					size_t lenAttrName = 0;
 					for (size_t j = 1;; j++) {
 						if (src[i - offset - j] == ' ') break;
-						if (src[i - offset - j] == '<') return lenOut; // Should not happen
+						if (src[i - offset - j] == '<') return; // Should not happen
 
 						lenAttrName++;
 						if (lenAttrName > 9) break; // todo
@@ -307,15 +318,14 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 						lenOut++;
 
 						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							src[lenOut] = '\n';
+							src[lenOut] = AEM_CET_CHAR_LBR;
 							lenOut++;
 						}
 					}
 
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					src[lenOut] = src[i];
-					lenOut++;
+					i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
 			break;}
 
@@ -326,7 +336,7 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 						lenOut++;
 
 						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							src[lenOut] = '\n';
+							src[lenOut] = AEM_CET_CHAR_LBR;
 							lenOut++;
 						}
 					}
@@ -334,23 +344,22 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 					i--;
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					src[lenOut] = src[i];
-					lenOut++;
+					i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
 			break;}
 
 			case AEM_HTML_TYPE_TX: {
 				if (src[i] == '<') {
 					if (memeq_anycase(src + i + 1, "style", 5)) {
-						const char * const styleEnd = (const char * const)memcasemem((unsigned char*)src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
-						if (styleEnd == NULL) return lenOut;
+						const unsigned char * const styleEnd = memcasemem(src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
+						if (styleEnd == NULL) return;
 						i = styleEnd - src - 1;
 						break;
 					}
 
 					if (memeq_anycase(src + i + 1, "!--", 3)) {
-						const char * const cEnd = (const char * const)memcasemem((unsigned char*)src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
-						if (cEnd == NULL) return lenOut;
+						const unsigned char * const cEnd = memcasemem(src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
+						if (cEnd == NULL) return;
 						i = cEnd - src + 2;
 						break;
 					}
@@ -360,20 +369,10 @@ static size_t html2cet(char * const src, size_t * const lenSrc) {
 					break;
 				}
 
-				src[lenOut] = src[i];
-				lenOut++;
+				i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 			break;}
-
-			default:
-				return lenOut;
 		}
 	}
 
-	return lenOut;
-}
-
-void htmlToText(char * const src, size_t * const lenSrc) {
-	*lenSrc = html2cet(src, lenSrc);
-	decodeHtmlRefs((unsigned char*)src, lenSrc);
-	cleanText((unsigned char*)src, lenSrc);
+	*lenSrc = lenOut;
 }
