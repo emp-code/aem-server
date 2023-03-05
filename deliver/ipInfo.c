@@ -2,7 +2,6 @@
 #include <string.h>
 #include <syslog.h>
 
-#include "../Common/Email.h"
 #include "../IntCom/Client.h"
 
 #include "ipInfo.h"
