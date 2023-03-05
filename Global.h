@@ -44,13 +44,17 @@ enum aem_internal_enquiry {
 
 #define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_CHUNKSIZE 65536
+#define AEM_MAXNUM_ATTACHMENTS 31
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
 #define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
-#define AEM_MAXLEN_ADDR32 16 // 10 bytes Addr32 -> 16 characters
-#define AEM_MAXNUM_ATTACHMENTS 31
+#define AEM_ADDR32_BINLEN 10
+#define AEM_ADDR32_MAXLEN 16 // 80/5=16; 10*8 total bits, 5 bits per character (2^5=32)
+#define AEM_ADDR32_ADMIN  (const unsigned char[AEM_ADDR32_BINLEN]) {'\xa6', '\xd0', '\x35', '\x0e', '\x75', '\x85', '\x68', '\x18'} // 'administrator' in Addr32
+#define AEM_ADDR32_SYSTEM (const unsigned char[AEM_ADDR32_BINLEN]) {'\x36', '\x7d', '\x9d', '\x3a', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'system' in Addr32
+#define AEM_ADDR32_PUBLIC (const unsigned char[AEM_ADDR32_BINLEN]) {'\x35', '\xb6', '\xb0', '\x85', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'pub11c' in Addr32
 
 #define AEM_MAXPROCESSES 100
 #define AEM_MANAGER_RESLEN_DECRYPTED (AEM_MAXPROCESSES * 5 * 4)
@@ -60,10 +64,6 @@ enum aem_internal_enquiry {
 
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
-
-#define AEM_ADDR32_ADMIN  (const unsigned char[]) {'\xa6', '\xd0', '\x35', '\x0e', '\x75', '\x85', '\x68', '\x18'} // 'administrator' in Addr32
-#define AEM_ADDR32_SYSTEM (const unsigned char[]) {'\x36', '\x7d', '\x9d', '\x3a', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'system' in Addr32
-#define AEM_ADDR32_PUBLIC (const unsigned char[]) {'\x35', '\xb6', '\xb0', '\x85', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'pub11c' in Addr32
 
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1

@@ -155,14 +155,14 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], unsi
 	if (len < AEM_ADDROUR_MIN || buf[len - AEM_DOMAIN_LEN - 1] != '@' || !memeq_anycase(buf + len - AEM_DOMAIN_LEN, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
 	if (len - AEM_DOMAIN_LEN - 1 > 63) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
-	char addr[AEM_MAXLEN_ADDR32];
+	char addr[AEM_ADDR32_MAXLEN];
 	size_t addrChars = 0;
 	size_t toChars = 0;
 	for (;toChars < len - AEM_DOMAIN_LEN - 1; toChars++) {
 		to[toChars] = buf[toChars];
 
 		if (isalnum(buf[toChars])) {
-			if (addrChars + 1 > AEM_MAXLEN_ADDR32) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+			if (addrChars + 1 > AEM_ADDR32_MAXLEN) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 			addr[addrChars] = tolower(buf[toChars]);
 			addrChars++;
 		}

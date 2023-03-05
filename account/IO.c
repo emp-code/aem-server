@@ -208,12 +208,12 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 	if (shield) {
 		if (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) return 0; // Forbid addresses ending with 'administrator'
 		uint64_t hash;
-		crypto_shorthash((unsigned char*)&hash, addr32, 10, saltShield);
+		crypto_shorthash((unsigned char*)&hash, addr32, AEM_ADDR32_BINLEN, saltShield);
 		return hash;
-	} else if (memeq(addr32, AEM_ADDR32_PUBLIC, 10) || memeq(addr32, AEM_ADDR32_SYSTEM, 10)) return 0; // Forbid 'public' and 'system'
+	} else if (memeq(addr32, AEM_ADDR32_PUBLIC, AEM_ADDR32_BINLEN) || memeq(addr32, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN)) return 0; // Forbid 'public' and 'system'
 
 	uint64_t halves[2];
-	if (crypto_pwhash((unsigned char*)halves, 16, (const char*)addr32, 10, AEM_SLT_NRM, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
+	if (crypto_pwhash((unsigned char*)halves, sizeof(uint64_t) * 2, (const char*)addr32, AEM_ADDR32_BINLEN, AEM_SLT_NRM, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
 		syslog(LOG_ERR, "Failed hashing address");
 		return 0;
 	}
