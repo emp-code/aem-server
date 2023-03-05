@@ -31,6 +31,7 @@ enum aem_internal_enquiry {
 #define AEM_ADDRESSES_PER_USER 31 // (2^5)-1
 #define AEM_MINLEN_UINFO (4 + AEM_LEN_PRIVATE)
 #define AEM_MAXLEN_UINFO (AEM_MINLEN_UINFO + (AEM_ADDRESSES_PER_USER * 9))
+#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64 unused
@@ -42,13 +43,14 @@ enum aem_internal_enquiry {
 #define AEM_ADDR_FLAG_ACCINT  1
 #define AEM_ADDR_FLAGS_DEFAULT (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH)
 
-#define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 #define AEM_SMTP_CHUNKSIZE 65536
+#define AEM_SMTP_MAX_SIZE_BODY      4194304 // 4 MiB. RFC5321: min. 64k
+#define AEM_SMTP_MAX_SIZE_BODY_STR "4194304"
+#define AEM_SMTP_MAX_TO 128 // RFC5321: must accept 100 recipients at minimum
 #define AEM_MAXNUM_ATTACHMENTS 31
 
 #define AEM_LEN_SLT_NRM crypto_pwhash_SALTBYTES
 #define AEM_LEN_SLT_SHD crypto_shorthash_KEYBYTES
-#define AEM_LEN_PRIVATE (4096 - crypto_box_PUBLICKEYBYTES - 1 - (AEM_ADDRESSES_PER_USER * 9))
 
 #define AEM_ADDR32_BINLEN 10
 #define AEM_ADDR32_MAXLEN 16 // 80/5=16; 10*8 total bits, 5 bits per character (2^5=32)
@@ -115,9 +117,6 @@ enum aem_internal_enquiry {
 
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
-
-#define AEM_SMTP_MAX_SIZE_BODY      4194304 // 4 MiB. RFC5321: min. 64k
-#define AEM_SMTP_MAX_SIZE_BODY_STR "4194304"
 
 #define AEM_TIMEOUT_MANAGER_RCV 3
 #define AEM_TIMEOUT_MANAGER_SND 3
