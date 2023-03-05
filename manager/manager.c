@@ -23,12 +23,11 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
 #include "../IntCom/KeyBundle.h"
-
-#include "../Global.h"
 
 #include "mount.h"
 
@@ -316,7 +315,7 @@ static int process_new(const int type) {
 
 static int sendIntComKeys(const int type) {
 	struct intcom_keyBundle bundle;
-	bzero(&bundle, sizeof(bundle));
+	bzero(&bundle, sizeof(struct intcom_keyBundle));
 
 	switch (type) {
 		case AEM_PROCESSTYPE_WEB_CLR:
@@ -573,15 +572,18 @@ int setupManager(void) {
 	randombytes_buf(key_ic, crypto_kdf_KEYBYTES);
 
 	unsigned char key_tmp[crypto_kdf_KEYBYTES];
-	int ret = (process_spawn(AEM_PROCESSTYPE_ENQUIRY, NULL));
+	int ret = process_spawn(AEM_PROCESSTYPE_ENQUIRY, NULL);
+
 	if (ret == 0) {
 		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Sto0", master);
 		ret = process_spawn(AEM_PROCESSTYPE_STORAGE, key_tmp);
 	}
+
 	if (ret == 0) {
 		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
 		ret = process_spawn(AEM_PROCESSTYPE_DELIVER, key_tmp);
 	}
+
 	if (ret == 0) {
 		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
 		ret = process_spawn(AEM_PROCESSTYPE_ACCOUNT, key_tmp);

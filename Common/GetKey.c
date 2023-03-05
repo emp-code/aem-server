@@ -5,6 +5,8 @@
 
 #include "../Common/ToggleEcho.h"
 
+#include "GetKey.h"
+
 int getKey(unsigned char * const master) {
 	toggleEcho(false);
 	fprintf(stderr, "Enter Master Key (hex) - will not echo\n");

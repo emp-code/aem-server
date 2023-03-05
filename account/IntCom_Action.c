@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <syslog.h>
 
-#include "IO.h"
-
 #include "../Global.h"
+
+#include "IO.h"
 
 #include "IntCom_Action.h"
 

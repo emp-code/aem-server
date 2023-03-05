@@ -2,8 +2,8 @@
 
 #include <arpa/inet.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <syslog.h>
 

@@ -11,12 +11,12 @@
 
 #include "../Global.h"
 #include "../Common/memeq.h"
+#include "../Data/dkim.h"
+
 #include "Error.h"
 #include "MessageId.h"
 
 #include "SendMail.h"
-
-#include "../Data/dkim.h"
 
 #define AEM_API_SMTP
 

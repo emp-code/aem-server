@@ -9,12 +9,12 @@
 	#include <sys/types.h>
 #endif
 
+#include "../Global.h"
+
 #include "isRequestValid.h"
 #include "post.h"
 
 #include "respond.h"
-
-#include "../Global.h"
 
 #ifdef AEM_API_CLR
 	#include "../Common/tls_setup.c"

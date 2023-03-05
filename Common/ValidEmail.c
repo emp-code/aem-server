@@ -1,7 +1,7 @@
 #include <ctype.h>
 #include <string.h>
 
-#include "ValidDomain.h"
+#include "../Common/ValidDomain.h"
 
 #include "ValidEmail.h"
 

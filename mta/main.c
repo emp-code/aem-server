@@ -4,11 +4,10 @@
 
 #include "respond.h"
 
+#include "../Global.h"
 #include "../Common/AcceptClients.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Client.h"
-
-#include "../Global.h"
 
 #define AEM_LOGNAME "AEM-MTA"
 

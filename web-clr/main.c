@@ -4,9 +4,8 @@
 
 #include "respond.h"
 
-#include "../Common/AcceptClients.h"
-
 #include "../Global.h"
+#include "../Common/AcceptClients.h"
 
 #define AEM_LOGNAME "AEM-Web"
 

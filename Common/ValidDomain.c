@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "memeq.h"
+#include "../Common/memeq.h"
 
 #include "ValidDomain.h"
 

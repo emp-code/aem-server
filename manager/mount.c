@@ -13,9 +13,9 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include "mount.h"
-
 #include "../Global.h"
+
+#include "mount.h"
 
 #define AEM_MOUNTDIR_FLAGS (MS_NOATIME | MS_NOEXEC | MS_NOSUID | MS_NOSYMFOLLOW | MS_SILENT)
 

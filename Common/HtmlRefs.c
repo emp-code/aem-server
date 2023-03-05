@@ -5,7 +5,7 @@
 #include <ctype.h>
 
 #include "../Global.h"
-#include "ref2codepoint.h"
+#include "../Common/ref2codepoint.h"
 
 #include "HtmlRefs.h"
 

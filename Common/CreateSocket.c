@@ -1,13 +1,12 @@
-#include <stdbool.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
-#include <strings.h>
-#include <string.h>
 #include <net/if.h>
+#include <stdbool.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/socket.h>
 
-#include "memeq.h"
-
-#include "../Global.h"
+#include "../Config.h"
+#include "../Common/memeq.h"
 
 #include "CreateSocket.h"
 

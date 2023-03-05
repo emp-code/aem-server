@@ -10,13 +10,12 @@
 #include <mbedtls/pk.h>
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Client.h"
-
-#include "../Global.h"
 
 #include "cert.h"
 

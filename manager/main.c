@@ -24,9 +24,9 @@
 
 #include "../Global.h"
 #include "../Common/ValidFd.h"
-#include "mount.h"
 
 #include "manager.h"
+#include "mount.h"
 
 static int dropBounds(void) {
 	return (

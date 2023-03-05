@@ -11,12 +11,11 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
-
-#include "../Global.h"
 
 #include "format.h"
 

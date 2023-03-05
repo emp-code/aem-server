@@ -10,12 +10,11 @@
 
 #include <sodium.h>
 
-#include "peerok.h"
-
 #include "../Global.h"
-
 #include "../Common/Email.h"
 #include "../deliver/deliver.h"
+
+#include "peerok.h"
 
 #include "Stream_Server.h"
 

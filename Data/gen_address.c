@@ -8,9 +8,8 @@
 
 #include <sodium.h>
 
-#include "../Common/Addr32.c"
-
 #include "../Global.h"
+#include "../Common/Addr32.c"
 
 static unsigned char salt_normal[AEM_LEN_SLT_NRM];
 

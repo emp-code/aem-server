@@ -1,9 +1,3 @@
-#include "../Global.h"
-
-#include "../Common/memeq.h"
-#include "../Data/domain.h"
-#include "../Data/tls.h"
-
 #include <mbedtls/certs.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/entropy.h>
@@ -11,6 +5,11 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509.h>
+
+#include "../Global.h"
+#include "../Common/memeq.h"
+#include "../Data/domain.h"
+#include "../Data/tls.h"
 
 static mbedtls_x509_crt tlsCrt;
 static mbedtls_pk_context tlsKey;

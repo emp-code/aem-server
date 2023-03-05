@@ -1,10 +1,9 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "../Global.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Server.h"
-
-#include "../Global.h"
 
 #include "format.h"
 
@@ -38,7 +37,7 @@ static int pipeLoadKeys(void) {
 	intcom_setKey_stream(bundle.stream);
 
 	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
-	sodium_memzero(&bundle, sizeof(bundle));
+	sodium_memzero(&bundle, sizeof(struct intcom_keyBundle));
 	return 0;
 }
 

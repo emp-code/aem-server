@@ -15,6 +15,8 @@
 #include "../Common/Email.h"
 #include "../Common/memeq.h"
 
+#include "format.h"
+
 static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
 
 void setSignKey(const unsigned char * const baseKey) {

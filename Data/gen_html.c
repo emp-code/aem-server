@@ -12,11 +12,10 @@
 #include "../Global.h"
 #include "../Common/Brotli.h"
 #include "../Common/GetKey.h"
+#include "../Common/PrintDef.c"
 
 #include "address.h" // for normal salt
 #include "domain.h"
-
-#include "../Common/PrintDef.c"
 
 static int html_putKeys(char * const src, const size_t lenSrc) {
 	unsigned char master[crypto_kdf_KEYBYTES];

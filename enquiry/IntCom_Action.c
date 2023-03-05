@@ -9,11 +9,11 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/ValidDomain.h"
 #include "../Common/ValidIp.h"
 #include "../Common/memeq.h"
 #include "../Data/domain.h"
-#include "../Global.h"
 
 #include "Geo.h"
 #include "DNS.h"

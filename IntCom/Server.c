@@ -10,8 +10,6 @@
 
 #include <sodium.h>
 
-#include "peerok.h"
-
 #include "../Global.h"
 
 #if defined(AEM_ACCOUNT)
@@ -23,6 +21,8 @@
 #else
 	#error No IntCom_Action defined
 #endif
+
+#include "peerok.h"
 
 #include "Server.h"
 

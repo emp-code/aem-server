@@ -5,6 +5,8 @@
 #include "../Common/Email.h"
 #include "../IntCom/Client.h"
 
+#include "ipInfo.h"
+
 static bool isIpBlacklisted(const uint8_t * const ip) {
 	char dnsbl_domain[17 + AEM_MTA_DNSBL_LEN];
 	sprintf(dnsbl_domain, "%u.%u.%u.%u."AEM_MTA_DNSBL, ip[3], ip[2], ip[1], ip[0]);

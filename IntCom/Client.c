@@ -8,10 +8,10 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
+
 #define AEM_PEEROK_CLIENT
 #include "peerok.h"
-
-#include "../Global.h"
 
 #include "Client.h"
 

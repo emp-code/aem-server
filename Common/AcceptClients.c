@@ -4,14 +4,14 @@
 #include <unistd.h>
 
 #ifdef AEM_MTA
-#include <netinet/in.h>
+	#include <netinet/in.h>
 #endif
 
-#include "CreateSocket.h"
-#include "SetCaps.h"
-
+#include "../Config.h" // for AEM_PORT
+#include "../Common/CreateSocket.h"
+#include "../Common/SetCaps.h"
 #ifdef AEM_MTA
-#include "ValidIp.h"
+	#include "../Common/ValidIp.h"
 #endif
 
 #if defined(AEM_API)
@@ -25,8 +25,6 @@
 #endif
 
 #include "AcceptClients.h"
-
-#include "../Config.h" // for AEM_PORT
 
 #define AEM_FD_SOCK_MAIN 0
 // syslog 1

@@ -2,9 +2,9 @@
 
 #include <sodium.h>
 
-#include "IO.h"
-
 #include "../Global.h"
+
+#include "IO.h"
 
 #include "IntCom_Action.h"
 

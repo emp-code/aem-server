@@ -1,9 +1,8 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include "../IntCom/Server.h"
-
 #include "../Global.h"
+#include "../IntCom/Server.h"
 
 #include "IO.h"
 

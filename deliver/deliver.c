@@ -3,9 +3,9 @@
 
 #include <brotli/encode.h>
 
-#include "store.h"
 #include "ipInfo.h"
 #include "processing.h"
+#include "store.h"
 
 #include "deliver.h"
 

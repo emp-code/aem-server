@@ -1,13 +1,13 @@
+#include <ctype.h> // for isupper/tolower
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <ctype.h> // for isupper/tolower
 #include <sys/types.h> // for ssize_t
 
 #include "../Global.h"
-#include "memeq.h"
-#include "HtmlRefs.h"
-#include "Trim.h"
+#include "../Common/HtmlRefs.h"
+#include "../Common/Trim.h"
+#include "../Common/memeq.h"
 
 #include "Html2Cet.h"
 

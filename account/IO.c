@@ -11,14 +11,15 @@
 
 #include <sodium.h>
 
+#include "../Global.h"
 #include "../Common/memeq.h"
+#include "../Data/address.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Server.h"
 
-#include "../Data/address.h"
-#include "../Global.h"
-
 #include "aem_user.h"
+
+#include "IO.h"
 
 #define AEM_FAKEFLAGS_HTSIZE 2048
 #define AEM_FAKEFLAGS_MAXTIME 2000000 // 23d
