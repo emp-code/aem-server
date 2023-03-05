@@ -9,7 +9,7 @@
 #include "HtmlRefs.h"
 #include "Trim.h"
 
-#include "HtmlToText.h"
+#include "Html2Cet.h"
 
 enum aem_html_type {
 	AEM_HTML_TYPE_TX = 0,
