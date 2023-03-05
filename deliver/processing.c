@@ -6,8 +6,8 @@
 
 #include <sodium.h>
 
+#include "../Common/Html2Cet.h"
 #include "../Common/QuotedPrintable.h"
-#include "../Common/HtmlToText.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
 #include "../Common/ValidUtf8.h"
