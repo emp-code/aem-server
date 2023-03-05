@@ -36,7 +36,7 @@ int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, un
 		case AEM_API_INTERNAL_ADRPK: return api_internal_adrpk(num, msg, lenMsg, res);
 		case AEM_API_INTERNAL_EXIST: return AEM_INTCOM_RESPONSE_OK; // Existence verified by userNumFromUpk()
 		case AEM_API_INTERNAL_LEVEL: return api_internal_level(num);
-		case AEM_API_INTERNAL_MYADR: return api_internal_myadr(num);
+		case AEM_API_INTERNAL_MYADR: return api_internal_myadr(num, msg, lenMsg);
 		case AEM_API_INTERNAL_UINFO: return api_internal_uinfo(num, res);
 		case AEM_API_INTERNAL_PUBKS: return api_internal_pubks(num, res);
 

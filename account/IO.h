@@ -24,7 +24,7 @@ int32_t api_setting_limits(const int num, const unsigned char * const msg, const
 
 int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res);
 int32_t api_internal_level(const int num);
-int32_t api_internal_myadr(const int num);
+int32_t api_internal_myadr(const int num, const unsigned char * const msg, const size_t lenMsg);
 int32_t api_internal_uinfo(const int num, unsigned char **res);
 int32_t api_internal_pubks(const int num, unsigned char **res);
 
