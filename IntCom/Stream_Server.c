@@ -10,6 +10,8 @@
 
 #include <sodium.h>
 
+#include "peerok.h"
+
 #include "../Global.h"
 
 #include "../Common/Email.h"
@@ -38,13 +40,6 @@ void sigTerm() {
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {
 	memcpy(intcom_key, newKey, crypto_secretstream_xchacha20poly1305_KEYBYTES);
-}
-
-static bool peerOk(const int sock) {
-	struct ucred peer;
-	unsigned int lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
 static int bindSocket(const int sock) {

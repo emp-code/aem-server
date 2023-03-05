@@ -8,6 +8,9 @@
 
 #include <sodium.h>
 
+#define AEM_PEEROK_CLIENT
+#include "peerok.h"
+
 #include "../Global.h"
 
 #include "Client.h"
@@ -43,14 +46,6 @@ static int setSockOpts(const int sock) {
 	) ? 0 : -1;
 }
 
-static bool peerOk(const int sock, const aem_intcom_server_t intcom_server) {
-	struct ucred peer;
-	socklen_t lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-
-	return (peer.pid == intcom_pids[intcom_server] && peer.gid == getgid() && peer.uid == getuid());
-}
-
 static int intcom_socket(const aem_intcom_server_t intcom_server) {
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
@@ -72,7 +67,7 @@ static int intcom_socket(const aem_intcom_server_t intcom_server) {
 		return -1;
 	}
 
-	if (!peerOk(sock, intcom_server)) {
+	if (!peerOk(sock, intcom_pids[intcom_server])) {
 		syslog(LOG_WARNING, "Invalid peer on IntCom socket");
 		close(sock);
 		return -1;

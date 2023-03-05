@@ -10,6 +10,8 @@
 
 #include <sodium.h>
 
+#include "peerok.h"
+
 #include "../Global.h"
 
 #if defined(AEM_ACCOUNT)
@@ -38,13 +40,6 @@ void sigTerm() {
 
 void intcom_setKeys_server(const unsigned char newKeys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBYTES]) {
 	memcpy(intcom_keys, newKeys, AEM_INTCOM_CLIENT_COUNT * crypto_secretbox_KEYBYTES);
-}
-
-static bool peerOk(const int sock) {
-	struct ucred peer;
-	unsigned int lenUc = sizeof(struct ucred);
-	if (getsockopt(sock, SOL_SOCKET, SO_PEERCRED, &peer, &lenUc) == -1) return false;
-	return (peer.gid == getgid() && peer.uid == getuid());
 }
 
 static int bindSocket(const int sock) {
