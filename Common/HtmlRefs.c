@@ -153,26 +153,24 @@ static int decodeHtmlRef(unsigned char * const full, const size_t lenFull, const
 
 int getHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_t posInput, size_t * const lenOut) {
 	const size_t lenInput = lenSrc - posInput;
+	const size_t lenSpace = charSpace(src + posInput, lenInput);
 
 	if (lenInput >= 3 && src[posInput] == '&') {
 		const int ret = decodeHtmlRef(src, lenSrc, posInput, lenOut);
 		if (ret > 0) return ret;
-	} else if (src[posInput] == ' ') {
+	} else if (lenSpace > 0) {
 		if (*lenOut < 1 // Space as first character
 		|| src[*lenOut - 1] == ' ' // Repated spaces
 		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Space after linebreak
 		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // Space as first character
 		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Space after layout element
-		) return 1;
+		) return lenSpace;
+
+		src[*lenOut] = ' ';
+		(*lenOut)++;
+		return lenSpace;
 	} else if (src[posInput] < 32) {
 		return 1;
-	} else if (src[posInput] > 127) {
-		const size_t lenSpace = charSpace(src + posInput, lenInput);
-		if (lenSpace > 0) {
-			src[*lenOut] = ' ';
-			(*lenOut)++;
-			return lenSpace;
-		}
 	}
 
 	src[*lenOut] = src[posInput];
