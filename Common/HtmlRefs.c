@@ -120,7 +120,7 @@ static int decodeHtmlRef(unsigned char * const full, const size_t lenFull, const
 			codepoint1 = strtoul((char*)src + 2, NULL, 10);
 		}
 
-		if (codepoint1 >= 0x2000 && codepoint1 <= 0x200A) codepoint1 = ' '; // Various space characters
+		if (codepoint1 == 0x00A0 || (codepoint1 >= 0x2000 && codepoint1 <= 0x200A)) codepoint1 = ' '; // Various space characters
 
 		lenRef++; // Include semicolon
 	} else { // Named reference
