@@ -360,11 +360,6 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					if (copyAttr != 0) {
 						src[lenOut] = copyAttr;
 						lenOut++;
-
-						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							src[lenOut] = AEM_CET_CHAR_LBR;
-							lenOut++;
-						}
 					}
 
 					type = AEM_HTML_TYPE_T2;
@@ -378,11 +373,6 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					if (copyAttr != 0) {
 						src[lenOut] = copyAttr;
 						lenOut++;
-
-						if (copyAttr == AEM_CET_CHAR_FIL || copyAttr == (AEM_CET_CHAR_FIL + 1)) {
-							src[lenOut] = AEM_CET_CHAR_LBR;
-							lenOut++;
-						}
 					}
 
 					i--;
