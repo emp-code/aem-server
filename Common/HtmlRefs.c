@@ -163,6 +163,8 @@ int getHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // Space as first character
 		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Space after layout element
 		) return 1;
+	} else if (src[posInput] < 32) {
+		return 1;
 	}
 
 	src[*lenOut] = src[posInput];
