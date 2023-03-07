@@ -139,6 +139,11 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 		} else if (((tagsOpen >> (31 - chr)) & 1) == 1 && closing) {
 			// We're closing a currently open tag
 
+			// Remove space before layout tag end
+			if (chr >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] == ' ') {
+				(*lenOut)--;
+			}
+
 			if (chr == AEM_CET_CHAR_TTR) {
 				// Closing <tr> also means closing <td>, make sure that's done
 				if (((tagsOpen >> (31 - AEM_CET_CHAR_TTD)) & 1) == 1) {
