@@ -107,10 +107,56 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	if (chr == 0) return;
 
 	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
-		if (((tagsOpen >> (31 - chr)) & 1) == 1) {
-			if (!closing) return; // Attempting to open another tag of the same type
+		if (((tagsOpen >> (31 - chr)) & 1) == 0 && !closing) {
+			// We're opening a new tag
 
-			// Closing the tag
+			if (chr == AEM_CET_CHAR_TBL) {
+				// Tables begin with <table> <tr> <td>
+				memcpy(src + *lenOut, (unsigned char[]) {AEM_CET_CHAR_TBL, AEM_CET_CHAR_TTR, AEM_CET_CHAR_TTD}, 3);
+				*lenOut += 3;
+				tagsOpen |= (1 << (31 - AEM_CET_CHAR_TBL)) | (1 << (31 - AEM_CET_CHAR_TTR)) | (1 << (31 - AEM_CET_CHAR_TTD));
+				return;
+			} else if (chr == AEM_CET_CHAR_TTR) {
+				if (((tagsOpen >> (31 - AEM_CET_CHAR_TBL)) & 1) == 0) return; // Forbid opening a <tr> without a <table> open
+
+				// <tr>'s begin with <tr> <td>
+				memcpy(src + *lenOut, (unsigned char[]) {AEM_CET_CHAR_TTR, AEM_CET_CHAR_TTD}, 2);
+				*lenOut += 2;
+				tagsOpen |= (1 << (31 - AEM_CET_CHAR_TTR)) | (1 << (31 - AEM_CET_CHAR_TTD));
+				return;
+			} else if (chr == AEM_CET_CHAR_TTD) {
+				if (((tagsOpen >> (31 - AEM_CET_CHAR_TBL)) & 1) == 0) return; // Forbid opening a <td> without a <table> open
+
+				if (((tagsOpen >> (31 - AEM_CET_CHAR_TTR)) & 1) == 0) {
+					// Trying to open a <td> without a <tr> open - let's add the <tr> first
+					src[*lenOut] = AEM_CET_CHAR_TTR;
+					(*lenOut)++;
+					tagsOpen |= (1 << (31 - AEM_CET_CHAR_TTR));
+				}
+			}
+
+			tagsOpen |= (1 << (31 - chr));
+		} else if (((tagsOpen >> (31 - chr)) & 1) == 1 && closing) {
+			// We're closing a currently open tag
+
+			if (chr == AEM_CET_CHAR_TTR) {
+				// Closing <tr> also means closing <td>, make sure that's done
+				if (((tagsOpen >> (31 - AEM_CET_CHAR_TTD)) & 1) == 1) {
+					addTagChar(src, lenOut, AEM_HTML_TAG_ttd, true);
+				}
+			} else if (chr == AEM_CET_CHAR_TBL) {
+				if (((tagsOpen >> (31 - AEM_CET_CHAR_TTR)) & 1) == 1) {
+					// We're closing a <table>, but haven't closed the <tr> yet, let's do that
+
+					if (((tagsOpen >> (31 - AEM_CET_CHAR_TTD)) & 1) == 1) {
+						// We haven't closed the <td> either, let's do that first
+						addTagChar(src, lenOut, AEM_HTML_TAG_ttd, true);
+					}
+
+					addTagChar(src, lenOut, AEM_HTML_TAG_ttr, true);
+				}
+			}
+
 			tagsOpen &= ~(1 << (31 - chr));
 
 			// Find if there's meaningful content between this closing-tag and the opening-tag
@@ -123,14 +169,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					return;
 				}
 			}
-		} else { // Opening a new tag
-			if (closing) return; // Attempting to close a tag that hasn't been opened
-
-			if (chr == AEM_CET_CHAR_TBL && ((tagsOpen >> (31 - AEM_CET_CHAR_TTR)) & 1) == 1) return; // Trying to begin a new table with a tr already open
-			if (chr == AEM_CET_CHAR_TTR && ((tagsOpen >> (31 - AEM_CET_CHAR_TTD)) & 1) == 1) return; // Trying to begin a new tr with a td already open
-
-			tagsOpen |= (1 << (31 - chr));
-		}
+		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
 	} else if (chr == AEM_CET_CHAR_LBR) {
 		if (*lenOut == 0) return; // We don't want a linebreak as the first character
 		else if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
