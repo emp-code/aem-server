@@ -177,8 +177,8 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
 	} else if (chr == AEM_CET_CHAR_LBR) {
 		if (*lenOut == 0) return; // We don't want a linebreak as the first character
-		else if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
-		else if (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) return; // Already have 2 consecutive linebreaks - don't add more
+		if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
+		if (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) return; // Already have 2 consecutive linebreaks - don't add more
 	}
 
 	src[*lenOut] = chr;
