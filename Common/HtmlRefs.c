@@ -5,6 +5,7 @@
 #include <ctype.h>
 
 #include "../Global.h"
+#include "../Common/Trim.h"
 #include "../Common/ref2codepoint.h"
 
 #include "HtmlRefs.h"
@@ -165,6 +166,13 @@ int getHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 		) return 1;
 	} else if (src[posInput] < 32) {
 		return 1;
+	} else if (src[posInput] > 127) {
+		const size_t lenSpace = charSpace(src + posInput, lenInput);
+		if (lenSpace > 0) {
+			src[*lenOut] = ' ';
+			(*lenOut)++;
+			return lenSpace;
+		}
 	}
 
 	src[*lenOut] = src[posInput];
