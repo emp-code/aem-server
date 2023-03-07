@@ -139,9 +139,11 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 		} else if (((tagsOpen >> (31 - chr)) & 1) == 1 && closing) {
 			// We're closing a currently open tag
 
-			// Remove space before layout tag end
-			if (chr >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] == ' ') {
-				(*lenOut)--;
+			// Remove space/linebreaks before layout tag end
+			if (chr >= AEM_CET_THRESHOLD_LAYOUT) {
+				while (src[*lenOut - 1] == ' ' || src[*lenOut - 1] == AEM_CET_CHAR_LBR) {
+					(*lenOut)--;
+				}
 			}
 
 			if (chr == AEM_CET_CHAR_TTR) {
@@ -178,6 +180,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	} else if (chr == AEM_CET_CHAR_LBR) {
 		if (*lenOut == 0) return; // We don't want a linebreak as the first character
 		if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
+		if (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) return; // This linebreak follows a layout tag - skip
 		if (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) return; // Already have 2 consecutive linebreaks - don't add more
 	}
 
