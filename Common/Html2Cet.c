@@ -120,6 +120,12 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	if (chr == 0) return;
 
 	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
+		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
+			// List item without a list open - replace with linebreak
+			addLbr(src, lenOut);
+			return;
+		}
+
 		if (((tagsOpen >> (31 - chr)) & 1) == 0 && !closing) {
 			// We're opening a new tag
 
