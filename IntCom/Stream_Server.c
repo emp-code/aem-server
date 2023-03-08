@@ -132,7 +132,9 @@ void intcom_serve_stream(void) {
 
 		if (dlv->lenSrc > 1) {
 			const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
-			send(sock, &ret, sizeof(int32_t), 0);
+			if (send(sock, &ret, sizeof(int32_t), 0) != sizeof(int32_t)) {
+				syslog(LOG_ERR, "IntCom[SS]: Failed sending end-result: %m");
+			}
 		}
 
 		sodium_memzero(dlv, sizeof(struct dlvEmail));
