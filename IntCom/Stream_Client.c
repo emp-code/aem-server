@@ -108,10 +108,16 @@ int32_t intcom_stream_end(void) {
 	crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
 
 	const size_t smax = SIZE_MAX;
-	if (send(ss_sock, &smax, sizeof(size_t), 0) != sizeof(size_t)) {close(ss_sock); ss_sock = -1; syslog(LOG_ERR, "IntCom[SC]: Failed sending end-message: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+	int32_t res = AEM_INTCOM_RESPONSE_ERR;
 
-	int32_t res;
-	if (recv(ss_sock, &res, sizeof(int32_t), MSG_WAITALL) != sizeof(int32_t)) {close(ss_sock); ss_sock = -1; syslog(LOG_ERR, "IntCom[SC]: Failed receiving result: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (send(ss_sock, &smax, sizeof(size_t), 0) != sizeof(size_t)) {
+		syslog(LOG_ERR, "IntCom[SC]: Failed sending end-message: %m");
+	} else {
+		if (recv(ss_sock, &res, sizeof(int32_t), MSG_WAITALL) != sizeof(int32_t)) {
+			syslog(LOG_ERR, "IntCom[SC]: Failed receiving end-result: %m");
+			res = AEM_INTCOM_RESPONSE_ERR;
+		}
+	}
 
 	close(ss_sock);
 	ss_sock = -1;
