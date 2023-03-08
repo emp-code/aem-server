@@ -100,15 +100,17 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	}
 }
 
-static bool addLbr(const unsigned char * const src, size_t * const lenOut) {
+static void addLbr(unsigned char * const src, size_t * const lenOut) {
 	if (
 	   *lenOut == 0 // We don't want a linebreak as the first character
 	|| (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
 	|| (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) // Already have 2 consecutive linebreaks - don't add more
-	) return false;
+	) return;
 
 	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
-	return true;
+
+	src[*lenOut] = AEM_CET_CHAR_LBR;
+	(*lenOut)++;
 }
 
 static void addTagChar(unsigned char * const src, size_t * const lenOut, const enum aem_html_tag tag, const bool closing) {
@@ -187,8 +189,31 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					return;
 				}
 			}
+
+			// Remove single-cell tables (the table char hasn't been added yet)
+			if (chr == AEM_CET_CHAR_TBL) {
+				int cellCount = 0;
+				size_t tableBegin = *lenOut - 3;
+				for (;;tableBegin--) {
+					if (src[tableBegin] == AEM_CET_CHAR_TBL) break; // Beginning of table found
+
+					if (src[tableBegin] == AEM_CET_CHAR_TTD) {
+						// We encountered a table cell before the beginning of the table
+						cellCount++;
+					}
+				}
+
+				if (cellCount < 2) {
+					memmove(src + tableBegin, src + tableBegin + 3, *lenOut - tableBegin - 5);
+					*lenOut -= 5;
+
+					addLbr(src, lenOut);
+					addLbr(src, lenOut);
+					return;
+				}
+			}
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
-	} else if (chr == AEM_CET_CHAR_LBR && !addLbr(src, lenOut)) return;
+	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut);
 
 	src[*lenOut] = chr;
 	(*lenOut)++;
