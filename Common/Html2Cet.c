@@ -186,6 +186,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				if (src[pos] == chr) {
 					// We've arrived at the opening tag without finding meaningful content
 					*lenOut = pos;
+					if (chr >= AEM_CET_THRESHOLD_LAYOUT) addLbr(src, lenOut);
 					return;
 				}
 			}
