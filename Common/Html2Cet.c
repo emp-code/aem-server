@@ -100,6 +100,17 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	}
 }
 
+static bool addLbr(const unsigned char * const src, size_t * const lenOut) {
+	if (
+	   *lenOut == 0 // We don't want a linebreak as the first character
+	|| (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
+	|| (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) // Already have 2 consecutive linebreaks - don't add more
+	) return false;
+
+	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
+	return true;
+}
+
 static void addTagChar(unsigned char * const src, size_t * const lenOut, const enum aem_html_tag tag, const bool closing) {
 	static uint32_t tagsOpen = 0;
 
@@ -177,12 +188,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				}
 			}
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
-	} else if (chr == AEM_CET_CHAR_LBR) {
-		if (*lenOut == 0) return; // We don't want a linebreak as the first character
-		if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
-		if (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) return; // This linebreak follows a layout tag - skip
-		if (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) return; // Already have 2 consecutive linebreaks - don't add more
-	}
+	} else if (chr == AEM_CET_CHAR_LBR && !addLbr(src, lenOut)) return;
 
 	src[*lenOut] = chr;
 	(*lenOut)++;
