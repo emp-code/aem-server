@@ -5,7 +5,7 @@
 #include "ValidUtf8.h"
 
 // Checks an individual character, returns its size in bytes, negative if invalid
-static int validUtf8(const unsigned char * const src, const size_t len, const bool allowControl) {
+int validUtf8(const unsigned char * const src, const size_t len, const bool allowControl) {
 	// 1-byte ASCII
 	if ((src[0] >= 32 && src[0] < 127) || src[0] == '\t' || src[0] == '\n') return 1; // ASCII printable, space/tab/newline
 	if (src[0] < 32 || src[0] == 127) return allowControl? 1 : -1; // ASCII control characters

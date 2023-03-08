@@ -367,7 +367,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
+					i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
 			break;}
 
@@ -381,7 +381,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					i--;
 					type = AEM_HTML_TYPE_T2;
 				} else if (copyAttr != 0) { // Attribute value -> copy
-					i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
+					i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
 			break;}
 
@@ -406,7 +406,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					break;
 				}
 
-				i += getHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
+				i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 			break;}
 		}
 	}

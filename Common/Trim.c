@@ -20,7 +20,7 @@ void removeControlChars(unsigned char * const c, size_t * const len) {
 	*len = newLen;
 }
 
-static size_t charInvisible(const unsigned char * const c, const size_t len) {
+size_t charInvisible(const unsigned char * const c, const size_t len) {
 	if (len > 1 && c[0] == 0xCD && c[1] == 0x8F) return 2; // CGJ
 
 	if (len > 2 && (

@@ -6,6 +6,7 @@
 
 #include "../Global.h"
 #include "../Common/Trim.h"
+#include "../Common/ValidUtf8.h"
 #include "../Common/ref2codepoint.h"
 
 #include "HtmlRefs.h"
@@ -86,13 +87,12 @@ static size_t utf8char(unsigned char * const text, const unsigned int codepoint)
 	return 0;
 }
 
-static int decodeHtmlRef(unsigned char * const full, const size_t lenFull, const size_t posRef, size_t * const lenOut) {
+static int decodeHtmlRef(unsigned char * const src, const size_t lenSrc, unsigned char * const decoded, size_t * const lenDecoded) {
+	if (lenSrc < 4 || *src != '&') return 0;
+
 	size_t lenRef;
 	unsigned int codepoint1 = 0;
 	unsigned int codepoint2 = 0;
-
-	const unsigned char * const src = full + posRef;
-	const size_t lenSrc = lenFull - posRef;
 
 	if (src[1] == '#') { // Numeric reference
 		if (src[2] == 'x' || src[2] == 'X') { // Hex
@@ -139,41 +139,64 @@ static int decodeHtmlRef(unsigned char * const full, const size_t lenFull, const
 	}
 
 	// We now have the codepoint(s)
-	unsigned char new1[4];
-	const size_t lenNew1 = utf8char(new1, codepoint1);
+	const size_t len1 = utf8char(decoded,        codepoint1);
+	const size_t len2 = utf8char(decoded + len1, codepoint2);
+	*lenDecoded = len1 + len2;
 
-	unsigned char new2[4];
-	const size_t lenNew2 = utf8char(new2, codepoint2);
-
-	if (lenNew1 > 0) memcpy(full + *lenOut,           new1, lenNew1);
-	if (lenNew2 > 0) memcpy(full + *lenOut + lenNew1, new2, lenNew2);
-	*lenOut += lenNew1 + lenNew2;
 	return lenRef;
 }
 
-int getHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_t posInput, size_t * const lenOut) {
-	const size_t lenInput = lenSrc - posInput;
-	const size_t lenSpace = charSpace(src + posInput, lenInput);
+static int getHtmlChar(unsigned char * const src, const size_t lenSrc, unsigned char * const decoded, size_t * const lenDecoded) {
+	int len = decodeHtmlRef(src, lenSrc, decoded, lenDecoded);
+	if (len <= 0) {
+		len = validUtf8(src, lenSrc, false);
+		if (len > 0) {
+			memcpy(decoded, src, len);
+			*lenDecoded = len;
+		}
+	}
 
-	if (lenInput >= 3 && src[posInput] == '&') {
-		const int ret = decodeHtmlRef(src, lenSrc, posInput, lenOut);
-		if (ret > 0) return ret;
-	} else if (lenSpace > 0) {
-		if (*lenOut < 1 // Space as first character
-		|| src[*lenOut - 1] == ' ' // Repated spaces
-		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Space after linebreak
-		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // Space as first character
-		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Space after layout element
-		) return lenSpace;
+	return len;
+}
 
-		src[*lenOut] = ' ';
+int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_t posInput, size_t * const lenOut) {
+	size_t lenDec = 0;
+	unsigned char dec[8];
+	const int skip = getHtmlChar(src + posInput, lenSrc - posInput, dec, &lenDec);
+
+	if (skip <= 0) {
+		src[*lenOut] = '?';
 		(*lenOut)++;
-		return lenSpace;
-	} else if (src[posInput] < 32) {
 		return 1;
 	}
 
-	src[*lenOut] = src[posInput];
-	(*lenOut)++;
-	return 1;
+	if (lenDec == 1 && (*dec < 32 || *dec == 127)) return 1;
+
+	if (charSpace(dec, lenDec) > 0) {
+		if (*lenOut > 0 // First character
+		&& src[*lenOut - 1] != ' ' // Repeat
+		&& src[*lenOut - 1] != AEM_CET_CHAR_LBR // Follows linebreak
+		&& src[*lenOut - 1] != AEM_CET_CHAR_SEP // First character
+		&& (src[*lenOut - 1] < AEM_CET_THRESHOLD_LAYOUT || src[*lenOut - 1] > 32) // Follows layout element
+		) {
+			src[*lenOut] = ' ';
+			(*lenOut)++;
+		}
+
+		return skip;
+	}
+
+	if (charInvisible(dec, lenDec) > 0) {
+		if (*lenOut < 1 // First character
+		|| ((*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) || (*lenOut > 2 && charInvisible(src + *lenOut - 3, 3))) // Repeat
+		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Follows linebreak
+		|| src[*lenOut - 1] == ' ' // Follows space
+		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // As first character
+		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Follows layout element
+		) return skip;
+	}
+
+	memcpy(src + *lenOut, dec, lenDec);
+	*lenOut += lenDec;
+	return skip;
 }
