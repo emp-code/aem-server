@@ -28,17 +28,10 @@ void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha
 void intcom_setPid_stream(const pid_t pid) {intcom_pid = pid;}
 
 static int setSockOpts(void) {
-	struct timeval tv;
-	tv.tv_sec = 10;
-	tv.tv_usec = 1;
-
 	const int intTrue = 1;
-
 	return (
 	   setsockopt(ss_sock, SOL_SOCKET, SO_DONTROUTE, &intTrue, sizeof(int)) == 0
 	&& setsockopt(ss_sock, SOL_SOCKET, SO_LOCK_FILTER, &intTrue, sizeof(int)) == 0
-	&& setsockopt(ss_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(struct timeval)) == 0
-	&& setsockopt(ss_sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(struct timeval)) == 0
 	) ? 0 : -1;
 }
 
