@@ -27,6 +27,7 @@ enum aem_html_tag {
 	AEM_HTML_TAG_br,
 	AEM_HTML_TAG_hr,
 	// Simple tags
+	AEM_HTML_TAG_hdr, // big, with a linebreak
 	AEM_HTML_TAG_big,
 	AEM_HTML_TAG_bld,
 	AEM_HTML_TAG_hrl,
@@ -81,6 +82,7 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 		case AEM_HTML_TAG_br: return AEM_CET_CHAR_LBR;
 		case AEM_HTML_TAG_hr: return AEM_CET_CHAR_HRL;
 
+		case AEM_HTML_TAG_hdr:
 		case AEM_HTML_TAG_big: return AEM_CET_CHAR_BIG;
 		case AEM_HTML_TAG_bld: return AEM_CET_CHAR_BLD;
 		case AEM_HTML_TAG_ita: return AEM_CET_CHAR_ITA;
@@ -100,11 +102,11 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	}
 }
 
-static void addLbr(unsigned char * const src, size_t * const lenOut) {
+static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough) {
 	if (
 	   *lenOut == 0 // We don't want a linebreak as the first character
 	|| (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
-	|| (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) // Already have 2 consecutive linebreaks - don't add more
+	|| (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || src[*lenOut - 2] == AEM_CET_CHAR_LBR)) // Already have linebreak(s) - don't add more
 	) return;
 
 	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
@@ -122,9 +124,11 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
 		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
 			// List item without a list open - replace with linebreak
-			addLbr(src, lenOut);
+			addLbr(src, lenOut, false);
 			return;
 		}
+
+		if (tag == AEM_HTML_TAG_hdr && !closing) addLbr(src, lenOut, true);
 
 		if (((tagsOpen >> (31 - chr)) & 1) == 0 && !closing) {
 			// We're opening a new tag
@@ -192,7 +196,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				if (src[pos] == chr) {
 					// We've arrived at the opening tag without finding meaningful content
 					*lenOut = pos;
-					if (chr >= AEM_CET_THRESHOLD_LAYOUT) addLbr(src, lenOut);
+					if (chr >= AEM_CET_THRESHOLD_LAYOUT) addLbr(src, lenOut, false);
 					return;
 				}
 			}
@@ -214,16 +218,18 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					memmove(src + tableBegin, src + tableBegin + 3, *lenOut - tableBegin - 5);
 					*lenOut -= 5;
 
-					addLbr(src, lenOut);
-					addLbr(src, lenOut);
+					addLbr(src, lenOut, false);
+					addLbr(src, lenOut, false);
 					return;
 				}
 			}
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
-	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut);
+	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut, false);
 
 	src[*lenOut] = chr;
 	(*lenOut)++;
+
+	if (tag == AEM_HTML_TAG_hdr && closing) addLbr(src, lenOut, true);
 }
 
 static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
@@ -264,7 +270,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'h':
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_hrl;
-			if (lenTagName == 2 && tagName[1] >= '1' && tagName[1] <= '6') return AEM_HTML_TAG_big; // h1-h6 - big
+			if (lenTagName == 2 && tagName[1] >= '1' && tagName[1] <= '6') return AEM_HTML_TAG_hdr; // h1-h6 - hdr/big
 		break;
 		case 'i':
 			if (lenTagName == 1) return AEM_HTML_TAG_ita; // i - ita
@@ -299,6 +305,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_ttr;
 			if (lenTagName == 2 && (tagName[1] == 'd' || tagName[1] == 'h')) return AEM_HTML_TAG_ttd;
 			if (lenTagName == 5 && memeq(tagName + 1, "able",    4)) return AEM_HTML_TAG_tbl;
+			if (lenTagName == 5 && memeq(tagName + 1, "itle",    4)) return AEM_HTML_TAG_hdr; // title - hdr/big
 			if (lenTagName == 5 && memeq(tagName + 1, "rack",    4)) return AEM_HTML_TAG_track;
 			if (lenTagName == 8 && memeq(tagName + 1, "extarea", 7)) return AEM_HTML_TAG_mno; // textarea - mono
 		break;
