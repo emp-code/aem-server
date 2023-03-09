@@ -106,7 +106,7 @@ static void addLbr(unsigned char * const src, size_t * const lenOut, const bool 
 	if (
 	   *lenOut == 0 // We don't want a linebreak as the first character
 	|| (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
-	|| (*lenOut > 1 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || src[*lenOut - 2] == AEM_CET_CHAR_LBR)) // Already have linebreak(s) - don't add more
+	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR))) // Already have linebreak(s) - don't add more
 	) return;
 
 	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
