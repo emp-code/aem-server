@@ -270,6 +270,7 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 			"geolocation"                     "=(),"
 			"gyroscope"                       "=(),"
 			"hid"                             "=(),"
+			"identity-credentials-get"        "=(),"
 			"idle-detection"                  "=(),"
 			"interest-cohort"                 "=(),"
 			"keyboard-map"                    "=(),"
