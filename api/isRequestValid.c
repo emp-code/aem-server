@@ -54,13 +54,7 @@ bool isRequestValid(const char * const req, const size_t lenReq, bool * const ke
 		|| NULL != strcasestr(req, "\r\nAccess-Control-Request-Headers:")
 	) return false;
 
-	const char *s = strcasestr(req, "\r\nAccept: ");
-	if (s != NULL && !memeq(s + 10, "\r\n", 2)) return false;
-
-	s = strcasestr(req, "\r\nAccept-Language: ");
-	if (s != NULL && !memeq(s + 19, "\r\n", 2)) return false;
-
-	s = strcasestr(req, "\r\nSec-Fetch-Dest: ");
+	const char *s = strcasestr(req, "\r\nSec-Fetch-Dest: ");
 	if (s != NULL && !memeq_anycase(s + 18, "empty\r\n", 7)) return false;
 
 	s = strcasestr(req, "\r\nSec-Fetch-Mode: ");
