@@ -272,30 +272,34 @@ static int getCte(const unsigned char * const h, const size_t len) {
 }
 
 static unsigned char *decodeCte(const unsigned char * const src, size_t * const lenSrc, const int cte, const bool isText) {
-	unsigned char *new;
+	if (src == NULL || lenSrc == NULL || *lenSrc < 1) return NULL;
 
-	switch (cte) {
-		case MTA_PROCESSING_CTE_QP:
-			new = malloc(*lenSrc + 1);
-			if (new == NULL) return NULL;
+	unsigned char *new = NULL;
+
+	if (cte == MTA_PROCESSING_CTE_QP) {
+		new = malloc(*lenSrc + 1);
+		if (new != NULL) {
 			memcpy(new, src, *lenSrc);
 			decodeQuotedPrintable(new, lenSrc);
-		break;
-
-		case MTA_PROCESSING_CTE_B64:
-			new = malloc(*lenSrc);
-			if (new == NULL) return NULL;
-
+		}
+	} else if (cte == MTA_PROCESSING_CTE_B64) {
+		new = malloc(*lenSrc);
+		if (new != NULL) {
 			size_t lenNew;
-			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(new); return NULL;}
-			if (isText) removeControlChars(new, &lenNew);
-			*lenSrc = lenNew;
-		break;
+			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
+				if (isText) removeControlChars(new, &lenNew);
+				*lenSrc = lenNew;
+			} else {
+				free(new);
+				new = NULL;
+			}
+		}
+	}
 
-		default:
-			new = malloc(*lenSrc + 1);
-			if (new == NULL) return NULL;
-			memcpy(new, src, *lenSrc);
+	if (new == NULL) {
+		new = malloc(*lenSrc + 1);
+		if (new == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
+		memcpy(new, src, *lenSrc);
 	}
 
 	new[*lenSrc] = '\0';
@@ -590,9 +594,13 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
-		email->body = decodeCte(src, lenSrc, cte, true);
-		if (email->body == NULL) email->body = src;
 		email->lenBody = *lenSrc;
+		email->body = decodeCte(src, &email->lenBody, cte, true);
+		if (email->body == NULL) {
+			email->body = src;
+			email->lenBody = *lenSrc;
+			return;
+		}
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
 			char cs[AEM_DELIVER_MAXLEN_CHARSET];
