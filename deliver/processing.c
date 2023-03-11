@@ -137,7 +137,7 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
-				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " \n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) break;
+				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " .\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) break;
 			} else {
 				memcpy(dec, ewStart, lenEw);
 				lenDec = lenEw;
@@ -286,7 +286,7 @@ static unsigned char *decodeCte(const unsigned char * const src, size_t * const 
 		new = malloc(*lenSrc);
 		if (new != NULL) {
 			size_t lenNew;
-			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " \n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
+			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " .\n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
 				if (isText) removeControlChars(new, &lenNew);
 				*lenSrc = lenNew;
 			} else {
