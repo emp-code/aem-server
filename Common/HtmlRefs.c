@@ -194,6 +194,12 @@ int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 	const int lenPrev = prevChar(src, *lenOut - 1, prev);
 
 	if (charSpace(dec, lenDec) > 0) {
+		const size_t lenInv = charInvisible(prev, lenPrev);
+		if (lenInv > 0) {
+			*lenOut -= lenInv;
+			return addHtmlCharacter(src, lenSrc, posInput, lenOut);
+		}
+
 		if (lenPrev > 0 && *prev > 32 && *prev != AEM_CET_CHAR_SEP) {
 			src[*lenOut] = ' ';
 			(*lenOut)++;
