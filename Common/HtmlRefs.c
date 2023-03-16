@@ -164,11 +164,11 @@ int prevChar(const unsigned char * const src, const int start, unsigned char * c
 	const int lenSrc = start;
 
 	for (int i = start; i > 0; i--) {
-		if (src[i] == AEM_CET_CHAR_LBR || src[i] >= AEM_CET_THRESHOLD_LAYOUT) {
+		if (src[i] == AEM_CET_CHAR_LBR || (src[i] >= AEM_CET_THRESHOLD_LAYOUT && src[i] < 127)) {
 			*result = src[i];
 			return 1;
-		} else {
-			const int len = validUtf8(src + i, lenSrc - i, false);
+		} else if (src[i] > 127) {
+			const int len = validUtf8(src + i, lenSrc - i + 1, false);
 			if (len > 0) {
 				memcpy(result, src + i, len);
 				return len;
