@@ -204,11 +204,11 @@ int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 
 	if (charInvisible(dec, lenDec) > 0) {
 		if (lenPrev < 1
-		|| charInvisible(prev, lenPrev) // Repeat
-		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Follows linebreak
-		|| src[*lenOut - 1] == ' ' // Follows space
-		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // As first character
-		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Follows layout element
+		|| charInvisible(prev, lenPrev) > 0 // Repeat
+		|| charSpace(prev, lenPrev) > 0 // Follows space
+		|| *prev == AEM_CET_CHAR_LBR // Follows linebreak
+		|| *prev == AEM_CET_CHAR_SEP // As first character
+		|| (*prev >= AEM_CET_THRESHOLD_LAYOUT && *prev < 32) // Follows layout element
 		) return skip;
 	}
 
