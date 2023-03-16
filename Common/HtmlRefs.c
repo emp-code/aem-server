@@ -159,6 +159,26 @@ static int getHtmlChar(unsigned char * const src, const size_t lenSrc, unsigned 
 	return len;
 }
 
+// Ignores CET formatting chars
+int prevChar(const unsigned char * const src, const int start, unsigned char * const result) {
+	const int lenSrc = start;
+
+	for (int i = start; i > 0; i--) {
+		if (src[i] == AEM_CET_CHAR_LBR || src[i] >= AEM_CET_THRESHOLD_LAYOUT) {
+			*result = src[i];
+			return 1;
+		} else {
+			const int len = validUtf8(src + i, lenSrc - i, false);
+			if (len > 0) {
+				memcpy(result, src + i, len);
+				return len;
+			}
+		}
+	}
+
+	return -1;
+}
+
 int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_t posInput, size_t * const lenOut) {
 	size_t lenDec = 0;
 	unsigned char dec[8];
@@ -170,15 +190,11 @@ int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 		return 1;
 	}
 
-	if (lenDec == 1 && (*dec < 32 || *dec == 127)) return 1;
+	unsigned char prev[8];
+	const int lenPrev = prevChar(src, *lenOut - 1, prev);
 
 	if (charSpace(dec, lenDec) > 0) {
-		if (*lenOut > 0 // First character
-		&& src[*lenOut - 1] != ' ' // Repeat
-		&& src[*lenOut - 1] != AEM_CET_CHAR_LBR // Follows linebreak
-		&& src[*lenOut - 1] != AEM_CET_CHAR_SEP // First character
-		&& (src[*lenOut - 1] < AEM_CET_THRESHOLD_LAYOUT || src[*lenOut - 1] > 32) // Follows layout element
-		) {
+		if (lenPrev > 0 && *prev > 32 && *prev != AEM_CET_CHAR_SEP) {
 			src[*lenOut] = ' ';
 			(*lenOut)++;
 		}
@@ -187,14 +203,16 @@ int addHtmlCharacter(unsigned char * const src, const size_t lenSrc, const size_
 	}
 
 	if (charInvisible(dec, lenDec) > 0) {
-		if (*lenOut < 1 // First character
-		|| ((*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) || (*lenOut > 2 && charInvisible(src + *lenOut - 3, 3))) // Repeat
+		if (lenPrev < 1
+		|| charInvisible(prev, lenPrev) // Repeat
 		|| src[*lenOut - 1] == AEM_CET_CHAR_LBR // Follows linebreak
 		|| src[*lenOut - 1] == ' ' // Follows space
 		|| src[*lenOut - 1] == AEM_CET_CHAR_SEP // As first character
 		|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // Follows layout element
 		) return skip;
 	}
+
+	if (lenDec == 1 && (*dec < 32 || *dec == 127)) return 1;
 
 	memcpy(src + *lenOut, dec, lenDec);
 	*lenOut += lenDec;
