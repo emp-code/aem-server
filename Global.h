@@ -71,12 +71,14 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_NEWER 1
 
 // Control-Enriched Text (CET)
-	// Tags with no open/close
-#define AEM_CET_CHAR_LBR 0x01 // Linebreak
-#define AEM_CET_CHAR_HRL 0x02 // Horizontal line
 	// Tags AEM closes automatically
-#define AEM_CET_CHAR_LNK 0x04 // Document link (+1 = HTTPS)
-#define AEM_CET_CHAR_FIL 0x06 // File link (+1 = HTTPS)
+#define AEM_CET_CHAR_LNK 0x01 // Document link (+1 = HTTPS)
+#define AEM_CET_CHAR_FIL 0x03 // File link (+1 = HTTPS)
+	// 0x05..0x09 unused
+	// Tags with no open/close
+#define AEM_CET_CHAR_LBR 0x0A // Linebreak (same as ASCII)
+#define AEM_CET_CHAR_HRL 0x0B // Horizontal line
+	// 0x0C..0x10 unused
 	// Tags with open/close based on the input HTML
 #define AEM_CET_THRESHOLD_MANUAL 0x11
 #define AEM_CET_CHAR_BIG 0x11 // Big text
