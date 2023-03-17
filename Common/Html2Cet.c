@@ -111,6 +111,12 @@ static void addLbr(unsigned char * const src, size_t * const lenOut, const bool 
 
 	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
 
+	if (*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) {
+		*lenOut -= 2;
+	} else if (*lenOut > 2 && charInvisible(src + *lenOut - 3, 3)) {
+		*lenOut -= 3;
+	}
+
 	src[*lenOut] = AEM_CET_CHAR_LBR;
 	(*lenOut)++;
 }
