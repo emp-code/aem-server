@@ -26,30 +26,30 @@ enum aem_html_tag {
 	AEM_HTML_TAG_NULL,
 	AEM_HTML_TAG_br,
 	AEM_HTML_TAG_hr,
-	// Simple tags
+	// Style tags
 	AEM_HTML_TAG_hdr, // big, with a linebreak
 	AEM_HTML_TAG_big,
 	AEM_HTML_TAG_bld,
-	AEM_HTML_TAG_hrl,
-	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_ita,
-	AEM_HTML_TAG_lli,
-	AEM_HTML_TAG_lol,
-	AEM_HTML_TAG_lul,
 	AEM_HTML_TAG_mno,
 	AEM_HTML_TAG_sml,
 	AEM_HTML_TAG_str,
 	AEM_HTML_TAG_sub,
 	AEM_HTML_TAG_sup,
+	AEM_HTML_TAG_unl,
+	// Layout tags
+	AEM_HTML_TAG_lli,
+	AEM_HTML_TAG_lol,
+	AEM_HTML_TAG_lul,
 	AEM_HTML_TAG_tbl,
 	AEM_HTML_TAG_ttd,
 	AEM_HTML_TAG_ttr,
-	AEM_HTML_TAG_unl,
-	// Other tags
+	// Link tags
 	AEM_HTML_TAG_a,
 	AEM_HTML_TAG_audio,
 	AEM_HTML_TAG_embed,
 	AEM_HTML_TAG_frame,
+	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_object,
 	AEM_HTML_TAG_source,
 	AEM_HTML_TAG_track,
@@ -297,7 +297,7 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 5 && memeq(tagName + 1, "rame", 4)) return AEM_HTML_TAG_frame;
 		break;
 		case 'h':
-			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_hrl;
+			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_hr;
 			if (lenTagName == 2 && tagName[1] >= '1' && tagName[1] <= '6') return AEM_HTML_TAG_hdr; // h1-h6 - hdr/big
 		break;
 		case 'i':
