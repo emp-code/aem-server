@@ -196,7 +196,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 
 			// Find if there's meaningful content between this closing-tag and the opening-tag
 			for (size_t pos = *lenOut - 1;; pos--) {
-				if (src[pos] > 32) break; // Meaningful content found - proceed
+				if (src[pos] > 32 || (src[pos] == 32 && chr >= AEM_CET_THRESHOLD_MANUAL && chr < AEM_CET_THRESHOLD_LAYOUT)) break; // Meaningful content found - proceed
 
 				if (src[pos] == chr) {
 					// We've arrived at the opening tag without finding meaningful content
