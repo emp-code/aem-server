@@ -429,14 +429,16 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				else if (memeq_anycase(src + i + 1, "https://", 8)) {i += 8; copyAttr++;}
 				else {copyAttr = 0; break;} // All others ignored/deleted
 
-				src[lenOut] = copyAttr;
-				lenOut++;
+				if (copyAttr != ' ' || (lenOut > 0 && src[lenOut - 1] != ' ')) {
+					src[lenOut] = copyAttr;
+					lenOut++;
+				}
 			break;}
 
 			case AEM_HTML_TYPE_QD:
 			case AEM_HTML_TYPE_QS: {
 				if (src[i] == (char)type) { // End of attribute -> add end marker
-					if (copyAttr != 0) {
+					if (copyAttr != 0 && (copyAttr != ' ' || (lenOut > 0 && src[lenOut - 1] != ' '))) {
 						src[lenOut] = copyAttr;
 						lenOut++;
 					}
@@ -449,7 +451,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 
 			case AEM_HTML_TYPE_QN: {
 				if (src[i] == ' ' || src[i] == '>') { // End of attribute -> add end marker
-					if (copyAttr != 0) {
+					if (copyAttr != 0 && (copyAttr != ' ' || (lenOut > 0 && src[lenOut - 1] != ' '))) {
 						src[lenOut] = copyAttr;
 						lenOut++;
 					}
