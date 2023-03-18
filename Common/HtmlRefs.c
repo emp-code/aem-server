@@ -164,7 +164,7 @@ int prevChar(const unsigned char * const src, const int start, unsigned char * c
 	const int lenSrc = start;
 
 	for (int i = start; i > 0; i--) {
-		if (src[i] == AEM_CET_CHAR_LBR || (src[i] >= AEM_CET_THRESHOLD_LAYOUT && src[i] < 127)) {
+		if (src[i] == AEM_CET_CHAR_LBR || src[i] <= AEM_CET_CHAR_FIL + 1 || (src[i] >= AEM_CET_THRESHOLD_LAYOUT && src[i] < 127)) {
 			*result = src[i];
 			return 1;
 		} else if (src[i] > 127) {
