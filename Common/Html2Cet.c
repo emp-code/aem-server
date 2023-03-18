@@ -98,14 +98,34 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	}
 }
 
-static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough) {
-	if (
-	   *lenOut == 0 // We don't want a linebreak as the first character
-	|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
-	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR))) // Already have linebreak(s) - don't add more
+static void addHrl(unsigned char * const src, size_t * const lenOut) {
+	if (*lenOut == 0
+	|| src[*lenOut - 1] == AEM_CET_CHAR_HRL
+	|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32)
 	) return;
 
-	if (src[*lenOut - 1] == ' ') (*lenOut)--; // This linebreak follows a space - remove the space
+	if (src[*lenOut - 1] == ' ') (*lenOut)--;
+	if (*lenOut > 0 && src[*lenOut - 1] == AEM_CET_CHAR_LBR) (*lenOut)--;
+	if (*lenOut > 0 && src[*lenOut - 1] == AEM_CET_CHAR_LBR) (*lenOut)--;
+
+	if (*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) {
+		*lenOut -= 2;
+	} else if (*lenOut > 2 && charInvisible(src + *lenOut - 3, 3)) {
+		*lenOut -= 3;
+	}
+
+	src[*lenOut] = AEM_CET_CHAR_HRL;
+	(*lenOut)++;
+}
+
+static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough) {
+	if (*lenOut == 0
+	||  src[*lenOut - 1] == AEM_CET_CHAR_HRL
+	|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32)
+	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR)))
+	) return;
+
+	if (src[*lenOut - 1] == ' ') (*lenOut)--;
 
 	if (*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) {
 		*lenOut -= 2;
@@ -253,6 +273,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 			}
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
 	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut, false);
+	  else if (chr == AEM_CET_CHAR_HRL) return addHrl(src, lenOut);
 
 	src[*lenOut] = chr;
 	(*lenOut)++;
