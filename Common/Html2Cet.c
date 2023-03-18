@@ -56,6 +56,7 @@ enum aem_html_tag {
 	AEM_HTML_TAG_video
 };
 
+#define AEM_WANTATTR_NAME_MAXLEN 4
 static int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
 	switch (tag) {
 		case AEM_HTML_TAG_a: return (lenName == 4 && memeq(name, "href", 4)) ? AEM_CET_CHAR_LNK : 0;
@@ -417,7 +418,11 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					for (size_t j = 1;; j++) {
 						if (src[i - offset - j] == ' ' || src[i - offset - j] == '<') break;
 						lenAttrName++;
-						if (lenAttrName > 9) break; // todo
+
+						if (lenAttrName > AEM_WANTATTR_NAME_MAXLEN) {
+							lenAttrName = 0;
+							break;
+						}
 					}
 
 					if (lenAttrName > 0) {
