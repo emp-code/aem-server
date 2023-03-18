@@ -81,7 +81,6 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 	switch (tag) {
 		case AEM_HTML_TAG_br: return AEM_CET_CHAR_LBR;
 		case AEM_HTML_TAG_hr: return AEM_CET_CHAR_HRL;
-
 		case AEM_HTML_TAG_hdr:
 		case AEM_HTML_TAG_big: return AEM_CET_CHAR_BIG;
 		case AEM_HTML_TAG_bld: return AEM_CET_CHAR_BLD;
@@ -105,7 +104,7 @@ static unsigned char tag2char(const enum aem_html_tag tag) {
 static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough) {
 	if (
 	   *lenOut == 0 // We don't want a linebreak as the first character
-	|| (src[*lenOut - 1] > AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
+	|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32) // This linebreak follows a layout tag - skip
 	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR))) // Already have linebreak(s) - don't add more
 	) return;
 
