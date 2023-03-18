@@ -429,7 +429,16 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				else if (memeq_anycase(src + i + 1, "https://", 8)) {i += 8; copyAttr++;}
 				else {copyAttr = 0; break;} // All others ignored/deleted
 
-				if (copyAttr != ' ' || (lenOut > 0 && src[lenOut - 1] != ' ')) {
+				if (copyAttr == ' ') {
+					if (lenOut > 0 && src[lenOut - 1] != ' ') {
+						src[lenOut] = copyAttr;
+						lenOut++;
+					}
+				} else {
+					if (lenOut > 0 && src[lenOut - 1] == ' ') {
+						lenOut--;
+					}
+
 					src[lenOut] = copyAttr;
 					lenOut++;
 				}
