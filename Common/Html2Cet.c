@@ -209,6 +209,9 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 			// Remove single-cell tables (the table char hasn't been added yet)
 			if (chr == AEM_CET_CHAR_TBL) {
 				int cellCount = 0;
+				int columnCount = 0;
+				int currentColumns = 0;
+
 				size_t tableBegin = *lenOut - 3;
 				for (;;tableBegin--) {
 					if (src[tableBegin] == AEM_CET_CHAR_TBL) break; // Beginning of table found
@@ -216,6 +219,10 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					if (src[tableBegin] == AEM_CET_CHAR_TTD) {
 						// We encountered a table cell before the beginning of the table
 						cellCount++;
+						currentColumns++;
+					} else if (src[tableBegin] == AEM_CET_CHAR_TTR) {
+						if (currentColumns > columnCount) columnCount = currentColumns;
+						currentColumns = 0;
 					}
 				}
 
@@ -225,6 +232,25 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 
 					addLbr(src, lenOut, false);
 					addLbr(src, lenOut, false);
+					return;
+				} else if (columnCount < 3) {
+					// Single-column table - replace rows with lines
+					size_t newLenOut = tableBegin;
+
+					for (size_t i = tableBegin + 1; i < *lenOut; i++) {
+						if (src[i] == AEM_CET_CHAR_TTD) continue;
+						if (src[i] == AEM_CET_CHAR_TTR) {
+							if (newLenOut > 0 && src[newLenOut - 1] != AEM_CET_CHAR_LBR) {
+								src[newLenOut] = AEM_CET_CHAR_LBR;
+								newLenOut++;
+							}
+						} else {
+							src[newLenOut] = src[i];
+							newLenOut++;
+						}
+					}
+
+					*lenOut = newLenOut;
 					return;
 				}
 			}
