@@ -415,20 +415,20 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 
 					size_t lenAttrName = 0;
 					for (size_t j = 1;; j++) {
-						if (src[i - offset - j] == ' ') break;
-						if (src[i - offset - j] == '<') return; // Should not happen
-
+						if (src[i - offset - j] == ' ' || src[i - offset - j] == '<') break;
 						lenAttrName++;
 						if (lenAttrName > 9) break; // todo
 					}
 
-					char attrName[lenAttrName];
-					for (size_t j = 0; j < lenAttrName; j++) {
-						attrName[j] = tolower(src[i - offset - lenAttrName + j]);
-					}
+					if (lenAttrName > 0) {
+						char attrName[lenAttrName];
+						for (size_t j = 0; j < lenAttrName; j++) {
+							attrName[j] = tolower(src[i - offset - lenAttrName + j]);
+						}
 
-					copyAttr = wantAttr(tagType, attrName, lenAttrName);
-					type = AEM_HTML_TYPE_EQ;
+						copyAttr = wantAttr(tagType, attrName, lenAttrName);
+						type = AEM_HTML_TYPE_EQ;
+					}
 				} // else ignored
 			break;}
 
