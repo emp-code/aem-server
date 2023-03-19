@@ -51,6 +51,7 @@ enum aem_html_tag {
 	AEM_HTML_TAG_frame,
 	AEM_HTML_TAG_img,
 	AEM_HTML_TAG_object,
+	AEM_HTML_TAG_q,
 	AEM_HTML_TAG_source,
 	AEM_HTML_TAG_track,
 	AEM_HTML_TAG_video
@@ -59,8 +60,9 @@ enum aem_html_tag {
 #define AEM_WANTATTR_NAME_MAXLEN 4
 static int wantAttr(const enum aem_html_tag tag, const char * const name, const size_t lenName) {
 	switch (tag) {
-		case AEM_HTML_TAG_a: return (lenName == 4 && memeq(name, "href", 4)) ? AEM_CET_CHAR_LNK : 0;
-		case AEM_HTML_TAG_frame: return (lenName == 3 && memeq(name, "src", 3)) ? AEM_CET_CHAR_LNK : 0;
+		case AEM_HTML_TAG_a:     return (lenName == 4 && memeq(name, "href", 4)) ? AEM_CET_CHAR_LNK : 0;
+		case AEM_HTML_TAG_frame: return (lenName == 3 && memeq(name, "src",  3)) ? AEM_CET_CHAR_LNK : 0;
+		case AEM_HTML_TAG_q:     return (lenName == 4 && memeq(name, "cite", 4)) ? AEM_CET_CHAR_LNK : 0;
 
 		case AEM_HTML_TAG_audio:
 		case AEM_HTML_TAG_embed:
@@ -340,6 +342,9 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		case 'p':
 			if (lenTagName == 1) return AEM_HTML_TAG_br;
 			if (lenTagName == 3 && tagName[1] == 'r' && tagName[2] == 'e') return AEM_HTML_TAG_mno; // pre - mono
+		break;
+		case 'q':
+			if (lenTagName == 1) return AEM_HTML_TAG_q;
 		break;
 		case 's':
 			if (lenTagName == 1) return AEM_HTML_TAG_str;
