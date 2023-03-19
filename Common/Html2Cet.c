@@ -505,14 +505,22 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				if (src[i] == '<') {
 					if (memeq_anycase(src + i + 1, "style", 5)) {
 						const unsigned char * const styleEnd = memcasemem(src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
-						if (styleEnd == NULL) return;
+						if (styleEnd == NULL) {
+							*lenSrc = lenOut;
+							return;
+						}
+
 						i = styleEnd - src - 1;
 						break;
 					}
 
 					if (memeq_anycase(src + i + 1, "!--", 3)) {
 						const unsigned char * const cEnd = memcasemem(src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
-						if (cEnd == NULL) return;
+						if (cEnd == NULL) {
+							*lenSrc = lenOut;
+							return;
+						}
+
 						i = cEnd - src + 2;
 						break;
 					}
