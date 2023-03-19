@@ -57,7 +57,7 @@ static size_t charNewline(const unsigned char * const c, const size_t len) {
 }
 
 // Get the prev/next character, ignoring CCs
-size_t prevCharAt(unsigned char * const src, const ssize_t start) {
+static size_t prevCharAt(unsigned char * const src, const ssize_t start) {
 	if (start < 1) return 0;
 
 	const unsigned char *c = src + start;
@@ -68,7 +68,7 @@ size_t prevCharAt(unsigned char * const src, const ssize_t start) {
 	return c - src;
 }
 
-size_t nextCharAt(unsigned char * const src, const size_t start, const size_t len) {
+static size_t nextCharAt(unsigned char * const src, const size_t start, const size_t len) {
 	const unsigned char *c = src + start;
 	while (c < src + len && ((*c < 32 && *c != '\n') || *c == 127)) {
 		c++;
