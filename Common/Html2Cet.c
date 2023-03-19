@@ -303,11 +303,14 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		case 'a':
 			if (lenTagName == 1) return AEM_HTML_TAG_a;
 			if (lenTagName == 5 && memeq(tagName + 1, "udio", 4)) return AEM_HTML_TAG_audio;
+			if (lenTagName == 7 && memeq(tagName + 1, "rticle", 6)) return AEM_HTML_TAG_br;
+			if (lenTagName == 5 && memeq(tagName + 1, "side", 4)) return AEM_HTML_TAG_br;
 		break;
 		case 'b':
 			if (lenTagName == 1) return AEM_HTML_TAG_bld; // b - bld
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_br;
 			if (lenTagName == 3 && tagName[1] == 'i' && tagName[2] == 'g') return AEM_HTML_TAG_big;
+			if (lenTagName == 10 && memeq(tagName + 1, "lockquote", 9)) return AEM_HTML_TAG_br;
 		break;
 		case 'c':
 			if (lenTagName == 4 && memeq(tagName + 1, "ode", 3)) return AEM_HTML_TAG_mno; // code - mono
@@ -322,10 +325,12 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'f':
 			if (lenTagName == 5 && memeq(tagName + 1, "rame", 4)) return AEM_HTML_TAG_frame;
+			if (lenTagName == 8 && memeq(tagName + 1, "ieldset", 7)) return AEM_HTML_TAG_br;
 		break;
 		case 'h':
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_hr;
 			if (lenTagName == 2 && tagName[1] >= '1' && tagName[1] <= '6') return AEM_HTML_TAG_hdr; // h1-h6 - hdr/big
+			if (lenTagName == 6 && memeq(tagName + 1, "eader", 5)) return AEM_HTML_TAG_br;
 		break;
 		case 'i':
 			if (lenTagName == 1) return AEM_HTML_TAG_ita; // i - ita
@@ -337,6 +342,9 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 		break;
 		case 'l':
 			if (lenTagName == 2 && tagName[1] == 'i') return AEM_HTML_TAG_lli;
+		break;
+		case 'n':
+			if (lenTagName == 3 && tagName[1] == 'a' && tagName[2] == 'v') return AEM_HTML_TAG_br;
 		break;
 		case 'o':
 			if (lenTagName == 2 && tagName[1] == 'l') return AEM_HTML_TAG_lol;
@@ -353,11 +361,12 @@ static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
 			if (lenTagName == 1) return AEM_HTML_TAG_str;
 			if (lenTagName == 3 && tagName[1] == 'u' && tagName[2] == 'b') return AEM_HTML_TAG_sub;
 			if (lenTagName == 3 && tagName[1] == 'u' && tagName[2] == 'p') return AEM_HTML_TAG_sup;
-			if (lenTagName == 4 && memeq(tagName + 1, "amp",   3)) return AEM_HTML_TAG_mno; // samp
-			if (lenTagName == 5 && memeq(tagName + 1, "mall",  4)) return AEM_HTML_TAG_sml; // small
-			if (lenTagName == 6 && memeq(tagName + 1, "trike", 5)) return AEM_HTML_TAG_str; // strike
-			if (lenTagName == 6 && memeq(tagName + 1, "trong", 5)) return AEM_HTML_TAG_bld; // strong
-			if (lenTagName == 6 && memeq(tagName + 1, "ource", 5)) return AEM_HTML_TAG_source;
+			if (lenTagName == 4 && memeq(tagName + 1, "amp",    3)) return AEM_HTML_TAG_mno; // samp
+			if (lenTagName == 5 && memeq(tagName + 1, "mall",   4)) return AEM_HTML_TAG_sml; // small
+			if (lenTagName == 6 && memeq(tagName + 1, "trike",  5)) return AEM_HTML_TAG_str; // strike
+			if (lenTagName == 6 && memeq(tagName + 1, "trong",  5)) return AEM_HTML_TAG_bld; // strong
+			if (lenTagName == 6 && memeq(tagName + 1, "ource",  5)) return AEM_HTML_TAG_source;
+			if (lenTagName == 7 && memeq(tagName + 1, "ection", 6)) return AEM_HTML_TAG_br; // section
 		break;
 		case 't':
 			if (lenTagName == 2 && tagName[1] == 'r') return AEM_HTML_TAG_ttr;
