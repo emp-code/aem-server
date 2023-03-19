@@ -160,7 +160,7 @@ static int getHtmlChar(unsigned char * const src, const size_t lenSrc, unsigned 
 }
 
 // Ignores CET formatting chars
-int prevChar(const unsigned char * const src, const int start, unsigned char * const result) {
+static int prevChar(const unsigned char * const src, const int start, unsigned char * const result) {
 	const int lenSrc = start;
 
 	for (int i = start; i > 0; i--) {
