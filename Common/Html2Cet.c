@@ -79,6 +79,7 @@ static int wantAttr(const enum aem_html_tag tag, const char * const name, const 
 
 static unsigned char tag2char(const enum aem_html_tag tag) {
 	switch (tag) {
+		case AEM_HTML_TAG_q:  return '"';
 		case AEM_HTML_TAG_br: return AEM_CET_CHAR_LBR;
 		case AEM_HTML_TAG_hr: return AEM_CET_CHAR_HRL;
 		case AEM_HTML_TAG_hdr:
@@ -146,7 +147,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	const unsigned char chr = tag2char(tag);
 	if (chr == 0) return;
 
-	if (chr >= AEM_CET_THRESHOLD_MANUAL) {
+	if (chr >= AEM_CET_THRESHOLD_MANUAL && chr < 32) {
 		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
 			// List item without a list open - replace with linebreak
 			addLbr(src, lenOut, false);
