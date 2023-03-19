@@ -11,6 +11,8 @@
 
 #include "Html2Cet.h"
 
+#define AEM_TAGNAME_MAXLEN 11
+
 enum aem_html_type {
 	AEM_HTML_TYPE_TX = 0,
 	AEM_HTML_TYPE_T1 = 1,
@@ -383,7 +385,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 
 	enum aem_html_tag tagType = AEM_HTML_TAG_NULL;
 	size_t lenTagName = 0;
-	char tagName[8];
+	char tagName[AEM_TAGNAME_MAXLEN];
 
 	enum aem_html_type type = AEM_HTML_TYPE_TX;
 	int copyAttr = 0;
@@ -400,7 +402,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				} else if (src[i] == '>') { // Tag name ends, no attributes
 					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName), tagName[0] == '/');
 					type = AEM_HTML_TYPE_TX;
-				} else if (lenTagName < 7) {
+				} else if (lenTagName < AEM_TAGNAME_MAXLEN) {
 					tagName[lenTagName] = tolower(src[i]);
 					lenTagName++;
 					break;
