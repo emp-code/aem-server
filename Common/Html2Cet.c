@@ -552,6 +552,6 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 		}
 	}
 
-	while (src[lenOut - 1] == AEM_CET_CHAR_LBR) lenOut--;
+	while (lenOut > 0 && src[lenOut - 1] == AEM_CET_CHAR_LBR) lenOut--;
 	*lenSrc = lenOut;
 }
