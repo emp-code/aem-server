@@ -406,7 +406,6 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_T1: { // New tag's name
 				if (src[i] == ' ') { // Tag name ends, has attributes
 					tagType = getTagByName(tagName, lenTagName);
-					lenTagName = 0;
 					type = AEM_HTML_TYPE_T2;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
 					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName), tagName[0] == '/');
