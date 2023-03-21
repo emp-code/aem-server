@@ -398,18 +398,23 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 
 	enum aem_html_type type = AEM_HTML_TYPE_TX;
 	int copyAttr = 0;
+	bool isPre = false;
 
 	for (size_t i = 0; i < *lenSrc; i++) {
-		if (src[i] == '\n') src[i] = ' ';
-
 		switch (type) {
 			case AEM_HTML_TYPE_T1: { // New tag's name
 				if (src[i] == ' ') { // Tag name ends, has attributes
 					tagType = getTagByName(tagName, lenTagName);
 					type = AEM_HTML_TYPE_T2;
+
+					if (lenTagName == 3 && memeq(tagName, "pre", 3)) isPre = true;
+					else if (lenTagName == 4 && memeq(tagName, "/pre", 4)) isPre = false;
 				} else if (src[i] == '>') { // Tag name ends, no attributes
 					addTagChar(src, &lenOut, getTagByName(tagName, lenTagName), tagName[0] == '/');
 					type = AEM_HTML_TYPE_TX;
+
+					if (lenTagName == 3 && memeq(tagName, "pre", 3)) isPre = true;
+					else if (lenTagName == 4 && memeq(tagName, "/pre", 4)) isPre = false;
 				} else if (lenTagName < AEM_TAGNAME_MAXLEN) {
 					tagName[lenTagName] = tolower(src[i]);
 					lenTagName++;
@@ -537,9 +542,12 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					lenTagName = 0;
 					type = AEM_HTML_TYPE_T1;
 					break;
+				} else if (src[i] == '\n' && isPre) {
+					addTagChar(src, &lenOut, AEM_HTML_TAG_br, false);
+				} else {
+					if (src[i] == '\n') src[i] = ' ';
+					i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
-
-				i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 			break;}
 		}
 	}
