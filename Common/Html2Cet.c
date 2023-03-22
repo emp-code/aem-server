@@ -401,6 +401,8 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 	bool isPre = false;
 
 	for (size_t i = 0; i < *lenSrc; i++) {
+		if ((type != AEM_HTML_TYPE_TX || !isPre) && src[i] == '\n') src[i] = ' ';
+
 		switch (type) {
 			case AEM_HTML_TYPE_T1: { // New tag's name
 				if (src[i] == ' ') { // Tag name ends, has attributes
@@ -545,7 +547,6 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				} else if (src[i] == '\n' && isPre) {
 					addTagChar(src, &lenOut, AEM_HTML_TAG_br, false);
 				} else {
-					if (src[i] == '\n') src[i] = ' ';
 					i += addHtmlCharacter(src, *lenSrc, i, &lenOut) - 1;
 				}
 			break;}
