@@ -11,6 +11,7 @@
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
 #include "../Common/ValidUtf8.h"
+#include "../Common/base64.h"
 #include "../Common/memeq.h"
 
 #include "date.h"
@@ -137,7 +138,10 @@ static void cleanHeaders(unsigned char * const data, size_t * const lenData) {
 			unsigned char dec[lenEw + 1];
 
 			if (isBase64) {
-				if (sodium_base642bin(dec, lenEw, (char*)ewStart, lenEw, " .\n", &lenDec, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) break;
+				memcpy(dec, ewStart, lenEw);
+				lenDec = lenEw;
+				aem_base642bin(dec, &lenDec);
+				dec[lenDec] = '\0';
 			} else {
 				memcpy(dec, ewStart, lenEw);
 				lenDec = lenEw;
@@ -271,39 +275,16 @@ static int getCte(const unsigned char * const h, const size_t len) {
 	return MTA_PROCESSING_CTE_NONE;
 }
 
-static unsigned char *decodeCte(const unsigned char * const src, size_t * const lenSrc, const int cte, const bool isText) {
-	if (src == NULL || lenSrc == NULL || *lenSrc < 1) return NULL;
-
-	unsigned char *new = NULL;
+static void decodeCte(unsigned char * const src, size_t * const lenSrc, const int cte, const bool isText) {
+	if (src == NULL || lenSrc == NULL || *lenSrc < 1) return;
 
 	if (cte == MTA_PROCESSING_CTE_QP) {
-		new = malloc(*lenSrc + 1);
-		if (new != NULL) {
-			memcpy(new, src, *lenSrc);
-			decodeQuotedPrintable(new, lenSrc);
-		}
+		decodeQuotedPrintable(src, lenSrc);
 	} else if (cte == MTA_PROCESSING_CTE_B64) {
-		new = malloc(*lenSrc);
-		if (new != NULL) {
-			size_t lenNew;
-			if (sodium_base642bin(new, *lenSrc, (char*)src, *lenSrc, " .\n", &lenNew, NULL, sodium_base64_VARIANT_ORIGINAL) == 0) {
-				if (isText) removeControlChars(new, &lenNew);
-				*lenSrc = lenNew;
-			} else {
-				free(new);
-				new = NULL;
-			}
-		}
+		aem_base642bin(src, lenSrc);
+		if (isText) removeControlChars(src, lenSrc);
+		src[*lenSrc] = '\0';
 	}
-
-	if (new == NULL) {
-		new = malloc(*lenSrc + 1);
-		if (new == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
-		memcpy(new, src, *lenSrc);
-	}
-
-	new[*lenSrc] = '\0';
-	return new;
 }
 
 static void convertToUtf8(char ** const src, size_t * const lenSrc, const char * const charset) {
@@ -364,6 +345,7 @@ static unsigned char* getBound(const unsigned char * const src, const size_t len
 	}
 
 	*lenBound = 3 + ((end != NULL) ? end : src + lenSrc) - start;
+
 	unsigned char *bound = malloc(*lenBound);
 	if (bound == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 	bound[0] = '\n';
@@ -463,9 +445,13 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				if (boundCount >= AEM_LIMIT_MULTIPARTS) break;
 			}
 		} else {
-			const unsigned char cte = getCte(partHeaders, lenPartHeaders);
-			unsigned char *new = decodeCte(hend, &lenNew, cte, isText);
+			unsigned char *new = malloc(lenNew + 1);
 			if (new == NULL) break;
+			memcpy(new, hend, lenNew);
+			new[lenNew] = '\0';
+
+			const int cte = getCte(partHeaders, lenPartHeaders);
+			decodeCte(new, &lenNew, cte, isText);
 
 			if (isText) {
 				char cs[AEM_DELIVER_MAXLEN_CHARSET];
@@ -577,12 +563,14 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 			// bound is free'd by decodeMp()
 
 			if (email->body == NULL) { // Error - decodeMp() failed
-				email->body = src;
-				email->lenBody = *lenSrc;
+				email->body = malloc(*lenSrc);
+				if (email->body == NULL) return;
+				memcpy(email->body, src, *lenSrc);
 			}
 		} else { // Error - getBound() failed
-			email->body = src;
-			email->lenBody = *lenSrc;
+			email->body = malloc(*lenSrc);
+			if (email->body == NULL) return;
+			memcpy(email->body, src, *lenSrc);
 		}
 	} else { // Single-part body
 		unsigned char tmp[255];
@@ -594,13 +582,13 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 		else if (memcasemem(tmp, lenTmp, "base64", 6) != NULL) cte = MTA_PROCESSING_CTE_B64;
 		else cte = 0;
 
+		email->body = malloc(*lenSrc + 1);
+		if (email->body == NULL) return;
+		memcpy(email->body, src, *lenSrc);
+		email->body[*lenSrc] = '\0';
 		email->lenBody = *lenSrc;
-		email->body = decodeCte(src, &email->lenBody, cte, true);
-		if (email->body == NULL) {
-			email->body = src;
-			email->lenBody = *lenSrc;
-			return;
-		}
+
+		decodeCte(email->body, &email->lenBody, cte, true);
 
 		if (lenCt < 2 || (lenCt >= 5 && memeq_anycase(ct, "text/", 5))) {
 			char cs[AEM_DELIVER_MAXLEN_CHARSET];
