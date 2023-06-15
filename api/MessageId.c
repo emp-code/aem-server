@@ -35,7 +35,7 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 	memcpy(hashSrc, upk + 12, 20);
 
 	unsigned char hashKey[crypto_generichash_KEYBYTES];
-	crypto_kdf_derive_from_key(hashKey, crypto_generichash_KEYBYTES, *((uint64_t*)upk), "AEM_MIH2", msgid_derivkey);
+	crypto_kdf_derive_from_key(hashKey, crypto_generichash_KEYBYTES, *((const uint64_t*)upk), "AEM_MIH2", msgid_derivkey);
 
 	unsigned char hash[48]; // 384-bit
 	crypto_generichash(hash, 48, hashSrc, 20, hashKey, crypto_generichash_KEYBYTES);
@@ -46,7 +46,7 @@ void genMsgId(char * const out, const uint32_t ts, const unsigned char * const u
 	// Encrypt the hash with AES256-ECB
 	uint64_t aesKey_nr;
 	memcpy((unsigned char*)&aesKey_nr, upk + 8, 4);
-	memcpy((unsigned char*)&aesKey_nr + 4, (unsigned char*)&ts, 4);
+	memcpy((unsigned char*)&aesKey_nr + 4, (const unsigned char*)&ts, 4);
 
 	unsigned char aesKey[32];
 	crypto_kdf_derive_from_key(aesKey, 32, aesKey_nr, "AEM_MIE2", msgid_derivkey);

@@ -410,7 +410,7 @@ int32_t api_address_delete(const int num, const unsigned char * const msg, const
 	unsigned char addrCount = user[num].info >> 3;
 	int delNum = -1;
 	for (int i = 0; i < addrCount; i++) {
-		if (*(uint64_t*)msg == user[num].addrHash[i]) {
+		if (*(const uint64_t*)msg == user[num].addrHash[i]) {
 			delNum = i;
 			break;
 		}
@@ -439,7 +439,7 @@ int32_t api_address_update(const int num, const unsigned char * const msg, const
 	const int addrCount = user[num].info >> 3;
 	for (size_t i = 0; i < (lenMsg / 9); i++) {
 		for (int j = 0; j < addrCount; j++) {
-			if (*(uint64_t*)(msg + (i * 9)) == user[num].addrHash[j]) {
+			if (*(const uint64_t*)(msg + (i * 9)) == user[num].addrHash[j]) {
 				user[num].addrFlag[j] = (msg[(i * 9) + 8] & 63) | (user[num].addrFlag[j] & AEM_ADDR_FLAG_SHIELD);
 				found++;
 				break;
