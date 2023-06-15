@@ -23,7 +23,7 @@
 int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	switch (type) {
 		case AEM_ENQUIRY_MX: {
-			if (!isValidDomain((char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO
+			if (!isValidDomain((const char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO
 			if (lenMsg == AEM_DOMAIN_LEN && memeq(msg, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN
 
 			unsigned char mxDomain[256];
@@ -36,8 +36,8 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 
 			*res = malloc(6 + ld);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
-			memcpy(*res, (unsigned char*)&ip, 4);
-			memcpy(*res + 4, (unsigned char*)&cc, 2);
+			memcpy(*res, (const unsigned char*)&ip, 4);
+			memcpy(*res + 4, (const unsigned char*)&cc, 2);
 			memcpy(*res + 6, mxDomain, ld);
 			return 6 + ld;
 		}
@@ -53,14 +53,14 @@ int32_t conn_dlv(const uint8_t type, const unsigned char * const msg, const size
 		case AEM_ENQUIRY_IP: {
 			if (lenMsg != 4) return AEM_INTCOM_RESPONSE_ERR;
 
-			const uint32_t ip = *((uint32_t*)msg);
+			const uint32_t ip = *((const uint32_t*)msg);
 			if (validIp(ip) == 1) return AEM_INTCOM_RESPONSE_ERR;
 
 			*res = malloc(260); // 2 + 2 + 128 + 128
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 			const uint16_t cc = getCountryCode(ip);
-			memcpy(*res, (unsigned char*)&cc, 2);
+			memcpy(*res, (const unsigned char*)&cc, 2);
 
 			size_t lenPtr = 0;
 			getPtr(ip, *res + 4, &lenPtr);
@@ -76,13 +76,13 @@ int32_t conn_dlv(const uint8_t type, const unsigned char * const msg, const size
 		}
 
 		case AEM_ENQUIRY_A: {
-			if (!isValidDomain((char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR;
+			if (!isValidDomain((const char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR;
 
 			const uint32_t ip = queryDns_a(msg, lenMsg);
 
 			*res = malloc(4);
 			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
-			memcpy(*res, (unsigned char*)&ip, 4);
+			memcpy(*res, (const unsigned char*)&ip, 4);
 			return 4;
 		}
 
