@@ -42,7 +42,6 @@ int main(void) {
 #include "../Common/Main_Setup.c"
 
 	if (pipeRead() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
-	close(AEM_FD_PIPE_RD);
 
 	tlsSetup();
 	acceptClients();
