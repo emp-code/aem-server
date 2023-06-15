@@ -30,12 +30,12 @@ static unsigned char intcom_keys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBY
 
 static volatile sig_atomic_t terminate = 0;
 int sockListen = -1;
-int sock = -1;
+int sockMain = -1;
 
 void sigTerm() {
 	terminate = 1;
 	close(sockListen);
-	close(sock);
+	close(sockMain);
 }
 
 void intcom_setKeys_server(const unsigned char newKeys[AEM_INTCOM_CLIENT_COUNT][crypto_secretbox_KEYBYTES]) {
@@ -66,29 +66,29 @@ void intcom_serve(void) {
 	listen(sockListen, 50);
 
 	while (terminate == 0) {
-		sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
-		if (sock < 0) continue;
+		sockMain = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
+		if (sockMain < 0) continue;
 
-		if (!peerOk(sock)) {
+		if (!peerOk(sockMain)) {
 			syslog(LOG_WARNING, "IntCom[S]: Connection rejected from invalid peer");
-			close(sock);
+			close(sockMain);
 			continue;
 		}
 
 		const size_t lenEncHdr = 1 + sizeof(uint32_t) + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
 		unsigned char encHdr[lenEncHdr];
-		if (recv(sock, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed receiving header: %m"); close(sock); continue;}
+		if (recv(sockMain, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed receiving header: %m"); close(sockMain); continue;}
 
 		if (encHdr[0] >= AEM_INTCOM_CLIENT_COUNT) {
 				syslog(LOG_WARNING, "IntCom[S]: Invalid identifier: %u", encHdr[0]);
-				close(sock);
+				close(sockMain);
 				continue;
 		}
 
 		uint32_t hdr;
 		if (crypto_secretbox_open_easy((unsigned char*)&hdr, encHdr + 1 + crypto_secretbox_NONCEBYTES, sizeof(uint32_t) + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
 			syslog(LOG_ERR, "IntCom[S]: Failed decrypting header");
-			close(sock);
+			close(sockMain);
 			continue;
 		}
 
@@ -100,13 +100,13 @@ void intcom_serve(void) {
 
 		if (lenMsg > 0) {
 			unsigned char * const msg = malloc(lenMsg + crypto_secretbox_MACBYTES);
-			if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); close(sock); continue;}
-			if (recv(sock, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "IntCom[S]: Failed receiving message: %m"); close(sock); free(msg); continue;}
+			if (msg == NULL) {syslog(LOG_ERR, "Failed allocation"); close(sockMain); continue;}
+			if (recv(sockMain, msg, lenMsg + crypto_secretbox_MACBYTES, MSG_WAITALL) != (ssize_t)lenMsg + crypto_secretbox_MACBYTES) {syslog(LOG_ERR, "IntCom[S]: Failed receiving message: %m"); close(sockMain); free(msg); continue;}
 
 			sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 			if (crypto_secretbox_open_easy(msg, msg, lenMsg + crypto_secretbox_MACBYTES, encHdr + 1, intcom_keys[encHdr[0]]) != 0) {
 				syslog(LOG_ERR, "IntCom[S]: Failed decrypting message: %m");
-				close(sock);
+				close(sockMain);
 				free(msg);
 				continue;
 			}
@@ -145,16 +145,16 @@ void intcom_serve(void) {
 		const size_t lenResHdr = sizeof(int32_t) + crypto_secretbox_MACBYTES;
 		unsigned char resHdr[lenResHdr];
 		crypto_secretbox_easy(resHdr, (const unsigned char*)&resCode, sizeof(int32_t), encHdr + 1, intcom_keys[encHdr[0]]);
-		if (send(sock, resHdr, lenResHdr, 0) != lenResHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sock); continue;}
+		if (send(sockMain, resHdr, lenResHdr, 0) != lenResHdr) {syslog(LOG_ERR, "IntCom[S]: Failed sending header: %m"); close(sockMain); continue;}
 
 		if (resCode > 0) {
 			sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
 			unsigned char mac[crypto_secretbox_MACBYTES];
 			crypto_secretbox_detached(res, mac, res, resCode, encHdr + 1, intcom_keys[encHdr[0]]);
 
-			if (send(sock, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sock, res, resCode, 0) != resCode) {
+			if (send(sockMain, mac, crypto_secretbox_MACBYTES, MSG_MORE) != crypto_secretbox_MACBYTES || send(sockMain, res, resCode, 0) != resCode) {
 				syslog(LOG_ERR, "IntCom[S]: Failed sending message: %m");
-				close(sock);
+				close(sockMain);
 				free(res);
 				continue;
 			}
@@ -162,6 +162,6 @@ void intcom_serve(void) {
 			free(res);
 		}
 
-		close(sock);
+		close(sockMain);
 	}
 }
