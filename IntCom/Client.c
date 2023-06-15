@@ -98,7 +98,7 @@ int32_t intcom(const aem_intcom_server_t intcom_server, const int operation, con
 
 	randombytes_buf(encHdr + 1, crypto_secretbox_NONCEBYTES);
 	const uint32_t hdr = (operation << 24) | (lenMsg & UINT24_MAX); // 8 highest bits = operation, 24 lowest bits = size
-	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (unsigned char*)&hdr, sizeof(uint32_t), encHdr + 1, intcom_keys[intcom_server]);
+	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (const unsigned char*)&hdr, sizeof(uint32_t), encHdr + 1, intcom_keys[intcom_server]);
 	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed sending header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Create and send message
