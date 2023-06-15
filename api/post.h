@@ -5,10 +5,6 @@
 
 void setApiKeys(const unsigned char baseKey[crypto_kdf_KEYBYTES]);
 
-void setAccountPid(const pid_t pid);
-void setStoragePid(const pid_t pid);
-void setEnquiryPid(const pid_t pid);
-
 int aem_api_init(void);
 void aem_api_free(void);
 
