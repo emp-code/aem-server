@@ -47,7 +47,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 
 	for (int i = 0; i < stindexCount; i++) {
 		const uint32_t bytes = getUserStorageAmount(i);
-		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (unsigned char*)&bytes, sizeof(uint32_t));
+		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)), (const unsigned char*)&bytes, sizeof(uint32_t));
 		memcpy(*res + i * (crypto_box_PUBLICKEYBYTES + sizeof(uint32_t)) + sizeof(uint32_t), stindex[i].upk, crypto_box_PUBLICKEYBYTES);
 	}
 
