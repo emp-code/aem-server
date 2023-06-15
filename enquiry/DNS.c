@@ -22,8 +22,6 @@
 
 #include "DNS.h"
 
-#define AEM_DNS_BUFLEN 512
-
 static int connectSocket(void) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
@@ -137,7 +135,7 @@ int getPtr(const uint32_t ip, unsigned char * const ptr, size_t * const lenPtr) 
 	bzero(req, 100);
 
 	unsigned char reqDomain[100];
-	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((uint8_t*)&ip)[3], ((uint8_t*)&ip)[2], ((uint8_t*)&ip)[1], ((uint8_t*)&ip)[0]);
+	sprintf((char*)reqDomain, "%u.%u.%u.%u.in-addr.arpa", ((const uint8_t*)&ip)[3], ((const uint8_t*)&ip)[2], ((const uint8_t*)&ip)[1], ((const uint8_t*)&ip)[0]);
 	const size_t lenReqDomain = strlen((char*)reqDomain);
 
 	const int lenReq = dnsCreateRequest(reqId, req, reqDomain, lenReqDomain, AEM_DNS_RECORDTYPE_PTR);
