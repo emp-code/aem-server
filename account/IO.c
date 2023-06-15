@@ -148,6 +148,8 @@ static int loadUser(void) {
 static int updateStorageLevels(void) {
 	const size_t lenData = userCount * (crypto_box_PUBLICKEYBYTES + 1);
 	unsigned char * const data = malloc(lenData);
+	if (data == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
+
 	for (int i = 0; i < userCount; i++) {
 		data[i * (crypto_box_PUBLICKEYBYTES + 1)] = user[i].info & AEM_USERLEVEL_MAX;
 		memcpy(data + (i * (crypto_box_PUBLICKEYBYTES + 1)) + 1, user[i].upk, crypto_box_PUBLICKEYBYTES);
