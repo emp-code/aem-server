@@ -144,11 +144,10 @@ static void addLbr(unsigned char * const src, size_t * const lenOut, const bool 
 }
 
 static void addTagChar(unsigned char * const src, size_t * const lenOut, const enum aem_html_tag tag, const bool closing) {
-	static uint32_t tagsOpen = 0;
-
 	const unsigned char chr = tag2char(tag);
 	if (chr == 0) return;
 
+	static uint32_t tagsOpen = 0;
 	if (chr >= AEM_CET_THRESHOLD_MANUAL && chr < 32) {
 		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
 			// List item without a list open - replace with linebreak
