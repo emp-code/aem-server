@@ -20,7 +20,7 @@ void aem_base642bin(unsigned char * const src, size_t * const len) {
 		uint8_t x[4] = {UINT8_MAX, UINT8_MAX, UINT8_MAX, UINT8_MAX};
 
 		for (int i = 0; i < 4;) {
-			if (pos + 1 == *len) break;
+			if (pos == *len) break;
 			x[i] = b64_decodeChar(src[pos]);
 			pos++;
 			if (x[i] < 64) i++;
