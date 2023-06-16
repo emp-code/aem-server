@@ -29,12 +29,12 @@ static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 
 static volatile sig_atomic_t terminate = 0;
 int sockListen = -1;
-int sock = -1;
+int sockClient = -1;
 
 void sigTerm() {
 	terminate = 1;
 	close(sockListen);
-	close(sock);
+	close(sockClient);
 }
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {
@@ -58,19 +58,19 @@ void intcom_serve_stream(void) {
 	if (dlv == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
 
 	while (terminate == 0) {
-		sock = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
-		if (sock < 0) continue;
+		sockClient = accept4(sockListen, NULL, NULL, SOCK_CLOEXEC);
+		if (sockClient < 0) continue;
 
-		if (!peerOk(sock)) {
+		if (!peerOk(sockClient)) {
 			syslog(LOG_WARNING, "Connection rejected from invalid peer");
-			close(sock);
+			close(sockClient);
 			continue;
 		}
 
 		crypto_secretstream_xchacha20poly1305_state ss_state;
 		unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
-		if (recv(sock, ss_header, crypto_secretstream_xchacha20poly1305_HEADERBYTES, MSG_WAITALL) != crypto_secretstream_xchacha20poly1305_HEADERBYTES) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed receiving header"); continue;}
-		if (crypto_secretstream_xchacha20poly1305_init_pull(&ss_state, ss_header, intcom_key) != 0) {close(sock); syslog(LOG_WARNING, "IntCom[SS] Failed init"); continue;}
+		if (recv(sockClient, ss_header, crypto_secretstream_xchacha20poly1305_HEADERBYTES, MSG_WAITALL) != crypto_secretstream_xchacha20poly1305_HEADERBYTES) {close(sockClient); syslog(LOG_WARNING, "IntCom[SS] Failed receiving header"); continue;}
+		if (crypto_secretstream_xchacha20poly1305_init_pull(&ss_state, ss_header, intcom_key) != 0) {close(sockClient); syslog(LOG_WARNING, "IntCom[SS] Failed init"); continue;}
 
 		unsigned char ss_tag = 0xFF;
 		unsigned char enc[AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES];
@@ -78,18 +78,18 @@ void intcom_serve_stream(void) {
 		size_t lenEnc = 0;
 
 		if (
-		   recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
+		   recv(sockClient, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
+		|| recv(sockClient, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->meta, NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
-		|| recv(sock, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
+		|| recv(sockClient, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES
-		|| recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
+		|| recv(sockClient, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->info, NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
 		) {
-			close(sock);
+			close(sockClient);
 			syslog(LOG_WARNING, "IntCom[SS] Failed receiving/decrypting metadata");
 			continue;
 		}
@@ -99,7 +99,7 @@ void intcom_serve_stream(void) {
 
 		while(1) {
 			// Receive size
-			if (recv(sock, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
+			if (recv(sockClient, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
 				break;
 			}
@@ -115,7 +115,7 @@ void intcom_serve_stream(void) {
 			}
 
 			// Receive message
-			if (recv(sock, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc) {
+			if (recv(sockClient, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message");
 				break;
 			}
@@ -132,13 +132,13 @@ void intcom_serve_stream(void) {
 
 		if (dlv->lenSrc > 1) {
 			const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
-			if (send(sock, &ret, sizeof(int32_t), 0) != sizeof(int32_t)) {
+			if (send(sockClient, &ret, sizeof(int32_t), 0) != sizeof(int32_t)) {
 				syslog(LOG_ERR, "IntCom[SS]: Failed sending end-result: %m");
 			}
 		}
 
 		sodium_memzero(dlv, sizeof(struct dlvEmail));
-		close(sock);
+		close(sockClient);
 	}
 
 	free(dlv);
