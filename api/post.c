@@ -547,7 +547,7 @@ static void message_create_ext(void) {
 	// Body
 	const size_t lenBody = end - p;
 	if (lenBody < 15 || lenBody > 99999)          return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_SIZE);
-	if (!isValidUtf8((unsigned char*)p, lenBody)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_UTF8);
+	if (!isValidUtf8((const unsigned char*)p, lenBody)) return shortResponse(NULL, AEM_API_ERR_MESSAGE_CREATE_EXT_BDY_UTF8);
 
 	email.body = malloc(lenBody + 1000);
 	if (email.body == NULL) {syslog(LOG_ERR, "Failed allocation"); return shortResponse(NULL, AEM_API_ERR_INTERNAL);}

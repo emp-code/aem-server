@@ -167,8 +167,8 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 
 		const unsigned char *s = (unsigned char*)strcasestr(headers, h);
 
-		while (s != NULL && (((char*)s != headers && *(s - 1) != '\n') || s[lenH] != ':')) {
-			s = (unsigned char*)strcasestr((char*)s + lenH, h);
+		while (s != NULL && (((const char*)s != headers && *(s - 1) != '\n') || s[lenH] != ':')) {
+			s = (const unsigned char*)strcasestr((const char*)s + lenH, h);
 		}
 
 		if (s == NULL) {
@@ -282,7 +282,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	while(1) {
 		size_t o, lenVal;
 		char val[1024];
-		const char key = getValuePair_header((char*)dkimHeader + offset, &o, val, &lenVal);
+		const char key = getValuePair_header((const char*)dkimHeader + offset, &o, val, &lenVal);
 		if (key == 0) break;
 
 		if (offset + o > lenHead) break;

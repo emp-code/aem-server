@@ -147,8 +147,9 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 	const unsigned char chr = tag2char(tag);
 	if (chr == 0) return;
 
-	static uint32_t tagsOpen = 0;
 	if (chr >= AEM_CET_THRESHOLD_MANUAL && chr < 32) {
+		static uint32_t tagsOpen = 0;
+
 		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
 			// List item without a list open - replace with linebreak
 			addLbr(src, lenOut, false);
@@ -519,7 +520,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 			case AEM_HTML_TYPE_TX: {
 				if (src[i] == '<') {
 					if (memeq_anycase(src + i + 1, "style", 5)) {
-						const unsigned char * const styleEnd = memcasemem(src + i + 5, *lenSrc - (i + 5), (unsigned char*)"</style", 7);
+						const unsigned char * const styleEnd = memcasemem(src + i + 5, *lenSrc - (i + 5), (const unsigned char*)"</style", 7);
 						if (styleEnd == NULL) {
 							*lenSrc = lenOut;
 							return;
@@ -530,7 +531,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					}
 
 					if (memeq_anycase(src + i + 1, "!--", 3)) {
-						const unsigned char * const cEnd = memcasemem(src + i + 2, *lenSrc - (i + 2), (unsigned char*)"-->", 3);
+						const unsigned char * const cEnd = memcasemem(src + i + 2, *lenSrc - (i + 2), (const unsigned char*)"-->", 3);
 						if (cEnd == NULL) {
 							*lenSrc = lenOut;
 							return;

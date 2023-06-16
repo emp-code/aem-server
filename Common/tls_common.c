@@ -9,7 +9,7 @@ void sendData(mbedtls_ssl_context * const ssl, const void * const data, const si
 
 	while (sent < lenData) {
 		int ret;
-		do {ret = mbedtls_ssl_write(ssl, (unsigned char*)data + sent, lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+		do {ret = mbedtls_ssl_write(ssl, (const unsigned char*)data + sent, lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
 		if (ret < 0) {syslog(LOG_NOTICE, "mbedtls_ssl_write failed: %x\n", -ret); return;}
 		sent += ret;
 	}
