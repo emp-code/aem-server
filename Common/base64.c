@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "base64.h"
+
 static uint8_t b64_decodeChar(const char c) {
 	if (c >= 'A' && c <= 'Z') return c - 'A';
 	if (c >= 'a' && c <= 'z') return c - 'a' + 26;
