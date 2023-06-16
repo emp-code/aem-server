@@ -23,7 +23,7 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 	}
 }
 
-unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
+static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
 	const char * const fn = "src.eml.br";
 	const size_t lenFn = 10;
 
