@@ -1,12 +1,6 @@
 # All-Ears Mail #
 
-## Status ##
-
-[![CodeFactor](https://www.codefactor.io/repository/github/emp-code/aem-server/badge)](https://www.codefactor.io/repository/github/emp-code/aem-server)
-
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/9266bf412f484c5abe967883146ad3b3)](https://www.codacy.com/gh/emp-code/aem-server/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emp-code/aem-server&amp;utm_campaign=Badge_Grade)
-
-[![Codiga](https://api.codiga.io/project/5719/score/svg)](https://app.codiga.io/public/project/5719/aem/dashboard)
+[![CodeFactor](https://www.codefactor.io/repository/github/emp-code/aem-server/badge)](https://www.codefactor.io/repository/github/emp-code/aem-server) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/9266bf412f484c5abe967883146ad3b3)](https://www.codacy.com/gh/emp-code/aem-server/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=emp-code/aem-server&amp;utm_campaign=Badge_Grade)
 
 ## Introduction ##
 
