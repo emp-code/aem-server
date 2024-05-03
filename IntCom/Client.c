@@ -17,10 +17,10 @@
 
 static pid_t intcom_pids[AEM_INTCOM_SERVER_COUNT];
 
-static unsigned char intcom_keys[AEM_INTCOM_SERVER_COUNT][crypto_secretbox_KEYBYTES]; // The client's keys for each server
+static unsigned char intcom_keys[AEM_INTCOM_SERVER_COUNT][crypto_aead_aegis256_KEYBYTES]; // The client's keys for each server
 
-void intcom_setKeys_client(const unsigned char newKeys[AEM_INTCOM_SERVER_COUNT][crypto_secretbox_KEYBYTES]) {
-	memcpy(intcom_keys, newKeys, AEM_INTCOM_SERVER_COUNT * crypto_secretbox_KEYBYTES);
+void intcom_setKeys_client(const unsigned char newKeys[AEM_INTCOM_SERVER_COUNT][crypto_aead_aegis256_KEYBYTES]) {
+	memcpy(intcom_keys, newKeys, AEM_INTCOM_SERVER_COUNT * crypto_aead_aegis256_KEYBYTES);
 }
 
 #if defined(AEM_API) || defined(AEM_MTA)
@@ -76,49 +76,52 @@ static int intcom_socket(const aem_intcom_server_t intcom_server) {
 	return sock;
 }
 
-int32_t intcom(const aem_intcom_server_t intcom_server, const int operation, const unsigned char * const msg, const size_t lenMsg, unsigned char ** const out, const int32_t expectedLenOut) {
-	if (intcom_server >= AEM_INTCOM_SERVER_COUNT) return AEM_INTCOM_RESPONSE_ERR;
+int32_t intcom(const aem_intcom_server_t intcom_server, const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char ** const out, const int32_t expectedLenOut) {
+	if (intcom_server >= AEM_INTCOM_SERVER_COUNT || lenMsg > AEM_INTCOM_MAXSIZE) return AEM_INTCOM_RESPONSE_ERR;
 	const int sock = intcom_socket(intcom_server);
 	if (sock < 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	// Create and send header
-	const size_t lenEncHdr = 1 + sizeof(uint32_t) + crypto_secretbox_NONCEBYTES + crypto_secretbox_MACBYTES;
+	const size_t lenEncHdr = 1 + (sizeof(uint32_t) * 2) + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char encHdr[lenEncHdr];
+	encHdr[0] = 
 #ifdef AEM_ACCOUNT
-	encHdr[0] = AEM_INTCOM_CLIENT_ACC;
+	AEM_INTCOM_CLIENT_ACC;
 #elif defined(AEM_API)
-	encHdr[0] = AEM_INTCOM_CLIENT_API;
+	AEM_INTCOM_CLIENT_API;
 #elif defined(AEM_MTA)
-	encHdr[0] = AEM_INTCOM_CLIENT_MTA;
+	AEM_INTCOM_CLIENT_MTA;
 #elif defined(AEM_DELIVER)
-	encHdr[0] = AEM_INTCOM_CLIENT_DLV;
+	AEM_INTCOM_CLIENT_DLV;
+#elif defined(AEM_STORAGE)
+	AEM_INTCOM_CLIENT_STO;
 #else
 	#error Invalid IntCom client type
 #endif
 
-	randombytes_buf(encHdr + 1, crypto_secretbox_NONCEBYTES);
-	const uint32_t hdr = (operation << 24) | (lenMsg & UINT24_MAX); // 8 highest bits = operation, 24 lowest bits = size
-	crypto_secretbox_easy(encHdr + 1 + crypto_secretbox_NONCEBYTES, (const unsigned char*)&hdr, sizeof(uint32_t), encHdr + 1, intcom_keys[intcom_server]);
-	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed sending header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+	randombytes_buf(encHdr + 1, crypto_aead_aegis256_NPUBBYTES);
+	const uint32_t hdr[2] = {operation, lenMsg};
+	crypto_aead_aegis256_encrypt(encHdr + 1 + crypto_aead_aegis256_NPUBBYTES, NULL, (const unsigned char*)hdr, sizeof(uint32_t) * 2, NULL, 0, NULL, encHdr + 1, intcom_keys[intcom_server]);
+	if (send(sock, encHdr, lenEncHdr, 0) != lenEncHdr) {syslog(LOG_ERR, "IntCom[C]: Failed sending header: %m"); close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Create and send message
 	if (lenMsg > 0) {
-		const size_t lenEncMsg = lenMsg + crypto_secretbox_MACBYTES;
+		const size_t lenEncMsg = lenMsg + crypto_aead_aegis256_ABYTES;
 		unsigned char * const encMsg = malloc(lenEncMsg);
 		if (encMsg == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
-		sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-		crypto_secretbox_easy(encMsg, msg, lenMsg, encHdr + 1, intcom_keys[intcom_server]);
-		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed sending message: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+		sodium_increment(encHdr + 1, crypto_aead_aegis256_NPUBBYTES);
+		crypto_aead_aegis256_encrypt(encMsg, NULL, msg, lenMsg, NULL, 0, NULL, encHdr + 1, intcom_keys[intcom_server]);
+		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {syslog(LOG_ERR, "IntCom[C]: Failed sending message: %m"); close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 	}
 
 	// Receive response header
-	const size_t lenRcvEnc = sizeof(int32_t) + crypto_secretbox_MACBYTES;
+	const size_t lenRcvEnc = sizeof(int32_t) + crypto_aead_aegis256_ABYTES;
 	unsigned char rcv_enc[lenRcvEnc];
-	if (recv(sock, rcv_enc, lenRcvEnc, MSG_WAITALL) != lenRcvEnc) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed receiving header: %m"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (recv(sock, rcv_enc, lenRcvEnc, MSG_WAITALL) != lenRcvEnc) {syslog(LOG_ERR, "IntCom[C]: Failed receiving header: %m"); close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 
-	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
+	sodium_increment(encHdr + 1, crypto_aead_aegis256_NPUBBYTES);
 	int32_t lenOut = AEM_INTCOM_RESPONSE_ERR;
-	if (crypto_secretbox_open_easy((unsigned char*)&lenOut, rcv_enc, lenRcvEnc, encHdr + 1, intcom_keys[intcom_server]) != 0) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed decrypting header"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (crypto_aead_aegis256_decrypt((unsigned char*)&lenOut, NULL, NULL, rcv_enc, lenRcvEnc, NULL, 0, encHdr + 1, intcom_keys[intcom_server]) != 0) {close(sock); syslog(LOG_ERR, "IntCom[C]: Failed decrypting header"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	if (out == NULL || lenOut < 1) {
 		close(sock);
@@ -128,21 +131,29 @@ int32_t intcom(const aem_intcom_server_t intcom_server, const int operation, con
 	if (expectedLenOut != 0 && lenOut != expectedLenOut) {close(sock); syslog(LOG_WARNING, "IntCom[C]: Response does not match expected length"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Receive response message
-	*out = malloc(lenOut);
-	if (*out == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
-	unsigned char mac[crypto_secretbox_MACBYTES];
+	unsigned char *encOut = malloc(lenOut + crypto_aead_aegis256_ABYTES);
+	if (encOut == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	if (recv(sock, mac, crypto_secretbox_MACBYTES, MSG_WAITALL) != crypto_secretbox_MACBYTES || recv(sock, *out, lenOut, MSG_WAITALL) != (ssize_t)lenOut) {
+	const ssize_t recvBytes = recv(sock, encOut, lenOut + crypto_aead_aegis256_ABYTES, MSG_WAITALL);
+	if (recvBytes != (ssize_t)(lenOut + crypto_aead_aegis256_ABYTES)) {
 		close(sock);
-		free(*out);
-		*out = NULL;
-		syslog(LOG_ERR, "IntCom[C]: Failed receiving message: %m");
+		free(encOut);
+		syslog(LOG_ERR, "IntCom[C]: Failed receiving message (%d/%d): %m", recvBytes, lenOut + crypto_aead_aegis256_ABYTES);
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 	close(sock);
 
-	sodium_increment(encHdr + 1, crypto_secretbox_NONCEBYTES);
-	if (crypto_secretbox_open_detached(*out, *out, mac, lenOut, encHdr + 1, intcom_keys[intcom_server]) != 0) {free(*out); *out = NULL; return AEM_INTCOM_RESPONSE_ERR;}
+	*out = malloc(lenOut);
+	if (*out == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
+	sodium_increment(encHdr + 1, crypto_aead_aegis256_NPUBBYTES);
+	if (crypto_aead_aegis256_decrypt(*out, NULL, NULL, encOut, lenOut + crypto_aead_aegis256_ABYTES, NULL, 0, encHdr + 1, intcom_keys[intcom_server]) != 0) {
+		free(encOut);
+		free(*out);
+		*out = NULL;
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
+
+	free(encOut);
 	return lenOut;
 }

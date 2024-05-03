@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include "../Global.h"
+#include "../IntCom/Client.h"
 #include "../IntCom/Server.h"
 
 #include "IO.h"
@@ -11,11 +12,11 @@
 #include "../Common/Main_Include.c"
 
 static int setupIo(void) {
-	unsigned char baseKey[crypto_kdf_KEYBYTES];
+	unsigned char baseKey[AEM_KDF_KEYSIZE];
 	struct intcom_keyBundle bundle;
 
 	if (
-	   read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
+	   read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	) {
 		close(AEM_FD_PIPE_RD);
@@ -26,8 +27,9 @@ static int setupIo(void) {
 
 	ioSetup(baseKey);
 	intcom_setKeys_server(bundle.server);
+	intcom_setKeys_client(bundle.client);
 
-	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	sodium_memzero(baseKey, AEM_KDF_KEYSIZE);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }

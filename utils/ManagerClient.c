@@ -17,7 +17,7 @@
 #include "../Global.h"
 #include "../Common/GetKey.h"
 
-static unsigned char key_mng[crypto_secretbox_KEYBYTES];
+static unsigned char key_mng[crypto_aead_aegis256_KEYBYTES];
 
 static int makeSocket(const char * const host) {
 	struct addrinfo hints;
@@ -33,54 +33,59 @@ static int makeSocket(const char * const host) {
 	}
 
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {free(res); return -1;}
+	if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {free(res); puts("Failed connecting"); return -1;}
 
 	free(res);
 	return sock;
 }
 
 static int cryptSend(const int sock, const unsigned char comChar, const unsigned char comType, const uint32_t comNum) {
-	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
-	decrypted[0] = comChar; // T=Terminate, K=Kill, S=Spawn
+	unsigned char dec[AEM_MANAGER_CMDLEN_DEC];
+	dec[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
 	switch (comType) {
-		case 'M': decrypted[1] = AEM_PROCESSTYPE_MTA; break;
-		case 'W': decrypted[1] = AEM_PROCESSTYPE_WEB_CLR; break;
-		case 'w': decrypted[1] = AEM_PROCESSTYPE_WEB_ONI; break;
-		case 'A': decrypted[1] = AEM_PROCESSTYPE_API_CLR; break;
-		case 'a': decrypted[1] = AEM_PROCESSTYPE_API_ONI; break;
-		default: return -1;
+		case 'A': dec[1] = AEM_PROCESSTYPE_API; break;
+		case 'M': dec[1] = AEM_PROCESSTYPE_MTA; break;
+		case 'W': dec[1] = AEM_PROCESSTYPE_WEB; break;
+		default: puts("Invalid type"); return -1;
 	}
 
-	memcpy(decrypted + 2, &comNum, 4);
+	memcpy(dec + 2, &comNum, 4);
 
-	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_CMDLEN_DECRYPTED, encrypted, key_mng);
+	unsigned char enc[AEM_MANAGER_CMDLEN_ENC];
+	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, AEM_MANAGER_CMDLEN_DEC, NULL, 0, NULL, enc, key_mng);
 
-	return (send(sock, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) == AEM_MANAGER_CMDLEN_ENCRYPTED) ? 0 : -1;
+	const int ret = send(sock, enc, AEM_MANAGER_CMDLEN_ENC, 0);
+	if (ret == AEM_MANAGER_CMDLEN_ENC) return 0;
+
+	if (ret < 0) perror("send");
+	else printf("Sent %d/%d\n", ret, AEM_MANAGER_CMDLEN_ENC);
+	return -1;
 }
 
 static char numToChar(const unsigned char n) {
 	switch (n) {
+		case AEM_PROCESSTYPE_API: return 'A';
 		case AEM_PROCESSTYPE_MTA: return 'M';
-		case AEM_PROCESSTYPE_WEB_CLR: return 'W';
-		case AEM_PROCESSTYPE_WEB_ONI: return 'w';
-		case AEM_PROCESSTYPE_API_CLR: return 'A';
-		case AEM_PROCESSTYPE_API_ONI: return 'a';
+		case AEM_PROCESSTYPE_WEB: return 'W';
 	}
 
 	return '?';
 }
 
+static int setKey(void) {
+	unsigned char smk[AEM_KDF_KEYSIZE];
+	if (getKey(smk) != 0) return -1;
+	aem_kdf(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
+	sodium_memzero(smk, AEM_KDF_KEYSIZE);
+	return 0;
+}
+
 int main(int argc, char *argv[]) {
 	if (argc < 2) {puts("Usage: ManagerClient domain.tld instructions"); return EXIT_FAILURE;}
-	if (sodium_init() == -1) {puts("Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
-
-	unsigned char master[crypto_kdf_KEYBYTES];
-	if (getKey(master) != 0) return EXIT_FAILURE;
-	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
-	sodium_memzero(master, crypto_kdf_KEYBYTES);
+	if (sodium_init() != 0) {puts("Failed sodium_init()"); return EXIT_FAILURE;}
+	if (setKey() != 0) return EXIT_FAILURE;
 
 	int sock = makeSocket(argv[1]);
 	if (sock < 0) return EXIT_FAILURE;
@@ -91,27 +96,25 @@ int main(int argc, char *argv[]) {
 		uint32_t comNum = strtol(argv[3], NULL, 10);
 
 		if (cryptSend(sock, comChar, comType, comNum) != 0) {
-			printf("Failed send: %m\n");
 			close(sock);
 			return EXIT_FAILURE;
 		}
 	} else {
 		if (cryptSend(sock, 0, 0, 0) != 0) {
-			printf("Failed send: %m\n");
 			close(sock);
 			return EXIT_FAILURE;
 		}
 	}
 
-	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
-	if (recv(sock, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, MSG_WAITALL) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+	unsigned char enc[AEM_MANAGER_RESLEN_ENC];
+	if (recv(sock, enc, AEM_MANAGER_RESLEN_ENC, MSG_WAITALL) != AEM_MANAGER_RESLEN_ENC) {
 		printf("Failed recv: %m\n");
 		close(sock);
 		return EXIT_FAILURE;
 	}
 
-	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
-	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_RESLEN_DECRYPTED + crypto_secretbox_MACBYTES, encrypted, key_mng) != 0) {
+	unsigned char dec[AEM_MANAGER_RESLEN_DEC];
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, AEM_MANAGER_RESLEN_DEC + crypto_aead_aegis256_ABYTES, NULL, 0, enc, key_mng) != 0) {
 		puts("Failed decrypt");
 		close(sock);
 		return EXIT_FAILURE;
@@ -120,7 +123,7 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			uint32_t pid;
-			memcpy(&pid, decrypted + ((i * AEM_MAXPROCESSES + j) * 4), 4);
+			memcpy(&pid, dec + ((i * AEM_MAXPROCESSES + j) * 4), 4);
 			if (pid != 0) printf("%c/%d=%u\n", numToChar(i), j, pid);
 		}
 	}

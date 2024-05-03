@@ -14,67 +14,7 @@
 #include "../Common/GetKey.h"
 #include "../Common/PrintDef.c"
 
-#include "address.h" // for normal salt
 #include "domain.h"
-
-static int html_putKeys(char * const src, const size_t lenSrc) {
-	unsigned char master[crypto_kdf_KEYBYTES];
-	if (getKey(master) != 0) return -1;
-
-	unsigned char baseKey[crypto_kdf_KEYBYTES];
-
-	// API PK
-	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Api0", master);
-
-	unsigned char box_seed[crypto_box_SEEDBYTES];
-	unsigned char box_pk[crypto_box_PUBLICKEYBYTES];
-	unsigned char box_sk[crypto_box_SECRETKEYBYTES];
-	crypto_kdf_derive_from_key(box_seed, crypto_box_SEEDBYTES, 1, "AEM_API1", baseKey);
-	crypto_box_seed_keypair(box_pk, box_sk, box_seed);
-	sodium_memzero(box_sk, crypto_box_SECRETKEYBYTES);
-	sodium_memzero(box_seed, crypto_box_SEEDBYTES);
-
-	char *placeholder = memmem(src, lenSrc, "All-Ears Mail API BoxPubKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("API-Box placeholder not found", stderr); return -1;}
-	sodium_bin2hex(placeholder, 999, box_pk, crypto_box_PUBLICKEYBYTES);
-	placeholder[crypto_box_PUBLICKEYBYTES * 2] = '"';
-
-	// API Sig PK
-	unsigned char sig_seed[crypto_sign_SEEDBYTES];
-	unsigned char sig_pk[crypto_sign_PUBLICKEYBYTES];
-	unsigned char sig_sk[crypto_sign_SECRETKEYBYTES];
-
-	crypto_kdf_derive_from_key(sig_seed, crypto_box_SEEDBYTES, 1, "AEM_Sig1", baseKey);
-	crypto_sign_seed_keypair(sig_pk, sig_sk, sig_seed);
-	sodium_memzero(sig_seed, crypto_sign_SEEDBYTES);
-	sodium_memzero(sig_sk, crypto_sign_SECRETKEYBYTES);
-
-	placeholder = memmem(src, lenSrc, "All-Ears Mail API SigPubKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("API-Sig placeholder not found", stderr); return -1;}
-	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
-	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
-
-	// Dlv Sig PK
-	crypto_kdf_derive_from_key(baseKey, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
-
-	crypto_kdf_derive_from_key(sig_seed, crypto_sign_SEEDBYTES, 1, "AEM_Dlv1", baseKey);
-	crypto_sign_seed_keypair(sig_pk, sig_sk, sig_seed);
-	sodium_memzero(sig_sk, crypto_sign_SECRETKEYBYTES);
-	sodium_memzero(sig_seed, crypto_sign_SEEDBYTES);
-
-	placeholder = memmem(src, lenSrc, "All-Ears Mail Dlv SigPubKey placeholder, replaced automatically.", 64);
-	if (placeholder == NULL) {fputs("Dlv-Sig placeholder not found", stderr); return -1;}
-	sodium_bin2hex(placeholder, 999, sig_pk, crypto_sign_PUBLICKEYBYTES);
-	placeholder[crypto_sign_PUBLICKEYBYTES * 2] = '"';
-
-	// Normal Salt
-	placeholder = memmem(src, lenSrc, "AEM Normal Addr Salt placeholder", 32);
-	if (placeholder == NULL) {fputs("Salt placeholder not found", stderr); return -1;}
-	sodium_bin2hex(placeholder, 999, AEM_SLT_NRM, AEM_LEN_SLT_NRM);
-	placeholder[AEM_LEN_SLT_NRM * 2] = '"';
-
-	return 0;
-}
 
 // Remove email domain placeholder (clearnet)
 static int html_remEmail(char * const src, size_t * const lenSrc) {
@@ -102,8 +42,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 	char * const src = malloc(lenSrc);
 	if (src == NULL) return NULL;
 	memcpy(src, src_original, lenSrc);
-
-	if (html_putKeys(src, lenSrc) != 0) {free(src); return NULL;}
 
 	if (onion) html_addEmail(src, &lenSrc); else html_remEmail(src, &lenSrc);
 

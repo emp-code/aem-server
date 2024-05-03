@@ -32,49 +32,40 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		if (email->lenEnvTo > 63) email->lenEnvTo = 63;
 		memcpy(email->envTo, meta->to[i], email->lenEnvTo);
 
-		size_t lenEnc = 0;
-		unsigned char *enc = makeExtMsg(email, meta->toUpk[i], &lenEnc, (meta->toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
-		if (enc == NULL || lenEnc < 1 || lenEnc % 16 != 0) {
-			if (enc != NULL) free(enc);
-			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenEnc);
+		size_t lenMsg = 0;
+		unsigned char *msg = makeExtMsg(email, &lenMsg, (meta->toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
+		if (msg == NULL || lenMsg < 1 || lenMsg % 16 != 0) {
+			if (msg != NULL) free(msg);
+			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenMsg);
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 			continue;
 		}
 
-		unsigned char msgId[16];
-		memcpy(msgId, enc + crypto_box_PUBLICKEYBYTES, 16);
+		unsigned char parentId[16];
+		memcpy(parentId, msg, 16);
 
-		if (intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		if (intcom(AEM_INTCOM_SERVER_STO, 0, msg, lenMsg, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 		}
 
-		sodium_memzero(enc, lenEnc);
-		free(enc);
+		sodium_memzero(msg, lenMsg);
+		free(msg);
 
 		// Store attachments, if requested
 		if ((meta->toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
 			for (int j = 0; j < email->attachCount; j++) {
-				enc = makeAttachment(meta->toUpk[i], email->attachment[j], email->lenAttachment[j], email->timestamp, msgId, &lenEnc);
+				makeAttachment(email->attachment[j], email->lenAttachment[j], email->timestamp, parentId);
 
-				if (enc == NULL || intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+				if (intcom(AEM_INTCOM_SERVER_STO, 0, email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
-				}
-
-				if (enc != NULL) {
-					sodium_memzero(enc, lenEnc);
-					free(enc);
 				}
 			}
 		}
 
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			enc = makeAttachment(meta->toUpk[i], srcBr, lenSrcBr, email->timestamp, msgId, &lenEnc);
-			if (enc != NULL) {
-				intcom(AEM_INTCOM_SERVER_STO, 0, enc, lenEnc, NULL, 0); // Ignore failure
-				sodium_memzero(enc, lenEnc);
-				free(enc);
-			}
+			makeAttachment(srcBr, lenSrcBr, email->timestamp, parentId);
+			intcom(AEM_INTCOM_SERVER_STO, 0, srcBr, lenSrcBr, NULL, 0); // Ignore failure
 		}
 	}
 

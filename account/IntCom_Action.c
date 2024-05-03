@@ -5,56 +5,93 @@
 #include <syslog.h>
 
 #include "../Global.h"
+#include "../Common/api_req.h"
 
 #include "IO.h"
 
 #include "IntCom_Action.h"
 
-int32_t conn_api(const uint8_t type, const unsigned char *msg, size_t lenMsg, unsigned char **res) {
-	if (lenMsg < crypto_box_PUBLICKEYBYTES) {syslog(LOG_WARNING, "Rejected: missing UPK"); return AEM_INTCOM_RESPONSE_ERR;}
+#define AEM_LEN_APIRESP_BASE (1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE + AEM_API_BODY_KEYSIZE)
 
-	const int num = userNumFromUpk(msg);
-	if (num < 0) {syslog(LOG_WARNING, "Rejected: non-existing UPK"); return AEM_INTCOM_RESPONSE_NOTEXIST;}
-
-	msg += crypto_box_PUBLICKEYBYTES;
-	lenMsg -= crypto_box_PUBLICKEYBYTES;
-
-	switch (type) {
-		case AEM_API_ACCOUNT_BROWSE: return api_account_browse(num, res);
-		case AEM_API_ACCOUNT_CREATE: return api_account_create(num, msg, lenMsg);
-		case AEM_API_ACCOUNT_DELETE: return api_account_delete(num, msg, lenMsg);
-		case AEM_API_ACCOUNT_UPDATE: return api_account_update(num, msg, lenMsg);
-
-		case AEM_API_ADDRESS_CREATE: return api_address_create(num, msg, lenMsg, res);
-		case AEM_API_ADDRESS_DELETE: return api_address_delete(num, msg, lenMsg);
-		case AEM_API_ADDRESS_UPDATE: return api_address_update(num, msg, lenMsg);
-
-		case AEM_API_PRIVATE_UPDATE: return api_private_update(num, msg, lenMsg);
-		case AEM_API_SETTING_LIMITS: return api_setting_limits(num, msg, lenMsg);
-
-		// Internal
-		case AEM_API_INTERNAL_ADRPK: return api_internal_adrpk(num, msg, lenMsg, res);
-		case AEM_API_INTERNAL_EXIST: return AEM_INTCOM_RESPONSE_OK; // Existence verified by userNumFromUpk()
-		case AEM_API_INTERNAL_LEVEL: return api_internal_level(num);
-		case AEM_API_INTERNAL_MYADR: return api_internal_myadr(num, msg, lenMsg);
-		case AEM_API_INTERNAL_UINFO: return api_internal_uinfo(num, res);
-		case AEM_API_INTERNAL_PUBKS: return api_internal_pubks(num, res);
-
-		default: syslog(LOG_ERR, "Invalid command: %u", type);
+int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, unsigned char **res) {
+	const bool post = (operation == AEM_INTCOM_OP_POST);
+	if (!post && operation != AEM_INTCOM_OP_GET) {
+		syslog(LOG_WARNING, "Invalid op (API): %u", operation);
+		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
+	struct aem_req * const req = (struct aem_req * const)msg;
+
+	*res = malloc(30720); // 30 KiB (largest response is Account/Browse, ~20 KiB?)
+	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	// api_auth adds Decrypted Command, Decrypted UrlData, ReqBodyKey, ResBodyKey (AEM_LEN_APIRESP_BASE bytes)
+	if (!api_auth(*res, req, post)) return AEM_INTCOM_RESPONSE_AUTHFAIL;
+
+	int32_t icRet = AEM_INTCOM_RESPONSE_ERR;
+	if (!post) {
+		switch (req->cmd) {
+			case AEM_API_ACCOUNT_BROWSE: icRet = api_account_browse(*res + AEM_LEN_APIRESP_BASE); break;
+			case AEM_API_ACCOUNT_DELETE: icRet = api_account_delete(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_ACCOUNT_UPDATE: icRet = api_account_update(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_ADDRESS_CREATE: icRet = api_address_create(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_ADDRESS_DELETE: icRet = api_address_delete(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_ADDRESS_UPDATE: icRet = api_address_update(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_MESSAGE_BROWSE: icRet = api_message_browse(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_SETTING_LIMITS: icRet = api_setting_limits(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+
+			// No action needed
+			case AEM_API_MESSAGE_DELETE:
+			case AEM_API_MESSAGE_SENDER:
+				icRet = 0;
+			break;
+
+			default:
+				icRet = api_invalid(*res + AEM_LEN_APIRESP_BASE);
+				syslog(LOG_INFO, "Unknown API command: %d", req->cmd);
+		}
+	} else if (req->cmd == AEM_API_ACCOUNT_CREATE || req->cmd == AEM_API_PRIVATE_UPDATE) {
+		if (lenMsg == AEM_API_REQ_LEN) {
+			icRet = AEM_INTCOM_RESPONSE_CONTINUE;
+		} else {
+			icRet = (req->cmd == AEM_API_ACCOUNT_CREATE) ?
+				api_account_create(*res + AEM_LEN_APIRESP_BASE, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN)
+			:
+				api_private_update(*res + AEM_LEN_APIRESP_BASE, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN);
+		}
+	} else if (req->cmd == AEM_API_MESSAGE_CREATE) {
+		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->data);
+	} else if (req->cmd == AEM_API_MESSAGE_UPLOAD) {
+		icRet = 0; // No action needed
+	} else {
+		icRet = AEM_INTCOM_RESPONSE_ERR;
+	}
+
+	if (icRet < 0) {
+		sodium_memzero(*res, AEM_LEN_APIRESP_BASE);
+		free(*res);
+		*res = NULL;
+		return icRet;
+	}
+
+	// TODO: For user privacy, erase fields added by api_auth that AEM-API doesn't need to know for whichever particular command
+	return AEM_LEN_APIRESP_BASE + icRet;
+}
+
+int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
+	if (lenMsg != 10) return AEM_INTCOM_RESPONSE_ERR;
+
+	switch (operation) {
+		case AEM_MTA_GETUID_NORMAL: return mta_getUid(msg, false, res);
+		case AEM_MTA_GETUID_SHIELD: return mta_getUid(msg, true, res);
+	}
+
+	syslog(LOG_ERR, "Invalid op (MTA): %u", operation);
 	return AEM_INTCOM_RESPONSE_ERR;
 }
 
-int32_t conn_mta(const uint8_t type, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
-	if (lenMsg != 10) return AEM_INTCOM_RESPONSE_ERR;
+int32_t conn_sto(const uint32_t operation, unsigned char **res) {
+	if (operation >= AEM_USERCOUNT) {syslog(LOG_ERR, "Invalid request from Storage: %u"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	switch (type) {
-		case AEM_MTA_GETUPK_NORMAL: return mta_getUpk(msg, false, res);
-		case AEM_MTA_GETUPK_SHIELD: return mta_getUpk(msg, true, res);
-
-		default: syslog(LOG_ERR, "Invalid command: %u", type);
-	}
-
-	return AEM_INTCOM_RESPONSE_ERR;
+	return sto_uid2epk(operation, res);
 }

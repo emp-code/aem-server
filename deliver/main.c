@@ -24,19 +24,13 @@ static int pipeLoadPids(void) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
-	unsigned char baseKey[crypto_kdf_KEYBYTES];
 	struct intcom_keyBundle bundle;
 
-	if (
-	   read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
-	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
-	) return -1;
+	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
-	setSignKey(baseKey);
 	intcom_setKeys_client(bundle.client);
 	intcom_setKey_stream(bundle.stream);
 
-	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
 	sodium_memzero(&bundle, sizeof(struct intcom_keyBundle));
 	return 0;
 }
@@ -51,7 +45,6 @@ int main(void) {
 	syslog(LOG_INFO, "Ready");
 	intcom_serve_stream();
 
-	delSignKey();
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

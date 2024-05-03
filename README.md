@@ -4,17 +4,9 @@
 
 ## Introduction ##
 
-All-Ears Mail is a private email solution. It was designed from the ground up to know the least amount of information about its users, and to keep that information private to the maximum extent. Other goals include simplicity, robustness, and performance.
+All-Ears Mail is a private email solution. The server was designed from the ground up to minimize how much it knows about its users, and to keep what it knows as private as it can.
 
-All-Ears consists of several processes types, divided into three tiers. The intent is to minimize the power of public-facing processes, thereby safeguarding user data even in worst-case scenarios.
-
-The top-tier process—Manager—handles the creation and ending of the other processes. It can only be reached through a custom encrypted protocol.
-
-The middle-tier processes—Account, Deliver, Enquiry, and Storage—are trusted with direct access to relevant user data, but are only reachable through a secure internal communication system (IntCom). Manager automatically creates one of each at startup.
-
-The bottom-tier processes—API, MTA, and Web—are internet-facing, but can only access user data by requesting the middle-tier processes to perform specific actions needed for their operation. Any number of these may be started through Manager.
-
-All-Ears consists of the following parts:
+All-Ears Mail consists of:
 1. [Manager](#manager)
 2. [Account](#account)
 3. [Deliver](#deliver)
@@ -28,105 +20,96 @@ All-Ears consists of the following parts:
 General information:
 * [Addresses](#addresses)
 * [Messages](#messages)
+* [Users](#users)
 * [Dependencies](#dependencies)
 
 - - - -
 
 ## Manager ##
 
-Manager is the main server program. It sets up the environment for All-Ears to run, and interacts with ManagerClient (see [Utilities](#utilities)) on port 940 to start/stop processes remotely.
+AEM-Manager is the main server program. It starts and manages all other process types.
 
-At startup, Manager asks for the Master Key, used to decrypt files stored in `/etc/allears`. After this, no further interaction on the console is needed.
+At startup, AEM-Manager asks for the Server Master Key (SMK). After this, the ManagerClient remote administration [utility](#utilities) is the only way to interact with it.
 
-Manager creates an environment for the process to run in, isolating them through a variety of methods including pivot_root, namespaces, cgroups, resource limits, and minimizing capabilities. Once started, Manager sends the process the data it needs through a temporary one-way pipe.
+AEM-Manager reads encrypted binaries from the `/var/lib/allears/bin` folder. These must be created through the BinCrypt utility.
 
-Shutting down Manager terminates all other All-Ears processes.
+AEM-Manager creates a safe environment for each process to run in, isolating them through a variety of methods including pivot_root, namespaces, cgroups, resource limits, and minimizing capabilities. Once started, AEM-Manager sends the process the data it needs through a temporary one-way pipe.
 
 ## Account ##
 
-Account takes requests from [API](#api) and [MTA](#mta) for user data.
+AEM-Account authenticates and responds to API requests from [AEM-API](#api). It also tells [AEM-MTA](#mta) which user (if any) owns an address, and provides necessary account information to [AEM-Storage](#storage).
 
-For each user, the following is stored:
-* The type, flags (settings), and hash for each address (see [Addresses](#addresses))
-* The user's public key (UPK)
+For each user, AEM-Account stores:
+* The type, flags (settings), and hash for each [Address](#addresses)
+* The User Access Key (UAK), used to authenticate and encrypt API requests
+* The Envelope Public Key (EPK), used by [AEM-Storage](#storage) to convert plain [Messages](#messages) into encrypted Envelopes
 * The user's membership level
-* The `private` data field
+* The `private` data field: a few kilobytes intended for client-side encrypted information such as addresses, notes, etc.
 
-The `private` data field can be used by clients to store up to 3,784 bytes. Its contents are sent with each `account/browse` API request, and it can be updated using the `private/update` API. The intent is to provide a client-side encrypted storage for data needed by clients (such as the corresponding address for each hash).
-
-Account holds the user data in memory, and writes it to `/var/lib/allears/Account.aem`, encrypted with libsodium's Secret Box.
+Account holds the user data in memory, and stores the encrypted data in `/var/lib/allears/Account.aem`.
 
 ## Deliver ##
 
-Deliver receives email from the [MTA](#mta) processes. It converts any HTML to the custom Control-Enriched Text (CET) format, and forms the message into the custom ExtMsg format with additional data such as DKIM results. It then encrypts the message with the user's public key (UPK), before sending it to [Storage](#storage).
+AEM-Deliver receives email from [AEM-MTA](#mta) processes. It converts any HTML to the custom Control-Enriched Text (CET) format, and converts the email to the ExtMsg [Message](#messages) format with additional data such as DKIM results. It then sends the Message to [AEM-Storage](#storage) for encryption and storage.
 
 ## Enquiry ##
 
-Enquiry takes requests from the other processes to retrieve information such as IP/DNS data. It has no access to user data.
+AEM-Enquiry takes requests from the other processes to retrieve information such as IP/DNS data. It has no access to user data.
 
 ## Storage ##
 
-Storage takes requests from [API](#api) and [Deliver](#deliver) to store and retrieve message data (see [Messages](#messages)).
+AEM-Storage takes requests from [AEM-API](#api) and [AEM-Deliver](#deliver) to store Messages, and from AEM-API to retrieve Envelopes.
 
-The size of each message is kept in an index, called the Stindex (storage index). Storage holds this index in memory, and writes it to `/var/lib/allears/Stindex.aem`, encrypted with libsodium's Secret Box.
+An Envelope is an encrypted container for a Message, openable only by the recipient. For more, see [Messages](#messages).
 
-Message data is held in `/var/lib/allears/MessageData/`. Each user has one file where all their messages are stored, with filenames based on encrypting the user's public key (UPK). The message data is encrypted with AES-256. Each unique combination of user and message size uses its own key, making the file virtually undecipherable without data from the Stindex.
+The size of each Envelope is kept in the Storage Index, or Stindex. AEM-Storage holds this index in memory, and keeps an encrypted copy at `/var/lib/allears/Stindex.aem`.
+
+Envelope data is stored in `/var/lib/allears/Msg/`. Each user has one file containing all their Envelopes. The filename is the user's UserID encoded with a secret Base64-like encoding generated based on the Server Master Key (SMK).
 
 ## API ##
 
-API serves an open web API, usable by any website or client.
+AEM-API serves an open web API on port 302, usable by any website or client.
 
-Both requests and responses are encrypted using libsodium's Box, which provides [both authentication and confidentiality](https://en.wikipedia.org/wiki/Authenticated_encryption).
+The API is partially encrypted: a timestamp and the user's UserID (0-4095) are contained plaintext in the URL. Everything else about the request is encrypted and authenticated.
 
-Both requests and responses use a custom binary format. Short-form responses and requests are always the same size, preventing identifying their type by their size.
-
-`api-clr` is the HTTPS clearnet variant, `api-oni` is the HTTP onion service variant.
+AEM-API does not have the User Access Key (UAK) required to decrypt and authenticate the request. It forwards the request to [AEM-Account](#account), which authenticates and decrypts the request, and then sends the relevant details back to AEM-API.
 
 ## MTA ##
 
-MTA receives email from other servers, and sends it to [Deliver](#deliver) for processing and delivery.
+AEM-MTA (Mail Transfer Agent) receives email from other servers and forwards it to [Deliver](#deliver) for processing and delivery.
 
 ## Web ##
 
-Web is a simple, high-security web server. Its use is optional: the API is usable by any website or client.
+AEM-Web is a simple web server. Its use is optional: the API is usable by any website or client.
 
 The server is designed for single-page sites, supporting one HTML file in addition to its own static, built-in responses (such as MTA-STS).
 
 All other files are designed to be hosted externally. This makes the client-side code easier to verify, and [SRI](https://en.wikipedia.org/wiki/Subresource_Integrity) protects the integrity of the files.
 
-Web is the only process type to run completely isolated with no capability to interact with others.
-
-`web-clr` is the clearnet variant. Only high-security HTTPS is supported, and clients are required to support Brotli compression. It doesn't respond to invalid requests.
-
-`web-oni` is the onion service variant using HTTP with Zopfli Deflate compression. It doesn't read requests at all, and simply responds to all connections with the HTML page.
+AEM-Web is the only process type to run completely isolated with no ability to interact with other processes.
 
 ## Utilities ##
 
-The `Data` folder contains header files which supply data to various parts of All-Ears. They must be carefully configured/generated before compilation.
-
 The `utils` folder contains:
-* `BinCrypt`: Encrypts the All-Ears executable files for Manager
-* `ManagerClient`: Connects to Manager to get information about processes, and start or stop them
+* `BinCrypt`: Encrypts the All-Ears Mail executables for Manager
+* `Creator`: Generates a new Server Master Key (SMK) and the `allears` folder, to be placed in `/var/lib/` on a server
+* `ManagerClient`: Connects to AEM-Manager to get information about processes, and start or stop them
 
 - - - -
 
-### Addresses ###
+## Addresses ##
 
 All-Ears provides its users with two types of addresses. Normal addresses consist of 1 to 15 alphanumerics, and are chosen by the user. Shield addresses consist of 16 random alphanumerics, and are generated by the server.
 
 All addresses are converted to a 10-byte binary format using a custom five-bit encoding (Addr32). This encoding is case-insensitive, disregards all non-alphanumeric characters, and treats some similar-looking characters (`1/i/l`, `0/o`, `v/w`) as equivalent.
 
-To preserve user privacy, the server stores the addresses as 8-byte hashes. This allows testing the ownership of a specific address without directly revealing what addresses any user has registered. Additionally, the shorter size virtually guarantees each registered address has a large number of equally valid aliases. For normal addresses, these are overwhelmingly likely to be nonsensical. Shield addresses however are all random, making it impossible to determine which one is the 'real' one.
+To preserve user privacy, the server stores the addresses as 8-byte hashes. This allows testing the ownership of a specific address without directly revealing what addresses any user has registered. Additionally, the shorter size virtually guarantees each registered address has a large number of equally valid aliases. For normal addresses, these are overwhelmingly likely to be nonsensical. Shield addresses however are all random, making it impossible to determine which is the 'real' one.
 
 Normal addresses are created privately client-side. They use a computationally-expensive Argon2 hash to make it difficult to reverse the hash back into the address.
 
 Shield addresses are randomly generated by the server. Because they're impossible to guess, they use the fast and simple SipHash.
 
 No record is kept of deleted addresses. Once deleted, an address becomes immediately available for registration.
-
-The addresses _system_ and _public_ are reserved for internal use, and cannot be registered by anyone.
-
-The file `Data/Admin.adr.txt` lists addresses which can only be registered by Level 3 (administrator) accounts. A lower-level user attempting to register such an address receives an error claiming that the address is already in use.
 
 | Normal                              | Shield           |
 | ----------------------------------- | ---------------- |
@@ -139,15 +122,40 @@ The file `Data/Admin.adr.txt` lists addresses which can only be registered by Le
 
 ## Messages ##
 
-Messages in All-Ears Mail use a custom binary format. The entire message is encrypted: the server knows nothing about it beyond its size. Messages also include a digital signature, proving the server created them and that they haven't been modified.
+A _Message_ in All-Ears Mail is a custom binary format, and may be one of four types:
+* ExtMsg: Email, in the custom Control-Enriched Text (CET) format
+* IntMsg: Internal mail from other users, or from the system
+* OutMsg: Delivery report of a sent message
+* UplMsg: A file: either an email attachment, or one uploaded by the user
 
-There are four types of messages:
-* ExtMsg: email, using the custom Control-Enriched Text (CET) format
-* IntMsg: internal mail, with optional end-to-end encryption
-* OutMsg: sent mail, with additional delivery information
-* UplMsg: uploaded files, which benefit from additional client-side encryption
+Messages originate from either [AEM-MTA](#mta) (incoming email) or [AEM-API](#api) (others). Each Message is sent to [AEM-Storage](#storage), which places the Message into an Envelope.
 
-By design, the server knows nothing except the total number of messages stored by a user, and the size of each message. Due to external limitations, it is also possible to determine the last time a user received a message.
+In All-Ears Mail, an _Envelope_ is an encrypted container for a Message.
+
+An Envelope can only be opened by the recipient. To accomplish this, AEM-Storage:
+1. Generates a temporary X25519 keypair.
+2. Adds the public key from Step 1 to the Message.
+3. Uses the user's Envelope Public Key (EPK) and its own secret key from Step 1 to generate the X25519 shared secret.
+4. Generates a BLAKE2b hash based on the shared secret, the user's EPK, and the size of the message.
+5. Uses the hash as the key to encrypt the Message with ChaCha20.
+6. Erases its keypair.
+
+Because the server doesn't have either of the secret keys, it cannot generate the shared secret and therefore cannot open the Envelope.
+
+Additional factors of protection:
+* The user's EPK is never shared or used for any purpose other than creating the Envelopes
+* The size of each Envelope is stored in the Stindex, only known by AEM-Storage and encrypted on disk
+* A user's Envelopes are all stored in one file; the filename is the UserID encoded with a secret Base64-like encoding known only by AEM-Storage, derivable only by knowing the Server Master Key
+
+Envelopes are fully encrypted. They provide no information without knowing the key.
+
+In short, the server knows only the number of Envelopes a user has, and their size. Additionally, filesystem data can be used to determine when a user's file was last updated.
+
+## Users ##
+
+An All-Ears Mail server supports up to 4096 users. Users are identified by their UserID (0-4095), which may be presented as a three-letter username (aaa-ppp) for display purposes. This username has no relation to [addresses](#addresses).
+
+Each user has a 43-character User Master Key. This key must be kept safe by the user. If lost, recovery is impossible.
 
 ## Dependencies ##
 

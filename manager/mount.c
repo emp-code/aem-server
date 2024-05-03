@@ -67,12 +67,10 @@ int createMount(const int type) {
 	int fsmode, nr_inodes;
 	switch (type) {
 		case AEM_PROCESSTYPE_MTA:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB:
 		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 9; break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API:
 		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 12; break;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
@@ -105,7 +103,7 @@ int createMount(const int type) {
 			if (
 			   bindMount(AEM_PATH_HOME"/Account.aem", AEM_PATH_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0
 			|| bindMount(AEM_PATH_HOME"/Settings.aem", AEM_PATH_MOUNTDIR"/Settings.aem", AEM_MOUNT_ISFILE) != 0
-			) {syslog(LOG_ERR, "%m"); return -1;}
+			) return -1;
 		break;
 
 		case AEM_PROCESSTYPE_ENQUIRY:
@@ -119,12 +117,11 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_STORAGE:
 			if (
 			   bindMount(AEM_PATH_HOME"/Stindex.aem", AEM_PATH_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0
-			|| bindMount(AEM_PATH_HOME"/MessageData", AEM_PATH_MOUNTDIR"/MessageData", 0) != 0
+			|| bindMount(AEM_PATH_HOME"/Msg", AEM_PATH_MOUNTDIR"/Msg", 0) != 0
 			) return -1;
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API:
 			if (
 			   mkdir(AEM_PATH_MOUNTDIR"/etc", AEM_MODE_XO | S_ISVTX) != 0
 			|| chown(AEM_PATH_MOUNTDIR"/etc", 0, aemGroup) != 0

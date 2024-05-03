@@ -5,14 +5,10 @@
 #include "../IntCom/Client.h"
 
 #include "MessageId.h"
-#include "respond.h"
-#include "post.h"
+#include "Request.h"
+#include "SendMail.h"
 
-#ifdef AEM_API_CLR
 #define AEM_LOGNAME "AEM-API"
-#else
-#define AEM_LOGNAME "AEM-AOn"
-#endif
 
 #include "../Common/Main_Include.c"
 
@@ -29,17 +25,18 @@ static int pipeLoadPids(void) {
 
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
-	unsigned char baseKey[crypto_kdf_KEYBYTES];
+//	unsigned char baseKey[AEM_KDF_KEYSIZE];
 	struct intcom_keyBundle bundle;
 
-	if (read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES) return -1;
+//	if (read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE) return -1;
 	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
-	setApiKeys(baseKey);
-	setMsgIdKey(baseKey);
+	if (tlsSetup_sendmail() != 0) return -1;
+//	request_init(baseKey);
+//	setMsgIdKey(baseKey);
 	intcom_setKeys_client(bundle.client);
 
-	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+//	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }
@@ -51,18 +48,10 @@ int main(void) {
 	if (pipeLoadKeys() < 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
 
-#ifdef AEM_API_CLR
-	if (tlsSetup() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing TLS"); return EXIT_FAILURE;}
-#endif
-	if (aem_api_init() != 0) {syslog(LOG_ERR, "Terminating: Failed initializing API"); return EXIT_FAILURE;}
-
 	acceptClients();
 
-	aem_api_free();
+	tlsFree_sendmail();
 	delMsgIdKey();
-#ifdef AEM_API_CLR
-	tlsFree();
-#endif
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
 }

@@ -17,40 +17,20 @@
 
 #include "format.h"
 
-static unsigned char sign_skey[crypto_sign_SECRETKEYBYTES];
-
-void setSignKey(const unsigned char * const baseKey) {
-	unsigned char seed[crypto_sign_SEEDBYTES];
-	crypto_kdf_derive_from_key(seed, crypto_sign_SEEDBYTES, 1, "AEM_Dlv1", baseKey);
-
-	unsigned char tmp[crypto_sign_PUBLICKEYBYTES];
-	crypto_sign_seed_keypair(tmp, sign_skey, seed);
-
-	sodium_memzero(tmp, crypto_sign_PUBLICKEYBYTES);
-	sodium_memzero(seed, crypto_sign_SEEDBYTES);
-}
-
-void delSignKey(void) {
-	sodium_memzero(sign_skey, crypto_sign_SECRETKEYBYTES);
-}
-
 #include "../Common/Message.c"
 
 __attribute__((warn_unused_result))
-unsigned char *makeAttachment(const unsigned char * const upk, unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16], size_t * const lenEnc) {
+unsigned char *makeAttachment(unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16]) {
 	if (att == NULL || lenAtt < 23) return NULL;
 
 	att[0] = msg_getPadAmount(lenAtt) | 32;
 	memcpy(att + 1, &ts, 4);
 	// att[5]: lenFn
 	memcpy(att + 6, parentId, 16);
-
-	unsigned char * const enc = msg_encrypt(upk, att, lenAtt, lenEnc);
-	return enc;
 }
 
 __attribute__((warn_unused_result))
-unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * const upk, size_t * const lenOut, const bool allVer) {
+unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut, const bool allVer) {
 	if (!allVer && email->body != NULL && email->lenBody > 0) { // Remove non-preferred variant(s) if requested
 		const unsigned char * const r = memrchr(email->body, AEM_CET_CHAR_SEP, email->lenBody);
 		if (r != NULL) {
@@ -90,7 +70,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * 
 	if (email->dkimCount > 0) lenUncomp += email->dkim[0].lenDomain;
 
 	unsigned char * const uncomp = malloc(lenUncomp);
-	if (uncomp == NULL) return NULL;
+	if (uncomp == NULL) {syslog(LOG_ERR, "Failed malloc"); return NULL;}
 
 	size_t offset = 0;
 
@@ -128,14 +108,14 @@ unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * 
 
 	// Compress the data
 	const size_t lenHead = 28 + (email->dkimCount * 3);
-	size_t lenContent = lenUncomp + 300; // 300 for potential compression overhead
-	unsigned char * const content = malloc(lenContent + lenHead);
+	size_t lenContent = lenUncomp + 300; // 300 for compression/padding overhead
+	unsigned char * const content = malloc(AEM_ENVELOPE_RESERVED_LEN + lenHead + lenContent);
 	if (content == NULL) {
 		free(uncomp);
 		return NULL;
 	}
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenContent, content + lenHead) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenContent, content + AEM_ENVELOPE_RESERVED_LEN + lenHead) == BROTLI_FALSE) {
 		free(uncomp);
 		free(content);
 		return NULL;
@@ -144,103 +124,100 @@ unsigned char *makeExtMsg(struct emailInfo * const email, const unsigned char * 
 	free(uncomp);
 
 	// Create the ExtMsg
-	lenContent += lenHead;
-	if (lenContent + crypto_sign_BYTES + crypto_box_SEALBYTES > AEM_MSG_MAXSIZE) {
+	lenContent += AEM_ENVELOPE_RESERVED_LEN + lenHead;
+	if (lenContent > AEM_MSG_MAXSIZE) {
 		free(content);
 		return NULL;
 	}
 
-	// Universal Part
-	content[0] = msg_getPadAmount(lenContent);
-	memcpy(content + 1, &(email->timestamp), 4);
+	unsigned char * const head = content + AEM_ENVELOPE_RESERVED_LEN;
 
-	// ExtMsg Part
-	memcpy(content + 5, &email->ip, 4);
-	memcpy(content + 9, &email->tls_ciphersuite, 2);
-	content[11] = email->tlsInfo;
+	// Padding
+	head[0] = msg_getPadAmount(lenContent);
+	bzero(content + lenContent, head[0]);
+	lenContent += head[0];
+
+	memcpy(head + 1, &(email->timestamp), 4);
+
+// ExtMsg Part
+	memcpy(head + 5, &email->ip, 4);
+	memcpy(head + 9, &email->tls_ciphersuite, 2);
+	head[11] = email->tlsInfo;
 
 	// InfoBytes
-	content[12] = (email->dkimCount << 5) | (email->attachCount & 31); // InfoByte #1: DKIM & Attachments
+	head[12] = (email->dkimCount << 5) | (email->attachCount & 31); // InfoByte #1: DKIM & Attachments
 
-	content[13] = email->ccBytes[0]; // InfoByte #2
-	if (email->ipBlacklisted)   content[13] |= 128;
-	if (email->ipMatchGreeting) content[13] |=  64;
-	if (email->protocolEsmtp)   content[13] |=  32;
+	head[13] = email->ccBytes[0]; // InfoByte #2
+	if (email->ipBlacklisted)   head[13] |= 128;
+	if (email->ipMatchGreeting) head[13] |=  64;
+	if (email->protocolEsmtp)   head[13] |=  32;
 
-	content[14] = email->ccBytes[1]; // InfoByte #3
-	if (email->invalidCommands)   content[14] |= 128;
-	if (email->protocolViolation) content[14] |=  63;
-	if (email->rareCommands)      content[14] |=  32;
+	head[14] = email->ccBytes[1]; // InfoByte #3
+	if (email->invalidCommands)   head[14] |= 128;
+	if (email->protocolViolation) head[14] |=  63;
+	if (email->rareCommands)      head[14] |=  32;
 
-	content[15] = (email->spf   & 192) | (email->lenEnvTo & 63); // InfoByte #4
-	content[16] = (email->dmarc & 192) | (email->lenHdrTo & 63); // InfoByte #5
+	head[15] = (email->spf   & 192) | (email->lenEnvTo & 63); // InfoByte #4
+	head[16] = (email->dmarc & 192) | (email->lenHdrTo & 63); // InfoByte #5
 
 	// InfoByte #6
-	content[17] = email->lenGreet & 63;
-	if (email->dnssec) content[17] |= 128;
+	head[17] = email->lenGreet & 63;
+	if (email->dnssec) head[17] |= 128;
 
 	// InfoByte #7
-	content[18] = email->lenRvDns & 63;
-	if (email->dane) content[18] |= 128;
+	head[18] = email->lenRvDns & 63;
+	if (email->dane) head[18] |= 128;
 
 	// InfoByte #8
-	content[19] = email->lenAuSys & 63;
+	head[19] = email->lenAuSys & 63;
 	// [19] & 192 unused
 
 	// InfoBytes #9-13: Long-Text lengths; potential space for future expansion by reducing max lengths
-	content[20] = email->lenEnvFr & 255;
-	content[21] = email->lenHdrFr & 255;
-	content[22] = email->lenHdrRt & 255;
-	content[23] = email->lenMsgId & 255;
-	content[24] = email->lenSbjct & 255;
+	head[20] = email->lenEnvFr & 255;
+	head[21] = email->lenHdrFr & 255;
+	head[22] = email->lenHdrRt & 255;
+	head[23] = email->lenMsgId & 255;
+	head[24] = email->lenSbjct & 255;
 
 	// Final InfoByte (#14) + HeaderTs
-	content[25] = email->hdrTz & 127;
-	if (email->dkimFailed) content[25] |= 128;
-	memcpy(content + 26, &email->hdrTs, 2);
+	head[25] = email->hdrTz & 127;
+	if (email->dkimFailed) head[25] |= 128;
+	memcpy(head + 26, &email->hdrTs, 2);
 
 	// DKIM
 	offset = 28;
-	bzero(content + offset, email->dkimCount * 3);
+	bzero(head + offset, email->dkimCount * 3);
 
 	for (int i = 0; i < email->dkimCount; i++) {
-		if (email->dkim[i].algoRsa)    content[offset] |= 128;
-		if (email->dkim[i].algoSha256) content[offset] |=  64;
-		if (email->dkim[i].dnsFlag_s)  content[offset] |=  32;
-		if (email->dkim[i].dnsFlag_y)  content[offset] |=  16;
-		if (email->dkim[i].headSimple) content[offset] |=   8;
-		if (email->dkim[i].bodySimple) content[offset] |=   4;
+		if (email->dkim[i].algoRsa)    head[offset] |= 128;
+		if (email->dkim[i].algoSha256) head[offset] |=  64;
+		if (email->dkim[i].dnsFlag_s)  head[offset] |=  32;
+		if (email->dkim[i].dnsFlag_y)  head[offset] |=  16;
+		if (email->dkim[i].headSimple) head[offset] |=   8;
+		if (email->dkim[i].bodySimple) head[offset] |=   4;
 
 		const int64_t expiry = email->dkim[i].ts_expr - email->timestamp;
 		// 0: Expired
-		if (email->dkim[i].ts_expr == 0) content[offset] |= 1; // 1: Expiration disabled or value invalid
-		else if (expiry >= 2629746)      content[offset] |= 2; // 2: Long expiration: >= 1 month
-		else if (expiry >  0)            content[offset] |= 3; // 3: Short expiration: < 1 month
+		if (email->dkim[i].ts_expr == 0) head[offset] |= 1; // 1: Expiration disabled or value invalid
+		else if (expiry >= 2629746)      head[offset] |= 2; // 2: Long expiration: >= 1 month
+		else if (expiry >  0)            head[offset] |= 3; // 3: Short expiration: < 1 month
 
-		if (email->dkim[i].fullId)     content[offset + 1] |= 128;
-		if (email->dkim[i].sgnAll)     content[offset + 1] |=  64;
-		if (email->dkim[i].sgnDate)    content[offset + 1] |=  32;
-		if (email->dkim[i].sgnFrom)    content[offset + 1] |=  16;
-		if (email->dkim[i].sgnMsgId)   content[offset + 1] |=   8;
-		if (email->dkim[i].sgnReplyTo) content[offset + 1] |=   4;
-		if (email->dkim[i].sgnSubject) content[offset + 1] |=   2;
-		if (email->dkim[i].sgnTo)      content[offset + 1] |=   1;
+		if (email->dkim[i].fullId)     head[offset + 1] |= 128;
+		if (email->dkim[i].sgnAll)     head[offset + 1] |=  64;
+		if (email->dkim[i].sgnDate)    head[offset + 1] |=  32;
+		if (email->dkim[i].sgnFrom)    head[offset + 1] |=  16;
+		if (email->dkim[i].sgnMsgId)   head[offset + 1] |=   8;
+		if (email->dkim[i].sgnReplyTo) head[offset + 1] |=   4;
+		if (email->dkim[i].sgnSubject) head[offset + 1] |=   2;
+		if (email->dkim[i].sgnTo)      head[offset + 1] |=   1;
 
-		if (email->dkim[i].bodyTrunc)  content[offset + 2] |= 128;
-		if ((int64_t)email->timestamp - email->dkim[i].ts_sign > 30) content[offset + 2] |= 64;
-		content[offset + 2] |= (email->dkim[i].lenDomain - 4) & 63;
+		if (email->dkim[i].bodyTrunc)  head[offset + 2] |= 128;
+		if ((int64_t)email->timestamp - email->dkim[i].ts_sign > 30) head[offset + 2] |= 64;
+		head[offset + 2] |= (email->dkim[i].lenDomain - 4) & 63;
 
 		offset += 3;
 	}
 
-	// Encrypt into the final form
-	unsigned char throwaway[crypto_box_PUBLICKEYBYTES];
-	randombytes_buf(throwaway, crypto_box_PUBLICKEYBYTES);
-
-	unsigned char * const encrypted = msg_encrypt(sodium_is_zero(upk, crypto_box_PUBLICKEYBYTES) ? throwaway : upk, content, lenContent, lenOut);
-	sodium_memzero(content, lenContent);
-	free(content);
-	if (encrypted == NULL) syslog(LOG_ERR, "Failed creating encrypted message");
-
-	return encrypted;
+	*lenOut = lenContent;
+	return content;
 }

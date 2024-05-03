@@ -6,12 +6,11 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
-#include "../Data/html.h"
 
-#define AEM_LOGNAME "AEM-WOn"
+#define AEM_LOGNAME "AEM-Web"
 
 static volatile sig_atomic_t terminate = 0;
-static void sigTerm() {terminate = 1;}
+static void sigTerm(const int s) {terminate = 1;}
 
 #include "../Common/Main_Include.c"
 
@@ -27,7 +26,7 @@ static void acceptClients(void) {
 		if (newSock < 0) continue;
 
 		shutdown(newSock, SHUT_RD);
-		write(newSock, AEM_HTML_ONI_DATA, AEM_HTML_ONI_SIZE);
+		write(newSock, "TODO", 4);
 		close(newSock);
 	}
 

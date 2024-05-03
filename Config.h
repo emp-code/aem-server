@@ -2,6 +2,7 @@
 #define AEM_MINLEVEL_SENDEMAIL 2
 
 // Normal address hashing: lower for better performance, higher for better security
+//#define AEM_ADDRESS_NOPWHASH // Uncomment to use Siphash for all addresses
 #define AEM_ADDRESS_ARGON2_OPSLIMIT 3
 #define AEM_ADDRESS_ARGON2_MEMLIMIT 67108864
 
@@ -34,5 +35,4 @@
 #define AEM_API_TIMEOUT 5
 
 // Misc
-#define AEM_MAXLEN_MSGDATA 1048752 // Minimum: 1048752; 176 bytes over 1 MiB; ((2^16 - 1) + 12) * 16
-#define AEM_MAXUSERS 9999
+#define AEM_USER_SIZE 5120 // Size of each of the 4096 users. Determines the size of the Private field. 5 KiB * 4096 = 20 MiB.

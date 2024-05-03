@@ -31,7 +31,7 @@ static volatile sig_atomic_t terminate = 0;
 int sockListen = -1;
 int sockClient = -1;
 
-void sigTerm() {
+void sigTerm(const int s) {
 	terminate = 1;
 	close(sockListen);
 	close(sockClient);

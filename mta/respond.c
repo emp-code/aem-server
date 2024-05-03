@@ -111,25 +111,24 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
 #define AEM_SMTP_ERROR_ADDR_TLS_NEEDED   (-5)
 
-static int getUpk(const char * const addr, const size_t addrChars, unsigned char * const upk, unsigned char * const addrFlags) {
+static int getUid(const char * const addr, const size_t addrChars, uint16_t * const uid, unsigned char * const addrFlags) {
 	unsigned char addr32[10];
 	addr32_store(addr32, addr, addrChars);
 
 	unsigned char *resp = NULL;
-	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, (addrChars == 16) ? AEM_MTA_GETUPK_SHIELD : AEM_MTA_GETUPK_NORMAL, addr32, 10, &resp, crypto_box_PUBLICKEYBYTES + 1);
+	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, (addrChars == 16) ? AEM_MTA_GETUID_SHIELD : AEM_MTA_GETUID_NORMAL, addr32, 10, &resp, sizeof(uint16_t) + 1);
 	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
-	if (lenResp != crypto_box_PUBLICKEYBYTES + 1) {free(resp); return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;}
 
-	memcpy(upk, resp, crypto_box_PUBLICKEYBYTES);
-	*addrFlags = resp[crypto_box_PUBLICKEYBYTES];
+	*uid = *(uint16_t*)resp;
+	*addrFlags = resp[sizeof(uint16_t)];
 	free(resp);
 	return 0;
 }
 
 #define AEM_ADDROUR_MIN (AEM_DOMAIN_LEN + 2)
 __attribute__((warn_unused_result))
-static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], unsigned char * const toUpk, unsigned char * const addrFlags, const bool isSecure) {
+static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], uint16_t * const toUid, unsigned char * const addrFlags, const bool isSecure) {
 	if (buf == NULL || len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	for (size_t i = 0; i < len; i++) {
@@ -175,7 +174,7 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], unsi
 	|| (addrChars == 16 && memeq(addr + 3, "administrator", 13))
 	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
-	const int ret = getUpk(addr, addrChars, toUpk, addrFlags);
+	const int ret = getUid(addr, addrChars, toUid, addrFlags);
 	if (ret != 0) return ret;
 
 	return (!isSecure && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) ? AEM_SMTP_ERROR_ADDR_TLS_NEEDED : 0;
@@ -205,7 +204,7 @@ static void smtp_fail(const int code) {
 }
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
-	if (sock < 0 || clientAddr == NULL) return;
+	if (clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
@@ -318,7 +317,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
 			));
 
-			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUpk[meta.toCount], &meta.toFlags[meta.toCount], tlsIsSecure)) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUid + meta.toCount, &meta.toFlags[meta.toCount], tlsIsSecure)) {
 				case 0:
 					retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32);
 					meta.toCount++;

@@ -40,6 +40,7 @@ enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_NULL,
 	AEM_KEYNUM_INTCOM_ACCOUNT_API,
 	AEM_KEYNUM_INTCOM_ACCOUNT_MTA,
+	AEM_KEYNUM_INTCOM_ACCOUNT_STO,
 	AEM_KEYNUM_INTCOM_ENQUIRY_API,
 	AEM_KEYNUM_INTCOM_ENQUIRY_DLV,
 	AEM_KEYNUM_INTCOM_STORAGE_ACC,
@@ -48,10 +49,9 @@ enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_STREAM
 };
 
-static unsigned char key_bin[crypto_secretbox_KEYBYTES];
-static unsigned char key_mng[crypto_secretbox_KEYBYTES];
-static unsigned char key_api[crypto_kdf_KEYBYTES];
-static unsigned char key_ic[crypto_kdf_KEYBYTES];
+static unsigned char key_bin[crypto_aead_aegis256_KEYBYTES];
+static unsigned char key_mng[crypto_aead_aegis256_KEYBYTES];
+static unsigned char key_ic[AEM_KDF_KEYSIZE];
 
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
@@ -64,9 +64,8 @@ static pid_t aemPid[5][AEM_MAXPROCESSES];
 static volatile sig_atomic_t terminate = 0;
 
 static void wipeKeys(void) {
-	sodium_memzero(key_mng, crypto_secretbox_KEYBYTES);
-	sodium_memzero(key_api, crypto_kdf_KEYBYTES);
-	sodium_memzero(key_ic,  crypto_kdf_KEYBYTES);
+	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
+	sodium_memzero(key_ic,  AEM_KDF_KEYSIZE);
 }
 
 static bool process_exists(const pid_t pid) {
@@ -102,18 +101,8 @@ static void killAll(const int sig) {
 	}
 }
 
-void sigTerm() {
+void sigTerm(const int s) {
 	terminate = 1;
-	close(AEM_FD_SERVER);
-	close(AEM_FD_CLIENT);
-
-	refreshPids();
-	killAll(SIGINT);
-
-	sleep(1);
-
-	refreshPids();
-	killAll(SIGKILL);
 }
 
 static int loadExec(const int type) {
@@ -124,41 +113,42 @@ static int loadExec(const int type) {
 
 	const char * const path[] = AEM_PATH_EXE;
 	const int fd = open(path[type], O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); return -1;}
+	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); close(AEM_FD_BINARY); return -1;}
 
 	const off_t bytes = lseek(fd, 0, SEEK_END);
 	if (bytes < 1 || bytes > AEM_MAXSIZE_EXEC) {
 		syslog(LOG_ERR, "Invalid length on %s", path[type]);
+		close(AEM_FD_BINARY);
 		close(fd);
 		return -1;
 	}
 
-	unsigned char * const tmp = malloc(bytes);
-	if (pread(fd, tmp, bytes, 0) != bytes) {
+	unsigned char enc[bytes];
+	if (pread(fd, enc, bytes, 0) != bytes) {
 		syslog(LOG_ERR, "Failed reading %s: %m", path[type]);
+		close(AEM_FD_BINARY);
 		close(fd);
-		free(tmp);
 		return -1;
 	}
-
 	close(fd);
 
-	if (crypto_secretbox_open_easy(tmp + crypto_secretbox_NONCEBYTES, tmp + crypto_secretbox_NONCEBYTES, bytes - crypto_secretbox_NONCEBYTES, tmp, key_bin) != 0) {
-		syslog(LOG_ERR, "Failed decrypting %s", path[type]);
-		free(tmp);
+	const size_t lenDec = bytes - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES;
+	unsigned char dec[lenDec];
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, bytes - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, key_bin) == -1) {
+		syslog(LOG_ERR, "Failed decrypting %s (size %d)", path[type], bytes);
+		close(AEM_FD_BINARY);
 		return -1;
 	}
 
 	if (
-	   write(AEM_FD_BINARY, tmp + crypto_secretbox_NONCEBYTES, bytes - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES) != bytes - crypto_secretbox_NONCEBYTES - crypto_secretbox_MACBYTES
+	   write(AEM_FD_BINARY, dec, lenDec) != (ssize_t)lenDec
 	|| fcntl(AEM_FD_BINARY, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
 	) {
 		syslog(LOG_ERR, "Failed loadExec: %m");
-		free(tmp);
+		close(AEM_FD_BINARY);
 		return -1;
 	}
 
-	free(tmp);
 	return 0;
 }
 
@@ -182,8 +172,7 @@ static int setCaps(const int type) {
 			numCaps = 3;
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API:
 		case AEM_PROCESSTYPE_MTA:
 			cap[2] = CAP_IPC_LOCK;
 			cap[3] = CAP_NET_BIND_SERVICE;
@@ -191,8 +180,7 @@ static int setCaps(const int type) {
 			numCaps = 5;
 		break;
 
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
 			numCaps = 4;
@@ -247,10 +235,8 @@ static int setLimits(const int type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
 		case AEM_PROCESSTYPE_DELIVER:
 		case AEM_PROCESSTYPE_MTA:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; break;
 	}
 
 	rlim.rlim_max = rlim.rlim_cur;
@@ -293,7 +279,7 @@ static int process_new(const int type) {
 	close(AEM_FD_PIPE_WR); // fd2 freed
 
 	if (loadExec(type) != 0) exit(EXIT_FAILURE); // fd0=AEM_FD_BINARY
-	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
+	sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
 	if (cgroupMove()      != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",  type); exit(EXIT_FAILURE);}
@@ -318,43 +304,43 @@ static int sendIntComKeys(const int type) {
 	bzero(&bundle, sizeof(struct intcom_keyBundle));
 
 	switch (type) {
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB:
 			return 0;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_API], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_MTA], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_STO], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, "AEM_IC.1", key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_MTA], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_STO, key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, key_ic);
 		break;
 
 		case AEM_PROCESSTYPE_DELIVER:
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_STO], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.stream,   crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      "AEM_IC.1", key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, key_ic);
+			aem_kdf(bundle.stream,       crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      key_ic);
 		break;
 
 		case AEM_PROCESSTYPE_ENQUIRY:
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_API], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, "AEM_IC.1", key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, key_ic);
 		break;
 
 		case AEM_PROCESSTYPE_STORAGE:
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_ACC], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_API], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, "AEM_IC.1", key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, key_ic);
+			aem_kdf(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_STO, key_ic);
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_STO], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, "AEM_IC.1", key_ic);
+		case AEM_PROCESSTYPE_API:
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, key_ic);
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
-			crypto_kdf_derive_from_key(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_secretbox_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, "AEM_IC.1", key_ic);
-			crypto_kdf_derive_from_key(bundle.stream,   crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      "AEM_IC.1", key_ic);
+			aem_kdf(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, key_ic);
+			aem_kdf(bundle.stream,       crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      key_ic);
 		break;
 
 		default: return -1;
@@ -367,7 +353,7 @@ static int sendIntComKeys(const int type) {
 
 static int process_spawn(const int type, const unsigned char * const key_forward) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] == 0) {
 				freeSlot = i;
@@ -388,10 +374,10 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
 	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_CLEAR_SIGHAND;
-	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
-	if (pid < 0) return 62;
+	if (pid < 0) {close(fd[0]); close(fd[1]); return 62;}
 	if (pid == 0) exit(process_new(type));
 
 	close(AEM_FD_PIPE_RD); // fd1 freed
@@ -412,21 +398,19 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_deliver}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API:
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
 		break;
 
 		/* Nothing:
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB:
 		*/
 	}
 
 	if (!fail && key_forward != NULL) {
-		fail = (write(AEM_FD_PIPE_WR, key_forward, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES);
+		fail = (write(AEM_FD_PIPE_WR, key_forward, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE);
 	}
 
 	if (!fail) {
@@ -471,18 +455,18 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 }
 
 static void cryptSend(void) {
-	unsigned char decrypted[AEM_MANAGER_RESLEN_DECRYPTED];
+	unsigned char dec[AEM_MANAGER_RESLEN_DEC];
 	for (int i = 0; i < 5; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
-			memcpy(decrypted + start, &(aemPid[i][j]), 4);
+			memcpy(dec + start, &(aemPid[i][j]), 4);
 		}
 	}
 
-	unsigned char encrypted[AEM_MANAGER_RESLEN_ENCRYPTED];
-	randombytes_buf(encrypted, crypto_secretbox_NONCEBYTES);
-	if (crypto_secretbox_easy(encrypted + crypto_secretbox_NONCEBYTES, decrypted, AEM_MANAGER_RESLEN_DECRYPTED, encrypted, key_mng) == 0) {
-		if (send(AEM_FD_CLIENT, encrypted, AEM_MANAGER_RESLEN_ENCRYPTED, 0) != AEM_MANAGER_RESLEN_ENCRYPTED) {
+	unsigned char enc[AEM_MANAGER_RESLEN_ENC];
+	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
+	if (crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, AEM_MANAGER_RESLEN_DEC, NULL, 0, NULL, enc, key_mng) == 0) {
+		if (send(AEM_FD_CLIENT, enc, AEM_MANAGER_RESLEN_ENC, 0) != AEM_MANAGER_RESLEN_ENC) {
 			syslog(LOG_WARNING, "Failed send");
 		}
 	} else {
@@ -491,34 +475,34 @@ static void cryptSend(void) {
 }
 
 static void respond_manager(void) {
-	unsigned char encrypted[AEM_MANAGER_CMDLEN_ENCRYPTED];
-	if (recv(AEM_FD_CLIENT, encrypted, AEM_MANAGER_CMDLEN_ENCRYPTED, 0) != AEM_MANAGER_CMDLEN_ENCRYPTED) {
-		syslog(LOG_WARNING, "Failed recv");
+	unsigned char enc[AEM_MANAGER_CMDLEN_ENC];
+	if (recv(AEM_FD_CLIENT, enc, AEM_MANAGER_CMDLEN_ENC, 0) != AEM_MANAGER_CMDLEN_ENC) {
+		syslog(LOG_WARNING, "Manager Protocol - failed recv: %m");
 		close(AEM_FD_CLIENT);
 		return;
 	}
 
 	close(AEM_FD_CLIENT);
 
-	unsigned char decrypted[AEM_MANAGER_CMDLEN_DECRYPTED];
-	if (crypto_secretbox_open_easy(decrypted, encrypted + crypto_secretbox_NONCEBYTES, AEM_MANAGER_CMDLEN_ENCRYPTED - crypto_secretbox_NONCEBYTES, encrypted, key_mng) != 0) {
-		syslog(LOG_WARNING, "Failed decrypt");
+	unsigned char dec[AEM_MANAGER_CMDLEN_DEC];
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, AEM_MANAGER_CMDLEN_ENC - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, key_mng) != 0) {
+		syslog(LOG_WARNING, "Manager Protocol: Failed decrypt");
 		return;
 	}
 
 	uint32_t num;
-	memcpy(&num, decrypted + 2, 4);
+	memcpy(&num, dec + 2, 4);
 
-	switch (decrypted[0]) {
+	switch (dec[0]) {
 		case '\0': break; // No action, only requesting info
 
 		case 'T': { // Request termination
-			process_kill(decrypted[1], num, SIGUSR1);
+			process_kill(dec[1], num, SIGUSR1);
 			break;
 		}
 
 		case 'K': { // Request immediate termination (kill)
-			process_kill(decrypted[1], num, SIGUSR2);
+			process_kill(dec[1], num, SIGUSR2);
 			break;
 		}
 
@@ -526,13 +510,13 @@ static void respond_manager(void) {
 			if (num > AEM_MAXPROCESSES) return;
 
 			for (unsigned int i = 0; i < num; i++) {
-				if (process_spawn(decrypted[1], (decrypted[1] == AEM_PROCESSTYPE_API_CLR || decrypted[1] == AEM_PROCESSTYPE_API_ONI) ? key_api : NULL) != 0) return;
+				if (process_spawn(dec[1], NULL) != 0) return;
 			}
 
 			break;
 		}
 
-		default: {syslog(LOG_WARNING, "Invalid command"); return;}
+		default: {syslog(LOG_WARNING, "Manager Protocol: Invalid command"); return;}
 	}
 
 	refreshPids();
@@ -555,51 +539,49 @@ static int takeConnections(void) {
 	}
 
 	wipeKeys();
-	sodium_memzero(key_bin, crypto_secretbox_KEYBYTES);
+	sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
 	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
 	syslog(LOG_INFO, "Terminating");
 	return 0;
 }
 
 int setupManager(void) {
-	unsigned char master[crypto_kdf_KEYBYTES];
-	if (getKey(master) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 51;}
-	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 52;}
-	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(master, crypto_kdf_KEYBYTES); return 53;}
+	unsigned char smk[AEM_KDF_KEYSIZE];
+	if (getKey(smk) != 0) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 51;}
+	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 52;}
+	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 53;}
 
 	bzero(aemPid, sizeof(aemPid));
-	crypto_kdf_derive_from_key(key_bin, crypto_secretbox_KEYBYTES, 1, "AEM_Bin0", master);
-	randombytes_buf(key_ic, crypto_kdf_KEYBYTES);
+	aem_kdf(key_bin, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_BIN, smk);
+	randombytes_buf(key_ic, AEM_KDF_KEYSIZE);
 
-	unsigned char key_tmp[crypto_kdf_KEYBYTES];
+	unsigned char key_tmp[AEM_KDF_KEYSIZE];
 	int ret = process_spawn(AEM_PROCESSTYPE_ENQUIRY, NULL);
 
 	if (ret == 0) {
-		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Sto0", master);
+		aem_kdf(key_tmp, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_SMK_STO, smk);
 		ret = process_spawn(AEM_PROCESSTYPE_STORAGE, key_tmp);
 	}
 
 	if (ret == 0) {
-		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Dlv0", master);
-		ret = process_spawn(AEM_PROCESSTYPE_DELIVER, key_tmp);
+		ret = process_spawn(AEM_PROCESSTYPE_DELIVER, NULL);
 	}
 
 	if (ret == 0) {
-		crypto_kdf_derive_from_key(key_tmp, crypto_kdf_KEYBYTES, 1, "AEM_Acc0", master);
+		aem_kdf(key_tmp, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_SMK_ACC, smk);
 		ret = process_spawn(AEM_PROCESSTYPE_ACCOUNT, key_tmp);
 	}
 
-	sodium_memzero(key_tmp, crypto_kdf_KEYBYTES);
+	sodium_memzero(key_tmp, AEM_KDF_KEYSIZE);
 
 	if (ret != 0) {
-		sodium_memzero(key_bin, crypto_kdf_KEYBYTES);
-		sodium_memzero(master, crypto_kdf_KEYBYTES);
+		sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
+		sodium_memzero(smk, AEM_KDF_KEYSIZE);
 		return ret;
 	}
 
-	crypto_kdf_derive_from_key(key_mng, crypto_secretbox_KEYBYTES, 1, "AEM_Mng0", master);
-	crypto_kdf_derive_from_key(key_api, crypto_kdf_KEYBYTES,       1, "AEM_Api0", master);
+	aem_kdf(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
 
-	sodium_memzero(master, crypto_kdf_KEYBYTES);
+	sodium_memzero(smk, AEM_KDF_KEYSIZE);
 	return takeConnections();
 }

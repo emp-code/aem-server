@@ -5,29 +5,40 @@
 
 #include <sodium.h>
 
-int ioSetup(const unsigned char baseKey[crypto_kdf_KEYBYTES]);
+#include "../Common/AEM_KDF.h"
+#include "../Common/api_req.h"
+
+// main
+int ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]);
 void ioFree(void);
 
-int userNumFromUpk(const unsigned char * const upk);
+// IntCom_Action
+bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post);
 
-int32_t api_account_browse(const int num, unsigned char **res);
-int32_t api_account_create(const int num, const unsigned char * const msg, const size_t lenMsg);
-int32_t api_account_delete(const int num, const unsigned char * const msg, const size_t lenMsg);
-int32_t api_account_update(const int num, const unsigned char * const msg, const size_t lenMsg);
+// API: Special
+int32_t api_invalid(unsigned char * const res);
 
-int32_t api_address_create(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res);
-int32_t api_address_delete(const int num, const unsigned char * const msg, const size_t lenMsg);
-int32_t api_address_update(const int num, const unsigned char * const msg, const size_t lenMsg);
+// API: GET
+int32_t api_account_browse(unsigned char * const res);
+int32_t api_account_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_account_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_address_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_address_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_address_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_message_browse(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_setting_limits(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 
-int32_t api_private_update(const int num, const unsigned char * const msg, const size_t lenMsg);
-int32_t api_setting_limits(const int num, const unsigned char * const msg, const size_t lenMsg);
+// API: POST (Continue)
+int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData);
+int32_t api_private_update(unsigned char * const res, const unsigned char * const data, const size_t lenData);
 
-int32_t api_internal_adrpk(const int num, const unsigned char * const msg, const size_t lenMsg, unsigned char **res);
-int32_t api_internal_level(const int num);
-int32_t api_internal_myadr(const int num, const unsigned char * const msg, const size_t lenMsg);
-int32_t api_internal_uinfo(const int num, unsigned char **res);
-int32_t api_internal_pubks(const int num, unsigned char **res);
+// API: POST (Status)
+int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 
-int32_t mta_getUpk(const unsigned char * const addr32, const bool isShield, unsigned char **res);
+// MTA
+int32_t mta_getUid(const unsigned char * const addr32, const bool isShield, unsigned char **res);
+
+// Storage
+int32_t sto_uid2epk(const uint16_t uid, unsigned char **res);
 
 #endif

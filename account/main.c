@@ -5,8 +5,9 @@
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../IntCom/KeyBundle.h"
+#include "../Common/AEM_KDF.h"
 #include "../IntCom/Client.h"
+#include "../IntCom/KeyBundle.h"
 #include "../IntCom/Server.h"
 
 #include "IO.h"
@@ -17,12 +18,12 @@
 
 static int setupIo(void) {
 	pid_t storagePid;
-	unsigned char baseKey[crypto_kdf_KEYBYTES];
+	unsigned char baseKey[AEM_KDF_KEYSIZE];
 	struct intcom_keyBundle bundle;
 
 	if (
 	   read(AEM_FD_PIPE_RD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
-	|| read(AEM_FD_PIPE_RD, baseKey, crypto_kdf_KEYBYTES) != crypto_kdf_KEYBYTES
+	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	) {
 		close(AEM_FD_PIPE_RD);
@@ -36,7 +37,7 @@ static int setupIo(void) {
 	intcom_setKeys_client(bundle.client);
 	if (ioSetup(baseKey) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
 
-	sodium_memzero(baseKey, crypto_kdf_KEYBYTES);
+	sodium_memzero(baseKey, AEM_KDF_KEYSIZE);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }

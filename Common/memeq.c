@@ -18,7 +18,7 @@ bool memeq_anycase(const void * const a, const void * const b, const size_t len)
 	return true;
 }
 
-const unsigned char *memcasemem(const unsigned char * const hay, const size_t lenHay, const void * const needle, const size_t lenNeedle) {
+unsigned char *memcasemem(const unsigned char * const hay, const size_t lenHay, const void * const needle, const size_t lenNeedle) {
 	for (size_t i = 0; i < lenHay; i++) {
 		bool found = true;
 
@@ -37,7 +37,7 @@ const unsigned char *memcasemem(const unsigned char * const hay, const size_t le
 	return NULL;
 }
 
-const unsigned char *mempbrk(const unsigned char * const hay, const size_t lenHay, const unsigned char needle[], const int lenNeedle) {
+unsigned char *mempbrk(const unsigned char * const hay, const size_t lenHay, const unsigned char needle[], const int lenNeedle) {
 	for (size_t i = 0; i < lenHay; i++) {
 		for (int j = 0; j < lenNeedle; j++) {
 			if (hay[i] == needle[j]) return hay + i;

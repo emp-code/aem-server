@@ -59,6 +59,7 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 }
 
 static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, size_t * const lenOut) {
+/*
 	unsigned char bodyHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)email->body, email->lenBody) != 0) return NULL;
 
@@ -67,8 +68,8 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	char msgId[65];
-	genMsgId(msgId, ts, upk, true);
+	char msgId[32];
+	genMsgId(msgId, ts, uid, true);
 
 	const time_t msgTime = ts;
 	struct tm ourTime;
@@ -148,6 +149,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 */
 
 // RSA-SHA256
+/*
 	unsigned char headHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(headHash, (unsigned char*)final, lenFinal) != 0) {free(final); return NULL;}
 
@@ -184,6 +186,7 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 
 	*lenOut = lenFinal;
 	return final;
+*/
 }
 
 static int smtp_recv(const int sock, const bool useTls, char * const buf) {
@@ -249,6 +252,7 @@ static bool smtpCommand(const int sock, const bool useTls, char * const buf, siz
 }
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
+/*
 	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 
@@ -305,5 +309,5 @@ unsigned char sendMail(const unsigned char * const upk, const int userLevel, con
 
 	free(msg);
 	smtp_quit(sock, true);
-	return 0;
+*/	return 0;
 }

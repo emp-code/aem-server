@@ -121,7 +121,7 @@ struct emailInfo {
 
 struct emailMeta {
 	char to[AEM_SMTP_MAX_TO][64];
-	unsigned char toUpk[AEM_SMTP_MAX_TO][crypto_box_PUBLICKEYBYTES];
+	uint16_t toUid[AEM_SMTP_MAX_TO];
 	uint8_t toFlags[AEM_SMTP_MAX_TO];
 	int toCount;
 };

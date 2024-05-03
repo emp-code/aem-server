@@ -243,7 +243,7 @@ static int getHeaders(unsigned char * const src, size_t * const lenSrc, struct e
 }
 
 static void moveHeader(unsigned char * const src, size_t * const lenSrc, const char * const needle, const size_t lenNeedle, unsigned char * const target, uint8_t * const lenTarget, const size_t limit) {
-	unsigned char * const hdr = (unsigned char*)strcasestr((char*)src, needle);
+	unsigned char * const hdr = memcasemem(src, *lenSrc, needle, lenNeedle);
 	if (hdr == NULL) return;
 
 	const unsigned char *hdrEnd = memchr(hdr + lenNeedle, '\n', (src + *lenSrc) - (hdr + lenNeedle));
@@ -480,7 +480,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				}
 			} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 				const size_t lenAtt = 22 + lenFn + lenNew;
-				if (lenAtt <= AEM_API_BOX_SIZE_MAX) {
+				if (lenAtt <= AEM_MSG_MAXSIZE - AEM_ENVELOPE_RESERVED_LEN) {
 					email->attachment[email->attachCount] = malloc(lenAtt);
 					if (email->attachment[email->attachCount] != NULL) {
 						// Bytes 0-4 reserved for InfoByte and timestamp

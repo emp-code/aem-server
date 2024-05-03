@@ -1,71 +1,70 @@
-/*
-	Message IDs are unique (as required by the standards) as long as the same user does not send multiple emails in one second.
-
-	The message ID can be used to trace which user sent the email, but only by admins, and only once given the message-ID and timestamp by the receiver.
-	Because it's a hash, it can only be tested against existing users. No other information can be gotten from it.
-	The encryption may not be strictly necessary, but is used for additional security.
-	A large (384-bit) hash is used to avoid false positives.
-
-The full UPK and timestamp are used to calculate the hash:
-	The Blake2 key derivation uses the first 8 bytes of UPK
-	The AES256 key derivation uses the next 4 bytes of UPK and the 4-byte ts
-	The hash uses the final 20 bytes (8+4+20=32)
-*/
+// Message IDs are guaranteed to be unique (as required by the standards) as long as the same user does not send multiple emails in one second from the same address.
+// Message IDs contain the UserID, sending address, and timestamp. The data is protected by AES-256 encryption and a secret Base32 encoding. This protection can only be reversed through the admin-only Message/Sender API.
 
 #include <string.h>
 #include <sodium.h>
 
-#include "../Common/aes.h"
+#include "../Global.h"
+#include "../Common/AEM_KDF.h"
 
 #include "MessageId.h"
 
-static unsigned char msgid_derivkey[crypto_kdf_KEYBYTES];
+static unsigned char msgid_key[AES256_KEYBYTES]; // AES-256 key
+static unsigned char msgid_cs[32]; // Charset for the secret encoding
 
 void setMsgIdKey(const unsigned char * const baseKey) {
-	crypto_kdf_derive_from_key(msgid_derivkey, crypto_kdf_KEYBYTES, 0, "AEM_MID1", baseKey);
+	aem_kdf(msgid_key, AES256_KEYBYTES, AEM_KDF_KEYID_API_MIA, baseKey);
+
+	// Charset
+	const char b32_set[] = "0123456789bcdefghjklmnpqrstvwxyz";
+	int total = 0;
+	uint64_t done = 0;
+
+	uint8_t src[8192];
+	aem_kdf(src, 8192, AEM_KDF_KEYID_API_MIC, baseKey);
+
+	for (int charsDone = 0; charsDone < 64; charsDone++) {
+		for (int n = 0; n < 8192; n++) {
+			src[n] &= 31;
+
+			if (((done >> src[n]) & 1) == 0) {
+				msgid_cs[total] = b32_set[src[n]];
+				done |= 1UL << src[n];
+				break;
+			}
+		}
+	}
 }
 
 void delMsgIdKey(void) {
-	sodium_memzero(msgid_derivkey, crypto_kdf_KEYBYTES);
+	sodium_memzero(msgid_key, AES256_KEYBYTES);
+	sodium_memzero(msgid_cs, 32);
 }
 
-void genMsgId(char * const out, const uint32_t ts, const unsigned char * const upk, const bool b64) {
-	// Generate the Blake2-384 hash
-	unsigned char hashSrc[20];
-	memcpy(hashSrc, upk + 12, 20);
+void genMsgId(char * const out, const uint32_t ts, const uint16_t uid, const unsigned char * const addr32, const bool b32) {
+	uint64_t id[2];
+	memcpy((unsigned char*)&id, (const unsigned char * const)&ts, 4);
+	memcpy((unsigned char*)&id + 4, (const unsigned char * const)&uid, 2);
+	memcpy((unsigned char*)&id + 6, addr32, 10);
 
-	unsigned char hashKey[crypto_generichash_KEYBYTES];
-	crypto_kdf_derive_from_key(hashKey, crypto_generichash_KEYBYTES, *((const uint64_t*)upk), "AEM_MIH2", msgid_derivkey);
+	// Encrypt with AES-256
+//	struct AES_ctx aes;
+//	AES_init_ctx(&aes, msgid_key);
 
-	unsigned char hash[48]; // 384-bit
-	crypto_generichash(hash, 48, hashSrc, 20, hashKey, crypto_generichash_KEYBYTES);
+//	AES_ECB_encrypt(&aes, (unsigned char*)&id);
+//	sodium_memzero(&aes, sizeof(struct AES_ctx));
 
-	sodium_memzero(hashSrc, 20);
-	sodium_memzero(hashKey, crypto_generichash_KEYBYTES);
-
-	// Encrypt the hash with AES256-ECB
-	uint64_t aesKey_nr;
-	memcpy((unsigned char*)&aesKey_nr, upk + 8, 4);
-	memcpy((unsigned char*)&aesKey_nr + 4, (const unsigned char*)&ts, 4);
-
-	unsigned char aesKey[32];
-	crypto_kdf_derive_from_key(aesKey, 32, aesKey_nr, "AEM_MIE2", msgid_derivkey);
-	sodium_memzero(&aesKey_nr, sizeof(uint64_t));
-
-	struct AES_ctx aes;
-	AES_init_ctx(&aes, aesKey);
-	sodium_memzero(aesKey, 32);
-
-	AES_ECB_encrypt(&aes, hash);
-	AES_ECB_encrypt(&aes, hash + 16);
-	AES_ECB_encrypt(&aes, hash + 32);
-	sodium_memzero(&aes, sizeof(struct AES_ctx));
-
-	if (b64) {
-		sodium_bin2base64(out, 65, hash, 48, sodium_base64_VARIANT_URLSAFE);
+	// Copy result
+	if (b32) {
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 13; j++) {
+				out[i * 13 + j] = msgid_cs[(id[i] >> (j * 5)) & 31];
+			}
+		}
 	} else {
-		memcpy(out, hash, 48);
+		memcpy(out, (unsigned char*)id, 16);
 	}
 
-	sodium_memzero(hash, 48);
+	// Clean up
+	sodium_memzero((unsigned char*)id, 16);
 }
