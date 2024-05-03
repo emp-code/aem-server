@@ -15,23 +15,17 @@
 #endif
 
 #if defined(AEM_API)
-	#include "../api/respond.h"
+	#include "../api/Request.h"
 #elif defined(AEM_MTA)
 	#include "../mta/respond.h"
-#elif defined(AEM_WEB_CLR)
-	#include "../web-clr/respond.h"
-#elif defined(AEM_WEB_ONI)
-	#include "../web-oni/respond.h"
 #endif
+
+#include "../Global.h"
 
 #include "AcceptClients.h"
 
-#define AEM_FD_SOCK_MAIN 0
-// syslog 1
-#define AEM_FD_SOCK_CLIENT 2
-
 static volatile sig_atomic_t terminate = 0;
-void sigTerm() {
+void sigTerm(const int s) {
 	terminate = 1;
 	close(AEM_FD_SOCK_MAIN);
 	close(AEM_FD_SOCK_CLIENT);
@@ -39,7 +33,7 @@ void sigTerm() {
 
 void acceptClients(void) {
 	if (createSocket(
-#ifdef AEM_IS_ONION
+#ifdef AEM_LOCAL
 	true,
 #else
 	false,
@@ -70,9 +64,9 @@ void acceptClients(void) {
 #ifdef AEM_MTA
 		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
 #else
-		respondClient(newSock);
+		respondClient();
 #endif
 
-		close(newSock);
+		close(AEM_FD_SOCK_CLIENT);
 	}
 }
