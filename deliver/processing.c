@@ -480,7 +480,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				}
 			} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
 				const size_t lenAtt = 22 + lenFn + lenNew;
-				if (lenAtt <= AEM_MSG_MAXSIZE - AEM_ENVELOPE_RESERVED_LEN) {
+				if (lenAtt >= AEM_MSG_SRC_MINSIZE && lenAtt <= AEM_MSG_SRC_MAXSIZE) {
 					email->attachment[email->attachCount] = malloc(lenAtt);
 					if (email->attachment[email->attachCount] != NULL) {
 						// Bytes 0-4 reserved for InfoByte and timestamp

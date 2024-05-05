@@ -125,8 +125,12 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 
 	// Create the ExtMsg
 	lenContent += AEM_ENVELOPE_RESERVED_LEN + lenHead;
-	if (lenContent > AEM_MSG_MAXSIZE) {
+	if (lenContent > AEM_MSG_SRC_MAXSIZE) {
 		free(content);
+		return NULL;
+	}
+
+	if (lenContent < AEM_MSG_MINSIZE) {
 		return NULL;
 	}
 

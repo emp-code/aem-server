@@ -184,7 +184,7 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	size_t lenWm = 0;
 	unsigned char * const wm = welcomeEnvelope(msg + 2, &lenWm);
 	if (wm == NULL) return -1;
-	const uint16_t wmBlocks = (lenWm / 16) - AEM_MSG_MINBLOCKS;
+	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
 
 	const uint16_t uid = *(const uint16_t * const)msg & 4095;
 
@@ -247,7 +247,7 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	uint32_t blocks = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {
-		blocks += stindex_size[uid][i] + AEM_MSG_MINBLOCKS;
+		blocks += stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS;
 	}
 
 	memcpy(out, (const unsigned char * const)&stindex_count[uid], sizeof(uint16_t));
@@ -259,9 +259,9 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
 
-	*out = malloc(AEM_MSG_MAXSIZE);
+	*out = malloc(AEM_ENVELOPE_MAXSIZE);
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
-	bzero(*out, AEM_MSG_MAXSIZE); // random data if pad1m
+	bzero(*out, AEM_ENVELOPE_MAXSIZE); // random data if pad1m
 	browse_infoBytes(*out, uid);
 
 	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
@@ -275,7 +275,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 /*	if (matchId != NULL) {
 		if (matchId[0] & AEM_FLAG_NEWER) {
 			for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
-				filePos -= (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+				filePos -= (stindex[stindexNum].msg[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
 
 				if (idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
 					stopIndex = i;
@@ -288,7 +288,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 		} else { // older
 			startIndex = 0;
 
-			const off_t startFilePos = (stindex[stindexNum].msg[0] + AEM_MSG_MINBLOCKS) * 16;
+			const off_t startFilePos = (stindex[stindexNum].msg[0] + AEM_ENVELOPE_MINBLOCKS) * 16;
 			filePos = lseek(fdMsg, startFilePos, SEEK_SET);
 			if (filePos != startFilePos) {close(fdMsg); return AEM_INTCOM_RESPONSE_ERR;}
 
@@ -298,7 +298,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 					break;
 				}
 
-				filePos += (stindex[stindexNum].msg[i] + AEM_MSG_MINBLOCKS) * 16;
+				filePos += (stindex[stindexNum].msg[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
 			}
 
 			if (startIndex == 0) {close(fdMsg); return AEM_INTCOM_RESPONSE_NOTEXIST;} // matchId not found, or is the oldest
@@ -309,18 +309,18 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 	for (int i = startIndex; i > stopIndex; i--) {
 		const uint16_t blocks = stindex_size[uid][i];
-		if (offset + 2 + ((blocks + AEM_MSG_MINBLOCKS) * 16) > AEM_MSG_MAXSIZE) break;
+		if (offset + 2 + ((blocks + AEM_ENVELOPE_MINBLOCKS) * 16) > AEM_ENVELOPE_MAXSIZE + 8) break;
 
 		memcpy(*out + offset, &blocks, 2);
 		offset += 2;
 
-		filePos -= (blocks + AEM_MSG_MINBLOCKS) * 16;
-		if (pread(fdMsg, *out + offset, (blocks + AEM_MSG_MINBLOCKS) * 16, filePos) != (blocks + AEM_MSG_MINBLOCKS) * 16) {
+		filePos -= (blocks + AEM_ENVELOPE_MINBLOCKS) * 16;
+		if (pread(fdMsg, *out + offset, (blocks + AEM_ENVELOPE_MINBLOCKS) * 16, filePos) != (blocks + AEM_ENVELOPE_MINBLOCKS) * 16) {
 			syslog(LOG_ERR, "Failed read");
 			break;
 		}
 
-		offset += (blocks + AEM_MSG_MINBLOCKS) * 16;
+		offset += (blocks + AEM_ENVELOPE_MINBLOCKS) * 16;
 	}
 
 	close(fdMsg);
@@ -394,7 +394,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 }
 
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
-	if (lenMsg < (AEM_ENVELOPE_RESERVED_LEN + AEM_MSG_MINSIZE) || lenMsg % 16 != 0) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
+	if (lenMsg < AEM_ENVELOPE_MINSIZE || lenMsg > AEM_ENVELOPE_MAXSIZE || lenMsg % 16 != 0) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Get user's EPK from AEM-Account. and turn the Message into an Envelope
@@ -405,7 +405,7 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	message_into_envelope(msg, lenMsg, epk);
 	sodium_memzero(epk, X25519_PKBYTES);
 	free(epk);
-	const uint16_t bc = (lenMsg / 16) - AEM_MSG_MINBLOCKS;
+	const uint16_t bc = (lenMsg / 16) - AEM_ENVELOPE_MINBLOCKS;
 
 	// Stindex
 	uint16_t * const new = reallocarray(stindex_size[uid], stindex_count[uid] + 1, sizeof(uint16_t));
@@ -418,7 +418,7 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_APPEND | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	if (write(fd, msg, (bc + AEM_MSG_MINBLOCKS) * 16) != (ssize_t)((bc + AEM_MSG_MINBLOCKS) * 16)) {
+	if (write(fd, msg, (bc + AEM_ENVELOPE_MINBLOCKS) * 16) != (ssize_t)((bc + AEM_ENVELOPE_MINBLOCKS) * 16)) {
 		close(fd);
 		syslog(LOG_ERR, "storage_write(): Failed write: %m");
 		return AEM_INTCOM_RESPONSE_ERR;

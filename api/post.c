@@ -33,7 +33,7 @@ static void message_browse(const unsigned char urlData[AEM_API_REQ_DATA_LEN], co
 	unsigned char *stoData = NULL;
 	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, AEM_INTCOM_OP_BROWSE, stoParam, ((urlData[0] & AEM_API_MESSAGE_BROWSE_FLAG_MSGID) != 0) ? 19 : 3, &stoData, 0);
 
-	if (stoRet < AEM_MSG_MINSIZE || stoRet > AEM_MSG_MAXSIZE) {
+	if (stoRet < AEM_ENVELOPE_MINSIZE || stoRet > AEM_ENVELOPE_MAXSIZE + 8) { // +6 (infobytes) +2 (size)
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
 		respond500();
@@ -93,6 +93,7 @@ static unsigned char message_create(const unsigned char * const cuid, const size
 
 static unsigned char message_delete(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN]) {
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_USERCOUNT + uid, urlData, 16, NULL, 0);
+	if (icRet == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_API_ERR_ADDRESS_DELETE_NONEFOUND;
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
 
@@ -154,7 +155,7 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 	setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 
 	const long lenBody = readHeaders();
-	if (lenBody < 0 || lenBody > AEM_MSG_MAXSIZE || (lenBody == 0 && isPost) || (lenBody > 0 && !isPost)) {
+	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody == 0 && isPost) || (lenBody > 0 && !isPost)) {
 		const unsigned char rb = AEM_API_ERR_POST;
 		apiResponse(&rb, 1);
 		return;
@@ -163,7 +164,7 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 	// Download the POST body, if needed
 	unsigned char * const postBody = isPost? malloc(AEM_API_REQ_LEN + lenBody) : NULL;
 	if (isPost) {
-		if (recv(AEM_FD_SOCK_CLIENT, postBody + AEM_API_REQ_LEN, lenBody, 0) != lenBody) {
+		if (recv(AEM_FD_SOCK_CLIENT, postBody + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != lenBody) {
 			free(postBody);
 			const unsigned char rb = AEM_API_ERR_RECV;
 			apiResponse(&rb, 1);

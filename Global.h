@@ -126,21 +126,15 @@ enum aem_internal_enquiry {
 #define AEM_CET_CHAR_SEP 127 // Separator
 
 #define AEM_MSG_SIG_LEN 16
-#define AEM_ENVELOPE_RESERVED_LEN X25519_PKBYTES + AEM_MSG_SIG_LEN
-
-/*
-	Minimum block count: start from this number, not zero. Covers overhead, allows larger messages.
-	Base: 5 (info + ts) + 64 (sig) + 48 (sealed box) = 117
-	ExtMsg: 29/146; 31B .. 1M + 30B
-	UplMsg: 17/134; 43B .. 1M + 42B = 1048618 (Attachment, body + filename)
-	UplMsg: 41/158; 19B .. 1M + 18B = 1048594 (Upload, body + filename)
-	IntMsg: 54/171: 6B ..
-	OutMsg: 22/139: 38B .. (IntMsg, no E2EE)
-*/
-#define AEM_MSG_MAXSIZE 1048752 // ((2^16 - 1) + 12) * 16 = 1048752; 1M + 176B
-#define AEM_MSG_MINBLOCKS 12
-#define AEM_MSG_MINSIZE (AEM_MSG_MINBLOCKS * 16) // 12 * 16 = 192 (-15 --> 177 min)
-#define AEM_MSG_MINSIZE_DEC (AEM_MSG_MINSIZE - X25519_PKBYTES - AEM_MSG_SIG_LEN) // 177 - 32 - 16 = 129
+#define AEM_ENVELOPE_MINBLOCKS 12
+#define AEM_ENVELOPE_RESERVED_LEN (X25519_PKBYTES + AEM_MSG_SIG_LEN)
+#define AEM_ENVELOPE_MAXSIZE 1048752 // ((2^16 - 1) + 12) * 16
+#define AEM_ENVELOPE_MINSIZE (AEM_ENVELOPE_MINBLOCKS * 16)
+#define AEM_MSG_RESERVED_LEN 5
+#define AEM_MSG_MAXSIZE (AEM_ENVELOPE_MAXSIZE - AEM_ENVELOPE_RESERVED_LEN)
+#define AEM_MSG_MINSIZE (AEM_ENVELOPE_MINSIZE - AEM_ENVELOPE_RESERVED_LEN - 15) // -15 due to padding
+#define AEM_MSG_SRC_MAXSIZE (AEM_MSG_MAXSIZE - AEM_MSG_RESERVED_LEN) // 1048699; 1 MiB + 123 bytes
+#define AEM_MSG_SRC_MINSIZE (AEM_MSG_MINSIZE - AEM_MSG_RESERVED_LEN) // 124
 
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"

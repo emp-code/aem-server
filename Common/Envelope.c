@@ -24,7 +24,7 @@ void message_into_envelope(unsigned char * const target, const int lenTarget, co
 
 	// Base: Add the EPK and message size
 	memcpy(base + crypto_scalarmult_BYTES, epk, X25519_PKBYTES);
-	const uint16_t blockCount = (lenTarget / 16) - AEM_MSG_MINBLOCKS;
+	const uint16_t blockCount = (lenTarget / 16) - AEM_ENVELOPE_MINBLOCKS;
 	memcpy(base + crypto_scalarmult_BYTES + X25519_PKBYTES, &blockCount, sizeof(uint16_t));
 
 	// Generate the key and nonce from the Base, and erase it
