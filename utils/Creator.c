@@ -66,7 +66,7 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	size_t lenWm = 0;
 	unsigned char * const wm = welcomeEnvelope(ma_epk, &lenWm);
 	if (wm == NULL) return -1;
-	const uint16_t wmBlocks = (lenWm / 16) - AEM_MSG_MINBLOCKS;
+	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
 
 	// Save the MA's Envelope file
 	const char eid_char0 = get_eid_char0(sbk);
