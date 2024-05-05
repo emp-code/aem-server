@@ -51,6 +51,9 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 				syslog(LOG_INFO, "Unknown API command: %d", req->cmd);
 		}
 	} else if (req->cmd == AEM_API_ACCOUNT_CREATE || req->cmd == AEM_API_PRIVATE_UPDATE) {
+		// For user privacy, erase all but the response key from our response to AEM-API
+		sodium_memzero(*res, AEM_LEN_APIRESP_BASE - AEM_API_BODY_KEYSIZE);
+
 		if (lenMsg == AEM_API_REQ_LEN) {
 			icRet = AEM_INTCOM_RESPONSE_CONTINUE;
 		} else {
