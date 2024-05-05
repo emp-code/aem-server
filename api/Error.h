@@ -12,6 +12,9 @@
 #define AEM_API_ERR_RECV     0xA4
 #define AEM_API_ERR_LEVEL    0xA5
 
+// 0xB0-0xBF General
+#define AEM_API_ERR_MESSAGE_DELETE_NOTFOUND  0xB0
+
 // 0xC0-0xC9	Account
 #define AEM_API_ERR_ACCOUNT_EXIST            0xC0
 #define AEM_API_ERR_ACCOUNT_NOTEXIST         0xC1

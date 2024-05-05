@@ -390,7 +390,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 
 	// Not found
 	close(fdMsg);
-	return AEM_INTCOM_RESPONSE_ERR;
+	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
