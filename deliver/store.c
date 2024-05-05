@@ -44,7 +44,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		unsigned char parentId[16];
 		memcpy(parentId, msg, 16);
 
-		if (intcom(AEM_INTCOM_SERVER_STO, 0, msg, lenMsg, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 		}
 
@@ -56,7 +56,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			for (int j = 0; j < email->attachCount; j++) {
 				makeAttachment(email->attachment[j], email->lenAttachment[j], email->timestamp, parentId);
 
-				if (intcom(AEM_INTCOM_SERVER_STO, 0, email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+				if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 				}
 			}
@@ -65,7 +65,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
 			makeAttachment(srcBr, lenSrcBr, email->timestamp, parentId);
-			intcom(AEM_INTCOM_SERVER_STO, 0, srcBr, lenSrcBr, NULL, 0); // Ignore failure
+			intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], srcBr, lenSrcBr, NULL, 0); // Ignore failure
 		}
 	}
 
