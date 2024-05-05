@@ -36,7 +36,8 @@ static void message_browse(const unsigned char urlData[AEM_API_REQ_DATA_LEN], co
 	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE + 8)) { // +6 (infobytes) +2 (size)
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
-		respond500();
+		const unsigned char rb = AEM_API_ERR_INTERNAL;
+		apiResponse(&rb, 1);
 		return;
 	}
 
@@ -48,7 +49,8 @@ static void message_browse(const unsigned char urlData[AEM_API_REQ_DATA_LEN], co
 		response = malloc(lenResponse);
 		if (response == NULL) {
 			syslog(LOG_INFO, "Failed allocation");
-			respond500();
+			const unsigned char rb = AEM_API_ERR_INTERNAL;
+			apiResponse(&rb, 1);
 			return;
 		}
 
@@ -149,15 +151,18 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 		return;
 	}
 
-	// The request is authentic. Download the request headers.
-	req->cmd = icData[0];
-	memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
-	setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+	// The request is authentic
+	if (icRet != AEM_INTCOM_RESPONSE_CONTINUE) {
+		req->cmd = icData[0];
+		memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
+		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+	}
 
+	// Download the request headers.
 	const long lenBody = readHeaders();
 	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody == 0 && isPost) || (lenBody > 0 && !isPost)) {
 		const unsigned char rb = AEM_API_ERR_POST;
-		apiResponse(&rb, 1);
+		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) respond400(); else apiResponse(&rb, 1);
 		return;
 	}
 
@@ -167,7 +172,7 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 		if (recv(AEM_FD_SOCK_CLIENT, postBody + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != lenBody) {
 			free(postBody);
 			const unsigned char rb = AEM_API_ERR_RECV;
-			apiResponse(&rb, 1);
+			if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) respond404(); else apiResponse(&rb, 1);
 			return;
 		}
 	}
@@ -183,6 +188,10 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 			respond500();
 			return;
 		}
+
+		req->cmd = icData[0];
+		memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
+		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 	}
 
 	if (isPost) {

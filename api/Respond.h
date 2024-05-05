@@ -6,6 +6,7 @@ void clrRbk(void);
 
 void respond400(void);
 void respond403(void);
+void respond404(void);
 void respond500(void);
 
 void apiResponse(const unsigned char * const data, const size_t lenData);

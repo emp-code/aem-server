@@ -49,6 +49,15 @@ void respond403(void) {
 	, 71, 0);
 }
 
+void respond404(void) {
+	send(AEM_FD_SOCK_CLIENT,
+		"HTTP/1.1 404 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71, 0);
+}
+
 void respond500(void) {
 	send(AEM_FD_SOCK_CLIENT,
 		"HTTP/1.1 500 aem\r\n"
