@@ -149,6 +149,10 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 	}
 
 	// The request is authentic. Download the request headers.
+	req->cmd = icData[0];
+	memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
+	setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+
 	const long lenBody = readHeaders();
 	if (lenBody < 0 || lenBody > AEM_MSG_MAXSIZE || (lenBody == 0 && isPost) || (lenBody > 0 && !isPost)) {
 		const unsigned char rb = AEM_API_ERR_POST;
@@ -179,10 +183,6 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 			return;
 		}
 	}
-
-	req->cmd = icData[0];
-	memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
-	setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 
 	if (isPost) {
 		switch (req->cmd) {
