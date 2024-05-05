@@ -33,7 +33,7 @@ static void message_browse(const unsigned char urlData[AEM_API_REQ_DATA_LEN], co
 	unsigned char *stoData = NULL;
 	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, AEM_INTCOM_OP_BROWSE, stoParam, ((urlData[0] & AEM_API_MESSAGE_BROWSE_FLAG_MSGID) != 0) ? 19 : 3, &stoData, 0);
 
-	if (stoRet < AEM_ENVELOPE_MINSIZE || stoRet > AEM_ENVELOPE_MAXSIZE + 8) { // +6 (infobytes) +2 (size)
+	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE + 8)) { // +6 (infobytes) +2 (size)
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
 		respond500();

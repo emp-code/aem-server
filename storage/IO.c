@@ -259,9 +259,9 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
 
-	*out = malloc(AEM_ENVELOPE_MAXSIZE);
+	*out = malloc(AEM_ENVELOPE_MAXSIZE + 8); // 6: InfoBytes, 2: Size of first message
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
-	bzero(*out, AEM_ENVELOPE_MAXSIZE); // random data if pad1m
+	bzero(*out, AEM_ENVELOPE_MAXSIZE + 8); // random data if pad1m
 	browse_infoBytes(*out, uid);
 
 	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
