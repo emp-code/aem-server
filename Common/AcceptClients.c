@@ -36,7 +36,7 @@ void acceptClients(void) {
 #else
 	false,
 #endif
-	10, 10) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket"); return;}
+	10, 10) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket: %m"); return;}
 
 	if (setCaps(0) != 0) return;
 
