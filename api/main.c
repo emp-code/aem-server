@@ -31,7 +31,7 @@ static int pipeLoadKeys(void) {
 //	if (read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE) return -1;
 	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
-	if (tlsSetup_sendmail() != 0) return -1;
+//	if (tlsSetup_sendmail() != 0) return -1;
 //	request_init(baseKey);
 //	setMsgIdKey(baseKey);
 	intcom_setKeys_client(bundle.client);
