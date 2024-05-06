@@ -27,8 +27,6 @@
 static volatile sig_atomic_t terminate = 0;
 void sigTerm(const int s) {
 	terminate = 1;
-	close(AEM_FD_SOCK_MAIN);
-	close(AEM_FD_SOCK_CLIENT);
 }
 
 void acceptClients(void) {
@@ -69,4 +67,7 @@ void acceptClients(void) {
 
 		close(AEM_FD_SOCK_CLIENT);
 	}
+
+	close(AEM_FD_SOCK_MAIN);
+	close(AEM_FD_SOCK_CLIENT);
 }
