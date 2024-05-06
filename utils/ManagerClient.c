@@ -33,7 +33,7 @@ static int makeSocket(const char * const host) {
 	}
 
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {free(res); puts("Failed connecting"); return -1;}
+	if (connect(sock, res->ai_addr, res->ai_addrlen) != 0) {printf("Failed connecting: %m\n"); free(res); return -1;}
 
 	free(res);
 	return sock;
