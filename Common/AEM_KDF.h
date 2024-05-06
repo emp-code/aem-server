@@ -12,7 +12,6 @@ typedef enum : uint8_t {
 	AEM_KDF_KEYID_SMK_MNG = 0x03, // Manager Key
 
 	AEM_KDF_KEYID_SMK_ACC = 0x10, // Account Base Key
-	AEM_KDF_KEYID_SMK_DLV = 0x11, // Deliver Base Key
 	AEM_KDF_KEYID_SMK_STO = 0x12, // Storage Base Key
 	AEM_KDF_KEYID_SMK_API = 0x13, // API Base Key
 
