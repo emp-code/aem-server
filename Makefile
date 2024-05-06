@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -std=gnu2x -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=incompatible-pointer-types -Werror=implicit-function-declaration -Werror=discarded-array-qualifiers -Werror=alloc-zero -Wbidi-chars=any  -Wduplicated-branches -Wfloat-equal -Wshadow -Wbad-function-cast -Wcast-qual -Wcast-align -Wlogical-op -Wmissing-declarations -Winvalid-utf8 -Wpadded -Wredundant-decls -Wstrict-prototypes -Wunused-macros -Wwrite-strings -Wpointer-arith -Wstack-usage=999999 -Wtrampolines -fanalyzer -Wformat=0
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web aem-api utils/BinCrypt utils/Creator utils/ManagerClient Data/gen_dkim Data/gen_html Data/gen_tls
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/ManagerClient
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
@@ -30,24 +30,12 @@ aem-web: web/*.c
 utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
-utils/ReadCrypt: utils/ReadCrypt.c
-	$(CC) $(CFLAGS) -o utils/ReadCrypt utils/ReadCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
-
 utils/Creator: utils/Creator.c
 	$(CC) $(CFLAGS) -o utils/Creator Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c utils/Creator.c Common/GetKey.c Common/ToggleEcho.c Common/memeq.c -lsodium
 
 utils/ManagerClient: utils/ManagerClient.c
 	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
-Data/gen_dkim: Data/gen_dkim.c
-	$(CC) $(CFLAGS) -o Data/gen_dkim Data/gen_dkim.c
-
-Data/gen_html: Data/gen_html.c
-	$(CC) $(CFLAGS) -o Data/gen_html Data/gen_html.c Common/GetKey.c Common/Brotli.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
-
-Data/gen_tls: Data/gen_tls.c
-	$(CC) $(CFLAGS) -o Data/gen_tls Data/gen_tls.c Common/memeq.c
-
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-mta aem-web aem-api utils/BinCrypt utils/ManagerClient Data/gen_dkim Data/gen_html Data/gen_tls
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/ManagerClient
