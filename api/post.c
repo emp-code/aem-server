@@ -24,7 +24,7 @@
 
 //#include "../Common/Message.c"
 
-static void message_browse(const unsigned char urlData[AEM_API_REQ_DATA_LEN], const uint16_t uid, const unsigned char * const accData, const size_t lenAccData) {
+static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
 	unsigned char stoParam[19];
 	memcpy(stoParam, (const unsigned char * const)&uid, sizeof(uint16_t));
 	stoParam[2] = urlData[0] & (AEM_API_MESSAGE_BROWSE_FLAG_OLDER | AEM_API_MESSAGE_BROWSE_FLAG_MSGID);
@@ -136,8 +136,81 @@ static long readHeaders(void) {
 	return cl;
 }
 
-#define AEM_LEN_APIRESP_BASE (1L + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE + AEM_API_BODY_KEYSIZE)
-void aem_api_process(struct aem_req * const req, const bool isPost) {
+static void handleContinue(const unsigned char * const req, const size_t lenBody) {
+	// Used with Account/Create and Private/Update. Prevents AEM-API from accessing the sensitive request data.
+	unsigned char body[AEM_API_REQ_LEN + lenBody];
+	if (recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != (ssize_t)lenBody) {
+		respond404();
+		return;
+	}
+	memcpy(body, req, AEM_API_REQ_LEN);
+
+	// Redo the Account IntCom request, now with the POST body
+	unsigned char *icData = NULL;
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, AEM_INTCOM_OP_POST, body, AEM_API_REQ_LEN + lenBody, &icData, 0);
+
+	if (icRet > AEM_LEN_APIRESP_BASE) {
+		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		apiResponse(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
+	} else {
+		respond500();
+	}
+
+	if (icData != NULL) free(icData);
+}
+
+static void handleGet(const int cmd, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const icData, const size_t lenIcData) {
+	switch (cmd) {
+		case AEM_API_MESSAGE_BROWSE:
+			message_browse(uid, urlData, icData, lenIcData);
+		break;
+
+		case AEM_API_MESSAGE_DELETE: {
+			const unsigned char rb = message_delete(uid, urlData);
+			apiResponse(&rb, 1);
+		break;}
+
+		// Forward response from AEM-Account
+		case AEM_API_ACCOUNT_BROWSE:
+		case AEM_API_ACCOUNT_DELETE:
+		case AEM_API_ACCOUNT_UPDATE:
+		case AEM_API_ADDRESS_CREATE:
+		case AEM_API_ADDRESS_DELETE:
+		case AEM_API_ADDRESS_UPDATE:
+		case AEM_API_SETTING_LIMITS:
+			apiResponse(icData, lenIcData);
+		break;
+
+		default:
+			syslog(LOG_INFO, "Received unknown command from Account (GET): %d", cmd);
+			const unsigned char rb = AEM_API_ERR_INTERNAL;
+			apiResponse(&rb, 1);
+	}
+}
+
+static int handlePost(const int cmd, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
+	if (recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL) != (ssize_t)lenBody)
+		return AEM_API_ERR_RECV;
+
+	// Authenticate and decrypt
+	unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES];
+	bzero(nonce, crypto_aead_aes256gcm_NPUBBYTES);
+
+	unsigned char decBody[lenBody - crypto_aead_aes256gcm_ABYTES];
+	if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0)
+		return AEM_API_ERR_DECRYPT;
+
+	// Choose action
+	switch (cmd) {
+		case AEM_API_MESSAGE_CREATE: return message_create(icData, lenIcData, urlData, decBody + AEM_API_REQ_LEN, lenBody);
+		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody + AEM_API_REQ_LEN, lenBody);
+	}
+
+	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
+	return AEM_API_ERR_INTERNAL;
+}
+
+void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 	// Forward the request to Account
 	unsigned char *icData = NULL;
 	int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, (const unsigned char * const)req, AEM_API_REQ_LEN, &icData, 0);
@@ -146,106 +219,41 @@ void aem_api_process(struct aem_req * const req, const bool isPost) {
 
 	if (icRet < AEM_LEN_APIRESP_BASE && (!isPost || icRet != AEM_INTCOM_RESPONSE_CONTINUE)) {
 		if (icData != NULL) free(icData);
-		syslog(LOG_INFO, "Response from Account: %d", icRet);
+		syslog(LOG_INFO, "Invalid response from Account: %d", icRet);
 		respond500();
 		return;
 	}
 
-	// The request is authentic
-	if (icRet != AEM_INTCOM_RESPONSE_CONTINUE) {
-		req->cmd = icData[0];
-		memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
-		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
-	}
-
-	// Download the request headers.
+	// The request is authentic. Download the headers.
 	const long lenBody = readHeaders();
-	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody == 0 && isPost) || (lenBody > 0 && !isPost)) {
-		const unsigned char rb = AEM_API_ERR_POST;
-		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) respond400(); else apiResponse(&rb, 1);
-		return;
-	}
-
-	// Download the POST body, if needed
-	unsigned char * const postBody = isPost? malloc(AEM_API_REQ_LEN + lenBody) : NULL;
-	if (isPost) {
-		if (recv(AEM_FD_SOCK_CLIENT, postBody + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != lenBody) {
-			free(postBody);
-			const unsigned char rb = AEM_API_ERR_RECV;
-			if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) respond404(); else apiResponse(&rb, 1);
-			return;
+	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody < 1 && isPost) || (lenBody > 0 && !isPost)) {
+		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
+			respond400();
+		} else {
+			setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+			const unsigned char rb = AEM_API_ERR_POST;
+			apiResponse(&rb, 1);
 		}
-	}
-
-	if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
-		// Used with Account/Create and Private/Update
-		// Re-send the IC request with body
-		memcpy(postBody, (const unsigned char * const)req, AEM_API_REQ_LEN);
-		free(icData);
-		icData = NULL;
-		icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, postBody, AEM_API_REQ_LEN + lenBody, &icData, 0);
-		if (icRet < AEM_LEN_APIRESP_BASE) {
-			respond500();
-			return;
-		}
-
-		req->cmd = icData[0];
-		memcpy(req->data, icData + 1, AEM_API_REQ_DATA_LEN);
-		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
-	}
-
-	if (isPost) {
-		switch (req->cmd) {
-			case AEM_API_ACCOUNT_CREATE:
-			case AEM_API_PRIVATE_UPDATE:
-				apiResponse(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
-			break;
-
-			case AEM_API_MESSAGE_CREATE: {
-				const unsigned char status = message_create(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, req->data, postBody + AEM_API_REQ_LEN, lenBody);
-				apiResponse(&status, 1);
-			break;}
-
-			case AEM_API_MESSAGE_UPLOAD: {
-				const unsigned char status = message_upload(req->uid, req->data, postBody + AEM_API_REQ_LEN, lenBody);
-				apiResponse(&status, 1);
-			break;}
-
-			default:
-				syslog(LOG_INFO, "Received unknown command from Account (POST): %d", req->cmd);
-				const unsigned char rb = AEM_API_ERR_INTERNAL;
-				apiResponse(&rb, 1);
-		}
+	} else if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
+		return (isPost && lenBody < 99999) ? handleContinue(req, lenBody) : respond500();
 	} else {
-		switch (req->cmd) {
-			case AEM_API_MESSAGE_BROWSE:
-				message_browse(req->data, req->uid, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
-			break;
+		const int cmd = icData[0];
+		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		const struct aem_req * const req_s = (struct aem_req*)req;
 
-			case AEM_API_MESSAGE_DELETE:
-				const unsigned char status = message_delete(req->uid, req->data);
-				apiResponse(&status, 1);
-			break;
-
-			// Forward response from AEM-Account
-			case AEM_API_ACCOUNT_BROWSE:
-			case AEM_API_ACCOUNT_DELETE:
-			case AEM_API_ACCOUNT_UPDATE:
-			case AEM_API_ADDRESS_CREATE:
-			case AEM_API_ADDRESS_DELETE:
-			case AEM_API_ADDRESS_UPDATE:
-			case AEM_API_SETTING_LIMITS:
-				apiResponse(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
-			break;
-
-			default:
-				syslog(LOG_INFO, "Received unknown command from Account (GET): %d", req->cmd);
-				const unsigned char rb = AEM_API_ERR_INTERNAL;
-				apiResponse(&rb, 1);
+		if (isPost) {
+			unsigned char * const postBody = malloc(lenBody);
+			if (postBody == NULL) {
+				syslog(LOG_ERR, "Failed malloc");
+			} else {
+				handlePost(cmd, req_s->uid, icData + 1, icData + 1 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
+				free(postBody);
+			}
+		} else {
+			handleGet(cmd, req_s->uid, icData + 1, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
 		}
 	}
 
-	if (postBody != NULL) free(postBody);
 	sodium_memzero(icData, icRet);
 	free(icData);
 	clrRbk();

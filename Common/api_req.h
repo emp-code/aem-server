@@ -1,11 +1,6 @@
 #ifndef AEM_API_REQ_H
 #define AEM_API_REQ_H
 
-#define AEM_API_REQ_LEN 48
-#define AEM_API_REQ_LEN_BASE64 64
-
-#define AEM_API_REQ_DATA_LEN 24
-
 #include <stdint.h>
 
 struct aem_req {

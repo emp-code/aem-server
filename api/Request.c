@@ -4,7 +4,6 @@
 
 #include "../Global.h"
 
-#include "../Common/api_req.h"
 #include "../Common/memeq.h"
 #include "post.h"
 
@@ -20,10 +19,10 @@ void respondClient(void) {
 	const bool post = memeq(buf, "POST /", 6);
 	if (!post && !memeq(buf, "GET /", 5)) return;
 
-	struct aem_req req;
+	unsigned char req[AEM_API_REQ_LEN];
 	size_t decodedLen = 0;
-	sodium_base642bin((unsigned char*)&req, AEM_API_REQ_LEN, (const char * const)buf + (post? 6 : 5), AEM_API_REQ_LEN_BASE64, NULL, &decodedLen, NULL, sodium_base64_VARIANT_URLSAFE);
+	sodium_base642bin(req, AEM_API_REQ_LEN, (const char*)buf + (post? 6 : 5), AEM_API_REQ_LEN_BASE64, NULL, &decodedLen, NULL, sodium_base64_VARIANT_URLSAFE);
 	if (decodedLen != AEM_API_REQ_LEN) return;
 
-	aem_api_process(&req, post);
+	aem_api_process(req, post);
 }

@@ -1,7 +1,7 @@
 #include <sodium.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <strings.h>
 #include <syslog.h>
 
 #include "../Global.h"
@@ -10,8 +10,6 @@
 #include "IO.h"
 
 #include "IntCom_Action.h"
-
-#define AEM_LEN_APIRESP_BASE (1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE + AEM_API_BODY_KEYSIZE)
 
 int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, unsigned char **res) {
 	const bool post = (operation == AEM_INTCOM_OP_POST);
@@ -48,25 +46,34 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 			default:
 				icRet = api_invalid(*res + AEM_LEN_APIRESP_BASE);
-				syslog(LOG_INFO, "Unknown API command: %d", req->cmd);
+				syslog(LOG_INFO, "Unknown API command (GET): %d", req->cmd);
 		}
 	} else if (req->cmd == AEM_API_ACCOUNT_CREATE || req->cmd == AEM_API_PRIVATE_UPDATE) {
-		// For user privacy, erase all but the response key from our response to AEM-API
-		sodium_memzero(*res, AEM_LEN_APIRESP_BASE - AEM_API_BODY_KEYSIZE);
-
 		if (lenMsg == AEM_API_REQ_LEN) {
 			icRet = AEM_INTCOM_RESPONSE_CONTINUE;
-		} else {
-			icRet = (req->cmd == AEM_API_ACCOUNT_CREATE) ?
-				api_account_create(*res + AEM_LEN_APIRESP_BASE, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN)
-			:
-				api_private_update(*res + AEM_LEN_APIRESP_BASE, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN);
-		}
+		} else if (lenMsg > AEM_API_REQ_LEN) {
+			// Authenticate and decrypt the POST body
+			unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES];
+			bzero(nonce, crypto_aead_aes256gcm_NPUBBYTES);
+
+			const size_t lenDecBody = lenMsg - AEM_API_REQ_LEN - crypto_aead_aes256gcm_ABYTES;
+			unsigned char decBody[lenDecBody];
+			if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, nonce, *res + 1 + AEM_API_REQ_DATA_LEN) == 0) {
+				icRet = (req->cmd == AEM_API_ACCOUNT_CREATE) ?
+					api_account_create(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody)
+				:
+					api_private_update(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody);
+			} else icRet = AEM_INTCOM_RESPONSE_ERR;
+		} else {icRet = AEM_INTCOM_RESPONSE_ERR; syslog(LOG_ERR, "Invalid Continued request from API");}
+
+		// For user privacy, erase all but the response key from our response to AEM-API
+		sodium_memzero(*res, AEM_LEN_APIRESP_BASE - AEM_API_BODY_KEYSIZE);
 	} else if (req->cmd == AEM_API_MESSAGE_CREATE) {
 		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->data);
 	} else if (req->cmd == AEM_API_MESSAGE_UPLOAD) {
 		icRet = 0; // No action needed
 	} else {
+		syslog(LOG_INFO, "Unknown API command (POST): %d", req->cmd);
 		icRet = AEM_INTCOM_RESPONSE_ERR;
 	}
 

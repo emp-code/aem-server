@@ -172,6 +172,11 @@ enum aem_api_command_post {
 #define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 4 // Older, instead of newer
 #define AEM_API_MESSAGE_BROWSE_FLAG_MSGID 8 // Start from the message with this MessageID
 
+#define AEM_API_REQ_LEN 48
+#define AEM_API_REQ_LEN_BASE64 64
+#define AEM_API_REQ_DATA_LEN 24
+#define AEM_LEN_APIRESP_BASE (1L + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE + AEM_API_BODY_KEYSIZE)
+
 enum aem_mta_commands {
 	AEM_MTA_GETUID_NORMAL,
 	AEM_MTA_GETUID_SHIELD

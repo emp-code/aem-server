@@ -10,7 +10,8 @@
 #define AEM_API_ERR_PARAM    0xA2
 #define AEM_API_ERR_POST     0xA3
 #define AEM_API_ERR_RECV     0xA4
-#define AEM_API_ERR_LEVEL    0xA5
+#define AEM_API_ERR_DECRYPT  0xA5
+#define AEM_API_ERR_LEVEL    0xA6
 
 // 0xB0-0xBF General
 #define AEM_API_ERR_MESSAGE_DELETE_NOTFOUND  0xB0
