@@ -77,7 +77,7 @@ static int intcom_socket(const aem_intcom_server_t intcom_server) {
 }
 
 int32_t intcom(const aem_intcom_server_t intcom_server, const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char ** const out, const int32_t expectedLenOut) {
-	if (intcom_server >= AEM_INTCOM_SERVER_COUNT || lenMsg > AEM_INTCOM_MAXSIZE) return AEM_INTCOM_RESPONSE_ERR;
+	if (intcom_server >= AEM_INTCOM_SERVER_COUNT || lenMsg > AEM_INTCOM_MAXSIZE || sodium_is_zero(intcom_keys[intcom_server], crypto_aead_aegis256_KEYBYTES)) return AEM_INTCOM_RESPONSE_ERR;
 	const int sock = intcom_socket(intcom_server);
 	if (sock < 0) return AEM_INTCOM_RESPONSE_ERR;
 

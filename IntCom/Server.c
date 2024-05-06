@@ -79,10 +79,10 @@ void intcom_serve(void) {
 		unsigned char encHdr[lenEncHdr];
 		if (recv(sockClient, encHdr, lenEncHdr, 0) != (ssize_t)lenEncHdr) {syslog(LOG_ERR, "IntCom[S]: Failed receiving header: %m"); close(sockClient); continue;}
 
-		if (encHdr[0] >= AEM_INTCOM_CLIENT_COUNT) {
-				syslog(LOG_WARNING, "IntCom[S]: Invalid identifier: %u", encHdr[0]);
-				close(sockClient);
-				continue;
+		if (encHdr[0] >= AEM_INTCOM_CLIENT_COUNT || sodium_is_zero(intcom_keys[encHdr[0]], crypto_aead_aegis256_KEYBYTES)) {
+			syslog(LOG_WARNING, "IntCom[S]: Invalid identifier: %u", encHdr[0]);
+			close(sockClient);
+			continue;
 		}
 
 		uint32_t hdr[2];

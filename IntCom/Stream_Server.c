@@ -50,6 +50,8 @@ static int bindSocket(const int sock) {
 }
 
 void intcom_serve_stream(void) {
+	if (sodium_is_zero(intcom_key, crypto_secretstream_xchacha20poly1305_KEYBYTES)) return;
+
 	sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (bindSocket(sockListen) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
 	listen(sockListen, 50);

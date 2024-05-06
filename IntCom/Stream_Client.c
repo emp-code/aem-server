@@ -15,14 +15,14 @@
 
 #include "Stream_Client.h"
 
-static unsigned char intcom_key[crypto_secretbox_KEYBYTES];
+static unsigned char intcom_key[crypto_secretstream_xchacha20poly1305_KEYBYTES];
 static pid_t intcom_pid;
 
 int ss_sock = -1;
 crypto_secretstream_xchacha20poly1305_state ss_state;
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {
-	memcpy(intcom_key, newKey, crypto_secretbox_KEYBYTES);
+	memcpy(intcom_key, newKey, crypto_secretstream_xchacha20poly1305_KEYBYTES);
 }
 
 void intcom_setPid_stream(const pid_t pid) {intcom_pid = pid;}
@@ -63,7 +63,7 @@ static int intcom_socket(void) {
 }
 
 int intcom_stream_open(void) {
-	if (intcom_socket() < 0) return -1;
+	if (intcom_socket() < 0 || sodium_is_zero(intcom_key, crypto_secretstream_xchacha20poly1305_KEYBYTES)) return -1;
 
 	unsigned char ss_header[crypto_secretstream_xchacha20poly1305_HEADERBYTES];
 	crypto_secretstream_xchacha20poly1305_init_push(&ss_state, ss_header, intcom_key);
