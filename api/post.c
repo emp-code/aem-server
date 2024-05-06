@@ -202,12 +202,12 @@ static unsigned char handlePost(const int cmd, const uint16_t uid, const unsigne
 
 	// Choose action
 	switch (cmd) {
-		case AEM_API_MESSAGE_CREATE: return message_create(icData, lenIcData, urlData, decBody, lenBody);
-		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody);
+		case AEM_API_MESSAGE_CREATE: return message_create(icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aes256gcm_ABYTES);
+		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody - crypto_aead_aes256gcm_ABYTES);
 	}
 
 	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
-	return AEM_API_ERR_CMD;
+	return AEM_API_ERR_INTERNAL;
 }
 
 void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
