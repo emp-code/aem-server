@@ -188,7 +188,7 @@ static void handleGet(const int cmd, const uint16_t uid, const unsigned char url
 	}
 }
 
-static int handlePost(const int cmd, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
+static unsigned char handlePost(const int cmd, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
 	if (recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL) != (ssize_t)lenBody)
 		return AEM_API_ERR_RECV;
 
@@ -202,12 +202,12 @@ static int handlePost(const int cmd, const uint16_t uid, const unsigned char url
 
 	// Choose action
 	switch (cmd) {
-		case AEM_API_MESSAGE_CREATE: return message_create(icData, lenIcData, urlData, decBody + AEM_API_REQ_LEN, lenBody);
-		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody + AEM_API_REQ_LEN, lenBody);
+		case AEM_API_MESSAGE_CREATE: return message_create(icData, lenIcData, urlData, decBody, lenBody);
+		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody);
 	}
 
 	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
-	return AEM_API_ERR_INTERNAL;
+	return AEM_API_ERR_CMD;
 }
 
 void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
@@ -246,8 +246,9 @@ void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 			if (postBody == NULL) {
 				syslog(LOG_ERR, "Failed malloc");
 			} else {
-				handlePost(cmd, req_s->uid, icData + 1, icData + 1 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
+				const unsigned char rb = handlePost(cmd, req_s->uid, icData + 1, icData + 1 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
 				free(postBody);
+				apiResponse(&rb, 1);
 			}
 		} else {
 			handleGet(cmd, req_s->uid, icData + 1, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
