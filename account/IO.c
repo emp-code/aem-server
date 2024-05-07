@@ -449,11 +449,22 @@ static void uak_derive(unsigned char * const out, const int lenOut, const uint64
 	aem_kdf(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), users[uid].uak);
 }
 
+static bool auth_binTs(const uint16_t uid, const uint64_t reqBinTs) {
+	uint64_t prevBinTs = 0;
+	memcpy((unsigned char*)&prevBinTs, users[uid].lastBinTs, 5);
+	return (reqBinTs > prevBinTs);
+}
+
+void updateBinTs(const uint16_t uid, uint64_t reqBinTs) {
+	memcpy(users[uid].lastBinTs, (const unsigned char*)&reqBinTs, 5);
+}
+
 bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post) {
 	// Authenticate
 	unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
 	uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_AUTH);
 	if (crypto_onetimeauth_verify(req->mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) != 0) return false;
+	if (!auth_binTs(req->uid, req->binTs)) return false;
 
 	// Decrypt
 	unsigned char req_key_data[2 + AEM_API_REQ_DATA_LEN];

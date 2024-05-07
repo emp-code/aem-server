@@ -44,6 +44,7 @@ For each user, AEM-Account stores:
 * The User Access Key (UAK), used to authenticate and encrypt API requests
 * The Envelope Public Key (EPK), used by [AEM-Storage](#storage) to convert plain [Messages](#messages) into encrypted Envelopes
 * The user's membership level
+* The time of the last successful request, to protect against replay attacks
 * The `private` data field: a few kilobytes intended for client-side encrypted information such as addresses, notes, etc.
 
 Account holds the user data in memory, and stores the encrypted data in `/var/lib/allears/Account.aem`.

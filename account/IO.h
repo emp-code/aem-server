@@ -14,6 +14,7 @@ void ioFree(void);
 
 // IntCom_Action
 bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post);
+void updateBinTs(const uint16_t uid, uint64_t reqBinTs);
 
 // API: Special
 int32_t api_invalid(unsigned char * const res);

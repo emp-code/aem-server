@@ -85,6 +85,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 	}
 
 	// TODO: For user privacy, erase fields added by api_auth that AEM-API doesn't need to know for whichever particular command
+	updateBinTs(req->uid, req->binTs);
 	return AEM_LEN_APIRESP_BASE + icRet;
 }
 

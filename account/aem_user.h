@@ -14,7 +14,7 @@
 struct aem_user {
 	unsigned char uak[AEM_KDF_KEYSIZE]; // User Access Key
 	unsigned char epk[X25519_PKBYTES]; // Envelope Public Key
-	unsigned char lastReq[5]; // binTs, to prevent replay attacks
+	unsigned char lastBinTs[5]; // To prevent replay attacks
 	unsigned char private[AEM_LEN_PRIVATE];
 
 	uint8_t level: 2;
