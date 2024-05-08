@@ -27,9 +27,9 @@ static int pipeRead(void) {
 	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsCrt, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != lenTlsCrt
+	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != lenTlsKey
+	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
 	) {
 		syslog(LOG_ERR, "Failed reading pipe: %m");
 		close(AEM_FD_PIPE_RD);
