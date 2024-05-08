@@ -45,6 +45,8 @@ static int pipeRead(void) {
 	sodium_memzero(&bundle, sizeof(bundle));
 
 	tlsSetup(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey);
+	sodium_memzero(tlsCrt, lenTlsCrt);
+	sodium_memzero(tlsKey, lenTlsKey);
 	return 0;
 }
 
