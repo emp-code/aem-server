@@ -84,7 +84,7 @@ static unsigned char charToAddr32(const unsigned char src) {
 	return 0xFF;
 }
 
-bool addr32_store(unsigned char out[10], const unsigned char * const original, int lenOriginal) {
+void addr32_store(unsigned char out[10], const unsigned char * const original, int lenOriginal) {
 	unsigned char src[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 	int lenSrc = 0;
 
@@ -106,6 +106,4 @@ bool addr32_store(unsigned char out[10], const unsigned char * const original, i
 	out[7] = (src[10] << 4) | (src[11] >> 1);
 	out[8] = (src[11] << 7) | (src[12] << 2) | (src[13] >> 3);
 	out[9] = (src[13] << 5) |  src[14];
-
-	return (lenSrc == 16);
 }
