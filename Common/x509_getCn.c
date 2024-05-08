@@ -15,7 +15,7 @@ const unsigned char *x509_getCn(const unsigned char * const der, const size_t le
 		if (*lenCn < 1) continue;
 
 		if (
-			*(cn - 1) != *lenCn + 7
+		   *(cn - 1) != *lenCn + 7
 		|| *(cn - 2) != 0x30
 		|| *(cn - 3) != *lenCn + 9
 		|| *(cn - 4) != 0x31
