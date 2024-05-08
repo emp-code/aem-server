@@ -126,7 +126,7 @@ static int getUid(const char * const addr, const size_t addrChars, uint16_t * co
 	return 0;
 }
 
-#define AEM_ADDROUR_MIN (AEM_DOMAIN_LEN + 2)
+#define AEM_ADDROUR_MIN (lenOurDomain + 2)
 __attribute__((warn_unused_result))
 static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], uint16_t * const toUid, unsigned char * const addrFlags, const bool isSecure) {
 	if (buf == NULL || len < AEM_ADDROUR_MIN) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
@@ -151,13 +151,13 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], uint
 		len--;
 	}
 
-	if (len < AEM_ADDROUR_MIN || buf[len - AEM_DOMAIN_LEN - 1] != '@' || !memeq_anycase(buf + len - AEM_DOMAIN_LEN, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
-	if (len - AEM_DOMAIN_LEN - 1 > 63) return AEM_SMTP_ERROR_ADDR_OUR_USER;
+	if (len < AEM_ADDROUR_MIN || buf[len - lenOurDomain - 1] != '@' || !memeq_anycase(buf + len - lenOurDomain, ourDomain, lenOurDomain)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
+	if (len - lenOurDomain - 1 > 63) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
 	char addr[AEM_ADDR32_MAXLEN];
 	size_t addrChars = 0;
 	size_t toChars = 0;
-	for (;toChars < len - AEM_DOMAIN_LEN - 1; toChars++) {
+	for (;toChars < len - lenOurDomain - 1; toChars++) {
 		to[toChars] = buf[toChars];
 
 		if (isalnum(buf[toChars])) {
@@ -184,10 +184,14 @@ __attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const unsigned char * const buf, const ssize_t bytes) {
 	if (buf == NULL || bytes < 4) return false;
 
+	char txt[256];
+
 	if (memeq_anycase(buf, "HELO", 4)) {
-		return send_aem(sock, NULL, "250 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN);
+		sprintf(txt, "250 %.*s\r\n", lenOurDomain, ourDomain);
+		return send_aem(sock, NULL, txt, 6 + lenOurDomain);
 	} else if (memeq_anycase(buf, "EHLO", 4)) {
-		return send_aem(sock, NULL, "250-"AEM_DOMAIN""AEM_EHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_EHLO_RESPONSE_LEN);
+		sprintf(txt, "250-%.*s%s\r\n", lenOurDomain, ourDomain, AEM_EHLO_RESPONSE);
+		return send_aem(sock, NULL, txt, 6 + lenOurDomain + AEM_EHLO_RESPONSE_LEN);
 	}
 
 	return false;
@@ -209,7 +213,9 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	email.timestamp = (uint32_t)time(NULL);
 	email.ip = clientAddr->sin_addr.s_addr;
 
-	if (!send_aem(sock, NULL, "220 "AEM_DOMAIN"\r\n", 6 + AEM_DOMAIN_LEN)) return smtp_fail(0);
+	char txt[256];
+	sprintf(txt, "220 %.*s\r\n", lenOurDomain, ourDomain);
+	if (!send_aem(sock, NULL, txt, 6 + lenOurDomain)) return smtp_fail(0);
 
 	unsigned char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
@@ -261,7 +267,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			return;
 		}
 
-		if (!send_aem(0, tls, "250-"AEM_DOMAIN""AEM_SHLO_RESPONSE"\r\n", 6 + AEM_DOMAIN_LEN + AEM_SHLO_RESPONSE_LEN)) {
+		sprintf(txt, "250-%.*s%s\r\n", lenOurDomain, ourDomain, AEM_SHLO_RESPONSE);
+		if (!send_aem(0, tls, txt, 6 + lenOurDomain + AEM_SHLO_RESPONSE_LEN)) {
 			syslog(LOG_NOTICE, "Terminating: Failed sending greeting following StartTLS");
 			tlsClose(tls);
 			return;

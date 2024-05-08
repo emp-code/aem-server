@@ -13,7 +13,6 @@
 #include "../Common/ValidDomain.h"
 #include "../Common/ValidIp.h"
 #include "../Common/memeq.h"
-#include "../Data/domain.h"
 
 #include "Geo.h"
 #include "DNS.h"
@@ -24,7 +23,7 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 	switch (type) {
 		case AEM_ENQUIRY_MX: {
 			if (!isValidDomain((const char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO
-			if (lenMsg == AEM_DOMAIN_LEN && memeq(msg, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN
+//			if (lenMsg == AEM_DOMAIN_LEN && memeq(msg, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN
 
 			unsigned char mxDomain[256];
 			size_t lenMxDomain = 0;

@@ -137,12 +137,15 @@ enum aem_internal_enquiry {
 #define AEM_MSG_SRC_MINSIZE (AEM_MSG_MINSIZE - AEM_MSG_RESERVED_LEN) // 124
 
 #define AEM_PATH_HOME "/var/lib/allears"
+#define AEM_PATH_DATA AEM_PATH_HOME"/Data"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
 
 #define AEM_TIMEOUT_MANAGER_RCV 10
 #define AEM_TIMEOUT_MANAGER_SND 10
 
-#define AEM_MAXSIZE_EXEC 131072 // 128 KiB
+#define AEM_MAXLEN_OURDOMAIN 32
+#define AEM_MAXLEN_EXEC 131072 // 128 KiB
+#define AEM_MAXLEN_DATAFILE 99999
 
 enum aem_api_command_get {
 	AEM_API_ACCOUNT_BROWSE,

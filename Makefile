@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -std=gnu2x -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=alloc-zero -Werror=discarded-array-qualifiers -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=shadow -Wbidi-chars=any -Wduplicated-branches -Wfloat-equal -Wbad-function-cast -Wcast-qual -Wcast-align -Wlogical-op -Wmissing-declarations -Winvalid-utf8 -Wpadded -Wredundant-decls -Wstrict-prototypes -Wunused-macros -Wwrite-strings -Wpointer-arith -Wstack-usage=999999 -Wtrampolines -fanalyzer -Wformat=0
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/ManagerClient
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c -lsodium -lcap
@@ -22,7 +22,7 @@ aem-api: api/*.c
 	$(CC) $(CFLAGS) -DAEM_API -DAEM_LOCAL -o aem-api api/*.c Common/AEM_KDF.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/Message.c Common/SetCaps.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/memeq.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/ValidIp.c IntCom/Client.c IntCom/Stream_Client.c IntCom/peerok.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
+	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/ValidIp.c Common/x509_getCn.c IntCom/Client.c IntCom/Stream_Client.c IntCom/peerok.c -lsodium -lcap -lmbedtls -lmbedcrypto -lmbedx509
 
 aem-web: web/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -o aem-web web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap
@@ -33,9 +33,12 @@ utils/BinCrypt: utils/BinCrypt.c
 utils/Creator: utils/Creator.c
 	$(CC) $(CFLAGS) -o utils/Creator Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c utils/Creator.c Common/GetKey.c Common/ToggleEcho.c Common/memeq.c -lsodium
 
+utils/DataCrypt: utils/DataCrypt.c
+	$(CC) $(CFLAGS) -o utils/DataCrypt utils/DataCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
+
 utils/ManagerClient: utils/ManagerClient.c
 	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/ManagerClient
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient

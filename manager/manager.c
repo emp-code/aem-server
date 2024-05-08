@@ -49,7 +49,7 @@ enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_STREAM
 };
 
-static unsigned char key_bin[crypto_aead_aegis256_KEYBYTES];
+static unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char key_mng[crypto_aead_aegis256_KEYBYTES];
 static unsigned char key_ic[AEM_KDF_KEYSIZE];
 
@@ -116,7 +116,7 @@ static int loadExec(const int type) {
 	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); close(AEM_FD_BINARY); return -1;}
 
 	const off_t bytes = lseek(fd, 0, SEEK_END);
-	if (bytes < 1 || bytes > AEM_MAXSIZE_EXEC) {
+	if (bytes < 1 || bytes > AEM_MAXLEN_EXEC) {
 		syslog(LOG_ERR, "Invalid length on %s", path[type]);
 		close(AEM_FD_BINARY);
 		close(fd);
@@ -134,7 +134,7 @@ static int loadExec(const int type) {
 
 	const size_t lenDec = bytes - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES;
 	unsigned char dec[lenDec];
-	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, bytes - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, key_bin) == -1) {
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, bytes - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, launchKey) == -1) {
 		syslog(LOG_ERR, "Failed decrypting %s (size %d)", path[type], bytes);
 		close(AEM_FD_BINARY);
 		return -1;
@@ -147,6 +147,61 @@ static int loadExec(const int type) {
 		syslog(LOG_ERR, "Failed loadExec: %m");
 		close(AEM_FD_BINARY);
 		return -1;
+	}
+
+	return 0;
+}
+
+static int readDataFile(unsigned char * const dec, size_t * const lenDec, const char * const path) {
+	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0 || !validFd(fd)) {
+		syslog(LOG_ERR, "Failed opening file: %s", path);
+		return -1;
+	}
+
+	const off_t lenEnc = lseek(fd, 0, SEEK_END);
+	if (lenEnc < 1 + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES || lenEnc > AEM_MAXLEN_DATAFILE) {
+		syslog(LOG_ERR, "Invalid length on %s: %u", path, lenEnc);
+		close(fd);
+		return -1;
+	}
+
+	unsigned char enc[lenEnc];
+	if (pread(fd, enc, lenEnc, 0) != lenEnc) {
+		syslog(LOG_ERR, "Failed reading %s: %m", path);
+		close(fd);
+		return -1;
+	}
+	close(fd);
+
+	*lenDec = lenEnc - crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, launchKey) == -1) {
+		syslog(LOG_ERR, "Failed decrypting %s (size %d)", path, lenEnc);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int pipeFile(const char * const path) {
+	size_t lenData;
+	unsigned char data[AEM_MAXLEN_DATAFILE];
+	if (readDataFile(data, &lenData, path) != 0) return -1;
+
+	if (write(AEM_FD_PIPE_WR, (const unsigned char*)&lenData, sizeof(size_t)) != sizeof(size_t)) {
+		syslog(LOG_ERR, "pipeFile: Failed writing size");
+		return -1;
+	}
+
+	size_t tbw = lenData;
+	while (tbw > 0) {
+		if (tbw > PIPE_BUF) {
+			if (write(AEM_FD_PIPE_WR, data + (lenData - tbw), PIPE_BUF) != PIPE_BUF) return -1;
+			tbw -= PIPE_BUF;
+		} else {
+			if (write(AEM_FD_PIPE_WR, data + (lenData - tbw), tbw) != (ssize_t)tbw) return -1;
+			break;
+		}
 	}
 
 	return 0;
@@ -279,7 +334,7 @@ static int process_new(const int type) {
 	close(AEM_FD_PIPE_WR); // fd2 freed
 
 	if (loadExec(type) != 0) exit(EXIT_FAILURE); // fd0=AEM_FD_BINARY
-	sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
+	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
 	if (cgroupMove()      != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",  type); exit(EXIT_FAILURE);}
@@ -417,6 +472,10 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 		fail = (sendIntComKeys(type) != 0);
 	}
 
+	if (!fail && type == AEM_PROCESSTYPE_MTA) {
+		fail = (pipeFile(AEM_PATH_DATA"/TLS_crt.der.enc") != 0 || pipeFile(AEM_PATH_DATA"/TLS_key.der.enc") != 0);
+	}
+
 	close(AEM_FD_PIPE_WR);
 
 	if (fail) {
@@ -539,7 +598,7 @@ static int takeConnections(void) {
 	}
 
 	wipeKeys();
-	sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
+	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
 	syslog(LOG_INFO, "Terminating");
 	return 0;
@@ -552,7 +611,7 @@ int setupManager(void) {
 	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 53;}
 
 	bzero(aemPid, sizeof(aemPid));
-	aem_kdf(key_bin, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_BIN, smk);
+	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
 	randombytes_buf(key_ic, AEM_KDF_KEYSIZE);
 
 	unsigned char key_tmp[AEM_KDF_KEYSIZE];
@@ -575,7 +634,7 @@ int setupManager(void) {
 	sodium_memzero(key_tmp, AEM_KDF_KEYSIZE);
 
 	if (ret != 0) {
-		sodium_memzero(key_bin, crypto_aead_aegis256_KEYBYTES);
+		sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 		sodium_memzero(smk, AEM_KDF_KEYSIZE);
 		return ret;
 	}

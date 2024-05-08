@@ -50,7 +50,7 @@ int main(void) {
 
 	acceptClients();
 
-	tlsFree_sendmail();
+//	tlsFree_sendmail();
 	delMsgIdKey();
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;

@@ -94,6 +94,7 @@ AEM-Web is the only process type to run completely isolated with no ability to i
 The `utils` folder contains:
 * `BinCrypt`: Encrypts the All-Ears Mail executables for Manager
 * `Creator`: Generates a new Server Master Key (SMK) and the `allears` folder, to be placed in `/var/lib/` on a server
+* `DataCrypt`: Encrypts additional files for Manager
 * `ManagerClient`: Connects to AEM-Manager to get information about processes, and start or stop them
 
 - - - -

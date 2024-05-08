@@ -8,7 +8,7 @@
 typedef enum : uint8_t {
 	// Server: Server Master Key
 	AEM_KDF_KEYID_SMK_UMK = 0x01, // Master Admin's UMK
-	AEM_KDF_KEYID_SMK_BIN = 0x02, // Binary Key
+	AEM_KDF_KEYID_SMK_LCH = 0x02, // Launch Key
 	AEM_KDF_KEYID_SMK_MNG = 0x03, // Manager Key
 
 	AEM_KDF_KEYID_SMK_ACC = 0x10, // Account Base Key

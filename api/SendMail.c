@@ -20,8 +20,9 @@
 
 #define AEM_API_SMTP
 
-#include "../Common/tls_setup.c"
+//#include "../Common/tls_setup.c"
 
+/*
 static int makeSocket(const uint32_t ip) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (sock < 0) {syslog(LOG_ERR, "Failed socket(): %m"); return -1;}
@@ -59,7 +60,6 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 }
 
 static char *createEmail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, size_t * const lenOut) {
-/*
 	unsigned char bodyHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(bodyHash, (unsigned char*)email->body, email->lenBody) != 0) return NULL;
 
@@ -186,7 +186,6 @@ static char *createEmail(const unsigned char * const upk, const int userLevel, c
 
 	*lenOut = lenFinal;
 	return final;
-*/
 }
 
 static int smtp_recv(const int sock, const bool useTls, char * const buf) {
@@ -250,6 +249,7 @@ static bool smtpCommand(const int sock, const bool useTls, char * const buf, siz
 	buf[len] = '\0';
 	return true;
 }
+*/
 
 unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info) {
 /*
