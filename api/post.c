@@ -71,11 +71,6 @@ static unsigned char message_create(const unsigned char * const cuid, const size
 	const uint16_t uid = *(const uint16_t*)cuid;
 	if (uid >= AEM_USERCOUNT) return AEM_API_ERR_INTERNAL;
 
-	// urlData: 0..9 from addr32
-	// urlData: 10..19 to addr32
-	//	urlData[20] & 128 fromShield
-	//	urlData[20] & 64 toShield
-
 	const uint32_t ts = (uint32_t)time(NULL);
 	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 58 + lenSrc;
 	const size_t padAmount = msg_getPadAmount(lenMsg);
@@ -84,7 +79,7 @@ static unsigned char message_create(const unsigned char * const cuid, const size
 	unsigned char msg[lenMsg];
 	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = ((urlData[20] & 192) >> 4); // IntMsg InfoByte: 0=Plain; 8/4: FromShield/ToShield; TODO: 0-3: SenderLevel
+	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 0; // IntMsg InfoByte: 0=Plain; TODO: 0-3: SenderLevel
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData, 20); // From/To Addr32
 	bzero(msg + AEM_ENVELOPE_RESERVED_LEN + 26, 32); // TODO: APK
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 58, src, lenSrc);

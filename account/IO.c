@@ -260,6 +260,8 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 		if (numAddresses(api_uid, true) >= limits[users[api_uid].level][AEM_LIMIT_SHD]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 		randombytes_buf(addr32, 10);
+		addr32[0] |= 128;
+
 		hash = addressToHash(addr32, true);
 		if (hash == 0) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	} else { // Normal
@@ -488,7 +490,9 @@ bool api_auth(unsigned char * const res, struct aem_req * const req, const bool 
 }
 
 // MTA
-int32_t mta_getUid(const unsigned char * const addr32, const bool isShield, unsigned char **res) {
+int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
+	const bool isShield = ((addr32[0] & 128) != 0);
+
 	const uint64_t hash = addressToHash(addr32, isShield);
 	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 

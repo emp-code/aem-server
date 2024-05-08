@@ -37,7 +37,7 @@ int32_t api_private_update(unsigned char * const res, const unsigned char * cons
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 
 // MTA
-int32_t mta_getUid(const unsigned char * const addr32, const bool isShield, unsigned char **res);
+int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res);
 
 // Storage
 int32_t sto_uid2epk(const uint16_t uid, unsigned char **res);

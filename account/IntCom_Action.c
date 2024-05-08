@@ -90,15 +90,9 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 }
 
 int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
-	if (lenMsg != 10) return AEM_INTCOM_RESPONSE_ERR;
+	if (operation != 0 || lenMsg != 10) {syslog(LOG_ERR, "Invalid request (MTA): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
 
-	switch (operation) {
-		case AEM_MTA_GETUID_NORMAL: return mta_getUid(msg, false, res);
-		case AEM_MTA_GETUID_SHIELD: return mta_getUid(msg, true, res);
-	}
-
-	syslog(LOG_ERR, "Invalid op (MTA): %u", operation);
-	return AEM_INTCOM_RESPONSE_ERR;
+	return mta_getUid(msg, res);
 }
 
 int32_t conn_sto(const uint32_t operation, unsigned char **res) {

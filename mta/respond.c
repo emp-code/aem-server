@@ -111,12 +111,12 @@ static int smtp_addr_sender(const unsigned char * const buf, const size_t len) {
 #define AEM_SMTP_ERROR_ADDR_OUR_DOMAIN   (-4)
 #define AEM_SMTP_ERROR_ADDR_TLS_NEEDED   (-5)
 
-static int getUid(const char * const addr, const size_t addrChars, uint16_t * const uid, unsigned char * const addrFlags) {
+static int getUid(const char * const addr, const size_t lenAddr, uint16_t * const uid, unsigned char * const addrFlags) {
 	unsigned char addr32[10];
-	addr32_store(addr32, addr, addrChars);
+	addr32_store(addr32, addr, lenAddr);
 
 	unsigned char *resp = NULL;
-	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, (addrChars == 16) ? AEM_MTA_GETUID_SHIELD : AEM_MTA_GETUID_NORMAL, addr32, 10, &resp, sizeof(uint16_t) + 1);
+	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, 0, addr32, 10, &resp, sizeof(uint16_t) + 1);
 	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
@@ -154,27 +154,11 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], uint
 	if (len < AEM_ADDROUR_MIN || buf[len - lenOurDomain - 1] != '@' || !memeq_anycase(buf + len - lenOurDomain, ourDomain, lenOurDomain)) return AEM_SMTP_ERROR_ADDR_OUR_DOMAIN;
 	if (len - lenOurDomain - 1 > 63) return AEM_SMTP_ERROR_ADDR_OUR_USER;
 
-	char addr[AEM_ADDR32_MAXLEN];
-	size_t addrChars = 0;
-	size_t toChars = 0;
-	for (;toChars < len - lenOurDomain - 1; toChars++) {
-		to[toChars] = buf[toChars];
+	size_t lenTo = len - lenOurDomain - 1;
+	memcpy(to, buf, lenTo);
+	to[lenTo] = '\0';
 
-		if (isalnum(buf[toChars])) {
-			if (addrChars + 1 > AEM_ADDR32_MAXLEN) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-			addr[addrChars] = tolower(buf[toChars]);
-			addrChars++;
-		}
-	}
-	to[toChars] = '\0';
-
-	if (addrChars < 1 || addrChars > 16
-	|| (addrChars == 6 && memeq(addr, "system", 6))
-	|| (addrChars == 6 && memeq(addr, "public", 6))
-	|| (addrChars == 16 && memeq(addr + 3, "administrator", 13))
-	) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-
-	const int ret = getUid(addr, addrChars, toUid, addrFlags);
+	const int ret = getUid(to, lenTo, toUid, addrFlags);
 	if (ret != 0) return ret;
 
 	return (!isSecure && (*addrFlags & AEM_ADDR_FLAG_SECURE) != 0) ? AEM_SMTP_ERROR_ADDR_TLS_NEEDED : 0;
