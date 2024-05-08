@@ -11,7 +11,6 @@
 
 #include "../Global.h"
 #include "../Common/memeq.h"
-#include "../Data/dkim.h"
 
 #include "Error.h"
 #include "MessageId.h"
