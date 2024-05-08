@@ -118,7 +118,7 @@ static int getUid(const char * const addr, const size_t lenAddr, uint16_t * cons
 	unsigned char *resp = NULL;
 	int32_t lenResp = intcom(AEM_INTCOM_SERVER_ACC, 0, addr32, 10, &resp, sizeof(uint16_t) + 1);
 	if (lenResp == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_SMTP_ERROR_ADDR_OUR_USER;
-	if (lenResp < 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
+	if (lenResp != sizeof(uint16_t) + 1) return AEM_SMTP_ERROR_ADDR_OUR_INTERNAL;
 
 	*uid = *(uint16_t*)resp;
 	*addrFlags = resp[sizeof(uint16_t)];
