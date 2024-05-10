@@ -20,8 +20,8 @@
 #include "../Common/Message.c"
 
 __attribute__((warn_unused_result))
-unsigned char *makeAttachment(unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16]) {
-	if (att == NULL || lenAtt < 23) return NULL;
+void makeAttachment(unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16]) {
+	if (att == NULL || lenAtt < 23) return;
 
 	att[0] = msg_getPadAmount(lenAtt) | 32;
 	memcpy(att + 1, &ts, 4);
