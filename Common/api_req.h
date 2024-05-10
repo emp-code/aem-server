@@ -10,7 +10,9 @@ struct aem_req {
 
 	// Encrypted
 	uint64_t cmd: 4;
-	uint64_t flags: 8;
+	uint64_t flags: 4;
+	uint64_t unused: 4;
+
 	unsigned char data[AEM_API_REQ_DATA_LEN];
 
 	// Authentication

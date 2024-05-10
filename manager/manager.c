@@ -472,7 +472,11 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 		fail = (sendIntComKeys(type) != 0);
 	}
 
-	if (!fail && type == AEM_PROCESSTYPE_MTA) {
+	if (!fail && type == AEM_PROCESSTYPE_ACCOUNT) {
+		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc") != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc") != 0);
+	}
+
+	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA)) {
 		fail = (pipeFile(AEM_PATH_DATA"/TLS_crt.der.enc") != 0 || pipeFile(AEM_PATH_DATA"/TLS_key.der.enc") != 0);
 	}
 

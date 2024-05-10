@@ -5,13 +5,21 @@
 #include <stdint.h>
 
 struct outEmail {
+	char mxDomain[128];
+	char addrFrom[25];
+	char replyId[128];
+	char addrTo[128];
+	char subject[128];
+	unsigned char rsaKey[2048];
+
+	uint16_t uid;
+	bool isAdmin;
+
 	uint32_t ip;
 	unsigned char cc[2];
-	char mxDomain[256];
-	char replyId[256];
-	char addrFrom[256];
-	char addrTo[256];
-	char subject[256];
+	unsigned char fromAddr32[10];
+
+	size_t lenRsaKey;
 
 	size_t lenBody;
 	char *body;
@@ -26,11 +34,10 @@ struct outInfo {
 	char info[257];
 };
 
-void sm_clearKeys(void);
-
-int tlsSetup_sendmail(void);
+void getOurDomain(unsigned char * const out);
+int tlsSetup_sendmail(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size);
 void tlsFree_sendmail(void);
 
-unsigned char sendMail(const unsigned char * const upk, const int userLevel, const struct outEmail * const email, struct outInfo * const info);
+unsigned char sendMail(const struct outEmail * const email, struct outInfo * const info);
 
 #endif

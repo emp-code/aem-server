@@ -12,6 +12,7 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/Addr32.h"
 #include "../Common/api_req.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
@@ -36,6 +37,11 @@
 #endif
 
 static struct aem_user *users = NULL;
+
+size_t lenRsaAdminKey;
+size_t lenRsaUsersKey;
+static unsigned char rsaAdminKey[4096];
+static unsigned char rsaUsersKey[4096];
 
 static unsigned char accountKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
@@ -420,8 +426,8 @@ int32_t api_private_update(unsigned char * const res, const unsigned char * cons
 }
 
 // API: POST (Status)
-int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
-	if (reqData[21] == 0x01 && reqData[22] == 0x02 && reqData[23] == 0x03) { // IntMsg
+int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
+	if (flags == 0) { // IntMsg
 		// Verify user owns their sending address
 		bool shield = (reqData[20] & 128) != 0;
 		if (api_uid != hashToUid(addressToHash(reqData, shield), shield, NULL)) {
@@ -433,16 +439,33 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		const uint64_t hash = addressToHash(reqData + 10, shield);
 		if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Invalid address
 
-		unsigned char flags = 0;
-		const uint16_t uid = hashToUid(hash, shield, &flags);
+		unsigned char addrFlags = 0;
+		const uint16_t uid = hashToUid(hash, shield, &addrFlags);
 		if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Address not registered
-		if ((flags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
+		if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
 
 		memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
 		return 2;
-	} else {
-		// Email
-		return api_response_status(res, AEM_API_ERR_INTERNAL); // TODO
+	} else { // Email
+		if (users[api_uid].level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
+
+		const unsigned char * const addrEnd = memchr(reqData, '\0', AEM_API_REQ_DATA_LEN);
+		if (addrEnd == NULL) return api_response_status(res, AEM_API_ERR_PARAM);
+		unsigned char a32[10];
+		addr32_store(a32, reqData, addrEnd - reqData);
+
+		const bool fromShield = ((a32[0] & 128) != 0);
+		const uint64_t fromHash = addressToHash(a32, fromShield);
+		if (api_uid != hashToUid(fromHash, fromShield, NULL)) {return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);syslog(LOG_INFO, "%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x", a32[0], a32[1], a32[2], a32[3], a32[4], a32[5], a32[6], a32[7], a32[8], a32[9]);}
+
+		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
+		if (users[api_uid].level == AEM_USERLEVEL_MAX) {
+			memcpy(res + sizeof(uint16_t), rsaAdminKey, lenRsaAdminKey);
+			return sizeof(uint16_t) + lenRsaAdminKey;
+		} else {
+			memcpy(res + sizeof(uint16_t), rsaUsersKey, lenRsaUsersKey);
+			return sizeof(uint16_t) + lenRsaUsersKey;
+		}
 	}
 }
 
@@ -473,14 +496,15 @@ bool api_auth(unsigned char * const res, struct aem_req * const req, const bool 
 	uak_derive(req_key_data, 2 + AEM_API_REQ_DATA_LEN, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_DATA);
 
 	req->cmd ^= req_key_data[0] & 15;
-	req->flags ^= req_key_data[1];
+	req->flags ^= req_key_data[1] & 15;
+//	req->unused ^= req_key_data[1] ...
 
 	for (int i = 0; i < AEM_API_REQ_DATA_LEN; i++) {
 		req->data[i] ^= req_key_data[2 + i];
 	}
 
 	// Copy data to the base response
-	res[0] = req->cmd;
+	res[0] = req->cmd | (req->flags << 4);
 	memcpy(res + 1, req->data, AEM_API_REQ_DATA_LEN);
 	uak_derive(res + 1 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->binTs, req->uid, post, AEM_UAK_TYPE_BODY_REQ);
 	uak_derive(res + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->binTs, req->uid, post, AEM_UAK_TYPE_BODY_RES);
@@ -526,11 +550,21 @@ int32_t sto_uid2epk(const uint16_t uid, unsigned char **res) {
 }
 
 // Setup
+void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, const unsigned char * const keyUsers, const size_t lenKeyUsers) {
+	memcpy(rsaAdminKey, keyAdmin, lenKeyAdmin);
+	memcpy(rsaUsersKey, keyUsers, lenKeyUsers);
+	lenRsaAdminKey = lenKeyAdmin;
+	lenRsaUsersKey = lenKeyUsers;
+}
+
 void ioFree(void) {
 	sodium_memzero(accountKey, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(saltShield, crypto_shorthash_KEYBYTES);
 	sodium_memzero(users, sizeof(struct aem_user) * AEM_USERCOUNT);
 	free(users);
+
+	sodium_memzero(rsaAdminKey, lenRsaAdminKey);
+	sodium_memzero(rsaUsersKey, lenRsaUsersKey);
 }
 
 int ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]) {

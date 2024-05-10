@@ -69,7 +69,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 		// For user privacy, erase all but the response key from our response to AEM-API
 		sodium_memzero(*res, AEM_LEN_APIRESP_BASE - AEM_API_BODY_KEYSIZE);
 	} else if (req->cmd == AEM_API_MESSAGE_CREATE) {
-		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->data);
+		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->data, req->flags);
 	} else if (req->cmd == AEM_API_MESSAGE_UPLOAD) {
 		icRet = 0; // No action needed
 	} else {

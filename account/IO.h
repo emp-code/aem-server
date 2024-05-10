@@ -11,6 +11,7 @@
 // main
 int ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]);
 void ioFree(void);
+void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, const unsigned char * const keyUsers, const size_t lenKeyUsers);
 
 // IntCom_Action
 bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post);
@@ -34,7 +35,7 @@ int32_t api_account_create(unsigned char * const res, const unsigned char * cons
 int32_t api_private_update(unsigned char * const res, const unsigned char * const data, const size_t lenData);
 
 // API: POST (Status)
-int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
+int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags);
 
 // MTA
 int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res);

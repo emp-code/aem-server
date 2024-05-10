@@ -21,10 +21,19 @@ static int setupIo(void) {
 	unsigned char baseKey[AEM_KDF_KEYSIZE];
 	struct intcom_keyBundle bundle;
 
+	size_t lenRsaAdmin;
+	size_t lenRsaUsers;
+	unsigned char rsaAdmin[4096];
+	unsigned char rsaUsers[4096];
+
 	if (
 	   read(AEM_FD_PIPE_RD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
 	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
+	|| read(AEM_FD_PIPE_RD, &lenRsaAdmin, sizeof(size_t)) != sizeof(size_t)
+	|| read(AEM_FD_PIPE_RD, rsaAdmin, lenRsaAdmin) != (ssize_t)lenRsaAdmin
+	|| read(AEM_FD_PIPE_RD, &lenRsaUsers, sizeof(size_t)) != sizeof(size_t)
+	|| read(AEM_FD_PIPE_RD, rsaUsers, lenRsaUsers) != (ssize_t)lenRsaUsers
 	) {
 		close(AEM_FD_PIPE_RD);
 		syslog(LOG_ERR, "Terminating: Failed reading pipe");
@@ -36,6 +45,7 @@ static int setupIo(void) {
 	intcom_setKeys_server(bundle.server);
 	intcom_setKeys_client(bundle.client);
 	if (ioSetup(baseKey) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
+	setRsaKeys(rsaAdmin, lenRsaAdmin, rsaUsers, lenRsaUsers);
 
 	sodium_memzero(baseKey, AEM_KDF_KEYSIZE);
 	sodium_memzero(&bundle, sizeof(bundle));

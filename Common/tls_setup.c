@@ -10,7 +10,7 @@
 #include "../Common/memeq.h"
 #include "../Common/x509_getCn.h"
 
-#ifdef AEM_MTA
+#if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
 static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
 static size_t lenOurDomain;
 #endif
@@ -23,14 +23,14 @@ static mbedtls_ssl_config conf;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 
-#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_ENQUIRY)
 static mbedtls_x509_crt cacert;
 #endif
 
 #include "../Common/tls_suites.h"
 #ifdef AEM_MTA
 static const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_MTA};
-#elif defined(AEM_API_SMTP)
+#elif defined(AEM_API_SENDMAIL)
 static const int tls_ciphersuites[] = {AEM_TLS_CIPHERSUITES_OUT};
 static const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_OUT};
 static const int tls_hashes[] = {AEM_TLS_HASHES_OUT};
@@ -40,13 +40,13 @@ static const mbedtls_ecp_group_id tls_curves[] = {AEM_TLS_CURVES_HIGH};
 static const int tls_hashes[] = {AEM_TLS_HASHES_HIGH};
 #endif
 
-#if defined(AEM_MTA) || defined(AEM_API_SMTP)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
 #define AEM_TLS_MINOR MBEDTLS_SSL_MINOR_VERSION_1 // TLS v1.0+
 #else
 #define AEM_TLS_MINOR MBEDTLS_SSL_MINOR_VERSION_3 // TLS v1.2+
 #endif
 
-#if defined(AEM_MTA) || defined(AEM_API_SMTP)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
 __attribute__((warn_unused_result))
 static uint8_t getTlsVersion(const mbedtls_ssl_context * const tls) {
 	if (tls == NULL) return 0;
@@ -68,15 +68,21 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 }
 #endif
 
-#ifdef AEM_API_SMTP
-int tlsSetup_sendmail(void) {
+#ifdef AEM_API_SENDMAIL
+void getOurDomain(unsigned char * const out) {
+	memcpy(out, ourDomain, lenOurDomain);
+}
+#endif
+
+#ifdef AEM_API_SENDMAIL
+int tlsSetup_sendmail(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
 #elifdef AEM_MTA
 int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
 #else
 int tlsSetup(void) {
 #endif
 
-#ifdef AEM_MTA
+#if defined(AEM_API) || defined(AEM_MTA)
 	size_t lenIssuer;
 	const unsigned char * const issuer = x509_getCn(tls_crt_data, tls_crt_size, &lenIssuer);
 	if (issuer == NULL) return -1;
@@ -102,7 +108,7 @@ int tlsSetup(void) {
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 
-#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_ENQUIRY)
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
 #else
 	ret = mbedtls_ssl_config_defaults(&conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
@@ -122,7 +128,7 @@ int tlsSetup(void) {
 	mbedtls_ssl_conf_sni(&conf, sni, NULL);
 #endif
 
-#if defined(AEM_API_SMTP) || defined(AEM_ENQUIRY)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_ENQUIRY)
 	mbedtls_x509_crt_init(&cacert);
 	ret = mbedtls_x509_crt_parse_path(&cacert, "/ssl-certs/");
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse_path failed: %x", -ret); return -1;}
@@ -148,7 +154,7 @@ int tlsSetup(void) {
 	return 0;
 }
 
-#ifdef AEM_API_SMTP
+#ifdef AEM_API_SENDMAIL
 void tlsFree_sendmail(void) {
 #else
 void tlsFree(void) {
