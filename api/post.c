@@ -1,23 +1,18 @@
-#include <stdint.h>
 #include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-#include <sys/param.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <syslog.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/Message.h"
 #include "../Common/Addr32.h"
+#include "../Common/Message.h"
+#include "../Common/ValidUtf8.h"
 #include "../Common/api_req.h"
 #include "../Common/memeq.h"
-#include "../Common/ValidUtf8.h"
 #include "../IntCom/Client.h"
 
 #include "Error.h"
@@ -25,8 +20,6 @@
 #include "SendMail.h"
 
 #include "post.h"
-
-//#include "../Common/Message.c"
 
 static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
 	unsigned char stoParam[19];
