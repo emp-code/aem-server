@@ -96,6 +96,7 @@ The `utils` folder contains:
 * `Creator`: Generates a new Server Master Key (SMK) and the `allears` folder, to be placed in `/var/lib/` on a server
 * `DataCrypt`: Encrypts additional files for Manager
 * `ManagerClient`: Connects to AEM-Manager to get information about processes, and start or stop them
+* `WebMaker`: Creates and encrypts the response for the AEM-Web process
 
 - - - -
 

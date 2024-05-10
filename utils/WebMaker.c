@@ -6,90 +6,47 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <brotli/encode.h>
 #include <sodium.h>
-#include <zopfli/zopfli.h>
+#include <zopfli.h>
 
 #include "../Global.h"
-#include "../Common/Brotli.h"
 #include "../Common/GetKey.h"
-#include "../Common/PrintDef.c"
 
-#include "domain.h"
-
-// Remove email domain placeholder (clearnet)
-static int html_remEmail(char * const src, size_t * const lenSrc) {
-	char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
-	if (placeholder == NULL) {fputs("Email domain placeholder not found", stderr); return -1;}
-	memmove(placeholder, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
-	*lenSrc -= 32;
-
-	return 0;
-}
-
-// Add email domain (onion service)
-static int html_addEmail(char * const src, size_t * const lenSrc) {
-	char * const placeholder = memmem(src, *lenSrc, "AEM placeholder for email domain", 32);
-	if (placeholder == NULL) {fputs("Email domain placeholder not found", stderr); return -1;}
-	memcpy(placeholder, AEM_DOMAIN, AEM_DOMAIN_LEN);
-	memmove(placeholder + AEM_DOMAIN_LEN, placeholder + 32, (src + *lenSrc) - (placeholder + 32));
-	*lenSrc -= (32 - AEM_DOMAIN_LEN);
-
-	return 0;
-}
-
-static unsigned char *genHtml(const char * const src_original, const size_t lenSrc_original, size_t * const lenResult, const bool onion) {
-	size_t lenSrc = lenSrc_original;
-	char * const src = malloc(lenSrc);
-	if (src == NULL) return NULL;
-	memcpy(src, src_original, lenSrc);
-
-	if (onion) html_addEmail(src, &lenSrc); else html_remEmail(src, &lenSrc);
-
-	unsigned char *data;
-	size_t lenData;
+static unsigned char *genWeb(const unsigned char * const src, const size_t lenSrc, size_t * const lenResult, const bool onion) {
+	unsigned char *comp;
+	size_t lenComp;
 
 	// Compression
-	if (onion) { // Zopfli (deflate)
+	if (onion) { // Zopfli (Deflate)
 		ZopfliOptions zopOpt;
 		ZopfliInitOptions(&zopOpt);
 
-		lenData = 0;
-		data = 0;
+		lenComp = 0;
+		comp = 0;
 
-		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, (unsigned char*)src, lenSrc, &data, &lenData);
-		if (data == 0 || lenData < 1) {
-			free(src);
+		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, (const unsigned char*)src, lenSrc, &comp, &lenComp);
+		if (comp == 0 || lenComp < 1) {
 			fputs("Failed zopfli compression", stderr);
 			return NULL;
 		}
 	} else { // Brotli (HTTPS only)
-		data = malloc(lenSrc);
-		if (data == NULL) {
-			free(src);
-			fputs("Failed allocation", stderr);
+		comp = malloc(lenSrc);
+		if (comp == NULL) {
+			fputs("Failed malloc", stderr);
 			return NULL;
 		}
 
-		memcpy(data, src, lenSrc);
-		lenData = lenSrc;
-
-		if (brotliCompress(&data, &lenData) != 0) {
-			free(data);
-			free(src);
-			fputs("Failed brotli compression", stderr);
+		lenComp = lenSrc;
+		if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenSrc, src, &lenComp, comp) == BROTLI_FALSE) {
+			fputs("Failed Brotli compression", stderr);
+			free(comp);
 			return NULL;
 		}
 	}
-	free(src);
 
-	unsigned char bodyHash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(bodyHash, (unsigned char*)data, lenData) != 0) {fputs("Hash failed", stderr); return NULL;}
-
-	char bodyHashB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
-	sodium_bin2base64(bodyHashB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), bodyHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
-
-	const char * const conn = onion? "://"AEM_ONIONID".onion" : "s://"AEM_DOMAIN;
-	const char * const onionLoc = onion? "" : "Onion-Location: http://"AEM_ONIONID".onion\r\n";
+	const char * const conn = onion? "://[Placeholder for the 56 characters of the Onion domain.].onion" : "s://[Placeholder for the API Domain]";
+	const char * const onionLoc = "";//onion? "" : "Onion-Location: http://[Placeholder for the 56 characters of the Onion domain.].onion\r\n";
 	const char * const tlsHeaders = onion? "" : "Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
 
 	// Headers
@@ -103,20 +60,18 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		"Content-Encoding: %s\r\n"
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
-		"Link: <https://"AEM_DOMAIN">; rel=\"canonical\"\r\n"
 		"%s"
 		"Server: All-Ears Mail\r\n"
-		"Tk: N\r\n"
 
 		// CSP
 		"Content-Security-Policy: "
-			"connect-src"     " http%s:302/api data:;"
+			"connect-src"     " http%s:302 data:;"
 			"frame-src"       " blob:;"
 			"img-src"         " blob: data:;"
 			"media-src"       " blob:;"
 			"object-src"      " blob:;"
 			"script-src"      " 'wasm-unsafe-eval';"
-			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.10/dist/browsers/sodium.js;"
+			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.13/dist/browsers-sumo/sodium.js;"
 			"style-src-attr"  " 'unsafe-inline';" // For displaying PDF files
 			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // inline for displaying HTML files
 
@@ -236,7 +191,6 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		"Cross-Origin-Embedder-Policy: require-corp\r\n"
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
 		"Cross-Origin-Resource-Policy: same-origin\r\n"
-		"Digest: sha-256=%s\r\n"
 		"Referrer-Policy: no-referrer\r\n"
 		"X-Content-Type-Options: nosniff\r\n"
 		"X-DNS-Prefetch-Control: off\r\n"
@@ -244,85 +198,89 @@ static unsigned char *genHtml(const char * const src_original, const size_t lenS
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
 	, onion? "deflate" : "br", // Content-Encoding
-	lenData, // Content-Length
+	lenComp, // Content-Length
 	onionLoc,
 	conn, // CSP connect
-	tlsHeaders,
-	bodyHashB64); // Digest
+	tlsHeaders
+	);
 
 	const size_t lenHeaders = strlen(headers);
 
-	*lenResult = lenHeaders + lenData;
-	unsigned char *result = malloc(*lenResult);
-	if (result == NULL) {free(data); return NULL;}
+	*lenResult = lenHeaders + lenComp;
+	unsigned char * const result = malloc(*lenResult);
+	if (result == NULL) {free(comp); return NULL;}
 	memcpy(result, headers, lenHeaders);
-	memcpy(result + lenHeaders, data, lenData);
-	free(data);
+	memcpy(result + lenHeaders, comp, lenComp);
+	free(comp);
 
 	return result;
 }
 
-static void printSts(void) {
-	unsigned char tmp[512];
-	sprintf((char*)tmp,
-		"HTTP/1.1 200 aem\r\n"
-		"Cache-Control: public, max-age=9999999, immutable\r\n"
-		"Connection: close\r\n"
-		"Content-Length: %d\r\n"
-		"Content-Type: text/plain; charset=utf-8\r\n"
-		"Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n"
-		"Tk: N\r\n"
-		"X-Content-Type-Options: nosniff\r\n"
-		"X-Robots-Tag: noindex\r\n"
-		"\r\n"
-		"version: STSv1\n"
-		"mode: enforce\n"
-		"mx: "AEM_DOMAIN"\n"
-		"max_age: 31557600"
-	, 51 + AEM_DOMAIN_LEN);
+static void writeWeb(const unsigned char * const src, const size_t lenSrc, const unsigned char launchKey[crypto_aead_aegis256_KEYBYTES], const bool onion) {
+	size_t lenDec;
+	unsigned char * const dec = genWeb(src, lenSrc, &lenDec, onion);
+	if (dec == NULL) return;
 
-	const size_t len = strlen((char*)tmp);
-	printf("#define AEM_MTASTS_SIZE %zu\n", len);
-	printDef("AEM_MTASTS_DATA", tmp, len);
-	puts("");
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	unsigned char enc[lenEnc];
+	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
+	if (crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, launchKey) != 0) {
+		fputs("Failed encrypting", stderr);
+		free(dec);
+		return;
+	}
+	free(dec);
+
+	const int fd = open("/var/lib/allears/Data/web-clr", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR);
+	if (fd < 0) {
+		fprintf(stderr, "Failed opening file: %m\n");
+		close(fd);
+		return;
+	}
+
+	if (write(fd, enc, lenEnc) != (ssize_t)lenEnc) {
+		fprintf(stderr, "Failed writing file: %m\n");
+		close(fd);
+		return;
+	}
+
+	close(fd);
+	puts("Created /var/lib/allears/Data/web-clr");
+	return;
+}
+
+static int getLaunchKey(unsigned char launchKey[crypto_aead_aegis256_KEYBYTES]) {
+	unsigned char smk[AEM_KDF_KEYSIZE];
+	if (getKey(smk) != 0) {puts("Failed reading key"); return -1;}
+	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
+	sodium_memzero(smk, crypto_kdf_KEYBYTES);
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
 	if (argc != 2) {fprintf(stderr, "Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
-	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
+	if (sodium_init() != 0) {fputs("Failed sodium_init()", stderr); return EXIT_FAILURE;}
 
-	puts("#ifndef AEM_DATA_HTML_H");
-	puts("#define AEM_DATA_HTML_H");
-	puts("");
-
-	printSts();
+	unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
+	if (getLaunchKey(launchKey) != 0) return EXIT_FAILURE;
 
 	const int fd = open(argv[1], O_RDONLY);
-	if (fd < 0) return EXIT_FAILURE;
-	const off_t lenHtml = lseek(fd, 0, SEEK_END);
-	if (lenHtml < 1) return EXIT_FAILURE;
-	char html[lenHtml];
-	const ssize_t rd = pread(fd, html, lenHtml, 0);
+	if (fd < 0) {fprintf(stderr, "Failed opening file: %m\n"); return EXIT_FAILURE;}
+
+	const off_t lenSrc = lseek(fd, 0, SEEK_END);
+	if (lenSrc < 1) {fputs("Input file is empty", stderr); return EXIT_FAILURE;}
+	if (lenSrc > 99999) {fputs("Input file too large", stderr); return EXIT_FAILURE;}
+
+	unsigned char src[lenSrc];
+	if (pread(fd, src, lenSrc, 0) != (ssize_t)lenSrc) {
+		fprintf(stderr, "Failed reading file: %m\n");
+		close(fd);
+		return EXIT_FAILURE;
+	}
 	close(fd);
-	if (rd != lenHtml) return EXIT_FAILURE;
 
-	size_t html_clr_size;
-	unsigned char * const html_clr_data = genHtml(html, lenHtml, &html_clr_size, false);
-	if (html_clr_data == NULL) return EXIT_FAILURE;
-	printf("#define AEM_HTML_CLR_SIZE %zu\n", html_clr_size);
-	printDef("AEM_HTML_CLR_DATA", html_clr_data, html_clr_size);
-	puts("");
-	free(html_clr_data);
-
-	size_t html_oni_size;
-	unsigned char * const html_oni_data = genHtml(html, lenHtml, &html_oni_size, true);
-	if (html_oni_data == NULL) return EXIT_FAILURE;
-	printf("#define AEM_HTML_ONI_SIZE %zu\n", html_oni_size);
-	printDef("AEM_HTML_ONI_DATA", html_oni_data, html_oni_size);
-	puts("");
-	free(html_oni_data);
-
-	puts("#endif");
+	writeWeb(src, lenSrc, launchKey, false); // Clear
+//	writeWeb(src, lenSrc, launchKey, true); // Onion
 
 	return EXIT_SUCCESS;
 }

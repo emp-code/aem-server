@@ -27,6 +27,7 @@
 #include "../Common/CreateSocket.h"
 #include "../Common/GetKey.h"
 #include "../Common/ValidFd.h"
+#include "../Common/x509_getCn.h"
 #include "../IntCom/KeyBundle.h"
 
 #include "mount.h"
@@ -183,10 +184,47 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 	return 0;
 }
 
-static int pipeFile(const char * const path) {
+static int getOurDomain(unsigned char * const out, size_t * const lenOut) {
+	size_t lenCrt;
+	unsigned char crt[AEM_MAXLEN_DATAFILE];
+	if (readDataFile(crt, &lenCrt, AEM_PATH_DATA"/TLS_crt.der.enc") != 0) return -1;
+
+	size_t lenIssuer;
+	const unsigned char * const issuer = x509_getCn(crt, lenCrt, &lenIssuer);
+	if (issuer == NULL) return -1;
+
+	size_t lenSubject;
+	const unsigned char * const subject = x509_getCn(issuer, crt + lenCrt - issuer, &lenSubject);
+	if (subject == NULL || lenSubject > AEM_MAXLEN_OURDOMAIN) return -1;
+
+	*lenOut = lenSubject;
+	memcpy(out, subject, lenSubject);
+	return 0;
+}
+
+static int domainPlaceholder(unsigned char * const src, size_t * const lenSrc) {
+	unsigned char domain[AEM_MAXLEN_OURDOMAIN];
+	size_t lenDomain;
+	if (getOurDomain(domain, &lenDomain) != 0) return -1;
+
+	for(;;) {
+		unsigned char *c = memmem(src, *lenSrc, "[Placeholder for the API Domain]", 32);
+		if (c == NULL) break;
+		memcpy(c, domain, lenDomain);
+		if (lenDomain < 32) {
+			memmove(c + lenDomain, c + 32, (src + *lenSrc) - (c + lenDomain));
+			*lenSrc -= 32 - lenDomain;
+		}
+	}
+
+	return 0;
+}
+
+static int pipeFile(const char * const path, const bool placeholders) {
 	size_t lenData;
 	unsigned char data[AEM_MAXLEN_DATAFILE];
 	if (readDataFile(data, &lenData, path) != 0) return -1;
+	if (placeholders && domainPlaceholder(data, &lenData) != 0) return -1;
 
 	if (write(AEM_FD_PIPE_WR, (const unsigned char*)&lenData, sizeof(size_t)) != sizeof(size_t)) {
 		syslog(LOG_ERR, "pipeFile: Failed writing size");
@@ -473,11 +511,15 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 	}
 
 	if (!fail && type == AEM_PROCESSTYPE_ACCOUNT) {
-		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc") != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc") != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", false) != 0);
 	}
 
 	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA)) {
-		fail = (pipeFile(AEM_PATH_DATA"/TLS_crt.der.enc") != 0 || pipeFile(AEM_PATH_DATA"/TLS_key.der.enc") != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/TLS_crt.der.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS_key.der.enc", false) != 0);
+	}
+
+	if (!fail && type == AEM_PROCESSTYPE_WEB) {
+		fail = (pipeFile(AEM_PATH_DATA"/web-clr", true) != 0);
 	}
 
 	close(AEM_FD_PIPE_WR);
