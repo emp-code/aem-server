@@ -456,7 +456,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 
 		const bool fromShield = ((a32[0] & 128) != 0);
 		const uint64_t fromHash = addressToHash(a32, fromShield);
-		if (api_uid != hashToUid(fromHash, fromShield, NULL)) {return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);syslog(LOG_INFO, "%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x%.2x", a32[0], a32[1], a32[2], a32[3], a32[4], a32[5], a32[6], a32[7], a32[8], a32[9]);}
+		if (api_uid != hashToUid(fromHash, fromShield, NULL)) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 
 		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
 		if (users[api_uid].level == AEM_USERLEVEL_MAX) {

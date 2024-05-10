@@ -162,9 +162,9 @@ static unsigned char send_email(const uint16_t uid, const unsigned char * const 
 
 	// Domain
 	const char * const emailDomain = strchr(email.addrTo + 1, '@');
-	if (emailDomain == NULL || strlen(emailDomain) < 5) {
+	if (emailDomain == NULL || strlen(emailDomain) < 5) { // 5=@a.bc
 		free(email.body);
-		return AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO; // 5=@a.bc
+		return AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO;
 	}
 
 	unsigned char *mx = NULL;
