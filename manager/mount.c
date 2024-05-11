@@ -32,7 +32,7 @@ static gid_t getAemGroup(void) {
 	return (p == NULL) ? 0 : p->pw_gid;
 }
 
-static int bindMount(const char * const source, const char * const target, const int flags) {
+static int bindMount(const char * const source, const char * const target, const unsigned long flags) {
 	if (flags & AEM_MOUNT_ISFILE) {
 		if (mknod(target, S_IFREG, 0) != 0) return -1;
 	} else {
