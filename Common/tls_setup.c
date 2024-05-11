@@ -69,12 +69,6 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 #endif
 
 #ifdef AEM_API_SENDMAIL
-void getOurDomain(unsigned char * const out) {
-	memcpy(out, ourDomain, lenOurDomain);
-}
-#endif
-
-#ifdef AEM_API_SENDMAIL
 int tlsSetup_sendmail(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
 #elifdef AEM_MTA
 int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
