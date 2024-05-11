@@ -7,6 +7,7 @@
 #include "MessageId.h"
 #include "Request.h"
 #include "SendMail.h"
+#include "post.h"
 
 #define AEM_LOGNAME "AEM-API"
 
@@ -44,6 +45,7 @@ static int pipeRead(void) {
 	sodium_memzero(&bundle, sizeof(bundle));
 
 	tlsSetup_sendmail(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey);
+	setOurDomain(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
 	return 0;

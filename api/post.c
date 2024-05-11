@@ -13,6 +13,7 @@
 #include "../Common/ValidUtf8.h"
 #include "../Common/api_req.h"
 #include "../Common/memeq.h"
+#include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
 
 #include "Error.h"
@@ -20,6 +21,22 @@
 #include "SendMail.h"
 
 #include "post.h"
+
+static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
+
+void setOurDomain(const unsigned char * const crt, const size_t lenCrt) {
+	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN);
+
+	size_t lenIssuer;
+	const unsigned char * const issuer = x509_getCn(crt, lenCrt, &lenIssuer);
+	if (issuer == NULL) return;
+
+	size_t lenSubject;
+	const unsigned char * const subject = x509_getCn(issuer, crt + lenCrt - issuer, &lenSubject);
+	if (subject == NULL || lenSubject > AEM_MAXLEN_OURDOMAIN) return;
+
+	memcpy(ourDomain, subject, lenSubject);
+}
 
 static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
 	unsigned char stoParam[19];
@@ -42,7 +59,7 @@ static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_A
 	size_t lenResponse = stoRet;
 
 	if (lenAccData > 0) {
-		lenResponse += lenAccData;
+		lenResponse += lenAccData + AEM_MAXLEN_OURDOMAIN;
 		response = malloc(lenResponse);
 		if (response == NULL) {
 			syslog(LOG_INFO, "Failed allocation");
@@ -52,7 +69,8 @@ static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_A
 		}
 
 		memcpy(response, accData, lenAccData);
-		memcpy(response + lenAccData, stoData, stoRet);
+		memcpy(response + lenAccData, ourDomain, AEM_MAXLEN_OURDOMAIN);
+		memcpy(response + lenAccData + AEM_MAXLEN_OURDOMAIN, stoData, stoRet);
 		free(stoData);
 	} else {
 		response = stoData;
