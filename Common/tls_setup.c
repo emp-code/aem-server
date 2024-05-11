@@ -76,7 +76,7 @@ int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size
 int tlsSetup(void) {
 #endif
 
-#if defined(AEM_API) || defined(AEM_MTA)
+#if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
 	size_t lenIssuer;
 	const unsigned char * const issuer = x509_getCn(tls_crt_data, tls_crt_size, &lenIssuer);
 	if (issuer == NULL) return -1;
