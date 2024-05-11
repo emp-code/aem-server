@@ -70,10 +70,8 @@ static int sni(void * const empty, mbedtls_ssl_context * const ssl2, const unsig
 
 #ifdef AEM_API_SENDMAIL
 int tlsSetup_sendmail(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
-#elifdef AEM_MTA
-int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
 #else
-int tlsSetup(void) {
+int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size) {
 #endif
 
 #if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
