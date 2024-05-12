@@ -220,7 +220,7 @@ int32_t api_account_browse(unsigned char * const res) {
 	memcpy(res, (unsigned char*)limits, 12);
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
-		const uint32_t kib = (sodium_is_zero(users[i].uak, AEM_KDF_KEYSIZE) == 1) ? 0 : 1234567; // TODO
+		const uint32_t kib = sodium_is_zero(users[i].uak, AEM_KDF_KEYSIZE) ? 0 : 1234567; // TODO
 
 		const uint32_t u32 = users[i].level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
 		memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
@@ -234,7 +234,7 @@ int32_t api_account_delete(unsigned char * const res, const unsigned char reqDat
 	if (del_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (del_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
 	if (users[api_uid].level != AEM_USERLEVEL_MAX && api_uid != del_uid) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[del_uid].uak, AEM_KDF_KEYSIZE) == 1) {return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);}
+	if (sodium_is_zero(users[del_uid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	sodium_memzero(users + del_uid, sizeof(struct aem_user));
 	saveUser();
@@ -249,7 +249,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	if (upd_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (upd_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
 	if (users[api_uid].level != AEM_USERLEVEL_MAX && (api_uid != upd_uid || new_lvl > users[api_uid].level)) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[upd_uid].uak, AEM_KDF_KEYSIZE) == 1) {return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);}
+	if (sodium_is_zero(users[upd_uid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	users[upd_uid].level = new_lvl;
 	saveUser();
@@ -257,7 +257,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 }
 
 int32_t api_address_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
-	const bool isShield = (sodium_is_zero(reqData, 8) == 1);
+	const bool isShield = sodium_is_zero(reqData, 8);
 	if (users[api_uid].addrCount >= AEM_ADDRESSES_PER_USER) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 	unsigned char addr32[10];
@@ -404,17 +404,16 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
 	if (lenData != AEM_KDF_KEYSIZE + X25519_PKBYTES) return api_response_status(res, AEM_API_ERR_PARAM);
 	const uint16_t newUid = aem_getUserId(data);
-	if (sodium_is_zero(users[newUid].uak, AEM_KDF_KEYSIZE) != 1) {return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);}
+	if (!sodium_is_zero(users[newUid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
 
 	memcpy(users[newUid].uak, data, AEM_KDF_KEYSIZE);
 	memcpy(users[newUid].epk, data + AEM_KDF_KEYSIZE, X25519_PKBYTES);
+	saveUser();
 
 	unsigned char icMsg[sizeof(uint16_t) + X25519_PKBYTES];
 	memcpy(icMsg, (const unsigned char * const)&newUid, sizeof(uint16_t));
 	memcpy(icMsg + sizeof(uint16_t), data + AEM_KDF_KEYSIZE, X25519_PKBYTES);
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_CREATE, icMsg, sizeof(uint16_t) + X25519_PKBYTES, NULL, 0);
-
-	saveUser();
 	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL);
 }
 
