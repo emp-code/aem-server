@@ -82,7 +82,6 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 			"form-action"     " 'none';"
 			"frame-ancestors" " 'none';"
 			"manifest-src"    " 'none';"
-			"prefetch-src"    " 'none';"
 			"script-src-attr" " 'none';"
 			"worker-src"      " 'none';"
 		"\r\n"
