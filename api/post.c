@@ -26,16 +26,8 @@ static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
 
 void setOurDomain(const unsigned char * const crt, const size_t lenCrt) {
 	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN);
-
-	size_t lenIssuer;
-	const unsigned char * const issuer = x509_getCn(crt, lenCrt, &lenIssuer);
-	if (issuer == NULL) return;
-
-	size_t lenSubject;
-	const unsigned char * const subject = x509_getCn(issuer, crt + lenCrt - issuer, &lenSubject);
-	if (subject == NULL || lenSubject > AEM_MAXLEN_OURDOMAIN) return;
-
-	memcpy(ourDomain, subject, lenSubject);
+	size_t lenOurDomain;
+	x509_getSubject(ourDomain, &lenOurDomain, crt, lenCrt);
 }
 
 static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {

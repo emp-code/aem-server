@@ -1,8 +1,13 @@
 #include <string.h>
 
+#include "../Global.h"
+#include "memeq.h"
+
+#include <sodium.h>
+
 #include "x509_getCn.h"
 
-const unsigned char *x509_getCn(const unsigned char * const der, const size_t lenDer, size_t * const lenCn) {
+static const unsigned char *x509_getCn(const unsigned char * const der, const size_t lenDer, size_t * const lenCn) {
 	size_t offset = 0;
 
 	for(;;) {
@@ -36,4 +41,26 @@ const unsigned char *x509_getCn(const unsigned char * const der, const size_t le
 	}
 
 	return NULL;
+}
+
+int x509_getSubject(unsigned char * const out, size_t * const lenOut, const unsigned char * const pem, size_t lenPem) {
+	if (lenPem < 100 || !memeq(pem, "-----BEGIN CERTIFICATE-----\n", 28)) return -1;
+	const unsigned char * const pemEnd = memmem(pem + 28, lenPem - 28, "\n-----END CERTIFICATE-----", 26);
+	if (pemEnd == NULL) return -2;
+
+	lenPem = pemEnd - (pem + 28);
+	unsigned char der[lenPem];
+	size_t lenDer = 0;
+	if (sodium_base642bin(der, lenPem, (const char*)pem + 28, lenPem, "\n", &lenDer, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) return -3;
+	if (lenDer < 99) return -4;
+
+	size_t lenIssuer;
+	const unsigned char * const issuer = x509_getCn(der, lenDer, &lenIssuer);
+	if (issuer == NULL) return -5;
+
+	const unsigned char * const subject = x509_getCn(issuer, der + lenDer - issuer, lenOut);
+	if (subject == NULL || *lenOut > AEM_MAXLEN_OURDOMAIN) return -6;
+
+	memcpy(out, subject, *lenOut);
+	return 0;
 }

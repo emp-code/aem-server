@@ -44,8 +44,13 @@ static int pipeRead(void) {
 	intcom_setKeys_client(bundle.client);
 	sodium_memzero(&bundle, sizeof(bundle));
 
+	tlsCrt[lenTlsCrt] = '\0';
+	tlsKey[lenTlsKey] = '\0';
+	lenTlsCrt++;
+	lenTlsKey++;
 	tlsSetup_sendmail(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey);
 	setOurDomain(tlsCrt, lenTlsCrt);
+
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
 	return 0;

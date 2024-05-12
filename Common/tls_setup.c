@@ -75,20 +75,11 @@ int tlsSetup(const unsigned char * const tls_crt_data, const size_t tls_crt_size
 #endif
 
 #if defined(AEM_API_SENDMAIL) || defined(AEM_MTA)
-	size_t lenIssuer;
-	const unsigned char * const issuer = x509_getCn(tls_crt_data, tls_crt_size, &lenIssuer);
-	if (issuer == NULL) return -1;
-
-	size_t lenSubject;
-	const unsigned char * const subject = x509_getCn(issuer, tls_crt_data + tls_crt_size - issuer, &lenSubject);
-	if (subject == NULL || lenSubject > AEM_MAXLEN_OURDOMAIN) return -1;
-
-	lenOurDomain = lenSubject;
-	memcpy(ourDomain, subject, lenSubject);
+	if (x509_getSubject(ourDomain, &lenOurDomain, tls_crt_data, tls_crt_size) != 0) return -1;
 #endif
 
 	mbedtls_x509_crt_init(&tlsCrt);
-	int ret = mbedtls_x509_crt_parse_der(&tlsCrt, tls_crt_data, tls_crt_size);
+	int ret = mbedtls_x509_crt_parse(&tlsCrt, tls_crt_data, tls_crt_size);
 	if (ret != 0) {syslog(LOG_ERR, "mbedtls_x509_crt_parse failed: %x", -ret); return -1;}
 
 	mbedtls_pk_init(&tlsKey);

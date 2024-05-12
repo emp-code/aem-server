@@ -175,7 +175,7 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 	}
 	close(fd);
 
-	*lenDec = lenEnc - crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	*lenDec = lenEnc - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES;
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, launchKey) == -1) {
 		syslog(LOG_ERR, "Failed decrypting %s (size %d)", path, lenEnc);
 		return -1;
@@ -185,21 +185,10 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 }
 
 static int getOurDomain(unsigned char * const out, size_t * const lenOut) {
-	size_t lenCrt;
-	unsigned char crt[AEM_MAXLEN_DATAFILE];
-	if (readDataFile(crt, &lenCrt, AEM_PATH_DATA"/TLS_crt.der.enc") != 0) return -1;
-
-	size_t lenIssuer;
-	const unsigned char * const issuer = x509_getCn(crt, lenCrt, &lenIssuer);
-	if (issuer == NULL) return -1;
-
-	size_t lenSubject;
-	const unsigned char * const subject = x509_getCn(issuer, crt + lenCrt - issuer, &lenSubject);
-	if (subject == NULL || lenSubject > AEM_MAXLEN_OURDOMAIN) return -1;
-
-	*lenOut = lenSubject;
-	memcpy(out, subject, lenSubject);
-	return 0;
+	size_t lenPem;
+	unsigned char pem[AEM_MAXLEN_DATAFILE];
+	if (readDataFile(pem, &lenPem, AEM_PATH_DATA"/TLS.crt.enc") != 0) return -1;
+	return x509_getSubject(out, lenOut, pem, lenPem);
 }
 
 static int domainPlaceholder(unsigned char * const src, size_t * const lenSrc) {
@@ -515,7 +504,7 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 	}
 
 	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA)) {
-		fail = (pipeFile(AEM_PATH_DATA"/TLS_crt.der.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS_key.der.enc", false) != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", false) != 0);
 	}
 
 	if (!fail && type == AEM_PROCESSTYPE_WEB) {

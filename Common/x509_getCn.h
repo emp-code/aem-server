@@ -3,6 +3,6 @@
 
 #include <stddef.h>
 
-const unsigned char *x509_getCn(const unsigned char * const der, const size_t lenDer, size_t * const lenCn);
+int x509_getSubject(unsigned char * const out, size_t * const lenOut, const unsigned char * const pem, size_t lenPem);
 
 #endif
