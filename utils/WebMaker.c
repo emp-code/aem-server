@@ -181,7 +181,7 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 			"trust-token-redemption"          "=(),"
 			"usb"                             "=(),"
 			"web-share"                       "=(),"
-			"window-placement"                "=(),"
+			"window-management"               "=(),"
 			"xr-spatial-tracking"             "=()"
 		"\r\n"
 
