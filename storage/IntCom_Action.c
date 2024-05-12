@@ -31,6 +31,7 @@ int32_t conn_api(const uint32_t operation, unsigned char * const msg, const size
 }
 
 int32_t conn_dlv(const uint32_t operation, unsigned char * const msg, const size_t lenMsg) {
+	if (operation == UINT16_MAX) return AEM_INTCOM_RESPONSE_OK; // Address doesn't exist or user doesn't want email: fake OK
 	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation);
 
 	syslog(LOG_ERR, "conn_dlv(): Invalid op: %u", operation);

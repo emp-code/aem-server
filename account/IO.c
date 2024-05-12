@@ -522,7 +522,7 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 
 	unsigned char flags = 0;
 	const uint16_t uid = hashToUid(hash, isShield, &flags);
-	if (uid == UINT16_MAX) {
+	if (uid == UINT16_MAX || (flags & AEM_ADDR_FLAG_ACCEXT) == 0) {
 		if (isShield) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
 		// Normal addresses always act as if they exist
@@ -535,7 +535,7 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 	*res = malloc(3);
 	if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
 	memcpy(*res, (const unsigned char * const)&uid, sizeof(uint16_t));
-	(*res)[sizeof(uint16_t)] = flags & (AEM_ADDR_FLAG_ACCEXT | AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
+	(*res)[sizeof(uint16_t)] = flags & (AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
 
 	return 3;
 }
