@@ -21,7 +21,10 @@ void removeControlChars(unsigned char * const c, size_t * const len) {
 }
 
 size_t charInvisible(const unsigned char * const c, const int len) {
-	if (len > 1 && c[0] == 0xCD && c[1] == 0x8F) return 2; // CGJ
+	if (len > 1 && (
+	   (c[0] == 0xCD && c[1] == 0x8F) // CGJ
+	|| (c[0] == 0xC2 && c[1] == 0xAD) // Hyphen
+	)) return 2;
 
 	if (len > 2 && (
 	   (c[0] == 0xE2 && c[1] == 0x80 && (c[2] >= 0x8B && c[2] <= 0x8D)) // ZWSP/ZWNJ/ZWJ
