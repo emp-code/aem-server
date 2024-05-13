@@ -7,7 +7,7 @@
 	) {syslog(LOG_ERR, "Terminating: Failed unmount: %m"); return EXIT_FAILURE;}
 
 	setlocale(LC_ALL, "C");
-	openlog(AEM_LOGNAME, LOG_PID, LOG_MAIL);
+	openlog(AEM_LOGNAME, LOG_PID | LOG_NDELAY, LOG_MAIL);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
 	if (getuid() == 0 || getgid() == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}

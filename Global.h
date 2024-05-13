@@ -11,14 +11,13 @@
 #define X25519_PKBYTES crypto_scalarmult_BYTES
 #define X25519_SKBYTES crypto_scalarmult_SCALARBYTES
 
-#define AEM_FD_BINARY 0
-#define AEM_FD_PIPE_RD 1
-#define AEM_FD_PIPE_WR 2
-#define AEM_FD_ROOT 2
-
-#define AEM_FD_SOCK_MAIN 0
-// syslog 1
+#define AEM_FD_SYSLOG 0
+#define AEM_FD_SOCK_MAIN 1
 #define AEM_FD_SOCK_CLIENT 2
+
+#define AEM_FD_PIPE_RD 2
+#define AEM_FD_PIPE_WR 3
+#define AEM_FD_ROOT AEM_FD_PIPE_WR
 
 #define AEM_APIREQ_CONTAINER_RAW_LEN 75
 #define AEM_APIREQ_CONTAINER_MAIN_LEN 23

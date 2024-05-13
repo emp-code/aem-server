@@ -4,7 +4,7 @@ CFLAGS=-O2 -march=native -pipe -std=gnu2x -Wall -Wextra -Wpedantic -Wno-comment 
 all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager -Wno-analyzer-fd-use-after-close -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/Addr32.c Common/AEM_KDF.c Common/SetCaps.c Common/memeq.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lm

@@ -34,8 +34,8 @@
 
 #include "manager.h"
 
-#define AEM_FD_SERVER 0
-#define AEM_FD_CLIENT 1
+#define AEM_FD_EXEC     AEM_FD_SOCK_MAIN // 1
+#define AEM_FD_READFILE AEM_FD_PIPE_WR   // 3
 
 enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_NULL,
@@ -107,19 +107,19 @@ void sigTerm(const int s) {
 }
 
 static int loadExec(const int type) {
-	if (memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING) != AEM_FD_BINARY) {
+	if (memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING) != AEM_FD_EXEC) {
 		syslog(LOG_ERR, "Failed memfd_create: %m");
 		return -1;
 	}
 
 	const char * const path[] = AEM_PATH_EXE;
 	const int fd = open(path[type], O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); close(AEM_FD_BINARY); return -1;}
+	if (fd != AEM_FD_READFILE || !validFd(fd)) {syslog(LOG_ERR, "Failed opening file: %s", path[type]); close(AEM_FD_EXEC); return -1;}
 
 	const off_t bytes = lseek(fd, 0, SEEK_END);
 	if (bytes < 1 || bytes > AEM_MAXLEN_EXEC) {
 		syslog(LOG_ERR, "Invalid length on %s", path[type]);
-		close(AEM_FD_BINARY);
+		close(AEM_FD_EXEC);
 		close(fd);
 		return -1;
 	}
@@ -127,7 +127,7 @@ static int loadExec(const int type) {
 	unsigned char enc[bytes];
 	if (pread(fd, enc, bytes, 0) != bytes) {
 		syslog(LOG_ERR, "Failed reading %s: %m", path[type]);
-		close(AEM_FD_BINARY);
+		close(AEM_FD_EXEC);
 		close(fd);
 		return -1;
 	}
@@ -137,16 +137,16 @@ static int loadExec(const int type) {
 	unsigned char dec[lenDec];
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, bytes - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, launchKey) == -1) {
 		syslog(LOG_ERR, "Failed decrypting %s (size %d)", path[type], bytes);
-		close(AEM_FD_BINARY);
+		close(AEM_FD_EXEC);
 		return -1;
 	}
 
 	if (
-	   write(AEM_FD_BINARY, dec, lenDec) != (ssize_t)lenDec
-	|| fcntl(AEM_FD_BINARY, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
+	   write(AEM_FD_EXEC, dec, lenDec) != (ssize_t)lenDec
+	|| fcntl(AEM_FD_EXEC, F_ADD_SEALS, F_SEAL_SEAL | F_SEAL_SHRINK | F_SEAL_GROW | F_SEAL_WRITE) != 0
 	) {
 		syslog(LOG_ERR, "Failed loadExec: %m");
-		close(AEM_FD_BINARY);
+		close(AEM_FD_EXEC);
 		return -1;
 	}
 
@@ -357,26 +357,25 @@ static int cgroupMove(void) {
 
 static int process_new(const int type) {
 	wipeKeys();
-	close(AEM_FD_SERVER); // fd0 freed
-	close(AEM_FD_PIPE_WR); // fd2 freed
+	close(AEM_FD_SOCK_MAIN); // Reused as AEM_FD_EXEC
+	close(AEM_FD_PIPE_WR); // Reused as AEM_FD_READFILE
 
-	if (loadExec(type) != 0) exit(EXIT_FAILURE); // fd0=AEM_FD_BINARY
+	if (loadExec(type) != 0) exit(EXIT_FAILURE);
 	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
 	if (cgroupMove()      != 0) {syslog(LOG_ERR, "[%d] Failed cgroupMove()",  type); exit(EXIT_FAILURE);}
-	if (createMount(type) != 0) {syslog(LOG_ERR, "[%d] Failed createMount()", type); exit(EXIT_FAILURE);} // fd2=AEM_FD_ROOT
-	if (setLimits(type)   != 0) {syslog(LOG_ERR, "[%d] Failed setLimits()",   type); exit(EXIT_FAILURE);}
-	if (dropRoot()        != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot()",    type); exit(EXIT_FAILURE);}
-	if (setCaps(type)     != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",     type); exit(EXIT_FAILURE);}
+	if (createMount(type) != 0) {syslog(LOG_ERR, "[%d] Failed createMount()", type); exit(EXIT_FAILURE);} // Opens AEM_FD_ROOT, for undoing the chroot in the new process
+	close(AEM_FD_SYSLOG);
+	if (setLimits(type)   != 0) {syslog(LOG_ERR, "[%d] Failed setLimits()",    type); exit(EXIT_FAILURE);}
+	if (dropRoot()        != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot(): %m", type); exit(EXIT_FAILURE);}
+	if (setCaps(type)     != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",      type); exit(EXIT_FAILURE);}
 	umask((type == AEM_PROCESSTYPE_STORAGE) ? 0077 : 0777);
 
-	fexecve(AEM_FD_BINARY, (char*[]){NULL}, (char*[]){NULL});
+	fexecve(AEM_FD_EXEC, (char*[]){NULL}, (char*[]){NULL});
 
 	// Only runs if exec failed
-	close(AEM_FD_BINARY);  // fd0
-	close(AEM_FD_PIPE_RD); // fd1
-	close(AEM_FD_ROOT);    // fd2
+	close_range(0, UINT_MAX, 0);
 	syslog(LOG_ERR, "[%d] Failed starting process: %m", type);
 	exit(EXIT_FAILURE);
 }
@@ -560,7 +559,7 @@ static void cryptSend(void) {
 	unsigned char enc[AEM_MANAGER_RESLEN_ENC];
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
 	if (crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, AEM_MANAGER_RESLEN_DEC, NULL, 0, NULL, enc, key_mng) == 0) {
-		if (send(AEM_FD_CLIENT, enc, AEM_MANAGER_RESLEN_ENC, 0) != AEM_MANAGER_RESLEN_ENC) {
+		if (send(AEM_FD_SOCK_CLIENT, enc, AEM_MANAGER_RESLEN_ENC, 0) != AEM_MANAGER_RESLEN_ENC) {
 			syslog(LOG_WARNING, "Failed send");
 		}
 	} else {
@@ -570,13 +569,13 @@ static void cryptSend(void) {
 
 static void respond_manager(void) {
 	unsigned char enc[AEM_MANAGER_CMDLEN_ENC];
-	if (recv(AEM_FD_CLIENT, enc, AEM_MANAGER_CMDLEN_ENC, 0) != AEM_MANAGER_CMDLEN_ENC) {
+	if (recv(AEM_FD_SOCK_CLIENT, enc, AEM_MANAGER_CMDLEN_ENC, 0) != AEM_MANAGER_CMDLEN_ENC) {
 		syslog(LOG_WARNING, "Manager Protocol - failed recv: %m");
-		close(AEM_FD_CLIENT);
+		close(AEM_FD_SOCK_CLIENT);
 		return;
 	}
 
-	close(AEM_FD_CLIENT);
+	close(AEM_FD_SOCK_CLIENT);
 
 	unsigned char dec[AEM_MANAGER_CMDLEN_DEC];
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, AEM_MANAGER_CMDLEN_ENC - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, key_mng) != 0) {
@@ -628,7 +627,7 @@ static bool verifyStatus(void) {
 
 static int takeConnections(void) {
 	while (terminate == 0) {
-		if (accept4(AEM_FD_SERVER, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_CLIENT) continue;
+		if (accept4(AEM_FD_SOCK_MAIN, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_SOCK_CLIENT) continue;
 		respond_manager();
 	}
 
@@ -643,7 +642,8 @@ int setupManager(void) {
 	unsigned char smk[AEM_KDF_KEYSIZE];
 	if (getKey(smk) != 0) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 51;}
 	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 52;}
-	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SERVER) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 53;}
+	openlog("AEM-Manager", LOG_NDELAY, LOG_MAIL); // Opens AEM_FD_SYSLOG (0)
+	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SOCK_MAIN) {sodium_memzero(smk, AEM_KDF_KEYSIZE); return 53;} // Opens AEM_FD_SOCK_MAIN (1)
 
 	bzero(aemPid, sizeof(aemPid));
 	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
