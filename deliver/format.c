@@ -125,22 +125,19 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 
 	// Create the ExtMsg
 	lenContent += AEM_ENVELOPE_RESERVED_LEN + lenHead;
-	if (lenContent > AEM_MSG_SRC_MAXSIZE) {
-		free(content);
-		return NULL;
-	}
+	const int lenPadding = msg_getPadAmount(lenContent);
+	randombytes_buf(content + lenContent, lenPadding);
+	lenContent += lenPadding;
 
-	if (lenContent < AEM_MSG_MINSIZE) {
+	if (lenContent < AEM_MSG_MINSIZE || lenContent > AEM_MSG_SRC_MAXSIZE) {
+		free(content);
 		return NULL;
 	}
 
 	unsigned char * const head = content + AEM_ENVELOPE_RESERVED_LEN;
 
-	// Padding
-	head[0] = msg_getPadAmount(lenContent);
-	bzero(content + lenContent, head[0]);
-	lenContent += head[0];
-
+// Universal part
+	head[0] = lenPadding;
 	memcpy(head + 1, &(email->timestamp), 4);
 
 // ExtMsg Part
