@@ -64,7 +64,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			makeAttachment(srcBr, lenSrcBr, email->timestamp, parentId);
+			// TODO: Set parentID
 			intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], srcBr, lenSrcBr, NULL, 0); // Ignore failure
 		}
 	}

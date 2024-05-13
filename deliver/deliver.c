@@ -3,6 +3,8 @@
 
 #include <brotli/encode.h>
 
+#include "../Common/Message.h"
+
 #include "ipInfo.h"
 #include "processing.h"
 #include "store.h"
@@ -23,25 +25,33 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 	}
 }
 
-static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput) {
+static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput, const uint32_t ts) {
 	const char * const fn = "src.eml.br";
 	const size_t lenFn = 10;
 
 	*lenOutput = lenInput + 300; // Compressed version can be slightly larger
-	unsigned char * const output = malloc(*lenOutput + 22 + lenFn);
+	unsigned char * const output = malloc(AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn + *lenOutput);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
-	output[5] = lenFn - 1;
+	output[AEM_ENVELOPE_RESERVED_LEN] = 32; // UplMsg
+	memcpy(output + AEM_ENVELOPE_RESERVED_LEN + 1, (const unsigned char*)&ts, 4);
+	output[AEM_ENVELOPE_RESERVED_LEN + 5] = (lenFn - 1) | 128; // 128: Attachment
 	// 16 bytes of MsgId
-	memcpy(output + 22, fn, lenFn);
+	memcpy(output + AEM_ENVELOPE_RESERVED_LEN + 22, fn, lenFn);
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + 22 + lenFn) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;
 	}
 
-	*lenOutput += 22 + lenFn;
+	*lenOutput += AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn;
+
+	const int padAmount = msg_getPadAmount(*lenOutput);
+	output[AEM_ENVELOPE_RESERVED_LEN] |= padAmount;
+	randombytes_buf(output + *lenOutput, padAmount);
+	*lenOutput += padAmount;
+
 	return output;
 }
 
@@ -60,7 +70,7 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	email->attachCount = 0;
 
 	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr) : NULL;
+	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr, email->timestamp) : NULL;
 
 	// Add final CRLF for DKIM
 	src[lenSrc + 0] = '\r';
