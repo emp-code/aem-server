@@ -276,7 +276,30 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					*lenOut = newLenOut;
 					return;
 				}
-			}
+			} else if (chr < AEM_CET_THRESHOLD_LAYOUT) {
+				// If there's space/linebreaks before this closing tag, place the closing tag first
+				if (src[*lenOut - 1] == ' ') {
+					src[*lenOut - 1] = chr;
+					src[*lenOut] = ' ';
+					(*lenOut)++;
+					return;
+				}
+
+				if (*lenOut > 2 && src[*lenOut - 1] == AEM_CET_CHAR_LBR && src[*lenOut - 2] == AEM_CET_CHAR_LBR) {
+					src[*lenOut - 2] = chr;
+					src[*lenOut - 1] = AEM_CET_CHAR_LBR;
+					src[*lenOut] = AEM_CET_CHAR_LBR;
+					(*lenOut)++;
+					return;
+				}
+
+				if (src[*lenOut - 1] == AEM_CET_CHAR_LBR) {
+					src[*lenOut - 1] = chr;
+					src[*lenOut] = AEM_CET_CHAR_LBR;
+					(*lenOut)++;
+					return;
+				}
+			}			
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
 	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut, false);
 	  else if (chr == AEM_CET_CHAR_HRL) return addHrl(src, lenOut);
