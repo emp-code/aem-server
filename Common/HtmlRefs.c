@@ -136,6 +136,7 @@ static int decodeHtmlRef(unsigned char * const src, const size_t lenSrc, unsigne
 
 		codepoint1 = ref2codepoint(ref);
 		if (codepoint1 == 0) ref2codepoint2(ref, &codepoint1, &codepoint2);
+		if (codepoint1 == 0) return 0;
 	}
 
 	// We now have the codepoint(s)
