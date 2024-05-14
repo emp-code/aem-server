@@ -99,24 +99,22 @@ static int decodeHtmlRef(unsigned char * const src, const size_t lenSrc, unsigne
 			const unsigned char * const end = memchr(src + 3, ';', lenSrc - 3);
 			if (end == NULL) return 0;
 			lenRef = end - src;
+			if (lenRef < 1) return 0;
 
 			for (const unsigned char *c = src + 3; c < end; c++) {
 				if (!isxdigit(*c)) return 0;
 			}
-
-			if (lenRef < 1) return 0; // Invalid
 
 			codepoint1 = strtoul((char*)src + 3, NULL, 16);
 		} else { // Decimal
 			const unsigned char * const end = memchr(src + 2, ';', lenSrc - 3);
 			if (end == NULL) return 0;
 			lenRef = end - src;
+			if (lenRef < 1) return 0;
 
 			for (const unsigned char *c = src + 2; c < end; c++) {
 				if (!isdigit(*c)) return 0;
 			}
-
-			if (lenRef < 1) return 0; // Invalid
 
 			codepoint1 = strtoul((char*)src + 2, NULL, 10);
 		}
