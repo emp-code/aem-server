@@ -235,15 +235,16 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	const uint32_t ts = (uint32_t)time(NULL);
-	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 6 + lenSrc;
+	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 5 + AEM_API_REQ_DATA_LEN + lenSrc;
 	const size_t padAmount = msg_getPadAmount(lenMsg);
 	lenMsg += padAmount;
 
 	unsigned char msg[lenMsg];
-	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 32; // 32=UplMsg
+	msg[AEM_ENVELOPE_RESERVED_LEN] = 32 | padAmount; // 32=UplMsg
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
 	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = urlData[0] & 127; // lenFileName
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, src, lenSrc);
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData + 1, AEM_API_REQ_DATA_LEN - 1);
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 5 + AEM_API_REQ_DATA_LEN, src, lenSrc);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
