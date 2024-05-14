@@ -455,6 +455,8 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					addTagChar(src, &lenOut, tagType, tagName[0] == '/');
 					type = AEM_HTML_TYPE_TX;
 				} else if (src[i] == '=') {
+					copyAttr = 0;
+
 					size_t offset = 0;
 					while (src[i - offset - 1] == ' ') offset++;
 
