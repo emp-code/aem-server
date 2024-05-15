@@ -131,6 +131,17 @@ static void addLbr(unsigned char * const src, size_t * const lenOut, const bool 
 	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR)))
 	) return;
 
+	if (src[*lenOut - 1] >= AEM_CET_THRESHOLD_MANUAL && src[*lenOut - 1] < 32) {
+		(*lenOut)--;
+		const unsigned char tmp = src[*lenOut];
+
+		addLbr(src, lenOut, oneIsEnough);
+
+		src[*lenOut] = tmp;
+		(*lenOut)++;
+		return;
+	}
+
 	if (src[*lenOut - 1] == ' ') (*lenOut)--;
 
 	if (*lenOut > 1 && charInvisible(src + *lenOut - 2, 2)) {
