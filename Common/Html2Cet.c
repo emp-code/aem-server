@@ -246,8 +246,10 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				int columnCount = 0;
 				int currentColumns = 0;
 
-				size_t tableBegin = *lenOut - 3;
+				ssize_t tableBegin = *lenOut - 3;
 				for (;;tableBegin--) {
+					if (tableBegin < 0) return;
+
 					if (src[tableBegin] == AEM_CET_CHAR_TBL) break; // Beginning of table found
 
 					if (src[tableBegin] == AEM_CET_CHAR_TTD) {
