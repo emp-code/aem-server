@@ -124,18 +124,18 @@ static void addHrl(unsigned char * const src, size_t * const lenOut) {
 	(*lenOut)++;
 }
 
-static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough) {
+static void addLbr(unsigned char * const src, size_t * const lenOut, const bool oneIsEnough, const bool closing) {
 	if (*lenOut == 0
 	||  src[*lenOut - 1] == AEM_CET_CHAR_HRL
 	|| (src[*lenOut - 1] >= AEM_CET_THRESHOLD_LAYOUT && src[*lenOut - 1] < 32)
 	|| (src[*lenOut - 1] == AEM_CET_CHAR_LBR && (oneIsEnough || (*lenOut > 1 && src[*lenOut - 2] == AEM_CET_CHAR_LBR)))
 	) return;
 
-	if (src[*lenOut - 1] >= AEM_CET_THRESHOLD_MANUAL && src[*lenOut - 1] < 32) {
+	if (!closing && src[*lenOut - 1] >= AEM_CET_THRESHOLD_MANUAL && src[*lenOut - 1] < 32) {
 		(*lenOut)--;
 		const unsigned char tmp = src[*lenOut];
 
-		addLbr(src, lenOut, oneIsEnough);
+		addLbr(src, lenOut, oneIsEnough, closing);
 
 		src[*lenOut] = tmp;
 		(*lenOut)++;
@@ -163,11 +163,11 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 
 		if (chr == AEM_CET_CHAR_LLI && ((tagsOpen >> (31 - AEM_CET_CHAR_LOL)) & 1) == 0 && ((tagsOpen >> (31 - AEM_CET_CHAR_LUL)) & 1) == 0) {
 			// List item without a list open - replace with linebreak
-			addLbr(src, lenOut, false);
+			addLbr(src, lenOut, false, closing);
 			return;
 		}
 
-		if (tag == AEM_HTML_TAG_hdr && !closing) addLbr(src, lenOut, true);
+		if (tag == AEM_HTML_TAG_hdr && !closing) addLbr(src, lenOut, true, closing);
 
 		if (((tagsOpen >> (31 - chr)) & 1) == 0 && !closing) {
 			// We're opening a new tag
@@ -235,7 +235,7 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				if (src[pos] == chr) {
 					// We've arrived at the opening tag without finding meaningful content
 					*lenOut = pos;
-					if (chr == AEM_CET_CHAR_TBL || chr == AEM_CET_CHAR_LOL || chr == AEM_CET_CHAR_LUL || chr == AEM_CET_CHAR_LLI) addLbr(src, lenOut, false);
+					if (chr == AEM_CET_CHAR_TBL || chr == AEM_CET_CHAR_LOL || chr == AEM_CET_CHAR_LUL || chr == AEM_CET_CHAR_LLI) addLbr(src, lenOut, false, closing);
 					return;
 				}
 			}
@@ -266,8 +266,8 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 					memmove(src + tableBegin, src + tableBegin + 3, *lenOut - tableBegin - 5);
 					*lenOut -= 5;
 
-					addLbr(src, lenOut, false);
-					addLbr(src, lenOut, false);
+					addLbr(src, lenOut, false, closing);
+					addLbr(src, lenOut, false, closing);
 					return;
 				} else if (columnCount < 3) {
 					// Single-column table - replace rows with lines
@@ -314,13 +314,13 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 				}
 			}			
 		} else return; // Invalid action: trying to open a tag that's already open, or to close a tag that isn't open
-	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut, false);
+	} else if (chr == AEM_CET_CHAR_LBR) return addLbr(src, lenOut, false, closing);
 	  else if (chr == AEM_CET_CHAR_HRL) return addHrl(src, lenOut);
 
 	src[*lenOut] = chr;
 	(*lenOut)++;
 
-	if (tag == AEM_HTML_TAG_hdr && closing) addLbr(src, lenOut, true);
+	if (tag == AEM_HTML_TAG_hdr && closing) addLbr(src, lenOut, true, closing);
 }
 
 static enum aem_html_tag getTagByName(const char *tagName, size_t lenTagName) {
