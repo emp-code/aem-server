@@ -580,6 +580,7 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 					}
 
 					lenTagName = 0;
+					tagName[0] = '-';
 					type = AEM_HTML_TYPE_T1;
 					break;
 				} else if (src[i] == '\n' && isPre) {
