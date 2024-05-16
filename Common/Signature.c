@@ -19,7 +19,7 @@ void delSigKey(void) {
 
 void aem_sign_message(unsigned char * const msg, const size_t lenMsg) {
 	unsigned char baseHash[48];
-	crypto_generichash(baseHash, 48, msg + X25519_PKBYTES + AEM_MSG_SIG_LEN, lenMsg - X25519_PKBYTES + AEM_MSG_SIG_LEN, NULL, 0);
+	crypto_generichash(baseHash, 48, msg + X25519_PKBYTES + AEM_MSG_SIG_LEN, lenMsg - X25519_PKBYTES - AEM_MSG_SIG_LEN, NULL, 0);
 	crypto_generichash(msg + X25519_PKBYTES, AEM_MSG_SIG_LEN, baseHash, 48, sigKey, 32);
 }
 
