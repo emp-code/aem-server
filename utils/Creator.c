@@ -70,7 +70,7 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 
 	// Save the MA's Envelope file
 	const char eid_char0 = get_eid_char0(sbk);
-	const int ret = createFile((char[]){'M','s','g','/', eid_char0, eid_char0}, wm, lenWm);
+	const int ret = createFile((char[]){'M','s','g','/', eid_char0, eid_char0, '\0'}, wm, lenWm);
 	free(wm);
 	if (ret != 0) return -1;
 
