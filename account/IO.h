@@ -32,7 +32,7 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 
 // API: POST (Continue)
 int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData);
-int32_t api_private_update(unsigned char * const res, const unsigned char * const data, const size_t lenData);
+int32_t api_private_update(unsigned char * const res,       unsigned char * const data, const size_t lenData);
 
 // API: POST (Status)
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags);

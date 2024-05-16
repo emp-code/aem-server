@@ -417,9 +417,15 @@ int32_t api_account_create(unsigned char * const res, const unsigned char * cons
 	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL);
 }
 
-int32_t api_private_update(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
-	if (lenData != AEM_LEN_PRIVATE) return api_response_status(res, AEM_API_ERR_PARAM);
-	memcpy(users[api_uid].private, data, lenData);
+int32_t api_private_update(unsigned char * const res, unsigned char * const data, const size_t lenData) {
+	if (lenData != crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + AEM_LEN_PRIVATE) return api_response_status(res, AEM_API_ERR_PARAM);
+
+	crypto_stream_chacha20_ietf_xor(
+		data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + 4,
+		data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + 4,
+		AEM_LEN_PRIVATE - 4, data, data + crypto_stream_chacha20_ietf_NONCEBYTES);
+
+	memcpy(users[api_uid].private, data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES, AEM_LEN_PRIVATE);
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
