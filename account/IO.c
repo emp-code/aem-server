@@ -418,7 +418,10 @@ int32_t api_account_create(unsigned char * const res, const unsigned char * cons
 }
 
 int32_t api_private_update(unsigned char * const res, unsigned char * const data, const size_t lenData) {
-	if (lenData != crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + AEM_LEN_PRIVATE) return api_response_status(res, AEM_API_ERR_PARAM);
+	if (
+	   lenData != (crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + AEM_LEN_PRIVATE)
+	|| sodium_is_zero(data + crypto_stream_chacha20_ietf_NONCEBYTES, crypto_stream_chacha20_ietf_KEYBYTES)
+	) return api_response_status(res, AEM_API_ERR_PARAM);
 
 	crypto_stream_chacha20_ietf_xor(
 		data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + 4,
