@@ -12,11 +12,11 @@
 #include "../Common/Main_Include.c"
 
 static int setupIo(void) {
-	unsigned char baseKey[AEM_KDF_KEYSIZE];
+	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;
 
 	if (
-	   read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE
+	   read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_SUB_KEYLEN) != AEM_KDF_SUB_KEYLEN
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	) {
 		close(AEM_FD_PIPE_RD);
@@ -29,7 +29,7 @@ static int setupIo(void) {
 	intcom_setKeys_server(bundle.server);
 	intcom_setKeys_client(bundle.client);
 
-	sodium_memzero(baseKey, AEM_KDF_KEYSIZE);
+	sodium_memzero(baseKey, AEM_KDF_SUB_KEYLEN);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }

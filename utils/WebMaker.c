@@ -260,10 +260,10 @@ static void writeWeb(const unsigned char * const src, const size_t lenSrc, const
 }
 
 static int getLaunchKey(unsigned char launchKey[crypto_aead_aegis256_KEYBYTES]) {
-	unsigned char smk[AEM_KDF_KEYSIZE];
+	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
 	if (getKey(smk) != 0) {puts("Failed reading key"); return -1;}
-	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
-	sodium_memzero(smk, crypto_kdf_KEYBYTES);
+	aem_kdf_master(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
+	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 	return 0;
 }
 

@@ -12,7 +12,7 @@
 #define AEM_UAK_TYPE_BODY_RES 96LLU
 
 struct aem_user {
-	unsigned char uak[AEM_KDF_KEYSIZE]; // User Access Key
+	unsigned char uak[AEM_KDF_SUB_KEYLEN]; // User Access Key
 	unsigned char epk[X25519_PKBYTES]; // Envelope Public Key
 	unsigned char lastBinTs[5]; // To prevent replay attacks
 	unsigned char private[AEM_LEN_PRIVATE];

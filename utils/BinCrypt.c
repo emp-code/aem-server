@@ -16,12 +16,12 @@ int main(int argc, char *argv[]) {
 	if (argc != 2) {printf("Usage: %s input.file\n", argv[0]); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {puts("Failed sodium_init()"); return EXIT_FAILURE;}
 
-	unsigned char smk[AEM_KDF_KEYSIZE];
+	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
 	if (getKey(smk) != 0) {puts("Failed reading key"); return EXIT_FAILURE;}
 
 	unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
-	sodium_memzero(smk, crypto_kdf_KEYBYTES);
+	aem_kdf_master(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
+	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 
 	int fd = open(argv[1], O_RDONLY);
 	if (fd < 0) {

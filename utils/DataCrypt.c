@@ -37,12 +37,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Get Launch Key
-	unsigned char smk[AEM_KDF_KEYSIZE];
+	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
 	if (getKey(smk) != 0) {puts("Failed reading key"); return EXIT_FAILURE;}
 
 	unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
-	sodium_memzero(smk, crypto_kdf_KEYBYTES);
+	aem_kdf_master(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
+	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 
 	// Encrypt
 	const int lenEnc = crypto_aead_aegis256_NPUBBYTES + lenClear + crypto_aead_aegis256_ABYTES;

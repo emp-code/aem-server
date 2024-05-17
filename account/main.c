@@ -18,7 +18,7 @@
 
 static int setupIo(void) {
 	pid_t storagePid;
-	unsigned char baseKey[AEM_KDF_KEYSIZE];
+	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;
 
 	size_t lenRsaAdmin;
@@ -28,7 +28,7 @@ static int setupIo(void) {
 
 	if (
 	   read(AEM_FD_PIPE_RD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
-	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_KEYSIZE) != AEM_KDF_KEYSIZE
+	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_SUB_KEYLEN) != AEM_KDF_SUB_KEYLEN
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	|| read(AEM_FD_PIPE_RD, &lenRsaAdmin, sizeof(size_t)) != sizeof(size_t)
 	|| read(AEM_FD_PIPE_RD, rsaAdmin, lenRsaAdmin) != (ssize_t)lenRsaAdmin
@@ -47,7 +47,7 @@ static int setupIo(void) {
 	if (ioSetup(baseKey) != 0) {syslog(LOG_ERR, "Terminating: Failed setting up IO"); return -1;}
 	setRsaKeys(rsaAdmin, lenRsaAdmin, rsaUsers, lenRsaUsers);
 
-	sodium_memzero(baseKey, AEM_KDF_KEYSIZE);
+	sodium_memzero(baseKey, AEM_KDF_SUB_KEYLEN);
 	sodium_memzero(&bundle, sizeof(bundle));
 	return 0;
 }

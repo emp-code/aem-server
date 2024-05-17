@@ -1,6 +1,8 @@
 #ifndef AEM_SIGNATURE_H
 #define AEM_SIGNATURE_H
 
+#define AEM_SIG_KEYLEN 32
+
 void setSigKey(const unsigned char * const newKey);
 void delSigKey(void);
 

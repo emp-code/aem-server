@@ -18,10 +18,10 @@
 #define AEM_WELCOME_MA_LEN 254
 
 // Master Admin UID=0, therefore we only need char #0
-static char get_eid_char0(const unsigned char sbk[AEM_KDF_KEYSIZE]) {
+static char get_eid_char0(const unsigned char sbk[AEM_KDF_SUB_KEYLEN]) {
 	const char b64_set[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_+";
 	uint8_t src;
-	aem_kdf(&src, 1, AEM_KDF_KEYID_STO_EID, sbk);
+	aem_kdf_sub(&src, 1, AEM_KDF_KEYID_STO_EID, sbk);
 	return b64_set[src & 63];
 }
 
@@ -56,6 +56,7 @@ static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], s
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
 	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 192; // IntMsg InfoByte: System
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
+	bzero(msg + *lenEnvelope - padAmount, padAmount);
 
 	message_into_envelope(msg, *lenEnvelope, epk);
 	return msg;
@@ -76,7 +77,7 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 
 	// Save Stindex.aem
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
+	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 
 	unsigned char stindex[16384]; // With padding
 	bzero(stindex, 16384);
@@ -92,13 +93,13 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	return createFile("Stindex.aem", enc, lenEnc);
 }
 
-static int createAccount(const unsigned char smk[AEM_KDF_KEYSIZE], const struct aem_user * const users) {
-	unsigned char abk[AEM_KDF_KEYSIZE];
-	aem_kdf(abk, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_SMK_ACC, smk);
+static int createAccount(const unsigned char smk[AEM_KDF_MASTER_KEYLEN], const struct aem_user * const users) {
+	unsigned char abk[AEM_KDF_SUB_KEYLEN];
+	aem_kdf_master(abk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
 
 	unsigned char accKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(accKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, abk);
-	sodium_memzero(abk, AEM_KDF_KEYSIZE);
+	aem_kdf_sub(accKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, abk);
+	sodium_memzero(abk, AEM_KDF_SUB_KEYLEN);
 
 	// Encrypt with Account Key
 	const int lenEnc = (sizeof(struct aem_user) * AEM_USERCOUNT) + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
@@ -114,14 +115,14 @@ static int createAccount(const unsigned char smk[AEM_KDF_KEYSIZE], const struct 
 	return ret;
 }
 
-static void printKeys(const unsigned char smk[AEM_KDF_KEYSIZE], const unsigned char ma_umk[AEM_KDF_KEYSIZE]) {
-	const int lenTxt = AEM_KDF_KEYSIZE * 2 + 1;
+static void printKeys(const unsigned char smk[AEM_KDF_MASTER_KEYLEN], const unsigned char ma_umk[AEM_KDF_MASTER_KEYLEN]) {
+	const int lenTxt = AEM_KDF_MASTER_KEYLEN * 2 + 1;
 	char txt[lenTxt];
 
-	sodium_bin2hex(txt, lenTxt, smk, AEM_KDF_KEYSIZE);
+	sodium_bin2hex(txt, lenTxt, smk, AEM_KDF_MASTER_KEYLEN);
 	printf("Server Master Key: %s\n", txt);
 
-	sodium_bin2base64(txt, lenTxt, ma_umk, AEM_KDF_KEYSIZE, sodium_base64_VARIANT_ORIGINAL_NO_PADDING);
+	sodium_bin2base64(txt, lenTxt, ma_umk, AEM_KDF_MASTER_KEYLEN - 1, sodium_base64_VARIANT_ORIGINAL);
 	printf("Master Admin UMK: %s\n", txt);
 
 	sodium_memzero(txt, lenTxt);
@@ -142,9 +143,10 @@ static int createDirs(void) {
 
 static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, struct aem_user * const users) {
 	for(;;) { // Generate a valid SMK
-		randombytes_buf(smk, AEM_KDF_KEYSIZE);
-		aem_kdf(ma_umk, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_SMK_UMK, smk);
-		aem_kdf(users[0].uak, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_UMK_UAK, ma_umk);
+		randombytes_buf(smk, AEM_KDF_MASTER_KEYLEN);
+		aem_kdf_master(ma_umk, AEM_KDF_MASTER_KEYLEN, AEM_KDF_KEYID_SMK_UMK, smk);
+		ma_umk[AEM_KDF_MASTER_KEYLEN - 1] = '\0';
+		aem_kdf_master(users[0].uak, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_UMK_UAK, ma_umk);
 
 		// SMK is valid if the Master Admin's UserID is zero (username 'aaa')
 		if (aem_getUserId(users[0].uak) == 0) {
@@ -152,7 +154,7 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 
 			// Set the EPK
 			unsigned char esk[crypto_scalarmult_SCALARBYTES];
-			aem_kdf(esk, crypto_scalarmult_SCALARBYTES, AEM_KDF_KEYID_UMK_ESK, ma_umk);
+			aem_kdf_master(esk, crypto_scalarmult_SCALARBYTES, AEM_KDF_KEYID_UMK_ESK, ma_umk);
 			crypto_scalarmult_base(users[0].epk, esk);
 			sodium_memzero(esk, crypto_scalarmult_SCALARBYTES);
 			break;
@@ -162,19 +164,18 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 
 static int makeStorage(unsigned char * const smk, const struct aem_user * const users) {
 	// Derive keys
-	unsigned char sbk[AEM_KDF_KEYSIZE];
-	aem_kdf(sbk, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_SMK_STO, smk);
+	unsigned char sbk[AEM_KDF_SUB_KEYLEN];
+	aem_kdf_master(sbk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_STO, smk);
 
-	unsigned char sigKey[AEM_KDF_KEYSIZE];
-	aem_kdf(sigKey, AEM_KDF_KEYSIZE, AEM_KDF_KEYID_STO_SIG, sbk);
+	unsigned char sigKey[AEM_SIG_KEYLEN];
+	aem_kdf_sub(sigKey, AEM_SIG_KEYLEN, AEM_KDF_KEYID_STO_SIG, sbk);
 	setSigKey(sigKey);
+	sodium_memzero(sigKey, AEM_SIG_KEYLEN);
 
 	if (createWelcome(users[0].epk, sbk) != 0) {puts("Failed creating message"); return -1;}
 
-	sodium_memzero(sbk, AEM_KDF_KEYSIZE);
-	sodium_memzero(sigKey, AEM_KDF_KEYSIZE);
+	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
 	delSigKey();
-
 	return 0;
 }
 
@@ -188,8 +189,8 @@ int main(void) {
 	if (users == NULL) {puts("Failed allocation"); return 3;}
 	bzero(users, sizeof(struct aem_user) * AEM_USERCOUNT);
 
-	unsigned char smk[AEM_KDF_KEYSIZE];
-	unsigned char ma_umk[AEM_KDF_KEYSIZE];
+	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
+	unsigned char ma_umk[AEM_KDF_MASTER_KEYLEN];
 	genSmk(smk, ma_umk, users);
 
 	printKeys(smk, ma_umk);
@@ -200,8 +201,8 @@ int main(void) {
 	// Clean up
 	sodium_memzero(users, sizeof(struct aem_user));
 	free(users);
-	sodium_memzero(smk, AEM_KDF_KEYSIZE);
-	sodium_memzero(ma_umk, AEM_KDF_KEYSIZE);
+	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
+	sodium_memzero(ma_umk, AEM_KDF_MASTER_KEYLEN);
 
 	puts("All done. Save the above keys, and move the newly-created allears folder to /var/lib/ on the server.");
 	return 0;

@@ -24,7 +24,7 @@
 uint16_t stindex_count[AEM_USERCOUNT];
 uint16_t *stindex_size[AEM_USERCOUNT];
 
-static unsigned char sbk[AEM_KDF_KEYSIZE];
+static unsigned char sbk[AEM_KDF_SUB_KEYLEN];
 
 static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 
@@ -38,7 +38,7 @@ static void eidSetup(void) {
 	uint64_t done = 0;
 
 	uint8_t src[8192];
-	aem_kdf(src, 8192, AEM_KDF_KEYID_STO_EID, sbk);
+	aem_kdf_sub(src, 8192, AEM_KDF_KEYID_STO_EID, sbk);
 
 	for (int charsDone = 0; charsDone < 64; charsDone++) {
 		for (int n = 0; n < 8192; n++) {
@@ -66,7 +66,7 @@ static int loadStindex(void) {
 	if (pread(fd, enc, fileSize, 0) != fileSize) {syslog(LOG_ERR, "Failed reading Stindex.aem"); free(enc); return -1;}
 
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
+	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 
 	unsigned char * const dec = malloc(fileSize - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES);
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, fileSize - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, stiKey) == -1) {syslog(LOG_ERR, "Failed decrypting Stindex.aem"); free(enc); return -1;}
@@ -109,7 +109,7 @@ static void saveStindex(void) {
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
 
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
+	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, stx, 16384, NULL, 0, NULL, enc, stiKey);
 	sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(stx, 16384);
@@ -128,14 +128,14 @@ static void saveStindex(void) {
 	if (ret != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed writing Stindex.aem");
 }
 
-void ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]) {
-	memcpy(sbk, baseKey, AEM_KDF_KEYSIZE);
+void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
+	memcpy(sbk, baseKey, AEM_KDF_SUB_KEYLEN);
 	eidSetup();
 	loadStindex();
 }
 
 void ioFree(void) {
-	sodium_memzero(sbk, AEM_KDF_KEYSIZE);
+	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
 
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
 		if (stindex_count[uid] > 0) free(stindex_size[uid]);

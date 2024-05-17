@@ -75,10 +75,10 @@ static char numToChar(const unsigned char n) {
 }
 
 static int setKey(void) {
-	unsigned char smk[AEM_KDF_KEYSIZE];
+	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
 	if (getKey(smk) != 0) return -1;
-	aem_kdf(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
-	sodium_memzero(smk, AEM_KDF_KEYSIZE);
+	aem_kdf_master(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
+	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 	return 0;
 }
 

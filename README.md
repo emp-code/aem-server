@@ -29,7 +29,7 @@ General information:
 
 AEM-Manager is the main server program. It starts and manages all other process types.
 
-At startup, AEM-Manager asks for the Server Master Key (SMK). After this, the ManagerClient remote administration [utility](#utilities) is the only way to interact with it.
+At startup, AEM-Manager asks for the 368-bit Server Master Key (SMK). After this, the ManagerClient remote administration [utility](#utilities) is the only way to interact with it.
 
 AEM-Manager reads encrypted binaries from the `/var/lib/allears/bin` folder. These must be created through the BinCrypt utility.
 
@@ -93,7 +93,7 @@ AEM-Web is the only process type to run completely isolated with no ability to i
 
 The `utils` folder contains:
 * `BinCrypt`: Encrypts the All-Ears Mail executables for Manager
-* `Creator`: Generates a new Server Master Key (SMK) and the `allears` folder, to be placed in `/var/lib/` on a server
+* `Creator`: Generates a new Server Master Key (SMK) and `allears` folder
 * `DataCrypt`: Encrypts additional files for Manager
 * `ManagerClient`: Connects to AEM-Manager to get information about processes, and start or stop them
 * `WebMaker`: Creates and encrypts the response for the AEM-Web process
@@ -158,7 +158,7 @@ In short, the server knows only the number of Envelopes a user has, and their si
 
 An All-Ears Mail server supports up to 4096 users. Users are identified by their UserID (0-4095), which may be presented as a three-letter username (aaa-ppp) for display purposes. This username has no relation to [addresses](#addresses).
 
-Each user has a 43-character User Master Key. This key must be kept safe by the user. If lost, recovery is impossible.
+Each user has a 360-bit User Master Key (UMK). This key must be kept safe by the user. If lost, recovery is impossible.
 
 ## Dependencies ##
 

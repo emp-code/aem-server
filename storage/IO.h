@@ -8,7 +8,7 @@
 #include "../Common/AEM_KDF.h"
 
 // main
-void ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]);
+void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]);
 void ioFree(void);
 
 // Account

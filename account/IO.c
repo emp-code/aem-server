@@ -220,7 +220,7 @@ int32_t api_account_browse(unsigned char * const res) {
 	memcpy(res, (unsigned char*)limits, 12);
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
-		const uint32_t kib = sodium_is_zero(users[i].uak, AEM_KDF_KEYSIZE) ? 0 : 1234567; // TODO
+		const uint32_t kib = sodium_is_zero(users[i].uak, AEM_KDF_SUB_KEYLEN) ? 0 : 1234567; // TODO
 
 		const uint32_t u32 = users[i].level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
 		memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
@@ -234,7 +234,7 @@ int32_t api_account_delete(unsigned char * const res, const unsigned char reqDat
 	if (del_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (del_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
 	if (users[api_uid].level != AEM_USERLEVEL_MAX && api_uid != del_uid) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[del_uid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
+	if (sodium_is_zero(users[del_uid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	sodium_memzero(users + del_uid, sizeof(struct aem_user));
 	saveUser();
@@ -249,7 +249,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	if (upd_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (upd_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
 	if (users[api_uid].level != AEM_USERLEVEL_MAX && (api_uid != upd_uid || new_lvl > users[api_uid].level)) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[upd_uid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
+	if (sodium_is_zero(users[upd_uid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	users[upd_uid].level = new_lvl;
 	saveUser();
@@ -402,17 +402,17 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 
 // API: POST (Continue)
 int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
-	if (lenData != AEM_KDF_KEYSIZE + X25519_PKBYTES) return api_response_status(res, AEM_API_ERR_PARAM);
+	if (lenData != AEM_KDF_SUB_KEYLEN + X25519_PKBYTES) return api_response_status(res, AEM_API_ERR_PARAM);
 	const uint16_t newUid = aem_getUserId(data);
-	if (!sodium_is_zero(users[newUid].uak, AEM_KDF_KEYSIZE)) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
+	if (!sodium_is_zero(users[newUid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
 
-	memcpy(users[newUid].uak, data, AEM_KDF_KEYSIZE);
-	memcpy(users[newUid].epk, data + AEM_KDF_KEYSIZE, X25519_PKBYTES);
+	memcpy(users[newUid].uak, data, AEM_KDF_SUB_KEYLEN);
+	memcpy(users[newUid].epk, data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
 	saveUser();
 
 	unsigned char icMsg[sizeof(uint16_t) + X25519_PKBYTES];
 	memcpy(icMsg, (const unsigned char * const)&newUid, sizeof(uint16_t));
-	memcpy(icMsg + sizeof(uint16_t), data + AEM_KDF_KEYSIZE, X25519_PKBYTES);
+	memcpy(icMsg + sizeof(uint16_t), data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_CREATE, icMsg, sizeof(uint16_t) + X25519_PKBYTES, NULL, 0);
 	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL);
 }
@@ -479,7 +479,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 
 //
 static void uak_derive(unsigned char * const out, const int lenOut, const uint64_t binTs, const uint16_t uid, const bool post, const unsigned long long type) {
-	aem_kdf(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), users[uid].uak);
+	aem_kdf_sub(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), users[uid].uak);
 }
 
 static bool auth_binTs(const uint16_t uid, const uint64_t reqBinTs) {
@@ -575,10 +575,10 @@ void ioFree(void) {
 	sodium_memzero(rsaUsersKey, lenRsaUsersKey);
 }
 
-int ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]) {
-	aem_kdf(accountKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, baseKey);
-	aem_kdf(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
-	aem_kdf(saltShield, crypto_shorthash_KEYBYTES,     AEM_KDF_KEYID_ACC_SHD, baseKey);
+int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
+	aem_kdf_sub(accountKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, baseKey);
+	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
+	aem_kdf_sub(saltShield, crypto_shorthash_KEYBYTES,     AEM_KDF_KEYID_ACC_SHD, baseKey);
 
 #ifdef AEM_ADDRESS_NOPWHASH
 	uint64_t hash;

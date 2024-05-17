@@ -9,7 +9,7 @@
 #include "../Common/api_req.h"
 
 // main
-int ioSetup(const unsigned char baseKey[AEM_KDF_KEYSIZE]);
+int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]);
 void ioFree(void);
 void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, const unsigned char * const keyUsers, const size_t lenKeyUsers);
 
