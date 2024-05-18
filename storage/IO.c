@@ -255,7 +255,7 @@ static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 }
 
 int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out) {
-	if (lenReq != 3 && lenReq != 19) return AEM_INTCOM_RESPONSE_USAGE;
+	if (lenReq != 3 && lenReq != 3 + AEM_API_REQ_DATA_LEN) return AEM_INTCOM_RESPONSE_USAGE;
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
 

@@ -369,8 +369,8 @@ int32_t api_address_update(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
-int32_t api_message_browse(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
-	if ((reqData[0] & AEM_API_MESSAGE_BROWSE_FLAG_UINFO) == 0) return 0; // User data not requested, nothing to do
+int32_t api_message_browse(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], unsigned char flags) {
+	if ((flags & AEM_API_MESSAGE_BROWSE_FLAG_UINFO) == 0) return 0; // User data not requested, nothing to do
 
 	// User data requested, add it to the response
 	res[0] = users[api_uid].level | (users[api_uid].addrCount << 2);
@@ -500,15 +500,14 @@ bool api_auth(unsigned char * const res, struct aem_req * const req, const bool 
 	if (!auth_binTs(req->uid, req->binTs)) return false;
 
 	// Decrypt
-	unsigned char req_key_data[2 + AEM_API_REQ_DATA_LEN];
-	uak_derive(req_key_data, 2 + AEM_API_REQ_DATA_LEN, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_DATA);
+	unsigned char req_key_data[1 + AEM_API_REQ_DATA_LEN];
+	uak_derive(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_DATA);
 
 	req->cmd ^= req_key_data[0] & 15;
-	req->flags ^= req_key_data[1] & 15;
-//	req->unused ^= req_key_data[1] ...
+	req->flags ^= req_key_data[0] >> 4;
 
 	for (int i = 0; i < AEM_API_REQ_DATA_LEN; i++) {
-		req->data[i] ^= req_key_data[2 + i];
+		req->data[i] ^= req_key_data[1 + i];
 	}
 
 	// Copy data to the base response

@@ -30,14 +30,16 @@ void setOurDomain(const unsigned char * const crt, const size_t lenCrt) {
 	x509_getSubject(ourDomain, &lenOurDomain, crt, lenCrt);
 }
 
-static void message_browse(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
-	unsigned char stoParam[19];
+static void message_browse(const uint16_t uid, const int flags, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
+	const bool haveMsgId = sodium_is_zero(urlData, AEM_API_REQ_DATA_LEN);
+
+	unsigned char stoParam[3 + AEM_API_REQ_DATA_LEN];
 	memcpy(stoParam, (const unsigned char * const)&uid, sizeof(uint16_t));
-	stoParam[2] = urlData[0] & (AEM_API_MESSAGE_BROWSE_FLAG_OLDER | AEM_API_MESSAGE_BROWSE_FLAG_MSGID);
-	if ((urlData[0] & AEM_API_MESSAGE_BROWSE_FLAG_MSGID) != 0) memcpy(stoParam + 3, urlData + 1, 16);
+	stoParam[2] = flags;
+	if (!haveMsgId) memcpy(stoParam + 3, urlData, AEM_API_REQ_DATA_LEN);
 
 	unsigned char *stoData = NULL;
-	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, AEM_INTCOM_OP_BROWSE, stoParam, ((urlData[0] & AEM_API_MESSAGE_BROWSE_FLAG_MSGID) != 0) ? 19 : 3, &stoData, 0);
+	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, AEM_INTCOM_OP_BROWSE, stoParam, haveMsgId? 3 + AEM_API_REQ_DATA_LEN : 3, &stoData, 0);
 
 	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE + 8)) { // +6 (infobytes) +2 (size)
 		if (stoData != NULL) free(stoData);
@@ -219,12 +221,13 @@ static unsigned char message_create(const int flags, const unsigned char * const
 	const uint16_t uid = *(const uint16_t*)cuid;
 	if (uid >= AEM_USERCOUNT) return AEM_API_ERR_INTERNAL;
 
-	if (flags == 0) {
-		if (lenCuid != 2) return AEM_API_ERR_INTERNAL;
+	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL && lenCuid > 2) {
+		return send_email(uid, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
+	} else if (flags == 0 && lenCuid == 2) {
 		return send_imail(uid, urlData, src, lenSrc);
 	}
 
-	return send_email(uid, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
+	return AEM_API_ERR_INTERNAL;
 }
 
 static unsigned char message_delete(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN]) {
@@ -294,10 +297,10 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	if (icData != NULL) free(icData);
 }
 
-static void handleGet(const int cmd, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const icData, const size_t lenIcData) {
+static void handleGet(const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const icData, const size_t lenIcData) {
 	switch (cmd) {
 		case AEM_API_MESSAGE_BROWSE:
-			message_browse(uid, urlData, icData, lenIcData);
+			message_browse(uid, flags, urlData, icData, lenIcData);
 		break;
 
 		case AEM_API_MESSAGE_DELETE: {
@@ -387,7 +390,7 @@ void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 				apiResponse(&rb, 1);
 			}
 		} else {
-			handleGet(cmd, req_s->uid, icData + 1, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
+			handleGet(cmd, flags, req_s->uid, icData + 1, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
 		}
 	}
 

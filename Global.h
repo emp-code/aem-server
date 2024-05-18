@@ -169,10 +169,9 @@ enum aem_api_command_post {
 	AEM_API_PRIVATE_UPDATE
 };
 
-#define AEM_API_MESSAGE_BROWSE_FLAG_PAD1M 1 // Pad response to max size (1M)
-#define AEM_API_MESSAGE_BROWSE_FLAG_UINFO 2 // Include user info
-#define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 4 // Older, instead of newer
-#define AEM_API_MESSAGE_BROWSE_FLAG_MSGID 8 // Start from the message with this MessageID
+#define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 8 // Older, instead of newer
+#define AEM_API_MESSAGE_BROWSE_FLAG_UINFO 4 // Include user info
+#define AEM_API_MESSAGE_CREATE_FLAG_EMAIL 8 // Send email, not internal mail
 
 #define AEM_API_REQ_LEN 48
 #define AEM_API_REQ_LEN_BASE64 64
