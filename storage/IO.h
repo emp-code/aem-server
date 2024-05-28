@@ -20,7 +20,7 @@ int32_t acc_storage_limits(const unsigned char * const msg, const size_t lenMsg)
 
 // API
 int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk);
-int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out);
+int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out, const bool newer);
 int32_t api_message_delete(const unsigned char * const req, const size_t lenReq);
 
 // API/DLV

@@ -242,7 +242,6 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
-
 // Total amount and size of messages
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	uint32_t blocks = 0;
@@ -254,77 +253,94 @@ static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	memcpy(out + sizeof(uint16_t), (unsigned char*)&blocks, sizeof(uint32_t));
 }
 
-int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out) {
-	if (lenReq != 3 && lenReq != 3 + AEM_API_REQ_DATA_LEN) return AEM_INTCOM_RESPONSE_USAGE;
+int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out, const bool newer) {
+	if (lenReq != sizeof(uint16_t) && lenReq != sizeof(uint16_t) + AEM_API_REQ_DATA_LEN) return AEM_INTCOM_RESPONSE_USAGE;
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
 
-	*out = malloc(AEM_ENVELOPE_MAXSIZE + 8); // 6: InfoBytes, 2: Size of first message
+	const int fd = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
+
+	int startNum = 0;
+	if (lenReq != sizeof(uint16_t)) {
+		startNum = -1;
+
+		off_t filePos = lseek(fd, 0, SEEK_END);
+
+		for (int i = stindex_count[uid] - 1; i >= 0; i--) {
+			filePos -= (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+
+			unsigned char id[AEM_API_REQ_DATA_LEN];
+			if (pread(fd, id, AEM_API_REQ_DATA_LEN, filePos) != AEM_API_REQ_DATA_LEN) {syslog(LOG_ERR, "Failed read"); close(fd); return AEM_INTCOM_RESPONSE_ERR;}
+			if (memeq(id, req + sizeof(uint16_t), AEM_API_REQ_DATA_LEN)) {
+				startNum = i;
+				break;
+			}
+		}
+
+		if (startNum == -1) {close(fd); return AEM_INTCOM_RESPONSE_NOTEXIST;}
+
+		if (newer) {
+			startNum++;
+			if (startNum == stindex_count[uid]) {close(fd); return AEM_INTCOM_RESPONSE_OK;} // Found, but nothing newer
+		} else {
+			if (startNum == 0) {close(fd); return AEM_INTCOM_RESPONSE_OK;} // Found, but nothing older
+
+			startNum--;
+			for (size_t lenTotal = 0; startNum > 0; startNum--) {
+				lenTotal += (stindex_size[uid][startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
+				if (lenTotal > AEM_ENVELOPE_MAXSIZE) {
+					startNum++;
+					break;
+				}
+			}
+		}
+	} else if (newer) {
+		size_t lenTotal = 0;
+		for (startNum = stindex_count[uid] - 1; startNum > 0; startNum--) {
+			lenTotal += (stindex_size[uid][startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
+			if (lenTotal > AEM_ENVELOPE_MAXSIZE) {
+				startNum++;
+				break;
+			}
+		}
+	}
+
+	off_t readPos = 0;
+	if (startNum != 0) {
+		for (int i = 0; i < startNum; i++) {
+			readPos += (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+		}
+	}
+
+	// Create response
+	uint16_t evpCount = 0;
+	ssize_t evpBytes = 0;
+	for(int i = startNum; i < stindex_count[uid]; i++) {
+		if (evpBytes + ((stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16) > AEM_ENVELOPE_MAXSIZE) break;
+
+		evpCount++;
+		evpBytes += (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+	}
+
+	*out = malloc(6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes);
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
-	bzero(*out, AEM_ENVELOPE_MAXSIZE + 8); // random data if pad1m
 	browse_infoBytes(*out, uid);
+	memcpy(*out + 6, &evpCount, sizeof(uint16_t));
+	memcpy(*out + 6 + sizeof(uint16_t), (unsigned char*)stindex_size[uid] + (startNum * sizeof(uint16_t)), evpCount * sizeof(uint16_t)); // FIXME
 
-	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
+	const ssize_t readBytes = pread(fd, *out + 6 + sizeof(uint16_t) + (evpCount * sizeof(uint16_t)), evpBytes, readPos);
+	if (readBytes < 0) syslog(LOG_ERR, "Failed read: %m");
+	close(fd);
 
-	off_t filePos = lseek(fdMsg, 0, SEEK_END);
-
-	int startIndex = stindex_count[uid] - 1;
-	int stopIndex = -1;
-
-/*	if (matchId != NULL) {
-		if (matchId[0] & AEM_FLAG_NEWER) {
-			for (int i = stindex[stindexNum].msgCount - 1; i >= 0; i--) {
-				filePos -= (stindex[stindexNum].msg[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
-
-				if (idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
-					stopIndex = i;
-					break;
-				}
-			}
-
-			if (stopIndex == -1) {close(fdMsg); return AEM_INTCOM_RESPONSE_NOTEXIST;} // matchId not found
-			filePos = lseek(fdMsg, 0, SEEK_END);
-		} else { // older
-			startIndex = 0;
-
-			const off_t startFilePos = (stindex[stindexNum].msg[0] + AEM_ENVELOPE_MINBLOCKS) * 16;
-			filePos = lseek(fdMsg, startFilePos, SEEK_SET);
-			if (filePos != startFilePos) {close(fdMsg); return AEM_INTCOM_RESPONSE_ERR;}
-
-			for (int i = 1; i < stindex[stindexNum].msgCount; i++) {
-				if (idMatch(fdMsg, stindexNum, stindex[stindexNum].msg[i], filePos, matchId + 1)) {
-					startIndex = i - 1;
-					break;
-				}
-
-				filePos += (stindex[stindexNum].msg[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
-			}
-
-			if (startIndex == 0) {close(fdMsg); return AEM_INTCOM_RESPONSE_NOTEXIST;} // matchId not found, or is the oldest
-		}
-	}
-*/
-	int offset = 6; // browse_infoBytes
-
-	for (int i = startIndex; i > stopIndex; i--) {
-		const uint16_t blocks = stindex_size[uid][i];
-		if (offset + 2 + ((blocks + AEM_ENVELOPE_MINBLOCKS) * 16) > AEM_ENVELOPE_MAXSIZE + 8) break;
-
-		memcpy(*out + offset, &blocks, 2);
-		offset += 2;
-
-		filePos -= (blocks + AEM_ENVELOPE_MINBLOCKS) * 16;
-		if (pread(fdMsg, *out + offset, (blocks + AEM_ENVELOPE_MINBLOCKS) * 16, filePos) != (blocks + AEM_ENVELOPE_MINBLOCKS) * 16) {
-			syslog(LOG_ERR, "Failed read");
-			break;
-		}
-
-		offset += (blocks + AEM_ENVELOPE_MINBLOCKS) * 16;
+	if (readBytes != evpBytes) {
+		if (readBytes >= 0) syslog(LOG_ERR, "Failed read: %d/%d", readBytes, evpBytes);
+		free(*out);
+		*out = NULL;
+		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	close(fdMsg);
-	return offset; // full size if pad1m
+	return 6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes;
 }
 
 int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {

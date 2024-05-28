@@ -31,15 +31,26 @@ void setOurDomain(const unsigned char * const crt, const size_t lenCrt) {
 }
 
 static void message_browse(const uint16_t uid, const int flags, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
-	const bool haveMsgId = sodium_is_zero(urlData, AEM_API_REQ_DATA_LEN);
+	const bool haveMsgId = !sodium_is_zero(urlData, AEM_API_REQ_DATA_LEN);
 
-	unsigned char stoParam[3 + AEM_API_REQ_DATA_LEN];
+	unsigned char stoParam[sizeof(uint16_t) + AEM_API_REQ_DATA_LEN];
 	memcpy(stoParam, (const unsigned char * const)&uid, sizeof(uint16_t));
-	stoParam[2] = flags;
-	if (!haveMsgId) memcpy(stoParam + 3, urlData, AEM_API_REQ_DATA_LEN);
+	if (haveMsgId) memcpy(stoParam + sizeof(uint16_t), urlData, AEM_API_REQ_DATA_LEN);
 
 	unsigned char *stoData = NULL;
-	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, AEM_INTCOM_OP_BROWSE, stoParam, haveMsgId? 3 + AEM_API_REQ_DATA_LEN : 3, &stoData, 0);
+	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, (flags & AEM_API_MESSAGE_BROWSE_FLAG_OLDER) ? AEM_INTCOM_OP_BROWSE_OLD : AEM_INTCOM_OP_BROWSE_NEW, stoParam, haveMsgId? (sizeof(uint16_t) + AEM_API_REQ_DATA_LEN) : sizeof(uint16_t), &stoData, 0);
+
+	if (stoRet == AEM_INTCOM_RESPONSE_NOTEXIST) {
+		const unsigned char rb = AEM_API_ERR_MESSAGE_BROWSE_NOTFOUND;
+		apiResponse(&rb, 1);
+		return;
+	}
+
+	if (stoRet == AEM_INTCOM_RESPONSE_OK) {
+		const unsigned char rb = AEM_API_ERR_MESSAGE_BROWSE_NOMORE;
+		apiResponse(&rb, 1);
+		return;
+	}
 
 	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE + 8)) { // +6 (infobytes) +2 (size)
 		if (stoData != NULL) free(stoData);
