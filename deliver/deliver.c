@@ -30,22 +30,22 @@ static unsigned char *makeSrcBr(const unsigned char * const input, const size_t 
 	const size_t lenFn = 10;
 
 	*lenOutput = lenInput + 300; // Compressed version can be slightly larger
-	unsigned char * const output = malloc(AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn + *lenOutput);
+	unsigned char * const output = malloc(AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn + *lenOutput);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
 	output[AEM_ENVELOPE_RESERVED_LEN] = 32; // UplMsg
 	memcpy(output + AEM_ENVELOPE_RESERVED_LEN + 1, (const unsigned char*)&ts, 4);
 	output[AEM_ENVELOPE_RESERVED_LEN + 5] = (lenFn - 1) | 128; // 128: Attachment
-	// 16 bytes of MsgId
-	memcpy(output + AEM_ENVELOPE_RESERVED_LEN + 22, fn, lenFn);
+	// 2 bytes: ParentID
+	memcpy(output + AEM_ENVELOPE_RESERVED_LEN + 8, fn, lenFn);
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;
 	}
 
-	*lenOutput += AEM_ENVELOPE_RESERVED_LEN + 22 + lenFn;
+	*lenOutput += AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn;
 
 	const int padAmount = msg_getPadAmount(*lenOutput);
 	output[AEM_ENVELOPE_RESERVED_LEN] |= padAmount;
