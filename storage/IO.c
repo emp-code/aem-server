@@ -352,7 +352,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 	const int fd = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
-		syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;
+		syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG);
 		free(*out);
 		*out = NULL;
 		return AEM_INTCOM_RESPONSE_ERR;
