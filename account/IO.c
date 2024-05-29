@@ -493,6 +493,8 @@ void updateBinTs(const uint16_t uid, uint64_t reqBinTs) {
 }
 
 bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post) {
+	if (sodium_is_zero(users[req->uid].uak, AEM_KDF_SUB_KEYLEN)) return false;
+
 	// Authenticate
 	unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
 	uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_AUTH);
