@@ -201,14 +201,14 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	if (stindex_count[uid] > 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	size_t lenWm = 0;
-	unsigned char * const wm = welcomeEnvelope(msg + 2, &lenWm, uid);
+	unsigned char * const wm = welcomeEnvelope(msg + sizeof(uint16_t), &lenWm, uid);
 	if (wm == NULL) return -1;
-	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
 	const uint16_t wmId = getEnvelopeId(wm);
 
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
-		syslog(LOG_ERR, "Failed creating file");
+		syslog(LOG_ERR, "Failed creating file: %m");
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
@@ -222,13 +222,13 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	stindex[uid].id = malloc(sizeof(uint16_t));
-	if (stindex[uid].id == NULL) return AEM_INTCOM_RESPONSE_ERR;
 	stindex[uid].bc = malloc(sizeof(uint16_t));
 	if (stindex[uid].bc == NULL) return AEM_INTCOM_RESPONSE_ERR;
+	stindex[uid].id = malloc(sizeof(uint16_t));
+	if (stindex[uid].id == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	stindex_count[uid] = 1;
-	stindex[uid].bc[0] = wmBlocks;
+	stindex[uid].bc[0] = wmBc;
 	stindex[uid].id[0] = wmId;
 
 	saveStindex();
@@ -281,37 +281,31 @@ static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 }
 
 int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out, const bool newer) {
-	if (lenReq != sizeof(uint16_t) && lenReq != sizeof(uint16_t) + AEM_API_REQ_DATA_LEN) return AEM_INTCOM_RESPONSE_USAGE;
+	if (lenReq != sizeof(uint16_t) && lenReq != sizeof(uint16_t) * 2) return AEM_INTCOM_RESPONSE_USAGE;
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
 
-	const int fd = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
-
 	int startNum = 0;
 	if (lenReq != sizeof(uint16_t)) {
+		uint16_t reqId;
+		memcpy((unsigned char*)&reqId, req + sizeof(uint16_t), sizeof(uint16_t));
+
 		startNum = -1;
 
-		off_t filePos = lseek(fd, 0, SEEK_END);
-
 		for (int i = stindex_count[uid] - 1; i >= 0; i--) {
-			filePos -= (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
-
-			unsigned char id[AEM_API_REQ_DATA_LEN];
-			if (pread(fd, id, AEM_API_REQ_DATA_LEN, filePos) != AEM_API_REQ_DATA_LEN) {syslog(LOG_ERR, "Failed read"); close(fd); return AEM_INTCOM_RESPONSE_ERR;}
-			if (memeq(id, req + sizeof(uint16_t), AEM_API_REQ_DATA_LEN)) {
+			if (reqId == stindex[uid].id[i]) {
 				startNum = i;
 				break;
 			}
 		}
 
-		if (startNum == -1) {close(fd); return AEM_INTCOM_RESPONSE_NOTEXIST;}
+		if (startNum == -1) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
 		if (newer) {
 			startNum++;
-			if (startNum == stindex_count[uid]) {close(fd); return AEM_INTCOM_RESPONSE_OK;} // Found, but nothing newer
+			if (startNum == stindex_count[uid]) return AEM_INTCOM_RESPONSE_OK; // Found, but nothing newer
 		} else {
-			if (startNum == 0) {close(fd); return AEM_INTCOM_RESPONSE_OK;} // Found, but nothing older
+			if (startNum == 0) return AEM_INTCOM_RESPONSE_OK; // Found, but nothing older
 
 			startNum--;
 			for (size_t lenTotal = 0; startNum > 0; startNum--) {
@@ -355,6 +349,14 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	browse_infoBytes(*out, uid);
 	memcpy(*out + 6, &evpCount, sizeof(uint16_t));
 	memcpy(*out + 6 + sizeof(uint16_t), (unsigned char*)stindex[uid].bc + (startNum * sizeof(uint16_t)), evpCount * sizeof(uint16_t));
+
+	const int fd = open(AEM_PATH_STO_MSG, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0) {
+		syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;
+		free(*out);
+		*out = NULL;
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
 
 	const ssize_t readBytes = pread(fd, *out + 6 + sizeof(uint16_t) + (evpCount * sizeof(uint16_t)), evpBytes, readPos);
 	if (readBytes < 0) syslog(LOG_ERR, "Failed read: %m");
