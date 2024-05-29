@@ -22,10 +22,13 @@
 #include "IO.h"
 
 uint16_t stindex_count[AEM_USERCOUNT];
-uint16_t *stindex_size[AEM_USERCOUNT];
+
+struct {
+	uint16_t *id; // EnvelopeID
+	uint16_t *bc; // Block count
+} stindex[AEM_USERCOUNT];
 
 static unsigned char sbk[AEM_KDF_SUB_KEYLEN];
-
 static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 
 // uid: UserID; eid: Encoded UserID
@@ -62,7 +65,6 @@ static int loadStindex(void) {
 
 	unsigned char * const enc = malloc(fileSize);
 	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
-
 	if (pread(fd, enc, fileSize, 0) != fileSize) {syslog(LOG_ERR, "Failed reading Stindex.aem"); free(enc); return -1;}
 
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
@@ -72,17 +74,22 @@ static int loadStindex(void) {
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, fileSize - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, stiKey) == -1) {syslog(LOG_ERR, "Failed decrypting Stindex.aem"); free(enc); return -1;}
 	free(enc);
 
-	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
-		stindex_count[uid] = *(uint16_t*)(dec + (uid * sizeof(uint16_t)));
-	}
-
 	off_t offset = AEM_USERCOUNT * sizeof(uint16_t);
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
+		stindex_count[uid] = *(uint16_t*)(dec + (uid * sizeof(uint16_t)));
+
 		if (stindex_count[uid] > 0) {
-			const size_t sz = stindex_count[uid] * sizeof(uint16_t);
-			stindex_size[uid] = malloc(sz);
-			memcpy(stindex_size[uid], dec + offset, sz);
-			offset += sz;
+			const size_t bytes = stindex_count[uid] * sizeof(uint16_t);
+
+			stindex[uid].bc = malloc(bytes);
+			if (stindex[uid].bc == NULL) {free(dec); return -1;}
+			stindex[uid].id = malloc(bytes);
+			if (stindex[uid].id == NULL) {free(dec); return -1;}
+
+			memcpy(stindex[uid].bc, dec + offset, bytes);
+			offset += bytes;
+			memcpy(stindex[uid].id, dec + offset, bytes);
+			offset += bytes;
 		}
 	}
 
@@ -91,28 +98,35 @@ static int loadStindex(void) {
 }
 
 static void saveStindex(void) {
-	unsigned char stx[16384]; // With padding
-	memcpy(stx, (unsigned char*)stindex_count, AEM_USERCOUNT * sizeof(uint16_t));
+	size_t lenDec = AEM_USERCOUNT * sizeof(uint16_t);
+	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
+		lenDec += stindex_count[uid] * sizeof(uint16_t) * 2;
+	}
+
+	unsigned char * const dec = malloc(lenDec);
+	memcpy(dec, (unsigned char*)stindex_count, AEM_USERCOUNT * sizeof(uint16_t));
 	size_t offset = AEM_USERCOUNT * sizeof(uint16_t);
 
-	for (int i = 0; i < AEM_USERCOUNT; i++) {
-		if (stindex_count[i] > 0) {
-			memcpy(stx + offset, (unsigned char*)stindex_size[i], stindex_count[i] * sizeof(uint16_t));
-			offset += stindex_count[i] * sizeof(uint16_t);
+	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
+		if (stindex_count[uid] > 0) {
+			memcpy(dec + offset, stindex[uid].bc, stindex_count[uid] * sizeof(uint16_t));
+			offset += stindex_count[uid] * sizeof(uint16_t);
+			memcpy(dec + offset, stindex[uid].id, stindex_count[uid] * sizeof(uint16_t));
+			offset += stindex_count[uid] * sizeof(uint16_t);
 		}
 	}
 
-	bzero(stx + offset, 16384 - offset);
-	const size_t lenEnc = 16384 + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char * const enc = malloc(lenEnc);
-	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); free(dec); return;}
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
 
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
 	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
-	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, stx, 16384, NULL, 0, NULL, enc, stiKey);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, stiKey);
 	sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
-	sodium_memzero(stx, 16384);
+	sodium_memzero(dec, lenDec);
+	free(dec);
 
 	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
@@ -123,9 +137,8 @@ static void saveStindex(void) {
 
 	const ssize_t ret = write(fd, enc, lenEnc);
 	free(enc);
+	if (ret != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed writing Stindex.aem: %m");
 	close(fd);
-
-	if (ret != (ssize_t)lenEnc) syslog(LOG_ERR, "Failed writing Stindex.aem");
 }
 
 void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
@@ -138,7 +151,10 @@ void ioFree(void) {
 	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
 
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
-		if (stindex_count[uid] > 0) free(stindex_size[uid]);
+		if (stindex_count[uid] > 0) {
+			free(stindex[uid].id);
+			free(stindex[uid].bc);
+		}
 	}
 }
 
@@ -160,7 +176,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 	return AEM_USERCOUNT * sizeof(uint32_t);
 }
 
-static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], size_t * const lenEnvelope) {
+static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], size_t * const lenEnvelope, const uint16_t uid) {
 	const uint32_t ts = (uint32_t)time(NULL);
 	*lenEnvelope = AEM_ENVELOPE_RESERVED_LEN + 6 + AEM_WELCOME_LEN;
 	const size_t padAmount = msg_getPadAmount(*lenEnvelope);
@@ -174,19 +190,21 @@ static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], s
 	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 192; // IntMsg InfoByte: System
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, AEM_WELCOME, AEM_WELCOME_LEN);
 
-	message_into_envelope(msg, *lenEnvelope, epk);
+	message_into_envelope(msg, *lenEnvelope, epk, stindex[uid].id, stindex_count[uid]);
 	return msg;
 }
 
 int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg) {
-	if (lenMsg != 2 + X25519_PKBYTES) return AEM_INTCOM_RESPONSE_ERR;
-
-	size_t lenWm = 0;
-	unsigned char * const wm = welcomeEnvelope(msg + 2, &lenWm);
-	if (wm == NULL) return -1;
-	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	if (lenMsg != sizeof(uint16_t) + X25519_PKBYTES) return AEM_INTCOM_RESPONSE_ERR;
 
 	const uint16_t uid = *(const uint16_t * const)msg & 4095;
+	if (stindex_count[uid] > 0) return AEM_INTCOM_RESPONSE_EXIST;
+
+	size_t lenWm = 0;
+	unsigned char * const wm = welcomeEnvelope(msg + 2, &lenWm, uid);
+	if (wm == NULL) return -1;
+	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t wmId = getEnvelopeId(wm);
 
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
@@ -194,18 +212,24 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	if (write(fd, wm, lenWm) != (ssize_t)lenWm) {
-		close(fd);
-		syslog(LOG_ERR, "Failed writing file");
+	const ssize_t lenWritten = write(fd, wm, lenWm);
+	if (lenWritten < 0) syslog(LOG_ERR, "Failed writing file: %m");
+	free(wm);
+	close(fd);
+
+	if (lenWritten != (ssize_t)lenWm) {
+		if (lenWritten >= 0) syslog(LOG_ERR, "Failed writing file: %zd/%zu", lenWritten, lenWm);
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	close(fd);
+	stindex[uid].id = malloc(sizeof(uint16_t));
+	if (stindex[uid].id == NULL) return AEM_INTCOM_RESPONSE_ERR;
+	stindex[uid].bc = malloc(sizeof(uint16_t));
+	if (stindex[uid].bc == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
 	stindex_count[uid] = 1;
-	stindex_size[uid] = malloc(sizeof(uint16_t));
-	if (stindex_size[uid] == NULL) return AEM_INTCOM_RESPONSE_ERR;
-	stindex_size[uid][0] = wmBlocks;
+	stindex[uid].bc[0] = wmBlocks;
+	stindex[uid].id[0] = wmId;
 
 	saveStindex();
 	return AEM_INTCOM_RESPONSE_OK;
@@ -223,10 +247,13 @@ int32_t acc_storage_delete(const unsigned char * const msg, const size_t lenMsg)
 		return AEM_INTCOM_RESPONSE_OK;
 	}
 
-	sodium_memzero((unsigned char*)stindex_size[uid], sizeof(uint16_t) * stindex_count[uid]);
-	free(stindex_size[uid]);
+	sodium_memzero((unsigned char*)stindex[uid].bc, sizeof(uint16_t) * stindex_count[uid]);
+	sodium_memzero((unsigned char*)stindex[uid].id, sizeof(uint16_t) * stindex_count[uid]);
+	free(stindex[uid].bc);
+	free(stindex[uid].id);
 	stindex_count[uid] = 0;
 	saveStindex();
+
 	const int r = unlink(AEM_PATH_STO_MSG);
 	if (r != 0) {
 		syslog(LOG_ERR, "Failed deleting %s: %m", AEM_PATH_STO_MSG);
@@ -246,7 +273,7 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	uint32_t blocks = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {
-		blocks += stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS;
+		blocks += stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS;
 	}
 
 	memcpy(out, (const unsigned char * const)&stindex_count[uid], sizeof(uint16_t));
@@ -268,7 +295,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 		off_t filePos = lseek(fd, 0, SEEK_END);
 
 		for (int i = stindex_count[uid] - 1; i >= 0; i--) {
-			filePos -= (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+			filePos -= (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
 
 			unsigned char id[AEM_API_REQ_DATA_LEN];
 			if (pread(fd, id, AEM_API_REQ_DATA_LEN, filePos) != AEM_API_REQ_DATA_LEN) {syslog(LOG_ERR, "Failed read"); close(fd); return AEM_INTCOM_RESPONSE_ERR;}
@@ -288,7 +315,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 			startNum--;
 			for (size_t lenTotal = 0; startNum > 0; startNum--) {
-				lenTotal += (stindex_size[uid][startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
+				lenTotal += (stindex[uid].bc[startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
 				if (lenTotal > AEM_ENVELOPE_MAXSIZE) {
 					startNum++;
 					break;
@@ -298,7 +325,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	} else if (newer) {
 		size_t lenTotal = 0;
 		for (startNum = stindex_count[uid] - 1; startNum > 0; startNum--) {
-			lenTotal += (stindex_size[uid][startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
+			lenTotal += (stindex[uid].bc[startNum] + AEM_ENVELOPE_MINBLOCKS) * 16;
 			if (lenTotal > AEM_ENVELOPE_MAXSIZE) {
 				startNum++;
 				break;
@@ -309,7 +336,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	off_t readPos = 0;
 	if (startNum != 0) {
 		for (int i = 0; i < startNum; i++) {
-			readPos += (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+			readPos += (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
 		}
 	}
 
@@ -317,17 +344,17 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	uint16_t evpCount = 0;
 	ssize_t evpBytes = 0;
 	for(int i = startNum; i < stindex_count[uid]; i++) {
-		if (evpBytes + ((stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16) > AEM_ENVELOPE_MAXSIZE) break;
+		if (evpBytes + ((stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16) > AEM_ENVELOPE_MAXSIZE) break;
 
 		evpCount++;
-		evpBytes += (stindex_size[uid][i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+		evpBytes += (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
 	}
 
 	*out = malloc(6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes);
 	if (*out == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 	browse_infoBytes(*out, uid);
 	memcpy(*out + 6, &evpCount, sizeof(uint16_t));
-	memcpy(*out + 6 + sizeof(uint16_t), (unsigned char*)stindex_size[uid] + (startNum * sizeof(uint16_t)), evpCount * sizeof(uint16_t)); // FIXME
+	memcpy(*out + 6 + sizeof(uint16_t), (unsigned char*)stindex[uid].bc + (startNum * sizeof(uint16_t)), evpCount * sizeof(uint16_t));
 
 	const ssize_t readBytes = pread(fd, *out + 6 + sizeof(uint16_t) + (evpCount * sizeof(uint16_t)), evpBytes, readPos);
 	if (readBytes < 0) syslog(LOG_ERR, "Failed read: %m");
@@ -360,7 +387,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 
 		if (memeq(msgId, delId, 16)) {
 			// ID matches
-			const off_t szOverwrite = fileSz - filePos - stindex_size[uid][i];
+			const off_t szOverwrite = fileSz - filePos - stindex[uid].bc[i];
 			unsigned char * const tmp = malloc(szOverwrite);
 			if (tmp == NULL) {
 				syslog(LOG_ERR, "Failed malloc");
@@ -368,7 +395,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 				return AEM_INTCOM_RESPONSE_ERR;
 			}
 
-			if (pread(fdMsg, tmp, szOverwrite, filePos + stindex_size[uid][i]) != szOverwrite) {
+			if (pread(fdMsg, tmp, szOverwrite, filePos + stindex[uid].bc[i]) != szOverwrite) {
 				syslog(LOG_ERR, "Delete: Failed read: %m");
 				free(tmp);
 				close(fdMsg);
@@ -384,7 +411,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 
 			free(tmp);
 
-			if (ftruncate(fdMsg, fileSz - stindex_size[uid][i]) != 0) {
+			if (ftruncate(fdMsg, fileSz - stindex[uid].bc[i]) != 0) {
 				syslog(LOG_ERR, "Delete: Failed ftruncate: %m");
 				close(fdMsg);
 				return AEM_INTCOM_RESPONSE_ERR;
@@ -393,7 +420,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 			close(fdMsg);
 
 			if (i < stindex_count[uid] - 1) {
-				memmove((unsigned char*)stindex_size[uid] + (sizeof(uint16_t) * i), (unsigned char*)stindex_size[uid] + (sizeof(uint16_t) * (i + 1)), sizeof(uint16_t) * (stindex_count[uid] - i - 1));
+				memmove((unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * i), (unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * (i + 1)), sizeof(uint16_t) * (stindex_count[uid] - i - 1));
 			}
 
 			stindex_count[uid]--;
@@ -401,7 +428,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 			return AEM_INTCOM_RESPONSE_OK;
 		}
 
-		filePos += stindex_size[uid][i];
+		filePos += stindex[uid].bc[i];
 	}
 
 	// Not found
@@ -418,29 +445,25 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, uid, NULL, 0, &epk, X25519_PKBYTES);
 	if (icRet != X25519_PKBYTES) {syslog(LOG_ERR, "Failed getting EPK from Account: %d", icRet); return AEM_INTCOM_RESPONSE_ERR;}
 
-	message_into_envelope(msg, lenMsg, epk);
+	message_into_envelope(msg, lenMsg, epk, stindex[uid].id, stindex_count[uid]);
 	sodium_memzero(epk, X25519_PKBYTES);
 	free(epk);
-	const uint16_t bc = (lenMsg / 16) - AEM_ENVELOPE_MINBLOCKS;
+	stindex[uid].id[stindex_count[uid]] = getEnvelopeId(msg);
+	stindex[uid].bc[stindex_count[uid]] = (lenMsg / 16) - AEM_ENVELOPE_MINBLOCKS;
 
-	// Stindex
-	uint16_t * const new = reallocarray(stindex_size[uid], stindex_count[uid] + 1, sizeof(uint16_t));
-	if (new == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
-
-	stindex_size[uid] = new;
-	stindex_size[uid][stindex_count[uid]] = bc;
-
-	// Disk
+	// Write to disk
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_APPEND | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "storage_write(): Failed open: %m"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	if (write(fd, msg, (bc + AEM_ENVELOPE_MINBLOCKS) * 16) != (ssize_t)((bc + AEM_ENVELOPE_MINBLOCKS) * 16)) {
-		close(fd);
-		syslog(LOG_ERR, "storage_write(): Failed write: %m");
+	const ssize_t evpBytes = (stindex[uid].bc[stindex_count[uid]] + AEM_ENVELOPE_MINBLOCKS) * 16;
+	const ssize_t wroteBytes = write(fd, msg, evpBytes);
+	if (wroteBytes < 0) syslog(LOG_ERR, "storage_write(): Failed write: %m");
+	close(fd);
+
+	if (wroteBytes != evpBytes) {
+		if (wroteBytes >= 0) syslog(LOG_ERR, "storage_write(): Failed write: %zd/%zd", wroteBytes, evpBytes);
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
-
-	close(fd);
 
 	// Finish
 	stindex_count[uid]++;

@@ -58,7 +58,7 @@ static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], s
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
 	bzero(msg + *lenEnvelope - padAmount, padAmount);
 
-	message_into_envelope(msg, *lenEnvelope, epk);
+	message_into_envelope(msg, *lenEnvelope, epk, NULL, 0);
 	return msg;
 }
 
@@ -67,7 +67,8 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	size_t lenWm = 0;
 	unsigned char * const wm = welcomeEnvelope(ma_epk, &lenWm);
 	if (wm == NULL) return -1;
-	const uint16_t wmBlocks = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t wmId = getEnvelopeId(wm);
 
 	// Save the MA's Envelope file
 	const char eid_char0 = get_eid_char0(sbk);
@@ -79,16 +80,18 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
 	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 
-	unsigned char stindex[16384]; // With padding
-	bzero(stindex, 16384);
-	stindex[0] = 1; // Message count 1 for the first user
-	memcpy(stindex + (AEM_USERCOUNT * sizeof(uint16_t)), &wmBlocks, sizeof(uint16_t)); // Size of first message
+	const size_t lenDec = (AEM_USERCOUNT * sizeof(uint16_t)) + sizeof(uint16_t) * 2;
+	unsigned char dec[lenDec];
+	bzero(dec, lenDec);
+	dec[0] = 1; // Envelope count 1 for the first user
+	memcpy(dec + (AEM_USERCOUNT * sizeof(uint16_t)),                    &wmBc, sizeof(uint16_t)); // Block count of first envelope
+	memcpy(dec + (AEM_USERCOUNT * sizeof(uint16_t)) + sizeof(uint16_t), &wmId, sizeof(uint16_t)); // EnvelopeID of first envelope
 
-	const size_t lenEnc = 16384 + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char enc[lenEnc];
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
-	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, stindex, 16384, NULL, 0, NULL, enc, stiKey);
-	sodium_memzero(stindex, 16384);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, stiKey);
+	sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
 
 	return createFile("Stindex.aem", enc, lenEnc);
 }
