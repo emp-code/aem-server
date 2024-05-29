@@ -14,6 +14,7 @@
 #include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
+#include "../Common/Envelope.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 
@@ -41,20 +42,18 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			continue;
 		}
 
-		unsigned char parentId[16];
-		memcpy(parentId, msg, 16);
-
 		if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 		}
 
+		const uint16_t parentId = getEnvelopeId(msg);
 		sodium_memzero(msg, lenMsg);
 		free(msg);
 
 		// Store attachments, if requested
 		if ((meta->toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
 			for (int j = 0; j < email->attachCount; j++) {
-				makeAttachment(email->attachment[j], email->lenAttachment[j], email->timestamp, parentId);
+				memcpy(email->attachment[j] + AEM_ENVELOPE_RESERVED_LEN + 6, &parentId, sizeof(uint16_t));
 
 				if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;

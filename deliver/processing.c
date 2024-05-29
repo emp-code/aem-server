@@ -7,6 +7,7 @@
 #include <sodium.h>
 
 #include "../Common/Html2Cet.h"
+#include "../Common/Message.h"
 #include "../Common/QuotedPrintable.h"
 #include "../Common/ToUtf8.h"
 #include "../Common/Trim.h"
@@ -426,7 +427,8 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 		const size_t lenCt = (ct != NULL) ? ((partHeaders + lenPartHeaders) - ct) : 0;
 
 		unsigned char fn[256];
-		const size_t lenFn = getNameHeader(ct, lenCt, fn);
+		size_t lenFn = getNameHeader(ct, lenCt, fn);
+		if (lenFn > 128) lenFn = 128;
 
 		const unsigned char *boundEnd = memmem(hend, (src + lenSrc) - hend, bound[i], lenBound[i]);
 		if (boundEnd == NULL) break;
@@ -479,18 +481,21 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 					*lenOut += lenNew + 1;
 				}
 			} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-				const size_t lenAtt = 22 + lenFn + lenNew;
-				if (lenAtt >= AEM_MSG_SRC_MINSIZE && lenAtt <= AEM_MSG_SRC_MAXSIZE) {
-					email->attachment[email->attachCount] = malloc(lenAtt);
+				size_t lenAtt = AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn + lenNew;
+				const size_t padAmount = msg_getPadAmount(lenAtt);
+				if (lenAtt + padAmount >= AEM_ENVELOPE_MINBLOCKS * 16 && lenAtt <= AEM_ENVELOPE_MAXSIZE) {
+					email->attachment[email->attachCount] = malloc(lenAtt + padAmount);
 					if (email->attachment[email->attachCount] != NULL) {
-						// Bytes 0-4 reserved for InfoByte and timestamp
-						email->attachment[email->attachCount][5] = (lenFn - 1);
-						// 16 bytes reserved for MsgId
-						memcpy(email->attachment[email->attachCount] + 22, fn, lenFn);
-						memcpy(email->attachment[email->attachCount] + 22 + lenFn, new, lenNew);
+						email->attachment[email->attachCount][AEM_ENVELOPE_RESERVED_LEN] = padAmount | 32;
+						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 1, &email->timestamp, 4);
+						email->attachment[email->attachCount][AEM_ENVELOPE_RESERVED_LEN + 5] = 128 | (lenFn - 1);
+						// 2 bytes reserved for ParentID
+						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 8, fn, lenFn);
+						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn, new, lenNew);
 						free(new);
+						bzero(email->attachment[email->attachCount] + lenAtt, padAmount);
 
-						email->lenAttachment[email->attachCount] = lenAtt;
+						email->lenAttachment[email->attachCount] = lenAtt + padAmount;
 						(email->attachCount)++;
 					} else {free(new); syslog(LOG_ERR, "Failed allocation");}
 				} else free(new); // Attachment too large

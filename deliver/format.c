@@ -13,21 +13,10 @@
 #include <sodium.h>
 
 #include "../Common/Email.h"
+#include "../Common/Message.h"
 #include "../Common/memeq.h"
 
 #include "format.h"
-
-#include "../Common/Message.c"
-
-__attribute__((warn_unused_result))
-void makeAttachment(unsigned char * const att, const size_t lenAtt, const uint32_t ts, const unsigned char parentId[16]) {
-	if (att == NULL || lenAtt < 23) return;
-
-	att[0] = msg_getPadAmount(lenAtt) | 32;
-	memcpy(att + 1, &ts, 4);
-	// att[5]: lenFn
-	memcpy(att + 6, parentId, 16);
-}
 
 __attribute__((warn_unused_result))
 unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut, const bool allVer) {
