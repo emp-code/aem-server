@@ -450,8 +450,18 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	message_into_envelope(msg, lenMsg, epk, stindex[uid].id, stindex_count[uid]);
 	sodium_memzero(epk, X25519_PKBYTES);
 	free(epk);
-	stindex[uid].id[stindex_count[uid]] = getEnvelopeId(msg);
+
+	// Stindex
+	uint16_t *new = reallocarray(stindex[uid].bc, stindex_count[uid] + 1, sizeof(uint16_t));
+	if (new == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+	stindex[uid].bc = new;
+
+	new = reallocarray(stindex[uid].id, stindex_count[uid] + 1, sizeof(uint16_t));
+	if (new == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+	stindex[uid].id = new;
+
 	stindex[uid].bc[stindex_count[uid]] = (lenMsg / 16) - AEM_ENVELOPE_MINBLOCKS;
+	stindex[uid].id[stindex_count[uid]] = getEnvelopeId(msg);
 
 	// Write to disk
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_APPEND | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
