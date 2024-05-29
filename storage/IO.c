@@ -438,7 +438,7 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
-int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
+int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid, unsigned char **res) {
 	if (lenMsg < AEM_ENVELOPE_MINSIZE || lenMsg > AEM_ENVELOPE_MAXSIZE || lenMsg % 16 != 0) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
@@ -480,5 +480,13 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	// Finish
 	stindex_count[uid]++;
 	saveStindex();
-	return AEM_INTCOM_RESPONSE_OK;
+	if (res == NULL) return AEM_INTCOM_RESPONSE_OK;
+
+	// Respond with EnvelopeID
+	*res = malloc(sizeof(uint16_t));
+	if (*res == NULL) return AEM_INTCOM_RESPONSE_OK;
+
+	const uint16_t envelopeId = getEnvelopeId(msg);
+	memcpy(*res, &envelopeId, sizeof(uint16_t));
+	return sizeof(uint16_t);
 }

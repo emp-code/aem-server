@@ -42,18 +42,18 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			continue;
 		}
 
-		if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+		unsigned char *parentId = NULL;
+		if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, &parentId, 2) != 2) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 		}
 
-		const uint16_t parentId = getEnvelopeId(msg);
 		sodium_memzero(msg, lenMsg);
 		free(msg);
 
 		// Store attachments, if requested
 		if ((meta->toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
 			for (int j = 0; j < email->attachCount; j++) {
-				memcpy(email->attachment[j] + AEM_ENVELOPE_RESERVED_LEN + 6, &parentId, sizeof(uint16_t));
+				memcpy(email->attachment[j] + AEM_ENVELOPE_RESERVED_LEN + 6, (parentId == NULL) ? (unsigned char[]){0,0} : parentId, sizeof(uint16_t));
 
 				if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
@@ -63,9 +63,11 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			// TODO: Set parentID
+			memcpy(srcBr + AEM_ENVELOPE_RESERVED_LEN + 6, (parentId == NULL) ? (unsigned char[]){0,0} : parentId, sizeof(uint16_t));
 			intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], srcBr, lenSrcBr, NULL, 0); // Ignore failure
 		}
+
+		if (parentId != NULL) free(parentId);
 	}
 
 	return deliveryStatus;
