@@ -23,9 +23,7 @@
 #include "store.h"
 
 int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, unsigned char * const srcBr, const size_t lenSrcBr) {
-	if (meta->toCount < 1) {syslog(LOG_ERR, "deliverMessage(): Empty"); return AEM_INTCOM_RESPONSE_ERR;}
 	if (email->attachCount > 31) email->attachCount = 31;
-
 	int32_t deliveryStatus = AEM_INTCOM_RESPONSE_OK;
 
 	for (int i = 0; i < meta->toCount; i++) {
