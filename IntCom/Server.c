@@ -126,7 +126,7 @@ void intcom_serve(void) {
 				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(operation, msg, lenMsg, &res); break;
 #elif defined(AEM_STORAGE)
 				case AEM_INTCOM_CLIENT_ACC: resCode = conn_acc(operation, msg, lenMsg, &res); break;
-				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(operation, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(operation, msg, lenMsg); break;
 #endif
 				default: syslog(LOG_ERR, "Unhandled client (Msg): %u", encHdr[0]);
 			}
