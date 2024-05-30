@@ -173,6 +173,8 @@ static void addTagChar(unsigned char * const src, size_t * const lenOut, const e
 			// We're opening a new tag
 
 			if (chr == AEM_CET_CHAR_TBL) {
+				if (*lenOut > 1 && *(src + *lenOut - 1) == AEM_CET_CHAR_LBR && *(src + *lenOut - 2) == AEM_CET_CHAR_LBR) (*lenOut)--;
+
 				// Tables begin with <table> <tr> <td>
 				memcpy(src + *lenOut, (unsigned char[]) {AEM_CET_CHAR_TBL, AEM_CET_CHAR_TTR, AEM_CET_CHAR_TTD}, 3);
 				*lenOut += 3;
