@@ -29,6 +29,8 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 	int32_t deliveryStatus = AEM_INTCOM_RESPONSE_OK;
 
 	for (int i = 0; i < meta->toCount; i++) {
+		if (meta->toUid[i] >= AEM_USERCOUNT) continue;
+
 		email->lenEnvTo = strlen(meta->to[i]);
 		if (email->lenEnvTo > 63) email->lenEnvTo = 63;
 		memcpy(email->envTo, meta->to[i], email->lenEnvTo);
