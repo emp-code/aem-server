@@ -1,21 +1,11 @@
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <syslog.h>
-#include <time.h>
-#include <unistd.h>
 
 #include <sodium.h>
 
 #include "../Global.h"
-#include "../Common/Addr32.h"
 #include "../Common/Email.h"
-#include "../Common/Envelope.h"
-#include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 
 #include "format.h"
