@@ -35,7 +35,7 @@
 	#define AEM_SALTNORMAL_LEN crypto_pwhash_SALTBYTES
 #endif
 
-static struct aem_user *users = NULL;
+static struct aem_user *user[AEM_USERCOUNT];
 
 size_t lenRsaAdminKey;
 size_t lenRsaUsersKey;
@@ -96,14 +96,30 @@ static int loadSettings(void) {
 }
 
 static void saveUser(void) {
-	const size_t lenClear = sizeof(struct aem_user) * AEM_USERCOUNT;
+	int userCount = 0;
+	for (int i = 0; i < AEM_USERCOUNT; i++) {
+		if (user[i] != NULL) userCount++;
+	}
 
-	const size_t lenEnc = lenClear + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	const size_t lenDec = (sizeof(struct aem_user) + sizeof(uint16_t)) * userCount;
+	unsigned char * const dec = malloc(lenDec);
+	if (dec == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+
+	userCount = 0;
+	for (uint16_t i = 0; i < AEM_USERCOUNT; i++) {
+		if (user[i] == NULL) continue;
+
+		memcpy(dec + (userCount * (sizeof(struct aem_user) + sizeof(uint16_t))), &i, sizeof(uint16_t));
+		memcpy(dec + (userCount * (sizeof(struct aem_user) + sizeof(uint16_t))) + sizeof(uint16_t), user[i], sizeof(struct aem_user));
+		userCount++;
+	}
+
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char * const enc = malloc(lenEnc);
-	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); free(dec); return;}
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
-
-	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, (unsigned char*)users, lenClear, NULL, 0, NULL, enc, accountKey);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, accountKey);
+	free(dec);
 
 	const int fd = open("Account.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
@@ -125,7 +141,7 @@ static int loadUser(void) {
 
 	const off_t lenEnc = lseek(fd, 0, SEEK_END);
 	const off_t lenDec = lenEnc - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES;
-	if (lenDec != AEM_USERCOUNT * sizeof(struct aem_user)) {
+	if (lenDec % (sizeof(struct aem_user) + sizeof(uint16_t)) != 0) {
 		close(fd);
 		syslog(LOG_ERR, "Invalid size for Account.aem");
 		return -1;
@@ -141,23 +157,38 @@ static int loadUser(void) {
 	}
 	close(fd);
 
-	users = malloc(lenDec);
-	if (users == NULL) {syslog(LOG_ERR, "Failed allocation"); free(enc); return -1;}
-
-	if (crypto_aead_aegis256_decrypt((unsigned char*)users, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, accountKey) == -1) {
-		free(users);
+	unsigned char * const dec = malloc(lenDec);
+	if (dec == NULL) {free(enc); syslog(LOG_ERR, "Failed allocation"); return -1;}
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, accountKey) == -1) {
+		free(enc);
+		free(dec);
 		syslog(LOG_ERR, "Failed decrypting Account.aem");
 		return -1;
 	}
+	free(enc);
 
+	const int userCount = lenDec / (sizeof(struct aem_user) + sizeof(uint16_t));
+	for (int i = 0; i < userCount; i++) {
+		uint16_t uid;
+		memcpy(&uid, dec + (i * (sizeof(struct aem_user) + sizeof(uint16_t))), sizeof(uint16_t));
+		if (uid >= AEM_USERCOUNT) {free(dec); syslog(LOG_ERR, "Invalid UserID: %u", uid); return -1;}
+
+		user[uid] = malloc(sizeof(struct aem_user));
+		if (user[uid] == NULL) {syslog(LOG_INFO, "Failed allocation"); continue;}
+		memcpy(user[uid], dec + (i * (sizeof(struct aem_user) + sizeof(uint16_t))) + sizeof(uint16_t), sizeof(struct aem_user));
+	}
+
+	free(dec);
 	return 0;
 }
 
 static uint16_t hashToUid(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
-		for (int addrNum = 0; addrNum < users[uid].addrCount; addrNum++) {
-			if (hash == users[uid].addrHash[addrNum] && (users[uid].addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == (isShield? AEM_ADDR_FLAG_SHIELD : 0)) {
-				if (flagp != NULL) *flagp = users[uid].addrFlag[addrNum];
+		if (user[uid] == NULL) continue;
+
+		for (int addrNum = 0; addrNum < user[uid]->addrCount; addrNum++) {
+			if (hash == user[uid]->addrHash[addrNum] && (user[uid]->addrFlag[addrNum] & AEM_ADDR_FLAG_SHIELD) == (isShield? AEM_ADDR_FLAG_SHIELD : 0)) {
+				if (flagp != NULL) *flagp = user[uid]->addrFlag[addrNum];
 				return uid;
 			}
 		}
@@ -194,8 +225,8 @@ static uint64_t addressToHash(const unsigned char * const addr32, const bool shi
 static int numAddresses(const int uid, const bool shield) {
 	int counter = 0;
 
-	for (int i = 0; i < users[uid].addrCount; i++) {
-		const bool isShield = (users[uid].addrFlag[i] & AEM_ADDR_FLAG_SHIELD) > 0;
+	for (int i = 0; i < user[uid]->addrCount; i++) {
+		const bool isShield = (user[uid]->addrFlag[i] & AEM_ADDR_FLAG_SHIELD) > 0;
 		if (isShield == shield) counter++;
 	}
 
@@ -217,10 +248,11 @@ int32_t api_account_browse(unsigned char * const res) {
 	memcpy(res, (unsigned char*)limits, 12);
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
-		const uint32_t kib = sodium_is_zero(users[i].uak, AEM_KDF_SUB_KEYLEN) ? 0 : 1234567; // TODO
-
-		const uint32_t u32 = users[i].level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
-		memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
+		if (user[i] != NULL) {
+			const uint32_t kib = 1234567; // TODO
+			const uint32_t u32 = user[i]->level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
+			memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
+		} else bzero(res + 12 + (i * sizeof(uint32_t)), sizeof(uint32_t));
 	}
 
 	return 12 + (AEM_USERCOUNT * sizeof(uint32_t));
@@ -230,10 +262,11 @@ int32_t api_account_delete(unsigned char * const res, const unsigned char reqDat
 	const uint16_t del_uid = *(const uint16_t * const)reqData;
 	if (del_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (del_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
-	if (users[api_uid].level != AEM_USERLEVEL_MAX && api_uid != del_uid) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[del_uid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX && api_uid != del_uid) return api_response_status(res, AEM_API_ERR_LEVEL);
+	if (user[del_uid] == NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
-	sodium_memzero(users + del_uid, sizeof(struct aem_user));
+	sodium_memzero(user[del_uid], sizeof(struct aem_user));
+	user[del_uid] = NULL;
 	saveUser();
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_DELETE, reqData, sizeof(uint16_t), NULL, 0);
@@ -245,22 +278,22 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	const uint8_t new_lvl = reqData[2];
 	if (upd_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (upd_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
-	if (users[api_uid].level != AEM_USERLEVEL_MAX && (api_uid != upd_uid || new_lvl > users[api_uid].level)) return api_response_status(res, AEM_API_ERR_LEVEL);
-	if (sodium_is_zero(users[upd_uid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX && (api_uid != upd_uid || new_lvl > user[api_uid]->level)) return api_response_status(res, AEM_API_ERR_LEVEL);
+	if (user[upd_uid] == NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
-	users[upd_uid].level = new_lvl;
+	user[upd_uid]->level = new_lvl;
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
 int32_t api_address_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	const bool isShield = sodium_is_zero(reqData, 8);
-	if (users[api_uid].addrCount >= AEM_ADDRESSES_PER_USER) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
+	if (user[api_uid]->addrCount >= AEM_ADDRESSES_PER_USER) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 	unsigned char addr32[10];
 	uint64_t hash = 0;
 	if (isShield) {
-		if (numAddresses(api_uid, true) >= limits[users[api_uid].level][AEM_LIMIT_SHD]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
+		if (numAddresses(api_uid, true) >= limits[user[api_uid]->level][AEM_LIMIT_SHD]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 		randombytes_buf(addr32, 10);
 		addr32[0] |= 128;
@@ -268,12 +301,12 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 		hash = addressToHash(addr32, true);
 		if (hash == 0) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	} else { // Normal
-		if (numAddresses(api_uid, false) >= limits[users[api_uid].level][AEM_LIMIT_NRM]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
+		if (numAddresses(api_uid, false) >= limits[user[api_uid]->level][AEM_LIMIT_NRM]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 		memcpy((unsigned char*)&hash, reqData, 8);
 
 /*
-		if (users[api_uid].level != AEM_USERLEVEL_MAX) {
+		if (user[api_uid]->level != AEM_USERLEVEL_MAX) {
 			// Not admin, check if hash is forbidden
 			for (unsigned int i = 0; i < AEM_HASH_ADMIN_COUNT; i++) {
 				if (hash == AEM_HASH_ADMIN[i]) {
@@ -289,9 +322,9 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 
 	if (hashToUid(hash, isShield, NULL) != UINT16_MAX) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 
-	users[api_uid].addrHash[users[api_uid].addrCount] = hash;
-	users[api_uid].addrFlag[users[api_uid].addrCount] = isShield? (AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD) : AEM_ADDR_FLAGS_DEFAULT;
-	users[api_uid].addrCount++;
+	user[api_uid]->addrHash[user[api_uid]->addrCount] = hash;
+	user[api_uid]->addrFlag[user[api_uid]->addrCount] = isShield? (AEM_ADDR_FLAGS_DEFAULT | AEM_ADDR_FLAG_SHIELD) : AEM_ADDR_FLAGS_DEFAULT;
+	user[api_uid]->addrCount++;
 
 	saveUser();
 
@@ -305,8 +338,8 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 
 int32_t api_address_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	int delNum = -1;
-	for (int i = 0; i < users[api_uid].addrCount; i++) {
-		if (memeq(reqData, (unsigned char*)&users[api_uid].addrHash[i], sizeof(uint64_t))) {
+	for (int i = 0; i < user[api_uid]->addrCount; i++) {
+		if (memeq(reqData, (unsigned char*)&user[api_uid]->addrHash[i], sizeof(uint64_t))) {
 			delNum = i;
 			break;
 		}
@@ -314,51 +347,51 @@ int32_t api_address_delete(unsigned char * const res, const unsigned char reqDat
 
 	if (delNum < 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
-	if (delNum < (users[api_uid].addrCount - 1)) {
-		for (int i = delNum; i < users[api_uid].addrCount - 1; i++) {
-			users[api_uid].addrHash[i] = users[api_uid].addrHash[i + 1];
-			users[api_uid].addrFlag[i] = users[api_uid].addrFlag[i + 1];
+	if (delNum < (user[api_uid]->addrCount - 1)) {
+		for (int i = delNum; i < user[api_uid]->addrCount - 1; i++) {
+			user[api_uid]->addrHash[i] = user[api_uid]->addrHash[i + 1];
+			user[api_uid]->addrFlag[i] = user[api_uid]->addrFlag[i + 1];
 		}
 	}
 
-	users[api_uid].addrCount--;
+	user[api_uid]->addrCount--;
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
 int32_t api_address_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
-	memcpy(users[api_uid].addrFlag, (unsigned char[]){
-		(users[api_uid].addrFlag[0]  & 192) |  (reqData[0]  &  63),
-		(users[api_uid].addrFlag[1]  & 192) | ((reqData[0]  & 192) >> 2) | (reqData[1]  & 15),
-		(users[api_uid].addrFlag[2]  & 192) | ((reqData[1]  & 240) >> 2) | (reqData[2]  &  3),
-		(users[api_uid].addrFlag[3]  & 192) | ((reqData[2]  & 252) >> 2),
-		(users[api_uid].addrFlag[4]  & 192) |  (reqData[3]  &  63),
-		(users[api_uid].addrFlag[5]  & 192) | ((reqData[3]  & 192) >> 2) | (reqData[4]  & 15),
-		(users[api_uid].addrFlag[6]  & 192) | ((reqData[4]  & 240) >> 2) | (reqData[5]  &  3),
-		(users[api_uid].addrFlag[7]  & 192) | ((reqData[5]  & 252) >> 2),
-		(users[api_uid].addrFlag[8]  & 192) |  (reqData[6]  &  63),
-		(users[api_uid].addrFlag[9]  & 192) | ((reqData[6]  & 192) >> 2) | (reqData[7]  & 15),
-		(users[api_uid].addrFlag[10] & 192) | ((reqData[7]  & 240) >> 2) | (reqData[8]  &  3),
-		(users[api_uid].addrFlag[11] & 192) | ((reqData[8]  & 252) >> 2),
-		(users[api_uid].addrFlag[12] & 192) |  (reqData[9]  &  63),
-		(users[api_uid].addrFlag[13] & 192) | ((reqData[9]  & 192) >> 2) | (reqData[10]  & 15),
-		(users[api_uid].addrFlag[14] & 192) | ((reqData[10] & 240) >> 2) | (reqData[11]  &  3),
-		(users[api_uid].addrFlag[15] & 192) | ((reqData[11] & 252) >> 2),
-		(users[api_uid].addrFlag[16] & 192) |  (reqData[12] &  63),
-		(users[api_uid].addrFlag[17] & 192) | ((reqData[12] & 192) >> 2) | (reqData[13]  & 15),
-		(users[api_uid].addrFlag[18] & 192) | ((reqData[13] & 240) >> 2) | (reqData[14]  &  3),
-		(users[api_uid].addrFlag[19] & 192) | ((reqData[14] & 252) >> 2),
-		(users[api_uid].addrFlag[20] & 192) |  (reqData[15] &  63),
-		(users[api_uid].addrFlag[21] & 192) | ((reqData[15] & 192) >> 2) | (reqData[16]  & 15),
-		(users[api_uid].addrFlag[22] & 192) | ((reqData[16] & 240) >> 2) | (reqData[17]  &  3),
-		(users[api_uid].addrFlag[23] & 192) | ((reqData[17] & 252) >> 2),
-		(users[api_uid].addrFlag[24] & 192) |  (reqData[18] &  63),
-		(users[api_uid].addrFlag[25] & 192) | ((reqData[18] & 192) >> 2) | (reqData[19]  & 15),
-		(users[api_uid].addrFlag[26] & 192) | ((reqData[19] & 240) >> 2) | (reqData[20]  &  3),
-		(users[api_uid].addrFlag[27] & 192) | ((reqData[20] & 252) >> 2),
-		(users[api_uid].addrFlag[28] & 192) |  (reqData[21] &  63),
-		(users[api_uid].addrFlag[29] & 192) | ((reqData[21] & 192) >> 2) | (reqData[22]  & 15),
-		(users[api_uid].addrFlag[30] & 192) | ((reqData[22] & 240) >> 2) | (reqData[23]  &  3)
+	memcpy(user[api_uid]->addrFlag, (unsigned char[]){
+		(user[api_uid]->addrFlag[0]  & 192) |  (reqData[0]  &  63),
+		(user[api_uid]->addrFlag[1]  & 192) | ((reqData[0]  & 192) >> 2) | (reqData[1]  & 15),
+		(user[api_uid]->addrFlag[2]  & 192) | ((reqData[1]  & 240) >> 2) | (reqData[2]  &  3),
+		(user[api_uid]->addrFlag[3]  & 192) | ((reqData[2]  & 252) >> 2),
+		(user[api_uid]->addrFlag[4]  & 192) |  (reqData[3]  &  63),
+		(user[api_uid]->addrFlag[5]  & 192) | ((reqData[3]  & 192) >> 2) | (reqData[4]  & 15),
+		(user[api_uid]->addrFlag[6]  & 192) | ((reqData[4]  & 240) >> 2) | (reqData[5]  &  3),
+		(user[api_uid]->addrFlag[7]  & 192) | ((reqData[5]  & 252) >> 2),
+		(user[api_uid]->addrFlag[8]  & 192) |  (reqData[6]  &  63),
+		(user[api_uid]->addrFlag[9]  & 192) | ((reqData[6]  & 192) >> 2) | (reqData[7]  & 15),
+		(user[api_uid]->addrFlag[10] & 192) | ((reqData[7]  & 240) >> 2) | (reqData[8]  &  3),
+		(user[api_uid]->addrFlag[11] & 192) | ((reqData[8]  & 252) >> 2),
+		(user[api_uid]->addrFlag[12] & 192) |  (reqData[9]  &  63),
+		(user[api_uid]->addrFlag[13] & 192) | ((reqData[9]  & 192) >> 2) | (reqData[10]  & 15),
+		(user[api_uid]->addrFlag[14] & 192) | ((reqData[10] & 240) >> 2) | (reqData[11]  &  3),
+		(user[api_uid]->addrFlag[15] & 192) | ((reqData[11] & 252) >> 2),
+		(user[api_uid]->addrFlag[16] & 192) |  (reqData[12] &  63),
+		(user[api_uid]->addrFlag[17] & 192) | ((reqData[12] & 192) >> 2) | (reqData[13]  & 15),
+		(user[api_uid]->addrFlag[18] & 192) | ((reqData[13] & 240) >> 2) | (reqData[14]  &  3),
+		(user[api_uid]->addrFlag[19] & 192) | ((reqData[14] & 252) >> 2),
+		(user[api_uid]->addrFlag[20] & 192) |  (reqData[15] &  63),
+		(user[api_uid]->addrFlag[21] & 192) | ((reqData[15] & 192) >> 2) | (reqData[16]  & 15),
+		(user[api_uid]->addrFlag[22] & 192) | ((reqData[16] & 240) >> 2) | (reqData[17]  &  3),
+		(user[api_uid]->addrFlag[23] & 192) | ((reqData[17] & 252) >> 2),
+		(user[api_uid]->addrFlag[24] & 192) |  (reqData[18] &  63),
+		(user[api_uid]->addrFlag[25] & 192) | ((reqData[18] & 192) >> 2) | (reqData[19]  & 15),
+		(user[api_uid]->addrFlag[26] & 192) | ((reqData[19] & 240) >> 2) | (reqData[20]  &  3),
+		(user[api_uid]->addrFlag[27] & 192) | ((reqData[20] & 252) >> 2),
+		(user[api_uid]->addrFlag[28] & 192) |  (reqData[21] &  63),
+		(user[api_uid]->addrFlag[29] & 192) | ((reqData[21] & 192) >> 2) | (reqData[22]  & 15),
+		(user[api_uid]->addrFlag[30] & 192) | ((reqData[22] & 240) >> 2) | (reqData[23]  &  3)
 		// Last 6 bits unused
 	}, AEM_ADDRESSES_PER_USER);
 
@@ -370,25 +403,25 @@ int32_t api_message_browse(unsigned char * const res, const unsigned char reqDat
 	if ((flags & AEM_API_MESSAGE_BROWSE_FLAG_UINFO) == 0) return 0; // User data not requested, nothing to do
 
 	// User data requested, add it to the response
-	res[0] = users[api_uid].level | (users[api_uid].addrCount << 2);
-	memcpy(res + 1, limits[users[api_uid].level], 3);
+	res[0] = user[api_uid]->level | (user[api_uid]->addrCount << 2);
+	memcpy(res + 1, limits[user[api_uid]->level], 3);
 
-	for (int i = 0; i < users[api_uid].addrCount; i++) {
-		memcpy(res + (i * 9) + 4, (unsigned char*)&users[api_uid].addrHash[i], sizeof(uint64_t));
-		res[(i * 9) + 12] = users[api_uid].addrFlag[i];
+	for (int i = 0; i < user[api_uid]->addrCount; i++) {
+		memcpy(res + (i * 9) + 4, (unsigned char*)&user[api_uid]->addrHash[i], sizeof(uint64_t));
+		res[(i * 9) + 12] = user[api_uid]->addrFlag[i];
 	}
 
-	memcpy(res + 4 + (users[api_uid].addrCount * 9), users[api_uid].private, AEM_LEN_PRIVATE);
-	memcpy(res + 4 + (users[api_uid].addrCount * 9) + AEM_LEN_PRIVATE, saltNormal, AEM_SALTNORMAL_LEN);
+	memcpy(res + 4 + (user[api_uid]->addrCount * 9), user[api_uid]->private, AEM_LEN_PRIVATE);
+	memcpy(res + 4 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE, saltNormal, AEM_SALTNORMAL_LEN);
 #ifdef AEM_ADDRESS_NOPWHASH
-	bzero(res + 4 + (users[api_uid].addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN, 5);
+	bzero(res + 4 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN, 5);
 #else
 	const uint32_t mlim = AEM_ADDRESS_ARGON2_MEMLIMIT;
-	res[4 + (users[api_uid].addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN] = AEM_ADDRESS_ARGON2_OPSLIMIT;
-	memcpy(res + 5 + (users[api_uid].addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN, (const unsigned char*)&mlim, sizeof(uint32_t));
+	res[4 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN] = AEM_ADDRESS_ARGON2_OPSLIMIT;
+	memcpy(res + 5 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE + AEM_SALTNORMAL_LEN, (const unsigned char*)&mlim, sizeof(uint32_t));
 #endif
 
-	return 5 + (users[api_uid].addrCount * 9) + AEM_LEN_PRIVATE + crypto_pwhash_SALTBYTES + sizeof(uint32_t);
+	return 5 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE + crypto_pwhash_SALTBYTES + sizeof(uint32_t);
 }
 
 int32_t api_setting_limits(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
@@ -401,10 +434,14 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
 	if (lenData != AEM_KDF_SUB_KEYLEN + X25519_PKBYTES) return api_response_status(res, AEM_API_ERR_PARAM);
 	const uint16_t newUid = aem_getUserId(data);
-	if (!sodium_is_zero(users[newUid].uak, AEM_KDF_SUB_KEYLEN)) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
+	if (user[newUid] != NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
 
-	memcpy(users[newUid].uak, data, AEM_KDF_SUB_KEYLEN);
-	memcpy(users[newUid].epk, data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
+	user[newUid] = malloc(sizeof(struct aem_user));
+	if (user[newUid] == NULL) {syslog(LOG_ERR, "Failed allocation"); return api_response_status(res, AEM_API_ERR_INTERNAL);}
+	bzero(user[newUid], sizeof(struct aem_user));
+
+	memcpy(user[newUid]->uak, data, AEM_KDF_SUB_KEYLEN);
+	memcpy(user[newUid]->epk, data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
 	saveUser();
 
 	unsigned char icMsg[sizeof(uint16_t) + X25519_PKBYTES];
@@ -425,7 +462,7 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 		data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + 4,
 		AEM_LEN_PRIVATE - 4, data, data + crypto_stream_chacha20_ietf_NONCEBYTES);
 
-	memcpy(users[api_uid].private, data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES, AEM_LEN_PRIVATE);
+	memcpy(user[api_uid]->private, data + crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES, AEM_LEN_PRIVATE);
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
@@ -452,7 +489,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
 		return 2;
 	} else { // Email
-		if (users[api_uid].level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
+		if (user[api_uid]->level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 		const unsigned char * const addrEnd = memchr(reqData, '\0', AEM_API_REQ_DATA_LEN);
 		if (addrEnd == NULL) return api_response_status(res, AEM_API_ERR_PARAM);
@@ -464,7 +501,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		if (api_uid != hashToUid(fromHash, fromShield, NULL)) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 
 		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
-		if (users[api_uid].level == AEM_USERLEVEL_MAX) {
+		if (user[api_uid]->level == AEM_USERLEVEL_MAX) {
 			memcpy(res + sizeof(uint16_t), rsaAdminKey, lenRsaAdminKey);
 			return sizeof(uint16_t) + lenRsaAdminKey;
 		} else {
@@ -476,21 +513,21 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 
 //
 static void uak_derive(unsigned char * const out, const int lenOut, const uint64_t binTs, const uint16_t uid, const bool post, const unsigned long long type) {
-	aem_kdf_sub(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), users[uid].uak);
+	aem_kdf_sub(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), user[uid]->uak);
 }
 
 static bool auth_binTs(const uint16_t uid, const uint64_t reqBinTs) {
 	uint64_t prevBinTs = 0;
-	memcpy((unsigned char*)&prevBinTs, users[uid].lastBinTs, 5);
+	memcpy((unsigned char*)&prevBinTs, user[uid]->lastBinTs, 5);
 	return (reqBinTs > prevBinTs);
 }
 
 void updateBinTs(const uint16_t uid, uint64_t reqBinTs) {
-	memcpy(users[uid].lastBinTs, (const unsigned char*)&reqBinTs, 5);
+	memcpy(user[uid]->lastBinTs, (const unsigned char*)&reqBinTs, 5);
 }
 
 bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post) {
-	if (sodium_is_zero(users[req->uid].uak, AEM_KDF_SUB_KEYLEN)) return false;
+	if (user[req->uid] == NULL) return false;
 
 	// Authenticate
 	unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
@@ -548,10 +585,12 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 
 // Storage
 int32_t sto_uid2epk(const uint16_t uid, unsigned char **res) {
+	if (user[uid] == NULL) return AEM_INTCOM_RESPONSE_NOTEXIST;
+
 	*res = malloc(X25519_PKBYTES);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	memcpy(*res, users[uid].epk, X25519_PKBYTES);
+	memcpy(*res, user[uid]->epk, X25519_PKBYTES);
 	return X25519_PKBYTES;
 }
 
@@ -566,8 +605,12 @@ void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, 
 void ioFree(void) {
 	sodium_memzero(accountKey, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(saltShield, crypto_shorthash_KEYBYTES);
-	sodium_memzero(users, sizeof(struct aem_user) * AEM_USERCOUNT);
-	free(users);
+
+	for (int i = 0; i < AEM_USERCOUNT; i++) {
+		if (user[i] == NULL) continue;
+		sodium_memzero(user[i], sizeof(struct aem_user));
+		free(user[i]);
+	}
 
 	sodium_memzero(rsaAdminKey, lenRsaAdminKey);
 	sodium_memzero(rsaUsersKey, lenRsaUsersKey);
