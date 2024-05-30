@@ -46,6 +46,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		const int32_t stoRet = intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0);
 		if (stoRet < -1 * (UINT16_MAX + 1)) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
+			syslog(LOG_ERR, "Failed sending to Storage");
 		} else parentId = stoRet + (UINT16_MAX + 1);
 
 		sodium_memzero(msg, lenMsg);
@@ -58,6 +59,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 				if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
+					syslog(LOG_ERR, "Failed sending to Storage");
 				}
 			}
 		}
