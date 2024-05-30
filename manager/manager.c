@@ -5,7 +5,6 @@
 #include <linux/securebits.h>
 #include <pwd.h>
 #include <signal.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h> // for bzero

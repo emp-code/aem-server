@@ -1,5 +1,4 @@
 #include <netinet/in.h>
-#include <stdbool.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>

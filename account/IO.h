@@ -1,8 +1,6 @@
 #ifndef AEM_ACCOUNT_IO_H
 #define AEM_ACCOUNT_IO_H
 
-#include <stdbool.h>
-
 #include <sodium.h>
 
 #include "../Common/AEM_KDF.h"

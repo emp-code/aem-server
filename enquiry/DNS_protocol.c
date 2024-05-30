@@ -1,7 +1,6 @@
 // https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml
 
 #include <arpa/inet.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>

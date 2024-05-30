@@ -3,7 +3,6 @@
 
 #include "../Common/Email.h"
 
-#include <stdbool.h>
 #include <stddef.h>
 
 unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut, const bool allVer);

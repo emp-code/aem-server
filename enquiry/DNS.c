@@ -4,7 +4,6 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>

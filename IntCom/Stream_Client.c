@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <syslog.h>
 #include <string.h>
 #include <unistd.h>

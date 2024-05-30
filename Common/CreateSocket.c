@@ -1,6 +1,5 @@
 #include <arpa/inet.h>
 #include <net/if.h>
-#include <stdbool.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
