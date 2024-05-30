@@ -135,9 +135,9 @@ int32_t intcom(const aem_intcom_server_t intcom_server, const uint32_t operation
 
 	const ssize_t recvBytes = recv(sock, encOut, lenOut + crypto_aead_aegis256_ABYTES, MSG_WAITALL);
 	if (recvBytes != (ssize_t)(lenOut + crypto_aead_aegis256_ABYTES)) {
+		syslog(LOG_ERR, "IntCom[C]: Failed receiving message (%d/%d): %m", recvBytes, lenOut + crypto_aead_aegis256_ABYTES);
 		close(sock);
 		free(encOut);
-		syslog(LOG_ERR, "IntCom[C]: Failed receiving message (%d/%d): %m", recvBytes, lenOut + crypto_aead_aegis256_ABYTES);
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 	close(sock);
