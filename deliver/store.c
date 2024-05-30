@@ -33,7 +33,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		}
 
 		uint16_t parentId = 0;
-		const int32_t stoRet = intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0);
+		int32_t stoRet = intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], msg, lenMsg, NULL, 0);
 		if (stoRet < -1 * (UINT16_MAX + 1)) {
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 			syslog(LOG_ERR, "Failed sending to Storage");
@@ -47,7 +47,8 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 			for (int j = 0; j < email->attachCount; j++) {
 				memcpy(email->attachment[j] + AEM_ENVELOPE_RESERVED_LEN + 6, &parentId, sizeof(uint16_t));
 
-				if (intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
+				stoRet = intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0);
+				if (stoRet < -1 * (UINT16_MAX + 1)) {
 					deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
 					syslog(LOG_ERR, "Failed sending to Storage");
 				}
