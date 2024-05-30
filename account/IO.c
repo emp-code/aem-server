@@ -120,8 +120,6 @@ static void saveUser(void) {
 }
 
 static int loadUser(void) {
-	if (users != NULL) {syslog(LOG_ERR, "Account data already loaded"); return -1;}
-
 	const int fd = open("Account.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening Account.aem: %m"); return -1;}
 
