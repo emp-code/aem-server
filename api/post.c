@@ -52,7 +52,7 @@ static void message_browse(const uint16_t uid, const int flags, const unsigned c
 		return;
 	}
 
-	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE + 8)) { // +6 (infobytes) +2 (size)
+	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE * 2)) {
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
 		const unsigned char rb = AEM_API_ERR_INTERNAL;
