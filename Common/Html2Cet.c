@@ -513,9 +513,12 @@ void html2cet(unsigned char * const src, size_t * const lenSrc) {
 				else {copyAttr = 0; break;} // All others ignored/deleted
 
 				if (copyAttr == ' ') {
-					if (lenOut > 0 && src[lenOut - 1] != ' ') {
-						src[lenOut] = copyAttr;
-						lenOut++;
+					for (int j = lenOut - 1; j >= 0; j--) {
+						if (src[j] > 32) {
+							src[lenOut] = ' ';
+							lenOut++;
+							break;
+						} else if (src[j] == ' ' || src[j] == AEM_CET_CHAR_LBR || src[j] == AEM_CET_CHAR_HRL) break;
 					}
 				} else {
 					if (lenOut > 0 && src[lenOut - 1] == ' ') {
