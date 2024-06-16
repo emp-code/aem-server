@@ -53,6 +53,8 @@ static void eidSetup(void) {
 			}
 		}
 	}
+
+	sodium_memzero(src, 8192);
 }
 
 static int loadStindex(void) {
