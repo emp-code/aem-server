@@ -523,6 +523,7 @@ static bool auth_binTs(const uint16_t uid, const uint64_t reqBinTs) {
 }
 
 void updateBinTs(const uint16_t uid, uint64_t reqBinTs) {
+	if (user[uid] == NULL) return;
 	memcpy(user[uid]->lastBinTs, (const unsigned char*)&reqBinTs, 5);
 }
 
