@@ -96,7 +96,8 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	return createFile("Stindex.aem", enc, lenEnc);
 }
 
-static int createAccount(const unsigned char smk[AEM_KDF_MASTER_KEYLEN], const struct aem_user * const users) {
+static int createAccount(const unsigned char smk[AEM_KDF_MASTER_KEYLEN], const struct aem_user * const user) {
+	// Get keys
 	unsigned char abk[AEM_KDF_SUB_KEYLEN];
 	aem_kdf_master(abk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
 
@@ -104,17 +105,21 @@ static int createAccount(const unsigned char smk[AEM_KDF_MASTER_KEYLEN], const s
 	aem_kdf_sub(accKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, abk);
 	sodium_memzero(abk, AEM_KDF_SUB_KEYLEN);
 
-	// Encrypt with Account Key
-	const int lenEnc = (sizeof(struct aem_user) * AEM_USERCOUNT) + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
-	unsigned char * const enc = malloc(lenEnc);
-	if (enc == NULL) return -1;
+	// Create raw data
+	const size_t lenDec = sizeof(uint16_t) + sizeof(struct aem_user);
+	unsigned char dec[lenDec];
+	bzero(dec, sizeof(uint16_t));
+	memcpy(dec + sizeof(uint16_t), user, sizeof(struct aem_user));
 
+	// Encrypt with Account Key
+	const int lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	unsigned char enc[lenEnc];
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
-	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, (const unsigned char * const)users, sizeof(struct aem_user) * AEM_USERCOUNT, NULL, 0, NULL, enc, accKey);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, accKey);
 	sodium_memzero(accKey, crypto_aead_aegis256_KEYBYTES);
+	sodium_memzero(dec, lenDec);
 
 	const int ret = createFile("Account.aem", enc, lenEnc);
-	free(enc);
 	return ret;
 }
 
@@ -144,28 +149,28 @@ static int createDirs(void) {
 	return 0;
 }
 
-static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, struct aem_user * const users) {
+static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, struct aem_user * const user) {
 	for(;;) { // Generate a valid SMK
 		randombytes_buf(smk, AEM_KDF_MASTER_KEYLEN);
 		aem_kdf_master(ma_umk, AEM_KDF_MASTER_KEYLEN, AEM_KDF_KEYID_SMK_UMK, smk);
 		ma_umk[AEM_KDF_MASTER_KEYLEN - 1] = '\0';
-		aem_kdf_master(users[0].uak, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_UMK_UAK, ma_umk);
+		aem_kdf_master(user->uak, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_UMK_UAK, ma_umk);
 
 		// SMK is valid if the Master Admin's UserID is zero (username 'aaa')
-		if (aem_getUserId(users[0].uak) == 0) {
-			users[0].level = AEM_USERLEVEL_MAX;
+		if (aem_getUserId(user->uak) == 0) {
+			user->level = AEM_USERLEVEL_MAX;
 
 			// Set the EPK
 			unsigned char esk[crypto_scalarmult_SCALARBYTES];
 			aem_kdf_master(esk, crypto_scalarmult_SCALARBYTES, AEM_KDF_KEYID_UMK_ESK, ma_umk);
-			crypto_scalarmult_base(users[0].epk, esk);
+			crypto_scalarmult_base(user->epk, esk);
 			sodium_memzero(esk, crypto_scalarmult_SCALARBYTES);
 			break;
 		}
 	}
 }
 
-static int makeStorage(unsigned char * const smk, const struct aem_user * const users) {
+static int makeStorage(unsigned char * const smk, const struct aem_user * const user) {
 	// Derive keys
 	unsigned char sbk[AEM_KDF_SUB_KEYLEN];
 	aem_kdf_master(sbk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_STO, smk);
@@ -175,7 +180,7 @@ static int makeStorage(unsigned char * const smk, const struct aem_user * const 
 	setSigKey(sigKey);
 	sodium_memzero(sigKey, AEM_SIG_KEYLEN);
 
-	if (createWelcome(users[0].epk, sbk) != 0) {puts("Failed creating message"); return -1;}
+	if (createWelcome(user->epk, sbk) != 0) {puts("Failed creating message"); return -1;}
 
 	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
 	delSigKey();
@@ -188,22 +193,20 @@ int main(void) {
 	if (sodium_init() < 0) {puts("Failed sodium_init"); return 1;}
 	if (createDirs() != 0) return 2;
 
-	struct aem_user * const users = malloc(sizeof(struct aem_user) * AEM_USERCOUNT);
-	if (users == NULL) {puts("Failed allocation"); return 3;}
-	bzero(users, sizeof(struct aem_user) * AEM_USERCOUNT);
+	struct aem_user user;
+	bzero(&user, sizeof(struct aem_user));
 
 	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
 	unsigned char ma_umk[AEM_KDF_MASTER_KEYLEN];
-	genSmk(smk, ma_umk, users);
+	genSmk(smk, ma_umk, &user);
 
 	printKeys(smk, ma_umk);
 
-	if (makeStorage(smk, users) != 0) return 4;
-	if (createAccount(smk, users) != 0) return 5;
+	if (makeStorage(smk, &user) != 0) return 4;
+	if (createAccount(smk, &user) != 0) return 5;
 
 	// Clean up
-	sodium_memzero(users, sizeof(struct aem_user));
-	free(users);
+	sodium_memzero(&user, sizeof(struct aem_user));
 	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 	sodium_memzero(ma_umk, AEM_KDF_MASTER_KEYLEN);
 
