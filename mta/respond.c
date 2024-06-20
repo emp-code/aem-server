@@ -165,10 +165,9 @@ static int smtp_addr_our(const unsigned char *buf, size_t len, char to[64], uint
 
 __attribute__((warn_unused_result))
 static bool smtp_helo(const int sock, const unsigned char * const buf, const ssize_t bytes) {
-	if (buf == NULL || bytes < 4) return false;
+	if (bytes < 7) return false; // HELO \r\n
 
 	char txt[256];
-
 	if (memeq_anycase(buf, "HELO", 4)) {
 		sprintf(txt, "250 %.*s\r\n", lenOurDomain, ourDomain);
 		return send_aem(sock, NULL, txt, 6 + lenOurDomain);
@@ -202,10 +201,8 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	unsigned char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
-	if (bytes < 7) return smtp_fail(1); // HELO \r\n
 
-	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(2);
-
+	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(1);
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
 	email.lenGreet = bytes - 7;
