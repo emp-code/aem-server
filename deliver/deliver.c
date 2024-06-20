@@ -26,6 +26,8 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 }
 
 static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput, const uint32_t ts) {
+	if (lenInput > 1048576) return NULL; // 1 MiB
+
 	const char * const fn = "src.eml.br";
 	const size_t lenFn = 10;
 
