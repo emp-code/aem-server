@@ -7,41 +7,22 @@
 
 #include <brotli/encode.h>
 #include <sodium.h>
-#include <zopfli.h>
 
 #include "../Global.h"
 #include "../Common/GetKey.h"
 
 static unsigned char *genWeb(const unsigned char * const src, const size_t lenSrc, size_t * const lenResult, const bool onion) {
-	unsigned char *comp;
-	size_t lenComp;
+	unsigned char * const comp = malloc(lenSrc);
+	if (comp == NULL) {
+		fputs("Failed malloc", stderr);
+		return NULL;
+	}
 
-	// Compression
-	if (onion) { // Zopfli (Deflate)
-		ZopfliOptions zopOpt;
-		ZopfliInitOptions(&zopOpt);
-
-		lenComp = 0;
-		comp = 0;
-
-		ZopfliCompress(&zopOpt, ZOPFLI_FORMAT_DEFLATE, (const unsigned char*)src, lenSrc, &comp, &lenComp);
-		if (comp == 0 || lenComp < 1) {
-			fputs("Failed zopfli compression", stderr);
-			return NULL;
-		}
-	} else { // Brotli (HTTPS only)
-		comp = malloc(lenSrc);
-		if (comp == NULL) {
-			fputs("Failed malloc", stderr);
-			return NULL;
-		}
-
-		lenComp = lenSrc;
-		if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenSrc, src, &lenComp, comp) == BROTLI_FALSE) {
-			fputs("Failed Brotli compression", stderr);
-			free(comp);
-			return NULL;
-		}
+	size_t lenComp = lenSrc;
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenSrc, src, &lenComp, comp) == BROTLI_FALSE) {
+		fputs("Failed Brotli compression", stderr);
+		free(comp);
+		return NULL;
 	}
 
 	const char * const conn = onion? "://[Placeholder for the 56 characters of the Onion domain.].onion" : "s://[Placeholder for the API Domain]";
@@ -56,7 +37,7 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		// General headers
 		"Cache-Control: public, max-age=999, immutable\r\n" // ~15min
 		"Connection: close\r\n"
-		"Content-Encoding: %s\r\n"
+		"Content-Encoding: br\r\n"
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"%s"
@@ -210,8 +191,7 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, onion? "deflate" : "br", // Content-Encoding
-	lenComp, // Content-Length
+	, lenComp, // Content-Length
 	onionLoc,
 	conn, // CSP connect
 	tlsHeaders

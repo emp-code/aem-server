@@ -40,7 +40,7 @@ utils/ManagerClient: utils/ManagerClient.c
 	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
 utils/WebMaker: utils/WebMaker.c
-	$(CC) $(CFLAGS) -o utils/WebMaker utils/WebMaker.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc -lzopfli
+	$(CC) $(CFLAGS) -o utils/WebMaker utils/WebMaker.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc
 
 .PHONY: clean
 clean:
