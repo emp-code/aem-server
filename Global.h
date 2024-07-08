@@ -193,8 +193,10 @@ enum aem_acc_commands {
 };
 
 enum aem_process_types {
-	AEM_PROCESSTYPE_WEB,
-	AEM_PROCESSTYPE_API,
+	AEM_PROCESSTYPE_WEB_CLR,
+	AEM_PROCESSTYPE_WEB_ONI,
+	AEM_PROCESSTYPE_API_CLR,
+	AEM_PROCESSTYPE_API_ONI,
 	AEM_PROCESSTYPE_MTA,
 	AEM_PROCESSTYPE_ACCOUNT,
 	AEM_PROCESSTYPE_DELIVER,
@@ -206,8 +208,10 @@ enum aem_process_types {
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_HOME"/bin/aem-web", \
-	AEM_PATH_HOME"/bin/aem-api", \
+	AEM_PATH_HOME"/bin/aem-web-clr", \
+	AEM_PATH_HOME"/bin/aem-web-oni", \
+	AEM_PATH_HOME"/bin/aem-api-clr", \
+	AEM_PATH_HOME"/bin/aem-api-oni", \
 	AEM_PATH_HOME"/bin/aem-mta", \
 	AEM_PATH_HOME"/bin/aem-account", \
 	AEM_PATH_HOME"/bin/aem-deliver", \
@@ -216,9 +220,11 @@ enum aem_process_types {
 }
 
 #define AEM_NICE { \
-	/*Web*/   4, \
-	/*API*/  -4, \
-	/*MTA*/  -8, \
+	/*Web-Clr*/   4, \
+	/*Web-Oni*/   4, \
+	/*API-Clr*/  -4, \
+	/*API-Oni*/  -4, \
+	/*MTA*/      -8, \
 	/*Account*/ -16, \
 	/*Deliver*/  -3, \
 	/*Enquiry*/ -10, \

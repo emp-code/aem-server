@@ -43,9 +43,11 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 	dec[0] = comChar; // T=Terminate, K=Kill, S=Spawn
 
 	switch (comType) {
-		case 'A': dec[1] = AEM_PROCESSTYPE_API; break;
+		case 'A': dec[1] = AEM_PROCESSTYPE_API_CLR; break;
+		case 'a': dec[1] = AEM_PROCESSTYPE_API_ONI; break;
 		case 'M': dec[1] = AEM_PROCESSTYPE_MTA; break;
-		case 'W': dec[1] = AEM_PROCESSTYPE_WEB; break;
+		case 'W': dec[1] = AEM_PROCESSTYPE_WEB_CLR; break;
+		case 'w': dec[1] = AEM_PROCESSTYPE_WEB_ONI; break;
 		default: puts("Invalid type"); return -1;
 	}
 
@@ -65,9 +67,11 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 
 static char numToChar(const unsigned char n) {
 	switch (n) {
-		case AEM_PROCESSTYPE_API: return 'A';
+		case AEM_PROCESSTYPE_API_CLR: return 'A';
+		case AEM_PROCESSTYPE_API_ONI: return 'a';
 		case AEM_PROCESSTYPE_MTA: return 'M';
-		case AEM_PROCESSTYPE_WEB: return 'W';
+		case AEM_PROCESSTYPE_WEB_CLR: return 'W';
+		case AEM_PROCESSTYPE_WEB_ONI: return 'w';
 	}
 
 	return '?';

@@ -1,12 +1,13 @@
 #include <string.h>
 
-#include <mbedtls/ssl.h>
+#include <wolfssl/ssl.h>
 
 #include "../Common/Email.h"
 #include "../Common/memeq.h"
 
 #include "cert.h"
 
+/*
 uint8_t cert_getTlsInfo_type(const mbedtls_x509_crt * const cert) {
 	if (cert == NULL) return AEM_EMAIL_CERT_TYPE_NONE;
 
@@ -24,6 +25,7 @@ uint8_t cert_getTlsInfo_type(const mbedtls_x509_crt * const cert) {
 
 	return AEM_EMAIL_CERT_TYPE_NONE;
 }
+*/
 
 static void setEmailDomain(unsigned char ** const c, size_t * const len) {
 	const unsigned char *at = memchr(*c, '@', *len);
@@ -34,31 +36,23 @@ static void setEmailDomain(unsigned char ** const c, size_t * const len) {
 	*len -= offset;
 }
 
-uint8_t cert_getTlsInfo_name(const mbedtls_x509_crt * const cert, const unsigned char * const greet, const size_t lenGreet, unsigned char *envFr, size_t lenEnvFr, unsigned char *hdrFr, size_t lenHdrFr) {
+uint8_t cert_getTlsInfo_name(WOLFSSL_X509 * const cert, const unsigned char * const greet, const size_t lenGreet, unsigned char *envFr, size_t lenEnvFr, unsigned char *hdrFr, size_t lenHdrFr) {
 	if (cert == NULL) return AEM_EMAIL_CERT_NAME_OTHER;
+
+	WOLFSSL_X509_NAME *certName = wolfSSL_X509_get_subject_name(cert);
+	if (certName == NULL) return AEM_EMAIL_CERT_NAME_OTHER;
+
+	char sn[256];
+	bzero(sn, 256);
+	wolfSSL_X509_NAME_oneline(certName, sn, 256);
 
 	setEmailDomain(&envFr, &lenEnvFr);
 	setEmailDomain(&hdrFr, &lenHdrFr);
 
-	bool firstDone = false;
-	const mbedtls_asn1_sequence *s = &cert->subject_alt_names;
-
-	while(1) {
-		size_t lenName;
-		const unsigned char *name;
-
-		if (!firstDone) {
-			lenName = cert->subject.val.len;
-			name = cert->subject.val.p;
-			firstDone = true;
-		} else {
-			if (s == NULL) break;
-			lenName = s->buf.len;
-			name = s->buf.p;
-			s = s->next;
-		}
-
-		if (name == NULL || lenName < 4) continue; // a.bc
+	const char * name = sn;
+	do {
+		size_t lenName = strlen(name);
+		if (lenName < 4) continue; // a.bc
 
 		if (memeq(name, "*.", 2)) { // Wildcard: remove the asterisk and see if the ends match
 			lenName--;
@@ -72,7 +66,9 @@ uint8_t cert_getTlsInfo_name(const mbedtls_x509_crt * const cert, const unsigned
 			else if (lenName == lenEnvFr && memeq(name, envFr, lenName)) return AEM_EMAIL_CERT_NAME_ENVFR;
 			else if (lenName == lenGreet && memeq(name, greet, lenName)) return AEM_EMAIL_CERT_NAME_GREET;
 		}
-	}
+
+		name = wolfSSL_X509_get_next_altname(cert);
+	} while (name != NULL);
 
 	return AEM_EMAIL_CERT_NAME_OTHER;
 }

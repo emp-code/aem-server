@@ -9,9 +9,11 @@
 // Port numbers
 #if defined(AEM_MTA)
 	#define AEM_PORT 25
-#elif defined(AEM_API)
+#elif defined(AEM_API_CLR)
 	#define AEM_PORT 302
-#elif defined(AEM_WEB)
+#elif defined(AEM_API_ONI)
+	#define AEM_PORT 303
+#elif defined(AEM_WEB_CLR)
 	#define AEM_PORT 443
 #elif defined(AEM_WEB_ONI)
 	#define AEM_PORT 880

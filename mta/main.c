@@ -4,6 +4,7 @@
 
 #include "../Global.h"
 #include "../Common/AcceptClients.h"
+#include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Client.h"
 
@@ -44,15 +45,16 @@ static int pipeRead(void) {
 	intcom_setKey_stream(bundle.stream);
 	sodium_memzero(&bundle, sizeof(bundle));
 
-	tlsCrt[lenTlsCrt] = '\0';
-	tlsKey[lenTlsKey] = '\0';
-	lenTlsCrt++;
-	lenTlsKey++;
-	tlsSetup(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey);
+	unsigned char domain[AEM_MAXLEN_OURDOMAIN];
+	size_t lenDomain;
+	x509_getSubject(domain, &lenDomain, tlsCrt, lenTlsCrt);
+
+	const int ret = tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
 
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
-	return 0;
+	if (ret != 0) syslog(LOG_ERR, "tls_init failed: %d", ret);
+	return ret;
 }
 
 int main(void) {
@@ -63,6 +65,6 @@ int main(void) {
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");
-	tlsFree();
+	tls_free();
 	return EXIT_SUCCESS;
 }

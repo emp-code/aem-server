@@ -6,13 +6,15 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/pk.h>
 #include <sodium.h>
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
 
 #include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
 #include "../Common/memeq.h"
+#include "../Common/tls_suites.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Stream_Client.h"
 
@@ -37,44 +39,48 @@
 "\r\n250 SMTPUTF8"
 
 static struct emailInfo email;
+static WOLFSSL_CTX *ctx;
 
-#include "../Common/tls_setup.c"
+size_t lenOurDomain;
+unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
 
-__attribute__((warn_unused_result))
-static int recv_aem(const int sock, mbedtls_ssl_context * const tls, unsigned char * const buf, const size_t maxSize) {
-	if (buf == NULL || maxSize < 1) return -1;
-
-	if (tls != NULL) {
-		int ret;
-		do {ret = mbedtls_ssl_read(tls, (unsigned char*)buf, maxSize);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-		return ret;
-	}
-
-	if (sock > 0) return recv(sock, buf, maxSize, 0);
-
-	return -1;
+static uint8_t getTlsVersion(const WOLFSSL * const tls) {
+	if (tls == NULL) return 0;
+	const char * const c = wolfSSL_get_version(tls);
+	return (c == NULL || !memeq_anycase(c, "TLSv1.", 6) || c[6] < '0' || c[6] > '3') ? 0 : c[6] - '0';
 }
 
-static bool send_aem(const int sock, mbedtls_ssl_context * const tls, const char * const data, const size_t lenData) {
-	if (data == NULL || lenData < 1) return false;
+int tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain) {
+	wolfSSL_Init();
 
-	if (tls != NULL) {
-		size_t sent = 0;
+	ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+	if (ctx == NULL) return 10;
 
-		while (sent < lenData) {
-			int ret;
-			do {ret = mbedtls_ssl_write(tls, (const unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
-			if (ret < 0) return false;
+	if (wolfSSL_CTX_SetMinVersion(ctx, WOLFSSL_TLSV1) != WOLFSSL_SUCCESS) return 11;
+	if (wolfSSL_CTX_set_cipher_list(ctx, AEM_TLS_CIPHERSUITES_MTA) != WOLFSSL_SUCCESS) return 12;
 
-			sent += ret;
-		}
+	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, crt, lenCrt) != WOLFSSL_SUCCESS) return 13;
+	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, lenKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) return 14;
+	if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, domain, lenDomain) != WOLFSSL_SUCCESS) return 15;
 
-		return true;
-	}
+	memcpy(ourDomain, domain, lenDomain);
+	lenOurDomain = lenDomain;
 
-	if (sock > 0) return (send(sock, data, lenData, 0) == (ssize_t)lenData);
+	return 0;
+}
 
-	return false;
+void tls_free(void) {
+	wolfSSL_CTX_free(ctx);
+	wolfSSL_Cleanup();
+}
+
+__attribute__((warn_unused_result))
+static int recv_aem(const int sock, WOLFSSL * const tls, unsigned char * const buf, const size_t maxSize) {
+	return (tls == NULL) ? recv(sock, buf, maxSize, 0) : wolfSSL_read(tls, buf, maxSize);
+}
+
+static bool send_aem(const int sock, WOLFSSL * const tls, const char * const data, const size_t lenData) {
+	return (tls == NULL) ? (send(sock, data, lenData, 0) == (ssize_t)lenData) : (wolfSSL_write(tls, data, lenData) == (ssize_t)lenData);
 }
 
 __attribute__((warn_unused_result))
@@ -179,14 +185,30 @@ static bool smtp_helo(const int sock, const unsigned char * const buf, const ssi
 	return false;
 }
 
-static void tlsClose(mbedtls_ssl_context * const tls) {
+static void tlsClose(WOLFSSL * const tls) {
 	if (tls == NULL) return;
-	mbedtls_ssl_close_notify(tls);
-	mbedtls_ssl_session_reset(tls);
+	wolfSSL_shutdown(tls);
+	wolfSSL_free(tls);
 }
 
 static void smtp_fail(const int code) {
 	syslog((code < 10 ? LOG_DEBUG : LOG_NOTICE), "Error receiving message (Code: %d, IP: %u.%u.%u.%u)", code, ((uint8_t*)&email.ip)[0], ((uint8_t*)&email.ip)[1], ((uint8_t*)&email.ip)[2], ((uint8_t*)&email.ip)[3]);
+}
+
+static int setKeyShare(WOLFSSL *tls) {
+	for(;;) {
+		const int ret = wolfSSL_UseKeyShare(tls, WOLFSSL_ECC_X25519);
+		if (ret == WOLFSSL_SUCCESS) break;
+		if (ret != WC_PENDING_E) return -1;
+	}
+
+	for(;;) {
+		const int ret = wolfSSL_UseKeyShare(tls, WOLFSSL_ECC_SECP256R1);
+		if (ret == WOLFSSL_SUCCESS) break;
+		if (ret != WC_PENDING_E) return -1;
+	}
+
+	return (wolfSSL_set_groups(tls, (int[]){WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1}, 2) == WOLFSSL_SUCCESS) ? 0 : -1;
 }
 
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
@@ -197,12 +219,12 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	char txt[256];
 	sprintf(txt, "220 %.*s\r\n", lenOurDomain, ourDomain);
-	if (!send_aem(sock, NULL, txt, 6 + lenOurDomain)) return smtp_fail(0);
+	if (!send_aem(sock, NULL, txt, 6 + lenOurDomain)) {smtp_fail(0); return;}
 
 	unsigned char buf[AEM_SMTP_MAX_SIZE_CMD];
 	ssize_t bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0);
 
-	if (!smtp_helo(sock, buf, bytes)) return smtp_fail(1);
+	if (!smtp_helo(sock, buf, bytes)) {smtp_fail(1); return;}
 	if (buf[0] == 'E') email.protocolEsmtp = true;
 
 	email.lenGreet = bytes - 7;
@@ -211,37 +233,40 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 	bytes = recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, MSG_PEEK);
 
-	mbedtls_ssl_context *tls = NULL;
+	WOLFSSL *tls = NULL;
 
 	if (bytes >= 8 && memeq_anycase(buf, "STARTTLS", 8)) {
 		recv(sock, buf, AEM_SMTP_MAX_SIZE_CMD, 0); // Remove the MSG_PEEK'd message from the queue
-		if (!send_aem(sock, NULL, "220 Ok\r\n", 8)) return smtp_fail(110);
+		if (!send_aem(sock, NULL, "220 Ok\r\n", 8)) {smtp_fail(110); return;}
 
-		tls = &ssl;
-		mbedtls_ssl_set_bio(tls, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+		tls = wolfSSL_new(ctx);
+		if (tls == NULL || wolfSSL_set_fd(tls, sock) != WOLFSSL_SUCCESS || setKeyShare(tls) != 0) {
+			send_aem(sock, NULL, "421 4.7.0 Failed setting up TLS\r\n", 33);
+			smtp_fail(111);
+			return;
+		}
 
-		int ret;
-		while ((ret = mbedtls_ssl_handshake(tls)) != 0) {
-			if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-				syslog(LOG_NOTICE, "Terminating: mbedtls_ssl_handshake failed: %x", -ret);
-				tlsClose(tls);
-				send_aem(sock, NULL, "421 4.7.0 TLS handshake failed\r\n", 32);
-				return;
-			}
+		if (wolfSSL_accept(tls) != WOLFSSL_SUCCESS) {
+			const int err = wolfSSL_get_error(tls, 0);
+			char buffer[WOLFSSL_MAX_ERROR_SZ];
+			syslog(LOG_ERR, "SSL_accept error %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+			tlsClose(tls);
+			send_aem(sock, NULL, "421 4.7.0 TLS handshake failed\r\n", 32);
+			return;
 		}
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 		if (bytes == 0) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			tlsClose(tls);
+			smtp_fail(112);
 			return;
 		} else if (bytes >= 4 && memeq_anycase(buf, "QUIT", 4)) {
-			syslog(LOG_DEBUG, "Terminating: Client closed connection cleanly after StartTLS (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
 			send_aem(sock, tls, "221 Bye\r\n", 9);
 			tlsClose(tls);
+			smtp_fail(113);
 			return;
 		} else if (bytes < 4 || (!memeq_anycase(buf, "EHLO", 4) && !memeq_anycase(buf, "HELO", 4))) {
-			syslog(LOG_DEBUG, "Terminating: Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
+			syslog(LOG_INFO, "Expected EHLO/HELO after StartTLS, but received: %.*s", (int)bytes, buf);
 			send_aem(sock, tls, "421 5.5.1 EHLO/HELO required after STARTTLS\r\n", 45);
 			tlsClose(tls);
 			return;
@@ -249,18 +274,18 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 
 		sprintf(txt, "250-%.*s%s\r\n", lenOurDomain, ourDomain, AEM_SHLO_RESPONSE);
 		if (!send_aem(0, tls, txt, 6 + lenOurDomain + AEM_SHLO_RESPONSE_LEN)) {
-			syslog(LOG_NOTICE, "Terminating: Failed sending greeting following StartTLS");
 			tlsClose(tls);
+			smtp_fail(114);
 			return;
 		}
 
-		const mbedtls_x509_crt *clientCert = mbedtls_ssl_get_peer_cert(tls);
+		const WOLFSSL_X509 * const clientCert = wolfSSL_get_peer_certificate(tls);
 		email.tlsInfo =
 			getTlsVersion(tls)
-		|	cert_getTlsInfo_type(clientCert)
+//		|	cert_getTlsInfo_type(clientCert)
 		|	cert_getTlsInfo_name(clientCert, email.greet, email.lenGreet, email.envFr, email.lenEnvFr, email.hdrFr, email.lenHdrFr);
 
-		email.tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(tls));
+		email.tls_ciphersuite = wolfSSL_get_current_cipher_suite(tls);
 	}
 
 	struct emailMeta meta;
@@ -271,9 +296,14 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	for (int roundsDone = 0;; roundsDone++) {
 		bytes = recv_aem(sock, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
 
-		if (bytes < 4) {
-			if (bytes < 1) syslog(LOG_DEBUG, "Terminating: Client closed connection (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
-			else syslog(LOG_NOTICE, "Terminating: Invalid data received (IP: %s; greeting: %.*s)", inet_ntoa(clientAddr->sin_addr), email.lenGreet, email.greet);
+		if (bytes == 0) {
+			smtp_fail(2);
+			break;
+		} else if (bytes < 0) {
+			smtp_fail(210);
+			break;
+		} else if (bytes < 4) {
+			smtp_fail(211);
 			break;
 		} else if (roundsDone > AEM_SMTP_MAX_ROUNDS) {
 			send_aem(sock, tls, "421 4.7.0 Too many requests\r\n", 29);
@@ -295,16 +325,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			}
 
 			bool retOk;
-			const bool tlsIsSecure = (tls != NULL && getTlsVersion(tls) >= 2 && (
-				   email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
-				|| email.tls_ciphersuite == MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
-			));
-
-			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUid + meta.toCount, &meta.toFlags[meta.toCount], tlsIsSecure)) {
+			switch (smtp_addr_our(buf + 8, bytes - 8, meta.to[meta.toCount], meta.toUid + meta.toCount, &meta.toFlags[meta.toCount], (getTlsVersion(tls) >= 3))) {
 				case 0:
 					retOk = send_aem(sock, tls, "250 2.1.5 Recipient address ok\r\n", 32);
 					meta.toCount++;
@@ -312,7 +333,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 				case AEM_SMTP_ERROR_ADDR_OUR_USER:   retOk = send_aem(sock, tls, "550 5.1.1 No such user\r\n", 24); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_DOMAIN: retOk = send_aem(sock, tls, "550 5.1.2 Not our domain\r\n", 26); break;
 				case AEM_SMTP_ERROR_ADDR_OUR_SYNTAX: retOk = send_aem(sock, tls, "501 5.1.3 Invalid address\r\n", 27); break;
-				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires a secure connection (TLS 1.2)\r\n", 60); meta.toCount++; break; // Record delivery attempt
+				case AEM_SMTP_ERROR_ADDR_TLS_NEEDED: retOk = send_aem(sock, tls, "450 4.7.0 Recipient requires a secure connection (TLS 1.3)\r\n", 60); meta.toCount++; break; // Record delivery attempt
 				default: retOk = send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33);
 			}
 			if (!retOk) {smtp_fail(104); break;}

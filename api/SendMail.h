@@ -34,9 +34,8 @@ struct outInfo {
 	char info[257];
 };
 
-void getOurDomain(unsigned char * const out);
-int tlsSetup_sendmail(const unsigned char * const tls_crt_data, const size_t tls_crt_size, const unsigned char * const tls_key_data, const size_t tls_key_size);
-void tlsFree_sendmail(void);
+int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain);
+void sendMail_tls_free(void);
 
 unsigned char sendMail(const struct outEmail * const email, struct outInfo * const info);
 

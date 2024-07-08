@@ -1,6 +1,11 @@
 #ifndef AEM_API_REQUEST_H
 #define AEM_API_REQUEST_H
 
-void respondClient(void);
+#ifdef AEM_TLS
+bool
+#else
+void
+#endif
+respondClient(void);
 
 #endif

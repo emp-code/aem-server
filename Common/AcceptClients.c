@@ -7,6 +7,10 @@
 	#include <netinet/in.h>
 #endif
 
+#ifdef AEM_API_CLR
+	#include "../api/ClientTLS.h"
+#endif
+
 #include "../Config.h" // for AEM_PORT
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
@@ -61,6 +65,11 @@ void acceptClients(void) {
 
 #ifdef AEM_MTA
 		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
+#elifdef AEM_API_CLR
+		if (tls_connect() == 0) {
+			if (!respondClient()) shutdown(newSock, SHUT_RDWR);
+			tls_disconnect();
+		}
 #else
 		respondClient();
 #endif

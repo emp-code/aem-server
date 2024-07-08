@@ -5,19 +5,55 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <mbedtls/pk.h>
 #include <sodium.h>
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 
 #include "../Global.h"
 #include "../Common/memeq.h"
+#include "../Common/tls_suites.h"
 
 #include "Error.h"
 #include "MessageId.h"
 
 #include "SendMail.h"
 
-#define AEM_API_SENDMAIL
-#include "../Common/tls_setup.c"
+static WOLFSSL_CTX *ctx;
+static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN + 1];
+
+static int setKeyShare(WOLFSSL * ssl) {
+	for(;;) {
+		const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
+		if (ret == WOLFSSL_SUCCESS) break;
+		if (ret != WC_PENDING_E) return -1;
+	}
+
+	return (wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519}, 1) == WOLFSSL_SUCCESS) ? 0 : -1;
+}
+
+int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain) {
+	wolfSSL_Init();
+
+	ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+	if (ctx == NULL) return 10;
+
+	if (wolfSSL_CTX_SetMinVersion(ctx, 4) != WOLFSSL_SUCCESS) return 11;
+	if (wolfSSL_CTX_set_cipher_list(ctx, AEM_TLS_CIPHERSUITES_MTA) != WOLFSSL_SUCCESS) return 12;
+
+	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, crt, lenCrt) != WOLFSSL_SUCCESS) return 14;
+	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, lenKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) return 15;
+	if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, domain, lenDomain) != WOLFSSL_SUCCESS) return 16;
+
+	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN + 1);
+	memcpy(ourDomain, domain, lenDomain);
+	return 0;
+}
+
+void sendMail_tls_free(void) {
+	wolfSSL_CTX_free(ctx);
+	wolfSSL_Cleanup();
+}
 
 static int makeSocket(const uint32_t ip) {
 	const int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -38,23 +74,18 @@ static int makeSocket(const uint32_t ip) {
 }
 
 static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash, const unsigned char * const rsaKey, const size_t lenRsaKey) {
-	mbedtls_pk_context rsa;
-	mbedtls_pk_init(&rsa);
-	int ret = mbedtls_pk_parse_key(&rsa, rsaKey, lenRsaKey, NULL, 0);
-	if (ret != 0) {syslog(LOG_ERR, "RSA key parsing failed: %x", -ret); mbedtls_pk_free(&rsa); return -1;}
+	RsaKey rsa;
+	if (wc_InitRsaKey(&rsa, NULL) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return 0;}
 
-	unsigned char sig[1024];
-	size_t lenSig;
-	ret = mbedtls_pk_sign(&rsa, MBEDTLS_MD_SHA256, hash, crypto_hash_sha256_BYTES, sig, &lenSig, mbedtls_ctr_drbg_random, &ctr_drbg);
-	if (ret != 0) {
-		syslog(LOG_ERR, "pk_sign failed: %x", -ret);
-		return 0;
-	}
+	word32 idx = 0;
+	if (wc_RsaPrivateKeyDecode(rsaKey, &idx, &rsa, lenRsaKey) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return 0;}
 
-	mbedtls_pk_free(&rsa);
+	unsigned char sig[lenRsaKey]; // RSA signature size equals key size
+	wc_RsaSSL_Sign(hash, crypto_hash_sha256_BYTES, sig, lenRsaKey, &rsa, NULL);
+	wc_FreeRsaKey(&rsa);
 
-	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL), sig, lenSig, sodium_base64_VARIANT_ORIGINAL);
-	return sodium_base64_ENCODED_LEN(lenSig, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(lenRsaKey, sodium_base64_VARIANT_ORIGINAL), sig, lenRsaKey, sodium_base64_VARIANT_ORIGINAL);
+	return sodium_base64_ENCODED_LEN(lenRsaKey, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
 }
 
 static char *createEmail(const struct outEmail * const email, size_t * const lenOut) {
@@ -88,19 +119,19 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 		, email->replyId, email->replyId);
 	} else ref[0] = '\0';
 
-	sprintf(final,
+	int lenFinal = sprintf(final,
 		"%s" // References + In-Reply-To
-		"From: %s@%.*s\r\n"
+		"From: %s@%s\r\n"
 		"Date: %s\r\n"
-		"Message-ID: <%s@%.*s>\r\n"
+		"Message-ID: <%s@%s>\r\n"
 		"Subject: %s\r\n"
 		"To: %s\r\n"
 		"DKIM-Signature:"
 			" v=1;"
 			" a=rsa-sha256;" //ed25519-sha256
 			" c=simple/simple;"
-			" d=%.*s;"
-			" i=%s@%.*s;"
+			" d=%s;"
+			" i=%s@%s;"
 			" q=dns/txt;"
 			" s=%s;"
 			" t=%u;"
@@ -124,22 +155,20 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 			" b="
 	, ref
 	, email->addrFrom
-	, lenOurDomain, ourDomain
+	, ourDomain
 	, rfctime
 	, msgId
-	, lenOurDomain, ourDomain
+	, ourDomain
 	, email->subject
 	, email->addrTo
-	, lenOurDomain, ourDomain
+	, ourDomain
 	, email->addrFrom //i=
-	, lenOurDomain, ourDomain
+	, ourDomain
 	, email->isAdmin? "admin" : "users"
 	, ts // t=
 	, ts + 86400 // x=; expire after a day
 	, bodyHashB64
 	);
-
-	size_t lenFinal = strlen(final);
 
 // EdDSA
 /*
@@ -189,60 +218,52 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 	return final;
 }
 
-static int smtp_recv(const int sock, const bool useTls, char * const buf) {
-	if (!useTls) return recv(sock, buf, 1024, 0);
-
-	int ret;
-	do {ret = mbedtls_ssl_read(&ssl, (unsigned char*)buf, 1024);} while (ret == MBEDTLS_ERR_SSL_WANT_READ);
-	return ret;
+static int smtp_recv(const int sock, WOLFSSL *ssl, char * const buf) {
+	return (ssl == NULL) ? recv(sock, buf, 1024, 0) : wolfSSL_read(ssl, buf, 1024);
 }
 
-static int smtp_send(const int sock, const bool useTls, const char * const data, const size_t lenData) {
-	if (lenData == 0) return 0;
-
-	if (!useTls) return send(sock, data, lenData, 0);
+static int smtp_send(const int sock, WOLFSSL *ssl, const char * const data, const size_t lenData) {
+	if (lenData < 1) return 0;
 
 	size_t sent = 0;
 	while (sent < lenData) {
-		int ret;
-		do {ret = mbedtls_ssl_write(&ssl, (const unsigned char*)(data + sent), lenData - sent);} while (ret == MBEDTLS_ERR_SSL_WANT_WRITE);
+		const int ret = (ssl == NULL) ? send(sock, data + sent, lenData - sent, 0) : wolfSSL_write(ssl, data + sent, lenData - sent);
 		if (ret < 0) return ret;
-
 		sent += ret;
 	}
 
 	return sent;
 }
 
-static void smtp_quit(const int sock, const bool useTls) {
-	if (smtp_send(sock, useTls, "QUIT\r\n", 6) == 6) {
+static void smtp_quit(const int sock, WOLFSSL *ssl) {
+	if (smtp_send(sock, ssl, "QUIT\r\n", 6) == 6) {
 		char buf[1024];
-		smtp_recv(sock, useTls, buf);
+		smtp_recv(sock, ssl, buf);
 		// if (len < 4 || !memeq(buf, "221 ", 4)) // 221 should be received here
 	}
 
-	if (useTls) {
-		mbedtls_ssl_close_notify(&ssl);
-		mbedtls_ssl_session_reset(&ssl);
+	if (ssl != NULL) {
+		wolfSSL_shutdown(ssl);
+		wolfSSL_free(ssl);
 	}
 
 	close(sock);
 }
 
-static bool smtpCommand(const int sock, const bool useTls, char * const buf, size_t * const lenBuf, const char * const sendText, const size_t lenSendText, const char * const expectedResponse) {
-	if (smtp_send(sock, useTls, sendText, lenSendText) != (int)lenSendText) {
-		if (useTls) {
-			mbedtls_ssl_close_notify(&ssl);
-			mbedtls_ssl_session_reset(&ssl);
+static bool smtpCommand(const int sock, WOLFSSL *ssl, char * const buf, size_t * const lenBuf, const char * const sendText, const size_t lenSendText, const char * const expectedResponse) {
+	if (smtp_send(sock, ssl, sendText, lenSendText) != (int)lenSendText) {
+		if (ssl != NULL) {
+			wolfSSL_shutdown(ssl);
+			wolfSSL_free(ssl);
 		}
 
 		close(sock);
 		return false;
 	}
 
-	const int len = smtp_recv(sock, useTls, buf);
+	const int len = smtp_recv(sock, ssl, buf);
 	if (len < 6 || !memeq(buf, expectedResponse, strlen(expectedResponse)) || !memeq(buf + len - 2, "\r\n", 2)) {
-		smtp_quit(sock, useTls);
+		smtp_quit(sock, ssl);
 		return false;
 	}
 
@@ -257,59 +278,53 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 
 	char buf[1025];
 	size_t lenBuf;
-	if (!smtpCommand(sock, false, buf, &lenBuf, NULL, 0, "220 ")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;
+	if (!smtpCommand(sock, NULL, buf, &lenBuf, NULL, 0, "220 ")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;
 
 	memcpy(info->greeting, buf + 4, lenBuf - 6); // Between '220 ' and '\r\n'
 	info->greeting[lenBuf - 6] = '\0';
 
 	char ehlo[256];
-	sprintf(ehlo, "EHLO %.*s\r\n", lenOurDomain, ourDomain);
+	sprintf(ehlo, "EHLO %s\r\n", ourDomain);
 
-	if (!smtpCommand(sock, false, buf, &lenBuf, ehlo, strlen(ehlo), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
-	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, false); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
-	if (!smtpCommand(sock, false, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
+	if (!smtpCommand(sock, NULL, buf, &lenBuf, ehlo, strlen(ehlo), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, NULL); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
+	if (!smtpCommand(sock, NULL, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
 
-	mbedtls_ssl_set_hostname(&ssl, email->mxDomain);
-	mbedtls_ssl_set_bio(&ssl, &sock, mbedtls_net_send, mbedtls_net_recv, NULL);
+	WOLFSSL *ssl = wolfSSL_new(ctx);
+	if (ssl == NULL) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
+	setKeyShare(ssl);
 
-	int ret;
-	while ((ret = mbedtls_ssl_handshake(&ssl)) != 0) {
-		if (ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
-			syslog(LOG_WARNING, "SendMail: Handshake failed: %x", -ret);
-			mbedtls_ssl_close_notify(&ssl);
-			mbedtls_ssl_session_reset(&ssl);
-			close(sock);
-			return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
-		}
-	}
+	if (
+		wolfSSL_set_fd(ssl, AEM_FD_SOCK_CLIENT) != WOLFSSL_SUCCESS
+	|| wolfSSL_connect(ssl) != WOLFSSL_SUCCESS
+	|| wolfSSL_state(ssl) != 0) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
 
-	info->tls_ciphersuite = mbedtls_ssl_get_ciphersuite_id(mbedtls_ssl_get_ciphersuite(&ssl));
-	info->tls_version = getTlsVersion(&ssl);
+//	info->tls_ciphersuite = ...
+//	info->tls_version = ...
 
-//	const uint32_t flags = mbedtls_ssl_get_verify_result(&ssl);
-//	if (flags != 0) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
+//	if (...) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
-	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@%.*s>\r\n", email->addrFrom, lenOurDomain, ourDomain);
+	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@%s>\r\n", email->addrFrom, ourDomain);
 	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
 
-	if (!smtpCommand(sock, true, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
-	if (!smtpCommand(sock, true, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
-	if (!smtpCommand(sock, true, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
-	if (!smtpCommand(sock, true, buf, &lenBuf, "DATA\r\n", 6,            "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
+	if (!smtpCommand(sock, ssl, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, ssl, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
+	if (!smtpCommand(sock, ssl, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
+	if (!smtpCommand(sock, ssl, buf, &lenBuf, "DATA\r\n", 6,            "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(email, &lenMsg);
 	if (msg == NULL) {
-		smtp_quit(sock, true);
+		smtp_quit(sock, ssl);
 		return AEM_API_ERR_INTERNAL;
 	}
 
-	if (!smtpCommand(sock, true, buf, &lenBuf, msg, lenMsg, "250")) {
+	if (!smtpCommand(sock, ssl, buf, &lenBuf, msg, lenMsg, "250")) {
 		free(msg);
 		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;
 	}
 
 	free(msg);
-	smtp_quit(sock, true);
+	smtp_quit(sock, ssl);
 	return AEM_API_STATUS_OK;
 }

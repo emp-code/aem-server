@@ -1,9 +1,14 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <syslog.h>
 #include <time.h>
+
+#ifdef AEM_TLS
+#include "ClientTLS.h"
+#else
+#include <sys/socket.h>
+#endif
 
 #include <sodium.h>
 
@@ -13,7 +18,6 @@
 #include "../Common/ValidUtf8.h"
 #include "../Common/api_req.h"
 #include "../Common/memeq.h"
-#include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
 
 #include "Error.h"
@@ -24,10 +28,9 @@
 
 static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
 
-void setOurDomain(const unsigned char * const crt, const size_t lenCrt) {
+void setOurDomain(const unsigned char * dom, const size_t len) {
 	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN);
-	size_t lenOurDomain;
-	x509_getSubject(ourDomain, &lenOurDomain, crt, lenCrt);
+	memcpy(ourDomain, dom, len);
 }
 
 static void message_browse(const uint16_t uid, const int flags, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
@@ -265,30 +268,44 @@ static unsigned char message_upload(const uint16_t uid, const unsigned char urlD
 }
 
 static long readHeaders(void) {
-	char buf[1000];
+	unsigned char buf[1000];
+#ifdef AEM_TLS
+	int ret = tls_peek(buf, 1000);
+#else
 	int ret = recv(AEM_FD_SOCK_CLIENT, buf, 1000, MSG_PEEK);
+#endif
 	if (ret < 10) return -1;
 
-	char * const headersEnd = memmem(buf, ret, "\r\n\r\n", 4);
+	unsigned char * const headersEnd = memmem(buf, ret, "\r\n\r\n", 4);
 	if (headersEnd == NULL) return -2;
 	*headersEnd = '\0';
 
-	const char *clBegin = (char*)memcasemem((const unsigned char * const)buf, headersEnd - buf, "Content-Length:", 15);
+	const unsigned char *clBegin = memcasemem(buf, headersEnd - buf, "Content-Length:", 15);
 	if (clBegin == NULL || headersEnd - clBegin < 10) return 0; // No body
 	clBegin += 15;
 	if (*clBegin == ' ') clBegin++;
 
-	const long cl = strtol(clBegin, NULL, 10);
+	const long cl = strtol((const char * const)clBegin, NULL, 10);
 	if (cl < 10) return -4;
 
+#ifdef AEM_TLS
+	tls_recv(buf, (headersEnd + 4) - buf); // Next recv returns the POST body
+#else
 	recv(AEM_FD_SOCK_CLIENT, buf, (headersEnd + 4) - buf, 0); // Next recv returns the POST body
+#endif
 	return cl;
 }
 
 static void handleContinue(const unsigned char * const req, const size_t lenBody) {
 	// Used with Account/Create and Private/Update. Prevents AEM-API from accessing the sensitive request data.
 	unsigned char body[AEM_API_REQ_LEN + lenBody];
-	if (recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != (ssize_t)lenBody) {
+	if (
+#ifdef AEM_TLS
+	tls_recv(body + AEM_API_REQ_LEN, lenBody)
+#else
+	recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL)
+#endif
+	!= (ssize_t)lenBody) {
 		respond404();
 		return;
 	}
@@ -339,7 +356,13 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 }
 
 static unsigned char handlePost(const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
-	if (recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL) != (ssize_t)lenBody)
+	if (
+#ifdef AEM_TLS
+	tls_recv(body, lenBody)
+#else
+	recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL)
+#endif
+	!= (ssize_t)lenBody)
 		return AEM_API_ERR_RECV;
 
 	// Authenticate and decrypt

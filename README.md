@@ -162,7 +162,7 @@ Each user has a 360-bit User Master Key (UMK). This key must be kept safe by the
 
 ## Dependencies ##
 
-* [mbed TLS](https://tls.mbed.org) for TLS
+* [wolfSSL](https://www.wolfssl.com) for TLS
 * [libsodium](https://libsodium.org) for cryptography
 * [Brotli](https://github.com/google/brotli) for compression
 * [MaxMind GeoIP2](https://dev.maxmind.com/geoip/geoip2/downloadable/) for IP geolocation and ASN data

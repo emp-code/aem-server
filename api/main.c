@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include "../Common/AcceptClients.h"
+#include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
 
 #include "MessageId.h"
@@ -9,7 +10,12 @@
 #include "SendMail.h"
 #include "post.h"
 
-#define AEM_LOGNAME "AEM-API"
+#ifdef AEM_TLS
+#define AEM_LOGNAME "AEM-API-Clr"
+#include "ClientTLS.h"
+#else
+#define AEM_LOGNAME "AEM-API-Oni"
+#endif
 
 #include "../Common/Main_Include.c"
 
@@ -44,16 +50,25 @@ static int pipeRead(void) {
 	intcom_setKeys_client(bundle.client);
 	sodium_memzero(&bundle, sizeof(bundle));
 
-	tlsCrt[lenTlsCrt] = '\0';
-	tlsKey[lenTlsKey] = '\0';
-	lenTlsCrt++;
-	lenTlsKey++;
-	tlsSetup_sendmail(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey);
-	setOurDomain(tlsCrt, lenTlsCrt);
+	unsigned char domain[AEM_MAXLEN_OURDOMAIN];
+	size_t lenDomain;
+	x509_getSubject(domain, &lenDomain, tlsCrt, lenTlsCrt);
+
+	setOurDomain(domain, lenDomain);
+
+#ifdef AEM_TLS
+	int ret  = sendMail_tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
+	if (ret == 0) ret = tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
+#endif
 
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
+
+#ifdef AEM_TLS
+	return ret;
+#else
 	return 0;
+#endif
 }
 
 int main(void) {
@@ -63,7 +78,11 @@ int main(void) {
 
 	acceptClients();
 
-	tlsFree_sendmail();
+	sendMail_tls_free();
+#ifdef AEM_TLS
+	tls_free();
+#endif
+
 	delMsgIdKey();
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;

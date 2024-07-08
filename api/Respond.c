@@ -1,9 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
+
+#ifdef AEM_TLS
+#include "ClientTLS.h"
+#else
+#include <sys/socket.h>
+#endif
 
 #include <sodium.h>
 
@@ -32,39 +37,75 @@ static int numDigits(const size_t x) {
 }
 
 void respond400(void) {
+#ifdef AEM_TLS
+	tls_send(
+		"HTTP/1.0 400 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71);
+#else
 	send(AEM_FD_SOCK_CLIENT,
-		"HTTP/1.1 403 aem\r\n"
+		"HTTP/1.0 400 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 71, 0);
+#endif
 }
 
 void respond403(void) {
+#ifdef AEM_TLS
+	tls_send(
+		"HTTP/1.0 403 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71);
+#else
 	send(AEM_FD_SOCK_CLIENT,
-		"HTTP/1.1 403 aem\r\n"
+		"HTTP/1.0 403 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 71, 0);
+#endif
 }
 
 void respond404(void) {
+#ifdef AEM_TLS
+	tls_send(
+		"HTTP/1.0 404 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71);
+#else
 	send(AEM_FD_SOCK_CLIENT,
-		"HTTP/1.1 404 aem\r\n"
+		"HTTP/1.0 404 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 71, 0);
+#endif
 }
 
 void respond500(void) {
+#ifdef AEM_TLS
+	tls_send(
+		"HTTP/1.0 500 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71);
+#else
 	send(AEM_FD_SOCK_CLIENT,
-		"HTTP/1.1 500 aem\r\n"
+		"HTTP/1.0 500 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, 71, 0);
+#endif
 }
 
 void apiResponse(const unsigned char * const data, const size_t lenData) {
@@ -84,7 +125,7 @@ void apiResponse(const unsigned char * const data, const size_t lenData) {
 	const size_t lenResponse = lenHeaders + lenFinal;
 	unsigned char response[lenResponse];
 	sprintf((char*)response,
-		"HTTP/1.1 200 aem\r\n"
+		"HTTP/1.0 200 aem\r\n"
 		"Content-Length: %zu\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
@@ -98,12 +139,10 @@ void apiResponse(const unsigned char * const data, const size_t lenData) {
 	sodium_memzero(padded, lenPadded);
 	free(padded);
 
-	// Send the response
+	// Send
+#ifdef AEM_TLS
+	tls_send(response, lenResponse);
+#else
 	send(AEM_FD_SOCK_CLIENT, response, lenResponse, 0);
-
-	// Make sure the response is sent before closing the socket
-	shutdown(AEM_FD_SOCK_CLIENT, SHUT_WR);
-	unsigned char x[1024];
-	read(AEM_FD_SOCK_CLIENT, x, 1024);
-	read(AEM_FD_SOCK_CLIENT, x, 1024);
+#endif
 }
