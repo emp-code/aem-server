@@ -41,7 +41,6 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
 		"%s"
-		"Server: All-Ears Mail\r\n"
 
 		// CSP
 		"Content-Security-Policy: "
