@@ -5,6 +5,6 @@
 
 void setMsgIdKey(const unsigned char * const src);
 void delMsgIdKey(void);
-void genMsgId(char * const out, const uint32_t ts, const uint16_t uid, const unsigned char * const addr32, const bool hex);
+void genMsgId(char * const out, const uint32_t ts, const uint16_t uid, const unsigned char * const addr32, const bool b32);
 
 #endif
