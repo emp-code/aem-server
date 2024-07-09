@@ -27,15 +27,12 @@ void setMsgIdKey(const unsigned char * const baseKey) {
 	uint8_t src[8192];
 	aem_kdf_sub(src, 8192, AEM_KDF_KEYID_API_MIC, baseKey);
 
-	for (int charsDone = 0; charsDone < 64; charsDone++) {
-		for (int n = 0; n < 8192; n++) {
-			src[n] &= 31;
-
-			if (((done >> src[n]) & 1) == 0) {
-				msgid_cs[total] = b32_set[src[n]];
-				done |= 1UL << src[n];
-				break;
-			}
+	for (int i = 0; total < 32; i++) {
+		src[i] &= 31;
+		if (((done >> src[i]) & 1) == 0) {
+			msgid_cs[total] = b32_set[src[i]];
+			done |= 1LLU << src[i];
+			total++;
 		}
 	}
 }

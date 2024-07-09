@@ -24,6 +24,7 @@
 __attribute__((warn_unused_result))
 static int pipeRead(void) {
 	pid_t pids[3];
+	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;
 
 	size_t lenTlsCrt;
@@ -33,6 +34,7 @@ static int pipeRead(void) {
 
 	if (
 	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
+	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_SUB_KEYLEN) != AEM_KDF_SUB_KEYLEN
 	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsCrt, sizeof(size_t)) != sizeof(size_t)
 	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
@@ -48,6 +50,8 @@ static int pipeRead(void) {
 	setAccountPid(pids[0]);
 	setStoragePid(pids[1]);
 	setEnquiryPid(pids[2]);
+
+	setMsgIdKey(baseKey);
 
 	intcom_setKeys_client(bundle.client);
 	sodium_memzero(&bundle, sizeof(bundle));
