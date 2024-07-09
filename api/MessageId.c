@@ -35,6 +35,8 @@ void setMsgIdKey(const unsigned char * const baseKey) {
 			total++;
 		}
 	}
+
+	sodium_memzero(src, 8192);
 }
 
 void delMsgIdKey(void) {
