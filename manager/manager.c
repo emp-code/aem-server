@@ -50,6 +50,7 @@ enum intcom_keynum {
 };
 
 static unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
+static unsigned char key_api[AEM_KDF_SUB_KEYLEN];
 static unsigned char key_mng[crypto_aead_aegis256_KEYBYTES];
 static unsigned char key_ic[AEM_KDF_MASTER_KEYLEN];
 
@@ -437,7 +438,7 @@ static int sendIntComKeys(const int type) {
 	return (bytes == sizeof(bundle))? 0 : -1;
 }
 
-static int process_spawn(const int type, const unsigned char * const key_forward) {
+static int process_spawn(const int type, const unsigned char *key_forward) {
 	int freeSlot = -1;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
@@ -487,6 +488,7 @@ static int process_spawn(const int type, const unsigned char * const key_forward
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
+			key_forward = key_api;
 		break;
 
 		/* Nothing:
@@ -682,6 +684,7 @@ int setupManager(void) {
 	}
 
 	aem_kdf_master(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
+	aem_kdf_master(key_api, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_API, smk);
 
 	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
 	return takeConnections();
