@@ -20,8 +20,6 @@ static int setKeyShare(void) {
 }
 
 int tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain) {
-	wolfSSL_Init();
-
 	ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
 	if (ctx == NULL) return 10;
 
@@ -38,7 +36,6 @@ int tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigne
 
 void tls_free(void) {
 	wolfSSL_CTX_free(ctx);
-	wolfSSL_Cleanup();
 }
 
 int tls_connect(void) {

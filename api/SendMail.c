@@ -33,8 +33,6 @@ static int setKeyShare(WOLFSSL * ssl) {
 }
 
 int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain) {
-	wolfSSL_Init();
-
 	ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 	if (ctx == NULL) return 10;
 
@@ -52,7 +50,6 @@ int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, cons
 
 void sendMail_tls_free(void) {
 	wolfSSL_CTX_free(ctx);
-	wolfSSL_Cleanup();
 }
 
 static int makeSocket(const uint32_t ip) {

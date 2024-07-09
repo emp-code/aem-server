@@ -1,6 +1,8 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include <wolfssl/ssl.h>
+
 #include "../Common/AcceptClients.h"
 #include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
@@ -74,6 +76,7 @@ static int pipeRead(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
+	wolfSSL_Init();
 	if (pipeRead() < 0) {syslog(LOG_ERR, "Terminating: Failed pipeRead"); return EXIT_FAILURE;}
 
 	acceptClients();
@@ -83,6 +86,7 @@ int main(void) {
 	tls_free();
 #endif
 
+	wolfSSL_Cleanup();
 	delMsgIdKey();
 	syslog(LOG_INFO, "Terminating");
 	return EXIT_SUCCESS;
