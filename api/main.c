@@ -58,19 +58,15 @@ static int pipeRead(void) {
 
 	setOurDomain(domain, lenDomain);
 
+	int ret = sendMail_tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
 #ifdef AEM_TLS
-	int ret  = sendMail_tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
 	if (ret == 0) ret = tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
 #endif
 
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
 
-#ifdef AEM_TLS
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 int main(void) {
