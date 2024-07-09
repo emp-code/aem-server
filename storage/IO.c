@@ -373,57 +373,27 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	return 6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes;
 }
 
-int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
+int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
 
 	const off_t fileSz = lseek(fdMsg, 0, SEEK_END);
-
-	unsigned char msgId[16];
 	off_t filePos = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {
-		if (pread(fdMsg, msgId, 16, filePos) != 16) {
-			syslog(LOG_ERR, "Delete: Failed read: %m");
-			close(fdMsg);
-			return AEM_INTCOM_RESPONSE_ERR;
+		const size_t evpBytes = (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+
+		if (stindex[uid].id[i] != delId) {
+			filePos += evpBytes;
+			continue;
 		}
 
-		if (memeq(msgId, delId, 16)) {
-			// ID matches
-			const off_t szOverwrite = fileSz - filePos - stindex[uid].bc[i];
-			unsigned char * const tmp = malloc(szOverwrite);
-			if (tmp == NULL) {
-				syslog(LOG_ERR, "Failed malloc");
-				close(fdMsg);
-				return AEM_INTCOM_RESPONSE_ERR;
-			}
-
-			if (pread(fdMsg, tmp, szOverwrite, filePos + stindex[uid].bc[i]) != szOverwrite) {
-				syslog(LOG_ERR, "Delete: Failed read: %m");
-				free(tmp);
-				close(fdMsg);
-				return AEM_INTCOM_RESPONSE_ERR;
-			}
-
-			if (pwrite(fdMsg, tmp, szOverwrite, filePos) != szOverwrite) {
-				syslog(LOG_ERR, "Delete: Failed write: %m");
-				free(tmp);
-				close(fdMsg);
-				return AEM_INTCOM_RESPONSE_ERR;
-			}
-
-			free(tmp);
-
-			if (ftruncate(fdMsg, fileSz - stindex[uid].bc[i]) != 0) {
+		// ID matches
+		if (i == stindex_count[uid] - 1) {
+			// Latest message - truncate only
+			if (ftruncate(fdMsg, fileSz - evpBytes) != 0) {
 				syslog(LOG_ERR, "Delete: Failed ftruncate: %m");
 				close(fdMsg);
 				return AEM_INTCOM_RESPONSE_ERR;
-			}
-
-			close(fdMsg);
-
-			if (i < stindex_count[uid] - 1) {
-				memmove((unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * i), (unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * (i + 1)), sizeof(uint16_t) * (stindex_count[uid] - i - 1));
 			}
 
 			stindex_count[uid]--;
@@ -431,7 +401,44 @@ int32_t storage_delete(unsigned char * const delId, const uint16_t uid) {
 			return AEM_INTCOM_RESPONSE_OK;
 		}
 
-		filePos += stindex[uid].bc[i];
+		const off_t szOverwrite = fileSz - filePos - evpBytes;
+		unsigned char * const tmp = malloc(szOverwrite);
+		if (tmp == NULL) {
+			syslog(LOG_ERR, "Failed malloc");
+			close(fdMsg);
+			return AEM_INTCOM_RESPONSE_ERR;
+		}
+
+		if (pread(fdMsg, tmp, szOverwrite, filePos + evpBytes) != szOverwrite) {
+			syslog(LOG_ERR, "Delete: Failed read: %m");
+			free(tmp);
+			close(fdMsg);
+			return AEM_INTCOM_RESPONSE_ERR;
+		}
+
+		if (pwrite(fdMsg, tmp, szOverwrite, filePos) != szOverwrite) {
+			syslog(LOG_ERR, "Delete: Failed write: %m");
+			free(tmp);
+			close(fdMsg);
+			return AEM_INTCOM_RESPONSE_ERR;
+		}
+
+		free(tmp);
+
+		if (ftruncate(fdMsg, fileSz - evpBytes) != 0) {
+			syslog(LOG_ERR, "Delete: Failed ftruncate: %m");
+			close(fdMsg);
+			return AEM_INTCOM_RESPONSE_ERR;
+		}
+
+		close(fdMsg);
+
+		memmove((unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * i), (unsigned char*)stindex[uid].bc + (sizeof(uint16_t) * (i + 1)), sizeof(uint16_t) * (stindex_count[uid] - i - 1));
+		memmove((unsigned char*)stindex[uid].id + (sizeof(uint16_t) * i), (unsigned char*)stindex[uid].id + (sizeof(uint16_t) * (i + 1)), sizeof(uint16_t) * (stindex_count[uid] - i - 1));
+		stindex_count[uid]--;
+
+		saveStindex();
+		return AEM_INTCOM_RESPONSE_OK;
 	}
 
 	// Not found

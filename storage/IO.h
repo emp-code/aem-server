@@ -25,6 +25,6 @@ int32_t api_message_delete(const unsigned char * const req, const size_t lenReq)
 
 // API/DLV
 int32_t storage_write(unsigned char * const req, const size_t lenReq, const uint16_t uid);
-int32_t storage_delete(unsigned char * const delId, const uint16_t uid);
+int32_t storage_delete(const uint16_t uid, const uint16_t delId);
 
 #endif

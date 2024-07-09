@@ -25,7 +25,7 @@ int32_t conn_api(const uint32_t operation, unsigned char * const msg, const size
 	if (operation == AEM_INTCOM_OP_BROWSE_NEW) return api_message_browse(msg, lenMsg, res, true);
 	if (operation == AEM_INTCOM_OP_BROWSE_OLD) return api_message_browse(msg, lenMsg, res, false);
 	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation);
-	if (operation - AEM_USERCOUNT < AEM_USERCOUNT && lenMsg == 16) return storage_delete(msg, operation - AEM_USERCOUNT);
+	if (operation - AEM_USERCOUNT < AEM_USERCOUNT && lenMsg == 2) return storage_delete(operation - AEM_USERCOUNT, *(uint16_t*)msg);
 
 	syslog(LOG_ERR, "conn_api(): Invalid op: %u", operation);
 	return AEM_INTCOM_RESPONSE_ERR;
