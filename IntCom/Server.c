@@ -169,17 +169,16 @@ void intcom_serve(void) {
 			}
 
 			crypto_aead_aegis256_encrypt(encRes, NULL, res, resCode, NULL, 0, NULL, encHdr + 1, intcom_keys[encHdr[0]]);
+			free(res);
 
 			const ssize_t sentBytes = send(sockClient, encRes, resCode + crypto_aead_aegis256_ABYTES, 0);
+			free(encRes);
+
 			if (sentBytes != resCode + crypto_aead_aegis256_ABYTES) {
 				syslog(LOG_ERR, "IntCom[S]: Failed sending message (%d/%d): %m", sentBytes, resCode + crypto_aead_aegis256_ABYTES);
 				close(sockClient);
-				free(encRes);
-				free(res);
 				continue;
 			}
-
-			free(res);
 		}
 
 		close(sockClient);
