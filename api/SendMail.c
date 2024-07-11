@@ -94,7 +94,7 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 
 	const uint32_t ts = (uint32_t)time(NULL);
 
-	char msgId[32];
+	char msgId[26];
 	genMsgId(msgId, ts, email->uid, email->fromAddr32, true);
 
 	const time_t msgTime = ts;
@@ -120,7 +120,7 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 		"%s" // References + In-Reply-To
 		"From: %s@%s\r\n"
 		"Date: %s\r\n"
-		"Message-ID: <%s@%s>\r\n"
+		"Message-ID: <%.26s@%s>\r\n"
 		"Subject: %s\r\n"
 		"To: %s\r\n"
 		"DKIM-Signature:"
