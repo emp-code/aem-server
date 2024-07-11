@@ -180,9 +180,6 @@ static char *createEmail(const struct outEmail * const email, size_t * const len
 	unsigned char headHash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(headHash, (unsigned char*)final, lenFinal) != 0) {free(final); return NULL;}
 
-	char hB64[sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL)];
-	sodium_bin2base64(hB64, sodium_base64_ENCODED_LEN(crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL), headHash, crypto_hash_sha256_BYTES, sodium_base64_VARIANT_ORIGINAL);
-
 	const size_t lenSigB64 = rsa_sign_b64(final + lenFinal, headHash, email->rsaKey, email->lenRsaKey);
 	if (lenSigB64 < 1) {free(final); return NULL;}
 	lenFinal += lenSigB64;
