@@ -61,7 +61,6 @@ int tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigne
 
 	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, crt, lenCrt) != WOLFSSL_SUCCESS) return 13;
 	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, lenKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) return 14;
-	if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, domain, lenDomain) != WOLFSSL_SUCCESS) return 15;
 
 	memcpy(ourDomain, domain, lenDomain);
 	lenOurDomain = lenDomain;
