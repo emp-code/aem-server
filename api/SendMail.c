@@ -9,6 +9,7 @@
 #include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/error-ssl.h>
 
 #include "../Global.h"
 #include "../Common/memeq.h"
@@ -36,12 +37,14 @@ int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, cons
 	ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 	if (ctx == NULL) return 10;
 
-	if (wolfSSL_CTX_SetMinVersion(ctx, 4) != WOLFSSL_SUCCESS) return 11;
+	if (wolfSSL_CTX_SetMinVersion(ctx, 1) != WOLFSSL_SUCCESS) return 11;
 	if (wolfSSL_CTX_set_cipher_list(ctx, AEM_TLS_CIPHERSUITES_MTA) != WOLFSSL_SUCCESS) return 12;
 
 	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, crt, lenCrt) != WOLFSSL_SUCCESS) return 14;
 	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, lenKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) return 15;
-	if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, domain, lenDomain) != WOLFSSL_SUCCESS) return 16;
+
+	const int err = wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, "/ssl-certs/", WOLFSSL_LOAD_FLAG_IGNORE_ERR);
+	if (err != WOLFSSL_SUCCESS) {syslog(LOG_ERR, "Failed loading certs: %d"); return 16;}
 
 	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN + 1);
 	memcpy(ourDomain, domain, lenDomain);
@@ -75,14 +78,20 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 	if (wc_InitRsaKey(&rsa, NULL) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return 0;}
 
 	word32 idx = 0;
-	if (wc_RsaPrivateKeyDecode(rsaKey, &idx, &rsa, lenRsaKey) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return 0;}
+	if (wc_RsaPrivateKeyDecode(rsaKey, &idx, &rsa, lenRsaKey) != 0) {syslog(LOG_ERR, "wc_RsaPrivateKeyDecode failed"); return 0;}
 
-	unsigned char sig[lenRsaKey]; // RSA signature size equals key size
-	wc_RsaSSL_Sign(hash, crypto_hash_sha256_BYTES, sig, lenRsaKey, &rsa, NULL);
+	WC_RNG *rng = wc_rng_new(NULL, 0, NULL);
+	if (rng == NULL) {syslog(LOG_ERR, "wc_rng_new failed"); return 0;}
+
+	unsigned char sig[256]; // 2048-bit
+	bzero(sig, 256);
+
+	wc_RsaSSL_Sign((unsigned char[]){0x30,0x31,0x30,0x0D,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20,hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15],hash[16],hash[17],hash[18],hash[19],hash[20],hash[21],hash[22],hash[23],hash[24],hash[25],hash[26],hash[27],hash[28],hash[29],hash[30],hash[31]},
+		19 + crypto_hash_sha256_BYTES, sig, 256, &rsa, rng);
 	wc_FreeRsaKey(&rsa);
 
-	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(lenRsaKey, sodium_base64_VARIANT_ORIGINAL), sig, lenRsaKey, sodium_base64_VARIANT_ORIGINAL);
-	return sodium_base64_ENCODED_LEN(lenRsaKey, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
+	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
+	return sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
 }
 
 static char *createEmail(const struct outEmail * const email, size_t * const lenOut) {
@@ -267,6 +276,14 @@ static bool smtpCommand(const int sock, WOLFSSL *ssl, char * const buf, size_t *
 }
 
 unsigned char sendMail(const struct outEmail * const email, struct outInfo * const info) {
+	WOLFSSL *ssl = wolfSSL_new(ctx);
+	if (ssl == NULL) {
+		int err = wolfSSL_get_error(ssl, 0);
+		char buffer[1024];
+		syslog(LOG_ERR, "ssl_new error %d: %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
+	}
+
 	int sock = makeSocket(email->ip);
 	if (sock < 1) {syslog(LOG_ERR, "sendMail: Failed makeSocket()"); return AEM_API_ERR_INTERNAL;}
 
@@ -284,14 +301,17 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, NULL); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
 	if (!smtpCommand(sock, NULL, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
 
-	WOLFSSL *ssl = wolfSSL_new(ctx);
-	if (ssl == NULL) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
 	setKeyShare(ssl);
 
 	if (
-		wolfSSL_set_fd(ssl, AEM_FD_SOCK_CLIENT) != WOLFSSL_SUCCESS
+	   wolfSSL_set_fd(ssl, sock) != WOLFSSL_SUCCESS
 	|| wolfSSL_connect(ssl) != WOLFSSL_SUCCESS
-	|| wolfSSL_state(ssl) != 0) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
+	|| wolfSSL_state(ssl) != 0) {
+		int err = wolfSSL_get_error(ssl, 0);
+		char buffer[1024];
+		syslog(LOG_ERR, "wolfSSL_handshake error %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
+	}
 
 //	info->tls_ciphersuite = ...
 //	info->tls_version = ...
