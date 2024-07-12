@@ -397,9 +397,9 @@ void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 		return;
 	}
 
-	// The request is authentic. Download the headers.
-	const long lenBody = readHeaders();
-	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody < 1 && isPost) || (lenBody > 0 && !isPost)) {
+	// The request is authentic
+	const long lenBody = isPost? readHeaders() : 0;
+	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_SRC_MAXSIZE)) {
 		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 			respond400();
 			return;
