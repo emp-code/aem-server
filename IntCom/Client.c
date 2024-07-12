@@ -108,9 +108,13 @@ int32_t intcom(const aem_intcom_server_t intcom_server, const uint32_t operation
 		const size_t lenEncMsg = lenMsg + crypto_aead_aegis256_ABYTES;
 		unsigned char * const encMsg = malloc(lenEncMsg);
 		if (encMsg == NULL) {close(sock); syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
+
 		sodium_increment(encHdr + 1, crypto_aead_aegis256_NPUBBYTES);
 		crypto_aead_aegis256_encrypt(encMsg, NULL, msg, lenMsg, NULL, 0, NULL, encHdr + 1, intcom_keys[intcom_server]);
-		if (send(sock, encMsg, lenEncMsg, 0) != (ssize_t)lenEncMsg) {syslog(LOG_ERR, "IntCom[C]: Failed sending message: %m"); close(sock); return AEM_INTCOM_RESPONSE_ERR;}
+
+		const ssize_t sentBytes = send(sock, encMsg, lenEncMsg, 0);
+		free(encMsg);
+		if (sentBytes != (ssize_t)lenEncMsg) {syslog(LOG_ERR, "IntCom[C]: Failed sending message: %m"); close(sock); return AEM_INTCOM_RESPONSE_ERR;}
 	}
 
 	// Receive response header
