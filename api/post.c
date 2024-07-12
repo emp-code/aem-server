@@ -402,11 +402,12 @@ void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 	if (lenBody < 0 || lenBody > (AEM_MSG_SRC_MAXSIZE - 1) || (lenBody < 1 && isPost) || (lenBody > 0 && !isPost)) {
 		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 			respond400();
-		} else {
-			setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
-			const unsigned char rb = AEM_API_ERR_POST;
-			apiResponse(&rb, 1);
+			return;
 		}
+
+		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		const unsigned char rb = AEM_API_ERR_POST;
+		apiResponse(&rb, 1);
 	} else if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 		return (isPost && lenBody < 99999) ? handleContinue(req, lenBody) : respond500();
 	} else {
