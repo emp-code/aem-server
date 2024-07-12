@@ -50,4 +50,4 @@ utils/WebMaker: utils/WebMaker.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-clr aem-api-oni aem-mta aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-clr aem-api-oni aem-mta aem-web-clr aem-web-oni utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
