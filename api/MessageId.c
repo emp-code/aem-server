@@ -6,6 +6,7 @@
 #include <time.h>
 
 #include <sodium.h>
+#include <wolfssl/options.h>
 #define WOLFSSL_AES_DIRECT
 #include <wolfssl/wolfcrypt/aes.h>
 

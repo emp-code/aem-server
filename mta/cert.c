@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include <wolfssl/options.h>
 #include <wolfssl/ssl.h>
 
 #include "../Common/Email.h"
