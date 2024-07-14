@@ -59,7 +59,7 @@ static void eidSetup(void) {
 
 static int loadStindex(void) {
 	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
-	if (fd < 0) {syslog(LOG_ERR, "Failed opening Stindex.aem"); return -1;}
+	if (fd < 0) {syslog(LOG_ERR, "Failed opening Stindex.aem: %m"); return -1;}
 
 	off_t fileSize = lseek(fd, 0, SEEK_END);
 	if (fileSize < 1) {syslog(LOG_ERR, "Failed getting size of Stindex.aem"); return -1;}
@@ -132,7 +132,7 @@ static void saveStindex(void) {
 	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
 		free(enc);
-		syslog(LOG_ERR, "Failed opening Stindex.aem");
+		syslog(LOG_ERR, "Failed opening Stindex.aem: %m");
 		return;
 	}
 
