@@ -8,8 +8,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include <mbedtls/x509.h> // For RSA
 #include <sodium.h>
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
@@ -72,7 +74,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 
 	int retval = -1;
 	size_t offset = 0;
-	while(1) {
+	for(;;) {
 		size_t o, lenVal;
 		char val[1024];
 		const unsigned char key = getValuePair_dns((char*)dkim + offset, &o, val, &lenVal);
@@ -141,7 +143,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 	}
 }
 
-static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * const pk, const unsigned char * const dkim_signature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
+static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, const unsigned char * const dkimSignature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
 	char headers[lenHeaders + 1];
 	memcpy(headers, headersSource, lenHeaders);
 	headers[lenHeaders] = '\0';
@@ -222,7 +224,10 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 	// Verify sig
 	unsigned char dkim_hash[crypto_hash_sha256_BYTES];
 	if (crypto_hash_sha256(dkim_hash, simple, lenSimple) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, crypto_hash_sha256_BYTES, dkim_signature, lenDkimSignature) == 0) {
+		unsigned char o[1024];
+		bzero(o, 1024);
+
+		if (wc_RsaSSL_Verify(dkimSignature, lenDkimSignature, o, 1024, pk) >= 51 && memeq(o + 19, dkim_hash, crypto_hash_sha256_BYTES)) {
 			*headSimple = true;
 			return true;
 		}
@@ -237,8 +242,11 @@ static bool verifyDkimSig(struct emailInfo * const email, mbedtls_pk_context * c
 	lenRelaxed += addLen;
 
 	if (crypto_hash_sha256(dkim_hash, relaxed, lenRelaxed) == 0) {
-		if (mbedtls_pk_verify(pk, MBEDTLS_MD_SHA256, dkim_hash, crypto_hash_sha256_BYTES, dkim_signature, lenDkimSignature) == 0) {
-			*headSimple = false;
+		unsigned char o[1024];
+		bzero(o, 1024);
+
+		if (wc_RsaSSL_Verify(dkimSignature, lenDkimSignature, o, 1024, pk) >= 51 && memeq(o + 19, dkim_hash, crypto_hash_sha256_BYTES)) {
+			*headSimple = true;
 			return true;
 		}
 	}
@@ -451,12 +459,13 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		email->dkim[email->dkimCount].bodySimple = false;
 	} else email->dkim[email->dkimCount].bodySimple = true;
 
-	mbedtls_pk_context pk;
-	mbedtls_pk_init(&pk);
-	const int ret = mbedtls_pk_parse_public_key(&pk, pkBin, lenPkBin);
+	RsaKey pk;
+	if (wc_InitRsaKey(&pk, NULL) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return offset;}
+	word32 idx = 0;
+	const int ret = wc_RsaPublicKeyDecode(pkBin, &idx, &pk, lenPkBin);
 	if (ret != 0) {
-		syslog(LOG_INFO, "pk_parse failed: %x", -ret);
-		mbedtls_pk_free(&pk);
+		syslog(LOG_INFO, "Failed decoding public key: %d [%zd]\n", ret, lenPkBin);
+		wc_FreeRsaKey(&pk);
 		email->dkimFailed = true;
 		return offset;
 	}
@@ -466,6 +475,6 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		(email->dkimCount)++;
 	}
 
-	mbedtls_pk_free(&pk);
+	wc_FreeRsaKey(&pk);
 	return offset;
 }
