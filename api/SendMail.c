@@ -23,14 +23,20 @@
 static WOLFSSL_CTX *ctx;
 static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN + 1];
 
-static int setKeyShare(WOLFSSL * ssl) {
+static int setKeyShare(WOLFSSL *ssl) {
 	for(;;) {
 		const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
 		if (ret == WOLFSSL_SUCCESS) break;
 		if (ret != WC_PENDING_E) return -1;
 	}
 
-	return (wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519}, 1) == WOLFSSL_SUCCESS) ? 0 : -1;
+	for(;;) {
+		const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1);
+		if (ret == WOLFSSL_SUCCESS) break;
+		if (ret != WC_PENDING_E) return -1;
+	}
+
+	return (wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519, WOLFSSL_ECC_SECP256R1}, 2) == WOLFSSL_SUCCESS) ? 0 : -1;
 }
 
 int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigned char * const key, const size_t lenKey, const unsigned char * const domain, const size_t lenDomain) {
