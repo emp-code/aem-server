@@ -366,9 +366,12 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 
 	if (readBytes != evpBytes) {
 		if (readBytes >= 0) syslog(LOG_ERR, "Failed read: %d/%d", readBytes, evpBytes);
-		free(*out);
-		*out = NULL;
-		return AEM_INTCOM_RESPONSE_ERR;
+
+		if (readBytes < AEM_ENVELOPE_MINBLOCKS * 16) {
+			free(*out);
+			*out = NULL;
+			return AEM_INTCOM_RESPONSE_ERR;
+		}
 	}
 
 	return 6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes;
