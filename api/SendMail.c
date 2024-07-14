@@ -307,6 +307,7 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 		int err = wolfSSL_get_error(ssl, 0);
 		char buffer[1024];
 		syslog(LOG_ERR, "wolfSSL_handshake error %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+		smtp_quit(sock, NULL);
 		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_SHAKE;
 	}
 
