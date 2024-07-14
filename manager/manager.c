@@ -314,10 +314,10 @@ static int setLimits(const int type) {
 
 	switch (type) {
 		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
-		case AEM_PROCESSTYPE_STORAGE: rlim.rlim_cur = 5; break;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
 		case AEM_PROCESSTYPE_DELIVER:
+		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
