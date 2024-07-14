@@ -381,7 +381,18 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
 
+	off_t lenExpected = 0;
+	for (int i = 0; i < stindex_count[uid]; i++) {
+		lenExpected += (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
+	}
+
 	const off_t fileSz = lseek(fdMsg, 0, SEEK_END);
+	if (fileSz != lenExpected) {
+		syslog(LOG_ERR, "Delete: File %s size differs from expected: %d/%d", AEM_PATH_STO_MSG, fileSz, lenExpected);
+		close(fdMsg);
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
+
 	off_t filePos = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {
 		const size_t evpBytes = (stindex[uid].bc[i] + AEM_ENVELOPE_MINBLOCKS) * 16;
