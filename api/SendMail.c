@@ -80,17 +80,12 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 	word32 idx = 0;
 	if (wc_RsaPrivateKeyDecode(rsaKey, &idx, &rsa, lenRsaKey) != 0) {syslog(LOG_ERR, "wc_RsaPrivateKeyDecode failed"); return 0;}
 
-	WC_RNG *rng = wc_rng_new(NULL, 0, NULL);
-	if (rng == NULL) {syslog(LOG_ERR, "wc_rng_new failed"); return 0;}
-	wc_InitRng(rng);
-
 	unsigned char sig[256]; // 2048-bit
 	bzero(sig, 256);
 
 	wc_RsaSSL_Sign((unsigned char[]){0x30,0x31,0x30,0x0D,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20,hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15],hash[16],hash[17],hash[18],hash[19],hash[20],hash[21],hash[22],hash[23],hash[24],hash[25],hash[26],hash[27],hash[28],hash[29],hash[30],hash[31]},
-		19 + crypto_hash_sha256_BYTES, sig, 256, &rsa, rng);
+		19 + crypto_hash_sha256_BYTES, sig, 256, &rsa, NULL);
 	wc_FreeRsaKey(&rsa);
-	wc_FreeRng(rng);
 
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
 	return sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
