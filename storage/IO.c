@@ -132,7 +132,7 @@ static void saveStindex(void) {
 	const int fd = open("Stindex.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {
 		free(enc);
-		syslog(LOG_ERR, "Failed opening Account.aem");
+		syslog(LOG_ERR, "Failed opening Stindex.aem");
 		return;
 	}
 
