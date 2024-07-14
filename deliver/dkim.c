@@ -11,7 +11,6 @@
 #include <sodium.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/rsa.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
