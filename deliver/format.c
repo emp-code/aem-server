@@ -99,11 +99,13 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	size_t lenContent = lenUncomp + 300; // 300 for compression/padding overhead
 	unsigned char * const content = malloc(AEM_ENVELOPE_RESERVED_LEN + lenHead + lenContent);
 	if (content == NULL) {
+		syslog(LOG_ERR, "Failed malloc");
 		free(uncomp);
 		return NULL;
 	}
 
 	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenContent, content + AEM_ENVELOPE_RESERVED_LEN + lenHead) == BROTLI_FALSE) {
+		syslog(LOG_ERR, "Failed compression");
 		free(uncomp);
 		free(content);
 		return NULL;
