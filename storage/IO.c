@@ -62,17 +62,17 @@ static int loadStindex(void) {
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening Stindex.aem: %m"); return -1;}
 
 	off_t fileSize = lseek(fd, 0, SEEK_END);
-	if (fileSize < 1) {syslog(LOG_ERR, "Failed getting size of Stindex.aem"); return -1;}
+	if (fileSize < 1) {syslog(LOG_ERR, "Failed getting size of Stindex.aem"); close(fd); return -1;}
 
 	unsigned char * const enc = malloc(fileSize);
-	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); return -1;}
-	if (pread(fd, enc, fileSize, 0) != fileSize) {syslog(LOG_ERR, "Failed reading Stindex.aem"); free(enc); return -1;}
+	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); close(fd); return -1;}
+	if (pread(fd, enc, fileSize, 0) != fileSize) {syslog(LOG_ERR, "Failed reading Stindex.aem"); free(enc); close(fd); return -1;}
 
 	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
 	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 
 	unsigned char * const dec = malloc(fileSize - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES);
-	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, fileSize - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, stiKey) == -1) {syslog(LOG_ERR, "Failed decrypting Stindex.aem"); free(enc); return -1;}
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, fileSize - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, stiKey) == -1) {syslog(LOG_ERR, "Failed decrypting Stindex.aem"); free(enc); close(fd); return -1;}
 	free(enc);
 
 	off_t offset = AEM_USERCOUNT * sizeof(uint16_t);
@@ -83,9 +83,9 @@ static int loadStindex(void) {
 			const size_t bytes = stindex_count[uid] * sizeof(uint16_t);
 
 			stindex[uid].bc = malloc(bytes);
-			if (stindex[uid].bc == NULL) {free(dec); return -1;}
+			if (stindex[uid].bc == NULL) {free(dec); close(fd); return -1;}
 			stindex[uid].id = malloc(bytes);
-			if (stindex[uid].id == NULL) {free(dec); return -1;}
+			if (stindex[uid].id == NULL) {free(dec); close(fd); return -1;}
 
 			memcpy(stindex[uid].bc, dec + offset, bytes);
 			offset += bytes;
@@ -95,6 +95,7 @@ static int loadStindex(void) {
 	}
 
 	free(dec);
+	close(fd);
 	return 0;
 }
 
@@ -398,6 +399,7 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 
 			stindex_count[uid]--;
 			saveStindex();
+			close(fdMsg);
 			return AEM_INTCOM_RESPONSE_OK;
 		}
 
