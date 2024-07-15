@@ -173,6 +173,7 @@ enum aem_api_command_post {
 #define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 8 // Older, instead of newer
 #define AEM_API_MESSAGE_BROWSE_FLAG_UINFO 4 // Include user info
 #define AEM_API_MESSAGE_CREATE_FLAG_EMAIL 8 // Send email, not internal mail
+#define AEM_API_MESSAGE_DELETE_FLAG_EMPTY 8 // Empty storage completely
 
 #define AEM_API_REQ_LEN 48
 #define AEM_API_REQ_LEN_BASE64 64

@@ -244,8 +244,8 @@ static unsigned char message_create(const int flags, const unsigned char * const
 	return AEM_API_ERR_INTERNAL;
 }
 
-static unsigned char message_delete(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN]) {
-	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_USERCOUNT + uid, urlData, 2, NULL, 0);
+static unsigned char message_delete(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const int flags) {
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_USERCOUNT + uid, urlData, (flags == AEM_API_MESSAGE_DELETE_FLAG_EMPTY) ? 1 : 2, NULL, 0);
 	if (icRet == AEM_INTCOM_RESPONSE_NOTEXIST) return AEM_API_ERR_MESSAGE_DELETE_NOTFOUND;
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
@@ -333,7 +333,7 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 		break;
 
 		case AEM_API_MESSAGE_DELETE: {
-			const unsigned char rb = message_delete(uid, urlData);
+			const unsigned char rb = message_delete(uid, urlData, flags);
 			apiResponse(&rb, 1);
 		break;}
 

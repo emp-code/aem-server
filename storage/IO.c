@@ -178,9 +178,9 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 	return AEM_USERCOUNT * sizeof(uint32_t);
 }
 
-static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], size_t * const lenEnvelope, const uint16_t uid) {
+static unsigned char *makeEnvelope(const unsigned char * const content, const size_t lenContent, const unsigned char epk[X25519_PKBYTES], size_t * const lenEnvelope, const uint16_t uid) {
 	const uint32_t ts = (uint32_t)time(NULL);
-	*lenEnvelope = AEM_ENVELOPE_RESERVED_LEN + 6 + AEM_WELCOME_LEN;
+	*lenEnvelope = AEM_ENVELOPE_RESERVED_LEN + 6 + lenContent;
 	const size_t padAmount = msg_getPadAmount(*lenEnvelope);
 	*lenEnvelope += padAmount;
 
@@ -190,7 +190,7 @@ static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], s
 	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
 	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 192; // IntMsg InfoByte: System
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, AEM_WELCOME, AEM_WELCOME_LEN);
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, content, lenContent);
 
 	message_into_envelope(msg, *lenEnvelope, epk, stindex[uid].id, stindex_count[uid]);
 	return msg;
@@ -203,7 +203,7 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	if (stindex_count[uid] > 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	size_t lenWm = 0;
-	unsigned char * const wm = welcomeEnvelope(msg + sizeof(uint16_t), &lenWm, uid);
+	unsigned char * const wm = makeEnvelope(AEM_WELCOME, AEM_WELCOME_LEN, msg + sizeof(uint16_t), &lenWm, uid);
 	if (wm == NULL) return -1;
 	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
 	const uint16_t wmId = getEnvelopeId(wm);
@@ -506,4 +506,38 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	saveStindex();
 
 	return getEnvelopeId(msg) - (UINT16_MAX + 1); // Returns the EnvelopeID as a negative pseudo-errorcode
+}
+
+int32_t storage_empty(const uint16_t uid) {
+	unsigned char *epk = NULL;
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, uid, NULL, 0, &epk, X25519_PKBYTES);
+	if (icRet != X25519_PKBYTES) {syslog(LOG_ERR, "Failed getting EPK from Account: %d", icRet); return AEM_INTCOM_RESPONSE_ERR;}
+
+	size_t lenEvp = 0;
+	unsigned char * const evp = makeEnvelope((const unsigned char * const)"Storage emptied\nAs you requested, your storage has been emptied.\nAs this is your oldest message now, it can only be deleted by emptying your storage again.\nThis is an automatically generated system message.", 206, epk, &lenEvp, uid);
+	if (evp == NULL) return -1;
+	const uint16_t evpBc = (lenEvp / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t evpId = getEnvelopeId(evp);
+
+	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
+	if (fd < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
+
+	const ssize_t lenWritten = write(fd, evp, lenEvp);
+	if (lenWritten < 0) syslog(LOG_ERR, "Failed writing file: %m");
+	free(evp);
+	close(fd);
+
+	if (lenWritten != (ssize_t)lenEvp) {
+		if (lenWritten >= 0) syslog(LOG_ERR, "Failed writing file: %zd/%zu", lenWritten, lenEvp);
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
+
+	sodium_memzero((unsigned char*)stindex[uid].bc, sizeof(uint16_t) * stindex_count[uid]);
+	sodium_memzero((unsigned char*)stindex[uid].id, sizeof(uint16_t) * stindex_count[uid]);
+
+	stindex[uid].bc[0] = evpBc;
+	stindex[uid].id[0] = evpId;
+	stindex_count[uid] = 1;
+	saveStindex();	
+	return AEM_INTCOM_RESPONSE_OK;
 }
