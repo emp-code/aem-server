@@ -25,7 +25,6 @@ static int pipeLoadPids(void) {
 __attribute__((warn_unused_result))
 static int pipeLoadKeys(void) {
 	struct intcom_keyBundle bundle;
-
 	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
 	intcom_setKeys_client(bundle.client);
@@ -38,8 +37,8 @@ static int pipeLoadKeys(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears pids: %m"); return EXIT_FAILURE;}
-	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading All-Ears keys: %m"); return EXIT_FAILURE;}
+	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading pids: %m"); return EXIT_FAILURE;}
+	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading keys: %m"); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
 
 	syslog(LOG_INFO, "Ready");
