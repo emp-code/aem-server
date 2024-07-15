@@ -37,8 +37,8 @@ static int pipeLoadKeys(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading pids: %m"); return EXIT_FAILURE;}
-	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading keys: %m"); return EXIT_FAILURE;}
+	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading pids: %m"); close(AEM_FD_PIPE_RD); return EXIT_FAILURE;}
+	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading keys: %m"); close(AEM_FD_PIPE_RD); return EXIT_FAILURE;}
 	close(AEM_FD_PIPE_RD);
 
 	syslog(LOG_INFO, "Ready");
