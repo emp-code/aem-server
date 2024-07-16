@@ -68,14 +68,14 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
-		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 9; break;
+		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 8; break;
 
 		case AEM_PROCESSTYPE_API_CLR:
 		case AEM_PROCESSTYPE_API_ONI:
-		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 12; break;
+		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
-		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 11; break;
+		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 10; break;
 
 		default: return -1;
 	}
@@ -133,16 +133,14 @@ int createMount(const int type) {
 		break;
 	}
 
-	if (mkdir(AEM_PATH_MOUNTDIR"/old_root", 1000) != 0) return -1;
-
 	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
 		if (mount(NULL, AEM_PATH_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts) != 0) return -1;
 	}
 
-	if (syscall(SYS_pivot_root, AEM_PATH_MOUNTDIR, AEM_PATH_MOUNTDIR"/old_root") != 0) return -1;
+	if (syscall(SYS_pivot_root, AEM_PATH_MOUNTDIR, AEM_PATH_MOUNTDIR"/dev") != 0) return -1;
 
 	const int fdRoot = open("/", O_PATH | O_DIRECTORY | O_NOFOLLOW);
 	if (fdRoot != AEM_FD_ROOT) {syslog(LOG_ERR, "fdRoot failed: fd=%d; %m", fdRoot); return -1;}
 
-	return (chroot("/old_root") == 0 && chdir("/") == 0) ? 0 : -1;
+	return (chroot("/dev") == 0 && chdir("/") == 0) ? 0 : -1;
 }

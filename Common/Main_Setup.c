@@ -3,8 +3,8 @@
 	|| close(AEM_FD_ROOT) != 0
 	|| chroot(".") != 0 // Undo Manager's chroot
 	|| chdir("/") != 0
-	|| umount2("/old_root", MNT_DETACH | UMOUNT_NOFOLLOW) != 0
-	) {syslog(LOG_ERR, "Terminating: Failed unmount: %m"); return EXIT_FAILURE;}
+	|| umount2("/dev", MNT_DETACH | UMOUNT_NOFOLLOW) != 0
+	) return EXIT_FAILURE;
 
 	setlocale(LC_ALL, "C");
 	openlog(AEM_LOGNAME, LOG_PID | LOG_NDELAY, LOG_MAIL);
