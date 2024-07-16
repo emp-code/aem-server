@@ -79,20 +79,33 @@ static int makeSocket(const uint32_t ip) {
 	return sock;
 }
 
+// RSA-SHA256 signature for DKIM
 static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash, const unsigned char * const rsaKey, const size_t lenRsaKey) {
+	// Setup
 	RsaKey rsa;
 	if (wc_InitRsaKey(&rsa, NULL) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return 0;}
 
 	word32 idx = 0;
 	if (wc_RsaPrivateKeyDecode(rsaKey, &idx, &rsa, lenRsaKey) != 0) {syslog(LOG_ERR, "wc_RsaPrivateKeyDecode failed"); return 0;}
 
-	unsigned char sig[256]; // 2048-bit
-	bzero(sig, 256);
+	const size_t lenSig = wc_RsaEncryptSize(&rsa);
 
-	wc_RsaSSL_Sign((unsigned char[]){0x30,0x31,0x30,0x0D,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20,hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15],hash[16],hash[17],hash[18],hash[19],hash[20],hash[21],hash[22],hash[23],hash[24],hash[25],hash[26],hash[27],hash[28],hash[29],hash[30],hash[31]},
-		19 + crypto_hash_sha256_BYTES, sig, 256, &rsa, NULL);
+	// Pad, ASN1 encode
+	unsigned char sig[lenSig];
+	sig[0] = 0;
+	sig[1] = RSA_BLOCK_TYPE_1;
+	memset(sig + 2, 0xFF, lenSig - crypto_hash_sha256_BYTES - 22);
+	sig[lenSig - crypto_hash_sha256_BYTES - 20] = 0; // Separator
+	memcpy(sig + lenSig - crypto_hash_sha256_BYTES - 19, (const unsigned char[]){0x30,0x31,0x30,0x0D,0x06,0x09,0x60,0x86,0x48,0x01,0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20}, 19); // ASN1
+	memcpy(sig + lenSig - crypto_hash_sha256_BYTES, hash, crypto_hash_sha256_BYTES);
+
+	// Sign
+	rsa.dataLen = lenSig;
+	const int ret = wc_RsaFunction(sig, (word32)lenSig, sig, &rsa.dataLen, RSA_PRIVATE_ENCRYPT, &rsa, NULL);
 	wc_FreeRsaKey(&rsa);
+	if (ret != 0) return 0;
 
+	// Base64
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
 	return sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL) - 1; // Remove terminating zero-byte
 }
