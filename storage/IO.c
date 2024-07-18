@@ -412,8 +412,8 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 			}
 
 			stindex_count[uid]--;
-			saveStindex();
 			close(fdMsg);
+			saveStindex();
 			return AEM_INTCOM_RESPONSE_OK;
 		}
 
