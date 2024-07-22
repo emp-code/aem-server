@@ -399,7 +399,7 @@ int32_t api_address_update(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
-int32_t api_message_browse(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], unsigned char flags) {
+int32_t api_message_browse(unsigned char * const res, unsigned char flags) {
 	if ((flags & AEM_API_MESSAGE_BROWSE_FLAG_UINFO) == 0) return 0; // User data not requested, nothing to do
 
 	// User data requested, add it to the response

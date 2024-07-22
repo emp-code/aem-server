@@ -35,7 +35,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 			case AEM_API_ADDRESS_CREATE: icRet = api_address_create(*res + AEM_LEN_APIRESP_BASE, req->data); break;
 			case AEM_API_ADDRESS_DELETE: icRet = api_address_delete(*res + AEM_LEN_APIRESP_BASE, req->data); break;
 			case AEM_API_ADDRESS_UPDATE: icRet = api_address_update(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_MESSAGE_BROWSE: icRet = api_message_browse(*res + AEM_LEN_APIRESP_BASE, req->data, req->flags); break;
+			case AEM_API_MESSAGE_BROWSE: icRet = api_message_browse(*res + AEM_LEN_APIRESP_BASE, req->flags); break;
 			case AEM_API_SETTING_LIMITS: icRet = api_setting_limits(*res + AEM_LEN_APIRESP_BASE, req->data); break;
 
 			// No action needed

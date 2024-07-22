@@ -25,7 +25,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 int32_t api_address_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 int32_t api_address_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 int32_t api_address_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
-int32_t api_message_browse(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], unsigned char flags);
+int32_t api_message_browse(unsigned char * const res, unsigned char flags);
 int32_t api_setting_limits(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]);
 
 // API: POST (Continue)
