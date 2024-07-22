@@ -71,14 +71,14 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	convertLineDots(src, &lenSrc);
 	email->attachCount = 0;
 
-	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr, email->timestamp) : NULL;
-
-	// Add final CRLF for DKIM
+	// Add final CRLF
 	src[lenSrc + 0] = '\r';
 	src[lenSrc + 1] = '\n';
 	src[lenSrc + 2] = '\0';
 	lenSrc += 2;
+
+	size_t lenSrcBr = 0;
+	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr, email->timestamp) : NULL;
 
 	email->head = NULL;
 	email->body = NULL;
