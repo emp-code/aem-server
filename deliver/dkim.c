@@ -56,6 +56,7 @@ static char getValuePair_header(const char * const src, size_t * const offset, c
 	*offset = end - src;
 	*lenResult = *offset - 2;
 	memcpy(result, src + 2, *lenResult);
+
 	return t;
 }
 
@@ -67,7 +68,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 
 	unsigned char *dkim = NULL;
 	int32_t lenDkim = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp), &dkim, 0);
-	if (lenDkim < 1) return AEM_INTCOM_RESPONSE_ERR;
+	if (lenDkim < 1) {syslog(LOG_WARNING, "DKIM: Enquiry request failed"); return AEM_INTCOM_RESPONSE_ERR;}
 	lenDkim--;
 	dkim[lenDkim] = '\0';
 
@@ -128,7 +129,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 		if ((source[i] == ' ' || source[i] == '\t') && isspace(source[i + 1])) continue;
 
 		// Compact multiple tabs/spaces into one space
-		if ((source[i] == ' ' || source[i] == '\t') && (target[*lenTarget - 1] == ' ' || target[*lenTarget - 1] == '\t')) {
+		if (*lenTarget > 0 && (target[*lenTarget - 1] == ' ' || target[*lenTarget - 1] == '\t') && (source[i] == ' ' || source[i] == '\t') ) {
 			target[*lenTarget - 1] = ' ';
 			continue;
 		}
@@ -151,7 +152,7 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 	unsigned char simple[lenHeaders + lenDkimHeader];
 
 	size_t lenRelaxed = 0;
-	unsigned char relaxed[lenHeaders + lenDkimHeader];
+	unsigned char relaxed[lenHeaders + lenDkimHeader + 2];
 
 	char *h = strtok(copyHeaders, ":");
 	while (h != NULL) {
@@ -165,21 +166,22 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 		else if (memeq_anycase(h, "Subject", 7))     email->dkim[email->dkimCount].sgnSubject = true;
 		else if (memeq_anycase(h, "To", 2))          email->dkim[email->dkimCount].sgnTo      = true;
 
-		const unsigned char *s = (unsigned char*)strcasestr(headers, h);
+		unsigned char *s = (unsigned char*)strcasestr(headers, h);
 
 		while (s != NULL && (((const char*)s != headers && *(s - 1) != '\n') || s[lenH] != ':')) {
-			s = (const unsigned char*)strcasestr((const char*)s + lenH, h);
+			s = (unsigned char*)strcasestr((char*)s + lenH, h);
 		}
 
 		if (s == NULL) {
+			// Header not present
 			h = strtok(NULL, ":");
 			continue;
 		}
 
 		const unsigned char *end = s + lenH + 1; // Skip name and colon
 		bool found = false;
-		while(1) {
-			if (end[0] == '\0' || end[1] == '\0') break;
+		for(;;) {
+			if (*end == '\0') break;
 
 			if (memeq(end, "\r\n", 2) && end[2] != ' ' && end[2] != '\t') {
 				found = true;
@@ -198,25 +200,21 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 		lenSimple += 2;
 
 		// Relaxed
-		s += lenH + 1; // Skip name and colon
-		while (s < end && isspace(*s)) s++;
-
-		const size_t lenHeader = end - s;
+		const unsigned char *s2 = s + lenH + 1; // Skip name and colon
+		while (s2 < end) {if (isspace(*s2)) s2++; else break;}
 
 		for (size_t i = 0; i < lenH; i++) {
-			relaxed[lenRelaxed] = tolower(h[i]);
-			lenRelaxed++;
+			relaxed[lenRelaxed++] = tolower(h[i]);
 		}
 
-		relaxed[lenRelaxed] = ':';
-		lenRelaxed++;
-		copyRelaxed(relaxed, &lenRelaxed, s, lenHeader);
+		relaxed[lenRelaxed++] = ':';
+		copyRelaxed(relaxed, &lenRelaxed, s2, end - s2);
 		memcpy(relaxed + lenRelaxed, "\r\n", 2);
 		lenRelaxed += 2;
 
+		memset(s, '.', end - s);
 		h = strtok(NULL, ":");
 	}
-
 	memcpy(simple + lenSimple, dkimHeader, lenDkimHeader);
 	lenSimple += lenDkimHeader;
 
@@ -237,6 +235,7 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 	size_t dkimOffset = 15;
 	while (isspace(dkimHeader[dkimOffset])) dkimOffset++;
 	size_t addLen = 0;
+
 	copyRelaxed(relaxed + lenRelaxed, &addLen, dkimHeader + dkimOffset, lenDkimHeader - dkimOffset);
 	lenRelaxed += addLen;
 
@@ -256,12 +255,12 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 
 int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
 	const unsigned char *headEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
-	if (headEnd == NULL) return 0;
+	if (headEnd == NULL) {syslog(LOG_WARNING, "DKIM: No headers-end found"); return 0;}
 	headEnd += 4;
 	const size_t lenHead = headEnd - src;
 
 	const unsigned char *dkimHeader = src;
-	if (!memeq_anycase(dkimHeader, "DKIM-Signature:", 15)) return 0;
+	if (!memeq_anycase(dkimHeader, "DKIM-Signature:", 15)) {syslog(LOG_WARNING, "DKIM: Signature not at beginning"); return 0;}
 	size_t offset = 15;
 
 	while (isspace(dkimHeader[offset])) offset++;
@@ -275,17 +274,19 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 	size_t lenBody = lenSrc - lenHead;
 	size_t lenTrunc = 0;
-	size_t finalOff = 0;
 
 	size_t lenUserId = 0;
 	char userId[256];
 
+	char copyHeaders[1024];
 	char dkim_selector[256];
-	char copyHeaders[256];
+	bzero(dkim_selector, 256);
 
+	size_t sigPos = 0;
+	size_t sigLen = 0;
 	bool delSig = false;
 
-	while(1) {
+	for(;;) {
 		size_t o, lenVal;
 		char val[1024];
 		const char key = getValuePair_header((const char*)dkimHeader + offset, &o, val, &lenVal);
@@ -293,25 +294,32 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 		if (offset + o > lenHead) break;
 		offset += o;
+		size_t startOffset = offset - lenVal;
+
 		if (dkimHeader[offset] == ';') offset++;
 		while (isspace(dkimHeader[offset])) offset++;
 
 		if (lenVal < 1) continue;
 
-		finalOff = o;
-
 		switch (key) {
 			case 'v': { // Version
-				if (lenVal != 1 || *val != '1') delSig = true;
+				if (lenVal != 1 || *val != '1') {
+					syslog(LOG_WARNING, "Unsupported DKIM version: %.*s", (int)lenVal, val);
+					delSig = true;
+				}
 			break;}
 
 			case 'a': { // Algo
 				// TODO: EdDSA, RSA-SHA support
-				if (lenVal != 10 || !memeq_anycase(val, "rsa-sha256", 10)) delSig = true;
+				if (lenVal != 10 || !memeq_anycase(val, "rsa-sha256", 10)) {
+					syslog(LOG_WARNING, "Unsupported DKIM algorithm: %.*s", (int)lenVal, val);
+					delSig = true;
+				}
 			break;}
 
 			case 'd': { // Domain
 				if (lenVal > 67) {
+					syslog(LOG_WARNING, "Excessive DKIM D-field size: %zu", lenVal);
 					delSig = true;
 				} else {
 					memcpy(email->dkim[email->dkimCount].domain, val, lenVal);
@@ -321,6 +329,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 			case 's': { // Selector
 				if (lenVal > 255) {
+					syslog(LOG_WARNING, "Excessive DKIM S-field size: %zu", lenVal);
 					delSig = true;
 				} else {
 					memcpy(dkim_selector, val, lenVal);
@@ -339,7 +348,10 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'q': { // Query method
-				if (lenVal != 7 || !memeq_anycase(val, "dns/txt", 7)) delSig = true;
+				if (lenVal != 7 || !memeq_anycase(val, "dns/txt", 7)) {
+					syslog(LOG_WARNING, "Non-DNS query method: %.*s", (int)lenVal, val);
+					delSig = true;
+				}
 			break;}
 
 			case 't': { // Timestamp
@@ -354,6 +366,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 			case 'i': { // Identifier
 				if (lenVal > 255) {
+					syslog(LOG_WARNING, "Excessive DKIM I-field size: %zu", lenVal);
 					delSig = true;
 				} else {
 					memcpy(userId, val, lenVal);
@@ -371,7 +384,8 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 'h': { // Headers signed
-				if (lenVal > 255) {
+				if (lenVal > 1023) {
+					syslog(LOG_WARNING, "Excessive DKIM H-field size: %zu", lenVal);
 					delSig = true;
 				} else {
 					memcpy(copyHeaders, val, lenVal);
@@ -381,11 +395,14 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 			case 'H': { // bodyhash
 				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
+					syslog(LOG_WARNING, "Invalid DKIM bodyhash");
 					delSig = true;
 				}
 			break;}
 
 			case 'b': { // Signature
+				sigPos = startOffset;
+				sigLen = lenVal;
 				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
 					delSig = true;
 				}
@@ -395,7 +412,17 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		}
 	}
 
-	if (delSig) return offset;
+	if (delSig || offset < 10 || offset > 2047 || sigPos == 0 || sigLen == 0) return offset;
+
+	unsigned char dh[2048];
+	memcpy(dh, dkimHeader, offset);
+	size_t lenDh = offset;
+	const size_t copyLen = (dh + offset) - (dh + sigPos + sigLen);
+	if (copyLen > 0) memmove(dh + sigPos, dh + sigPos + sigLen, copyLen);
+	lenDh -= sigLen;
+	if (dh[lenDh - 1] == '\n') lenDh--;
+	if (dh[lenDh - 1] == '\r') lenDh--;
+	dh[lenDh] = '\0';
 
 	if (lenUserId > 0 && (
 	   (lenUserId == email->lenEnvFr && memeq(email->envFr, userId, lenUserId))
@@ -407,6 +434,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	size_t lenPkBin;
 	unsigned char pkBin[1024];
 	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) {
+		syslog(LOG_WARNING, "getDkimRecord failed");
 		email->dkimFailed = true;
 		return offset;
 	}
@@ -469,7 +497,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		return offset;
 	}
 
-	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dkimHeader, (dkimHeader + offset) - dkimHeader - finalOff + 1, &email->dkim[email->dkimCount].headSimple)) {
+	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dh, lenDh, &email->dkim[email->dkimCount].headSimple)) {
 		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
 		(email->dkimCount)++;
 	}
