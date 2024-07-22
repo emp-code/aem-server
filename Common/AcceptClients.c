@@ -61,7 +61,7 @@ void acceptClients(void) {
 			, SOCK_CLOEXEC);
 
 		if (newSock < 0) continue;
-		if (newSock != AEM_FD_SOCK_CLIENT) {close(AEM_FD_SOCK_MAIN); break;}
+		if (newSock != AEM_FD_SOCK_CLIENT) {close(newSock); break;}
 
 #ifdef AEM_MTA
 		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
@@ -78,5 +78,4 @@ void acceptClients(void) {
 	}
 
 	close(AEM_FD_SOCK_MAIN);
-	close(AEM_FD_SOCK_CLIENT);
 }

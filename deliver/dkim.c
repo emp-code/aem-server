@@ -129,7 +129,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 		if ((source[i] == ' ' || source[i] == '\t') && isspace(source[i + 1])) continue;
 
 		// Compact multiple tabs/spaces into one space
-		if (*lenTarget > 0 && (target[*lenTarget - 1] == ' ' || target[*lenTarget - 1] == '\t') && (source[i] == ' ' || source[i] == '\t') ) {
+		if (*lenTarget > 0 && (target[*lenTarget - 1] == ' ' || target[*lenTarget - 1] == '\t') && (source[i] == ' ' || source[i] == '\t')) {
 			target[*lenTarget - 1] = ' ';
 			continue;
 		}
