@@ -64,11 +64,6 @@ static pid_t aemPid[5][AEM_MAXPROCESSES];
 
 static volatile sig_atomic_t terminate = 0;
 
-static void wipeKeys(void) {
-	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
-	sodium_memzero(key_ic, AEM_KDF_MASTER_KEYLEN);
-}
-
 static bool process_exists(const pid_t pid) {
 	return (pid < 1) ? false : kill(pid, 0) == 0;
 }
@@ -360,7 +355,8 @@ static int cgroupMove(void) {
 }
 
 static int process_new(const int type) {
-	wipeKeys();
+	sodium_memzero(key_ic, AEM_KDF_MASTER_KEYLEN);
+	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
 	close(AEM_FD_SOCK_MAIN); // Reused as AEM_FD_EXEC
 	close(AEM_FD_PIPE_WR); // Reused as AEM_FD_READFILE
 
@@ -640,7 +636,8 @@ static int takeConnections(void) {
 		respond_manager();
 	}
 
-	wipeKeys();
+	sodium_memzero(key_ic, AEM_KDF_MASTER_KEYLEN);
+	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
 	syslog(LOG_INFO, "Terminating");
