@@ -46,7 +46,7 @@ enum dkim_algo {
 
 #define AEM_DKIM_INFOBYTES 12
 
-#define AEM_DKIM_IVALUE_NO 0
+#define AEM_DKIM_IDENTITY_NO 0
 #define AEM_DKIM_IDENTITY_EF 1
 #define AEM_DKIM_IDENTITY_HF 2
 #define AEM_DKIM_IDENTITY_RT 3
