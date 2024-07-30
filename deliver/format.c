@@ -49,13 +49,28 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 		+ ((email->lenBody <  1) ? 0 : email->lenBody + 1);
 
 	if (email->dkimCount > 7) email->dkimCount = 7;
-	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain;
-	if (email->dkimCount > 5) lenUncomp += email->dkim[5].lenDomain;
-	if (email->dkimCount > 4) lenUncomp += email->dkim[4].lenDomain;
-	if (email->dkimCount > 3) lenUncomp += email->dkim[3].lenDomain;
-	if (email->dkimCount > 2) lenUncomp += email->dkim[2].lenDomain;
-	if (email->dkimCount > 1) lenUncomp += email->dkim[1].lenDomain;
-	if (email->dkimCount > 0) lenUncomp += email->dkim[0].lenDomain;
+	if (email->dkimCount > 6) lenUncomp += email->dkim[6].lenDomain + email->dkim[6].lenSelector + email->dkim[6].lenNotes;
+	if (email->dkimCount > 5) lenUncomp += email->dkim[5].lenDomain + email->dkim[5].lenSelector + email->dkim[5].lenNotes;
+	if (email->dkimCount > 4) lenUncomp += email->dkim[4].lenDomain + email->dkim[4].lenSelector + email->dkim[4].lenNotes;
+	if (email->dkimCount > 3) lenUncomp += email->dkim[3].lenDomain + email->dkim[3].lenSelector + email->dkim[3].lenNotes;
+	if (email->dkimCount > 2) lenUncomp += email->dkim[2].lenDomain + email->dkim[2].lenSelector + email->dkim[2].lenNotes;
+	if (email->dkimCount > 1) lenUncomp += email->dkim[1].lenDomain + email->dkim[1].lenSelector + email->dkim[1].lenNotes;
+	if (email->dkimCount > 0) lenUncomp += email->dkim[0].lenDomain + email->dkim[0].lenSelector + email->dkim[0].lenNotes;
+
+	for (int d = 0; d < email->dkimCount; d++) {
+		if (email->dkim[d].lenIdentity > 0) {
+			if (email->dkim[d].lenIdentity == email->lenEnvFr && memeq(email->dkim[d].identity, email->envFr, email->lenEnvFr))
+			  email->dkim[d].idValue = AEM_DKIM_IDENTITY_EF;
+
+			else if ((email->dkim[d].lenIdentity == email->lenHdrFr && memeq(email->dkim[d].identity, email->hdrFr, email->lenHdrFr)) ||
+			(email->lenHdrFr > email->dkim[d].lenIdentity && email->hdrFr[email->lenHdrFr - email->dkim[d].lenIdentity - 1] == 0x7F && memeq(email->dkim[d].identity, email->hdrFr + email->lenHdrFr - email->dkim[d].lenIdentity, email->dkim[d].lenIdentity))
+			) email->dkim[d].idValue = AEM_DKIM_IDENTITY_HF;
+
+			else if ((email->dkim[d].lenIdentity == email->lenHdrRt && memeq(email->dkim[d].identity, email->hdrRt, email->lenHdrRt)) ||
+			(email->lenHdrRt > email->dkim[d].lenIdentity && email->hdrRt[email->lenHdrRt - email->dkim[d].lenIdentity - 1] == 0x7F && memeq(email->dkim[d].identity, email->hdrRt + email->lenHdrRt - email->dkim[d].lenIdentity, email->dkim[d].lenIdentity))
+			) email->dkim[d].idValue = AEM_DKIM_IDENTITY_RT;
+		}
+	}
 
 	unsigned char * const uncomp = malloc(lenUncomp);
 	if (uncomp == NULL) {syslog(LOG_ERR, "Failed malloc"); return NULL;}
@@ -64,8 +79,12 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 
 	// DKIM domains
 	for (int i = 0; i < email->dkimCount; i++) {
-		memcpy(uncomp + offset, email->dkim[i].domain, email->dkim[i].lenDomain);
+		if (email->dkim[i].lenDomain   > 0) memcpy(uncomp + offset, email->dkim[i].domain,   email->dkim[i].lenDomain);
 		offset += email->dkim[i].lenDomain;
+		if (email->dkim[i].lenSelector > 0) memcpy(uncomp + offset, email->dkim[i].selector, email->dkim[i].lenSelector);
+		offset += email->dkim[i].lenSelector;
+		if (email->dkim[i].lenNotes    > 0) memcpy(uncomp + offset, email->dkim[i].notes,    email->dkim[i].lenNotes);
+		offset += email->dkim[i].lenNotes;
 	}
 
 	// The five short-text fields
@@ -95,7 +114,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	}
 
 	// Compress the data
-	const size_t lenHead = 28 + (email->dkimCount * 3);
+	const size_t lenHead = 28 + (email->dkimCount * AEM_DKIM_INFOBYTES);
 	size_t lenContent = lenUncomp + 300; // 300 for compression/padding overhead
 	unsigned char * const content = malloc(AEM_ENVELOPE_RESERVED_LEN + lenHead + lenContent);
 	if (content == NULL) {
@@ -171,42 +190,16 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	head[24] = email->lenSbjct & 255;
 
 	// Final InfoByte (#14) + HeaderTs
+	// [25] & 128 unused
 	head[25] = email->hdrTz & 127;
-	if (email->dkimFailed) head[25] |= 128;
 	memcpy(head + 26, &email->hdrTs, 2);
 
 	// DKIM
 	offset = 28;
-	bzero(head + offset, email->dkimCount * 3);
 
 	for (int i = 0; i < email->dkimCount; i++) {
-		if (email->dkim[i].algoRsa)    head[offset] |= 128;
-		if (email->dkim[i].algoSha256) head[offset] |=  64;
-		if (email->dkim[i].dnsFlag_s)  head[offset] |=  32;
-		if (email->dkim[i].dnsFlag_y)  head[offset] |=  16;
-		if (email->dkim[i].headSimple) head[offset] |=   8;
-		if (email->dkim[i].bodySimple) head[offset] |=   4;
-
-		const int64_t expiry = email->dkim[i].ts_expr - email->timestamp;
-		// 0: Expired
-		if (email->dkim[i].ts_expr == 0) head[offset] |= 1; // 1: Expiration disabled or value invalid
-		else if (expiry >= 2629746)      head[offset] |= 2; // 2: Long expiration: >= 1 month
-		else if (expiry >  0)            head[offset] |= 3; // 3: Short expiration: < 1 month
-
-		if (email->dkim[i].fullId)     head[offset + 1] |= 128;
-		if (email->dkim[i].sgnAll)     head[offset + 1] |=  64;
-		if (email->dkim[i].sgnDate)    head[offset + 1] |=  32;
-		if (email->dkim[i].sgnFrom)    head[offset + 1] |=  16;
-		if (email->dkim[i].sgnMsgId)   head[offset + 1] |=   8;
-		if (email->dkim[i].sgnReplyTo) head[offset + 1] |=   4;
-		if (email->dkim[i].sgnSubject) head[offset + 1] |=   2;
-		if (email->dkim[i].sgnTo)      head[offset + 1] |=   1;
-
-		if (email->dkim[i].bodyTrunc)  head[offset + 2] |= 128;
-		if ((int64_t)email->timestamp - email->dkim[i].ts_sign > 30) head[offset + 2] |= 64;
-		head[offset + 2] |= (email->dkim[i].lenDomain - 4) & 63;
-
-		offset += 3;
+		memcpy(head + offset, &email->dkim[i], AEM_DKIM_INFOBYTES);
+		offset += AEM_DKIM_INFOBYTES;
 	}
 
 	*lenOut = lenContent;

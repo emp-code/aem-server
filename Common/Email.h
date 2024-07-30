@@ -21,29 +21,96 @@
 #define AEM_EMAIL_CERT_TYPE_RSA1K  4
 #define AEM_EMAIL_CERT_TYPE_NONE   0
 
+enum dkim_algo {
+	AEM_DKIM_RSA_BAD_SHA1, // Bad: Revoked (empty key), missing, or invalid
+	AEM_DKIM_RSA_512_SHA1,
+	AEM_DKIM_RSA_1024_SHA1,
+	AEM_DKIM_RSA_2048_SHA1,
+
+	AEM_DKIM_RSA_BAD_SHA256,
+	AEM_DKIM_RSA_512_SHA256,
+	AEM_DKIM_RSA_1024_SHA256,
+	AEM_DKIM_RSA_2048_SHA256,
+	AEM_DKIM_RSA_4096_SHA256,
+
+	AEM_DKIM_ED25519_BAD_SHA256,
+	AEM_DKIM_ED25519_SHA256,
+
+	// Available for future use
+	AEM_DKIM_UNUSED_1,
+	AEM_DKIM_UNUSED_2,
+	AEM_DKIM_UNUSED_3,
+	AEM_DKIM_UNUSED_4,
+	AEM_DKIM_UNUSED_5
+};
+
+#define AEM_DKIM_INFOBYTES 12
+
+#define AEM_DKIM_IVALUE_NO 0
+#define AEM_DKIM_IDENTITY_EF 1
+#define AEM_DKIM_IDENTITY_HF 2
+#define AEM_DKIM_IDENTITY_RT 3
+
+#define AEM_DKIM_TEXT_MAXLEN 127 // 7 bits: 0-127
+
+#define AEM_DKIM_SIGTS_MAX 4194303 // ~48.5 days
+#define AEM_DKIM_EXPTS_MAX 33554430 // ~388 days
+
+#define AEM_DKIM_HASH_INVALID 0
+#define AEM_DKIM_HASH_FAIL 1
+#define AEM_DKIM_HASH_PASS_RELAX 2
+#define AEM_DKIM_HASH_PASS_SIMPLE 3
+
 struct dkimInfo {
-	bool algoRsa;
-	bool algoSha256;
-	bool dnsFlag_s;
-	bool dnsFlag_y;
-	bool headSimple;
-	bool bodySimple;
-	bool fullId;
-	bool bodyTrunc;
+	// Bytes 0-5: Time
+	uint64_t ts_sig: 22; // emailInfo.timestamp - t; max=Invalid/Error/Future
+	uint64_t ts_exp: 25; // x - ts_sig
+	uint64_t reserved: 1;
 
-	bool sgnAll;
-	bool sgnDate;
-	bool sgnFrom;
-	bool sgnMsgId;
-	bool sgnReplyTo;
-	bool sgnSubject;
-	bool sgnTo;
+	// Byte 6
+	uint64_t validSig: 1;
+	uint64_t headHash: 2;
+	uint64_t bodyHash: 2;
+	uint64_t addrReject: 1;
+	uint64_t hashReject: 1;
+	uint64_t sigReject: 1;
 
-	uint32_t ts_expr;
-	uint32_t ts_sign;
+	// Byte 7
+	uint64_t algo: 4;
+	uint64_t dnsFlag_s: 1;
+	uint64_t dnsFlag_y: 1;
+	uint64_t idValue: 2;
 
-	size_t lenDomain; // 0-63 -> 4-67
-	char domain[67];
+	// Byte 8: Were the headers reformatted by AEM signed?
+	uint32_t sgnCt: 1;
+	uint32_t sgnDate: 1;
+	uint32_t sgnFrom: 1;
+	uint32_t sgnId: 1;
+	uint32_t sgnMv: 1;
+	uint32_t sgnRt: 1;
+	uint32_t sgnSubj: 1;
+	uint32_t sgnTo: 1;
+
+	// Byte 9
+	uint32_t lenDomain: 7;
+	uint32_t bodyTruncated: 1;
+
+	// Byte 10
+	uint32_t lenSelector: 7;
+	uint32_t zUsed: 1;
+
+	// Byte 11
+	uint32_t lenNotes: 7;
+	uint32_t notEmail: 1;
+
+	// Text fields
+	char domain[AEM_DKIM_TEXT_MAXLEN];
+	char selector[AEM_DKIM_TEXT_MAXLEN];
+	char notes[AEM_DKIM_TEXT_MAXLEN];
+
+	// Temporary, not stored in message
+	size_t lenIdentity;
+	char identity[AEM_DKIM_TEXT_MAXLEN];
 };
 
 struct emailInfo {
@@ -99,7 +166,6 @@ struct emailInfo {
 	uint16_t hdrTs;
 
 	// DKIM
-	bool dkimFailed;
 	uint8_t dkimCount;
 	struct dkimInfo dkim[7];
 

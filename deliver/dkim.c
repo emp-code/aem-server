@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 
 #include <sodium.h>
 #include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 
 #include "../Common/memeq.h"
@@ -60,11 +62,11 @@ static char getValuePair_header(const char * const src, size_t * const offset, c
 	return t;
 }
 
-static int getDkimRecord(struct emailInfo * const email, const char * const selector, unsigned char * const pkBin, size_t * const lenPkBin) {
-	if (selector == NULL || selector[0] == '\0' || email->dkim[email->dkimCount].lenDomain < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
+static int getDkimRecord(struct emailInfo * const email, unsigned char * const pkBin, size_t * const lenPkBin) {
+	if (email->dkim[email->dkimCount].lenDomain < 1 || email->dkim[email->dkimCount].lenSelector < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
 
 	unsigned char tmp[512];
-	sprintf((char*)tmp, "%s/%.*s", selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
+	sprintf((char*)tmp, "%.*s/%.*s", (int)email->dkim[email->dkimCount].lenSelector, email->dkim[email->dkimCount].selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
 
 	unsigned char *dkim = NULL;
 	int32_t lenDkim = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp), &dkim, 0);
@@ -72,7 +74,6 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	lenDkim--;
 	dkim[lenDkim] = '\0';
 
-	int retval = -1;
 	size_t offset = 0;
 	for(;;) {
 		size_t o, lenVal;
@@ -87,24 +88,46 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 		if (lenVal < 1) continue;
 
 		switch (key) {
-			case 'v': { // Version: DKIM1
-				if (lenVal != 5 || !memeq(val, "DKIM1", 5)) {free(dkim); return -1;}
+			case 'g': { // Granularity (address, with wildcard support)
+				// TODO
+			break;}
+
+			case 'k': { // Key type
+				// TODO
+			break;}
+
+			case 'h': { // Hash algorithms allowed
+				// TODO
+			break;}
+
+			case 'n': { // Notes
+				if (lenVal >= AEM_DKIM_TEXT_MAXLEN) {
+					lenVal = AEM_DKIM_TEXT_MAXLEN;
+				}
+
+				email->dkim[email->dkimCount].lenNotes = AEM_DKIM_TEXT_MAXLEN;
+				memcpy(email->dkim[email->dkimCount].notes, val, AEM_DKIM_TEXT_MAXLEN);
 			break;}
 
 			case 'p': { // Public key
-				if (lenVal > 1024) {free(dkim); return -1;}
-				if (sodium_base642bin(pkBin, 1024, val, lenVal, " \t\r\n", lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {free(dkim); return -1;}
-				retval = 0;
+				sodium_base642bin(pkBin, 1024, val, lenVal, " \t\r\n", lenPkBin, NULL, sodium_base64_VARIANT_ORIGINAL);
+			break;}
+
+			case 's': { // Service type
+				if (! ((lenVal == 1 && *val == '*') || (lenVal == 5 && memeq_anycase(val, "email", lenVal)))) {
+					email->dkim[email->dkimCount].notEmail = true;
+				}
 			break;}
 
 			case 't': { // Flags
-				if      (lenVal >= 1 && val[0] == 's') {email->dkim[email->dkimCount].dnsFlag_s = true;}
-				else if (lenVal >= 1 && val[0] == 'y') {email->dkim[email->dkimCount].dnsFlag_y = true;}
-
-				if (lenVal >= 3 && val[1] == ':') {
-					if      (val[2] == 's') {email->dkim[email->dkimCount].dnsFlag_s = true;}
-					else if (val[2] == 'y') {email->dkim[email->dkimCount].dnsFlag_y = true;}
+				if (lenVal > 0) {
+					if (memchr(val, 's', lenVal) != NULL) {email->dkim[email->dkimCount].dnsFlag_s = true;}
+					if (memchr(val, 'y', lenVal) != NULL) {email->dkim[email->dkimCount].dnsFlag_y = true;}
 				}
+			break;}
+
+			case 'v': { // Version: DKIM1
+				if (lenVal != 5 || !memeq(val, "DKIM1", 5)) {free(dkim); syslog(LOG_WARNING, "Invalid DKIM version: %.*s", (int)lenVal, val); return -1;}
 			break;}
 
 			default: break; // Ignore others
@@ -112,7 +135,7 @@ static int getDkimRecord(struct emailInfo * const email, const char * const sele
 	}
 
 	free(dkim);
-	return retval;
+	return 0;
 }
 
 static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, const unsigned char * const source, const size_t lenSource) {
@@ -143,7 +166,7 @@ static void copyRelaxed(unsigned char * const target, size_t * const lenTarget, 
 	}
 }
 
-static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, const unsigned char * const dkimSignature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, bool * const headSimple) {
+static void verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, const unsigned char * const dkimSignature, const size_t lenDkimSignature, char * const copyHeaders, const unsigned char * const headersSource, const size_t lenHeaders, const unsigned char * const dkimHeader, const size_t lenDkimHeader, const int lenHash) {
 	char headers[lenHeaders + 1];
 	memcpy(headers, headersSource, lenHeaders);
 	headers[lenHeaders] = '\0';
@@ -159,12 +182,14 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 		while (isspace(*h)) h++;
 		const size_t lenH = strlen(h);
 
-		if      (memeq_anycase(h, "Date", 4))        email->dkim[email->dkimCount].sgnDate    = true;
-		else if (memeq_anycase(h, "From", 4))        email->dkim[email->dkimCount].sgnFrom    = true;
-		else if (memeq_anycase(h, "Message-ID", 10)) email->dkim[email->dkimCount].sgnMsgId   = true;
-		else if (memeq_anycase(h, "Reply-To", 8))    email->dkim[email->dkimCount].sgnReplyTo = true;
-		else if (memeq_anycase(h, "Subject", 7))     email->dkim[email->dkimCount].sgnSubject = true;
-		else if (memeq_anycase(h, "To", 2))          email->dkim[email->dkimCount].sgnTo      = true;
+		     if (memeq_anycase(h, "Content-Type", 12)) email->dkim[email->dkimCount].sgnCt   = true;
+		else if (memeq_anycase(h, "Date", 4))          email->dkim[email->dkimCount].sgnDate = true;
+		else if (memeq_anycase(h, "From", 4))          email->dkim[email->dkimCount].sgnFrom = true;
+		else if (memeq_anycase(h, "Message-ID", 10))   email->dkim[email->dkimCount].sgnId   = true;
+		else if (memeq_anycase(h, "MIME-Version", 12)) email->dkim[email->dkimCount].sgnMv   = true;
+		else if (memeq_anycase(h, "Reply-To", 8))      email->dkim[email->dkimCount].sgnRt   = true;
+		else if (memeq_anycase(h, "Subject", 7))       email->dkim[email->dkimCount].sgnSubj = true;
+		else if (memeq_anycase(h, "To", 2))            email->dkim[email->dkimCount].sgnTo   = true;
 
 		unsigned char *s = (unsigned char*)strcasestr(headers, h);
 
@@ -220,16 +245,24 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 
 	// Verify sig
 	unsigned char dkim_hash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(dkim_hash, simple, lenSimple) == 0) {
-		unsigned char o[1024];
-		bzero(o, 1024);
-
-		if (wc_RsaSSL_Verify(dkimSignature, lenDkimSignature, o, 1024, pk) >= 51 && memeq(o + 19, dkim_hash, crypto_hash_sha256_BYTES)) {
-			*headSimple = true;
-			return true;
-		}
+	if (lenHash == 20) {
+		wc_ShaHash(simple, lenSimple, dkim_hash);
+	} else {
+		wc_Sha256Hash(simple, lenSimple, dkim_hash);
 	}
 
+	unsigned char o[1024];
+	bzero(o, 1024);
+	if (wc_RsaSSL_Verify(dkimSignature, lenDkimSignature, o, 1024, pk) >= 19 + lenHash) {
+		email->dkim[email->dkimCount].validSig = true;
+	}
+
+	if (memeq(o + 19, dkim_hash, lenHash)) {
+		email->dkim[email->dkimCount].headHash = AEM_DKIM_HASH_PASS_SIMPLE;
+		return;
+	}
+
+	// Simple failed, try Relaxed
 	memcpy(relaxed + lenRelaxed, "dkim-signature:", 15);
 	lenRelaxed += 15;
 	size_t dkimOffset = 15;
@@ -239,18 +272,13 @@ static bool verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 	copyRelaxed(relaxed + lenRelaxed, &addLen, dkimHeader + dkimOffset, lenDkimHeader - dkimOffset);
 	lenRelaxed += addLen;
 
-	if (crypto_hash_sha256(dkim_hash, relaxed, lenRelaxed) == 0) {
-		unsigned char o[1024];
-		bzero(o, 1024);
-
-		if (wc_RsaSSL_Verify(dkimSignature, lenDkimSignature, o, 1024, pk) >= 51 && memeq(o + 19, dkim_hash, crypto_hash_sha256_BYTES)) {
-			*headSimple = true;
-			return true;
-		}
+	if (lenHash == 20) {
+		wc_ShaHash(relaxed, lenRelaxed, dkim_hash);
+	} else {
+		wc_Sha256Hash(relaxed, lenRelaxed, dkim_hash);
 	}
 
-	email->dkimFailed = true;
-	return false;
+	email->dkim[email->dkimCount].headHash = (memeq(o + 19, dkim_hash, lenHash)) ? AEM_DKIM_HASH_PASS_RELAX : AEM_DKIM_HASH_FAIL;
 }
 
 int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
@@ -267,24 +295,24 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 	size_t lenDkimSignature = 0;
 	unsigned char dkim_signature[1024]; // 8k
-	unsigned char dkim_bodyhash[crypto_hash_sha256_BYTES];
+	bzero(dkim_signature, 1024);
 
-	email->dkim[email->dkimCount].algoRsa = true;
-	email->dkim[email->dkimCount].algoSha256 = true;
+	unsigned char dkim_bodyhash[crypto_hash_sha256_BYTES];
+	bzero(dkim_bodyhash, crypto_hash_sha256_BYTES);
+
+	email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA1;
 
 	size_t lenBody = lenSrc - lenHead;
 	size_t lenTrunc = 0;
 
-	size_t lenUserId = 0;
-	char userId[256];
-
 	char copyHeaders[1024];
-	char dkim_selector[256];
-	bzero(dkim_selector, 256);
 
 	size_t sigPos = 0;
 	size_t sigLen = 0;
 	bool delSig = false;
+
+	long long tsSig = 0;
+	long long tsExp = 0;
 
 	for(;;) {
 		size_t o, lenVal;
@@ -309,16 +337,21 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 				}
 			break;}
 
-			case 'a': { // Algo
-				// TODO: EdDSA, RSA-SHA support
-				if (lenVal != 10 || !memeq_anycase(val, "rsa-sha256", 10)) {
+			case 'a': { // Algorithm of signature
+				if (lenVal == 14 || memeq_anycase(val, "ed25519-sha256", 14)) {
+					email->dkim[email->dkimCount].algo = AEM_DKIM_ED25519_SHA256;
+				} else if (lenVal == 10 || memeq_anycase(val, "rsa-sha256", 10)) {
+					email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_512_SHA256;
+				} else if (lenVal == 8 || memeq_anycase(val, "rsa-sha1", 8)) {
+					email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_512_SHA1;
+				} else {
 					syslog(LOG_WARNING, "Unsupported DKIM algorithm: %.*s", (int)lenVal, val);
 					delSig = true;
 				}
 			break;}
 
 			case 'd': { // Domain
-				if (lenVal > 67) {
+				if (lenVal > AEM_DKIM_TEXT_MAXLEN) {
 					syslog(LOG_WARNING, "Excessive DKIM D-field size: %zu", lenVal);
 					delSig = true;
 				} else {
@@ -328,18 +361,20 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 's': { // Selector
-				if (lenVal > 255) {
+				if (lenVal > AEM_DKIM_TEXT_MAXLEN) {
 					syslog(LOG_WARNING, "Excessive DKIM S-field size: %zu", lenVal);
 					delSig = true;
 				} else {
-					memcpy(dkim_selector, val, lenVal);
-					dkim_selector[lenVal] = '\0';
+					memcpy(email->dkim[email->dkimCount].selector, val, lenVal);
+					email->dkim[email->dkimCount].lenSelector = lenVal;
 				}
 			break;}
 
 			case 'c': break; // Canon. method; ignored
 
 			case 'l': { // Length of body
+				email->dkim[email->dkimCount].bodyTruncated = true;
+
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
@@ -355,32 +390,38 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			break;}
 
 			case 't': { // Timestamp
-				if (*val == '-') break;
+				if (*val == '-' || lenVal != 10) break;
+
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				email->dkim[email->dkimCount].ts_sign = strtoul(tmp, NULL, 10);
-				if (email->dkim[email->dkimCount].ts_sign < 1609459200) email->dkim[email->dkimCount].ts_sign = 0; // 2021-01-01
-				// TODO: reject future timestamps
-			break;}
 
-			case 'i': { // Identifier
-				if (lenVal > 255) {
-					syslog(LOG_WARNING, "Excessive DKIM I-field size: %zu", lenVal);
-					delSig = true;
-				} else {
-					memcpy(userId, val, lenVal);
-					lenUserId = lenVal;
+				errno = 0;
+				tsSig = strtoll(tmp, NULL, 10);
+				if (errno == 0) {
+					const long long tsDiff = tsSig - email->timestamp;
+					if (tsDiff != 0) {
+						email->dkim[email->dkimCount].ts_sig = MIN(AEM_DKIM_SIGTS_MAX, llabs(tsDiff));
+					}
 				}
 			break;}
 
-			case 'x': { // Expiry
-				if (*val == '-') break;
+			case 'i': { // Identity
+				if (lenVal > AEM_DKIM_TEXT_MAXLEN) {
+					syslog(LOG_WARNING, "Excessive DKIM I-field size: %zu", lenVal);
+					delSig = true;
+				} else {
+					memcpy(email->dkim[email->dkimCount].identity, val, lenVal);
+					email->dkim[email->dkimCount].lenIdentity = lenVal;
+				}
+			break;}
+
+			case 'x': { // Expiration
+				if (*val == '-' || lenVal != 10) break;
 				char tmp[lenVal + 1];
 				memcpy(tmp, val, lenVal);
 				tmp[lenVal] = '\0';
-				email->dkim[email->dkimCount].ts_expr = strtoul(tmp, NULL, 10);
-				if (email->dkim[email->dkimCount].ts_expr < 1609459200) email->dkim[email->dkimCount].ts_expr = 0; // 2021-01-01
+				tsExp = strtoll(tmp, NULL, 10);
 			break;}
 
 			case 'h': { // Headers signed
@@ -393,19 +434,18 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 				}
 			break;}
 
-			case 'H': { // bodyhash
-				if (sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
-					syslog(LOG_WARNING, "Invalid DKIM bodyhash");
-					delSig = true;
-				}
+			case 'H': { // Hash of body
+				sodium_base642bin(dkim_bodyhash, crypto_hash_sha256_BYTES, val, lenVal, " \t\r\n", NULL, NULL, sodium_base64_VARIANT_ORIGINAL);
 			break;}
 
 			case 'b': { // Signature
 				sigPos = startOffset;
 				sigLen = lenVal;
-				if (sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL) != 0) {
-					delSig = true;
-				}
+				sodium_base642bin(dkim_signature, 1024, val, lenVal, " \t\r\n", &lenDkimSignature, NULL, sodium_base64_VARIANT_ORIGINAL);
+			break;}
+
+			case 'z': { // Signature
+				email->dkim[email->dkimCount].zUsed = true;
 			break;}
 
 			default: syslog(LOG_WARNING, "Unsupported DKIM param: %c", key);
@@ -413,6 +453,11 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	}
 
 	if (delSig || offset < 10 || offset > 2047 || sigPos == 0 || sigLen == 0) return offset;
+
+	if (tsExp != 0) {
+		const long long expDiff = tsExp - ((tsSig > 0) ? tsSig : email->timestamp);
+		if (expDiff > 0) email->dkim[email->dkimCount].ts_exp = MIN(AEM_DKIM_EXPTS_MAX, expDiff);
+	}
 
 	unsigned char dh[2048];
 	memcpy(dh, dkimHeader, offset);
@@ -424,19 +469,30 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	if (dh[lenDh - 1] == '\r') lenDh--;
 	dh[lenDh] = '\0';
 
-	if (lenUserId > 0 && (
-	   (lenUserId == email->lenEnvFr && memeq(email->envFr, userId, lenUserId))
-	|| (lenUserId == email->lenHdrFr && memeq(email->hdrFr, userId, lenUserId))
-	|| (lenUserId == email->lenHdrRt && memeq(email->hdrRt, userId, lenUserId))
-	) && (memeq(userId + lenUserId - email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain, email->dkim[email->dkimCount].lenDomain)))
-		email->dkim[email->dkimCount].fullId = true;
-
-	size_t lenPkBin;
+	size_t lenPkBin = 0;
 	unsigned char pkBin[1024];
-	if (getDkimRecord(email, dkim_selector, pkBin, &lenPkBin) != 0) {
+	if (getDkimRecord(email, pkBin, &lenPkBin) != 0) {
 		syslog(LOG_WARNING, "getDkimRecord failed");
-		email->dkimFailed = true;
 		return offset;
+	}
+
+	const int lenHash = (email->dkim[email->dkimCount].algo == AEM_DKIM_RSA_512_SHA1) ? 20 : 32;
+
+	switch (email->dkim[email->dkimCount].algo) {
+		case AEM_DKIM_ED25519_SHA256:
+			if (lenPkBin != 32/*ed25519*/) email->dkim[email->dkimCount].algo = AEM_DKIM_ED25519_BAD_SHA256;
+		break;
+		case AEM_DKIM_RSA_512_SHA256:
+			     if (lenDkimSignature == 512) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_4096_SHA256;
+			else if (lenDkimSignature == 256) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_2048_SHA256;
+			else if (lenDkimSignature == 128) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_1024_SHA256;
+			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA256; syslog(LOG_INFO, "RSA-SHA256=%d", lenDkimSignature);}
+		break;
+		case AEM_DKIM_RSA_512_SHA1:
+			     if (lenDkimSignature == 256) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_2048_SHA1;
+			else if (lenDkimSignature == 128) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_1024_SHA1;
+			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA1; syslog(LOG_INFO, "RSA-SHA1=%d", lenDkimSignature);}
+		break;
 	}
 
 	// Verify bodyhash
@@ -444,13 +500,16 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	while (lenBody > 4 && memeq(headEnd + lenBody - 4, "\r\n\r\n", 4)) lenBody -= 2;
 	if (lenTrunc > lenBody) lenTrunc = 0;
 
-	unsigned char calc_bodyhash[crypto_hash_sha256_BYTES];
-	if (crypto_hash_sha256(calc_bodyhash, headEnd, (lenTrunc > 0) ? lenTrunc : lenBody) != 0) {
-		email->dkimFailed = true;
-		return offset;
+	unsigned char calc_bodyhash[lenHash];
+	if (lenHash == 20) {
+		wc_ShaHash(headEnd, (lenTrunc > 0) ? lenTrunc : lenBody, calc_bodyhash);
+	} else {
+		wc_Sha256Hash(headEnd, (lenTrunc > 0) ? lenTrunc : lenBody, calc_bodyhash);
 	}
 
-	if (!memeq(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES)) {
+	if (memeq(calc_bodyhash, dkim_bodyhash, lenHash)) {
+		email->dkim[email->dkimCount].bodyHash = AEM_DKIM_HASH_PASS_SIMPLE;
+	} else {
 		// Simple failed, try Relaxed
 		unsigned char relaxed[lenBody];
 		size_t lenRelaxed = 0;
@@ -473,18 +532,14 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 
 		if (lenTrunc > lenRelaxed) lenTrunc = 0;
 
-		if (crypto_hash_sha256(calc_bodyhash, relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed) != 0) {
-			email->dkimFailed = true;
-			return offset;
+		if (lenHash == 20) {
+			wc_ShaHash(relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed, calc_bodyhash);
+		} else {
+			wc_Sha256Hash(relaxed, (lenTrunc > 0) ? lenTrunc : lenRelaxed, calc_bodyhash);
 		}
 
-		if (!memeq(calc_bodyhash, dkim_bodyhash, crypto_hash_sha256_BYTES)) {
-			email->dkimFailed = true;
-			return offset;
-		}
-
-		email->dkim[email->dkimCount].bodySimple = false;
-	} else email->dkim[email->dkimCount].bodySimple = true;
+		email->dkim[email->dkimCount].bodyHash = (memeq(calc_bodyhash, dkim_bodyhash, lenHash)) ? AEM_DKIM_HASH_PASS_RELAX : AEM_DKIM_HASH_FAIL;
+	}
 
 	RsaKey pk;
 	if (wc_InitRsaKey(&pk, NULL) != 0) {syslog(LOG_ERR, "wc_InitRsaKey failed"); return offset;}
@@ -492,16 +547,12 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	const int ret = wc_RsaPublicKeyDecode(pkBin, &idx, &pk, lenPkBin);
 	if (ret != 0) {
 		syslog(LOG_INFO, "Failed decoding public key: %d [%zd]\n", ret, lenPkBin);
-		wc_FreeRsaKey(&pk);
-		email->dkimFailed = true;
-		return offset;
-	}
-
-	if (verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dh, lenDh, &email->dkim[email->dkimCount].headSimple)) {
-		if (lenTrunc > 0) email->dkim[email->dkimCount].bodyTrunc = true;
-		(email->dkimCount)++;
+	} else {
+		verifyDkimSig(email, &pk, dkim_signature, lenDkimSignature, copyHeaders, dkimHeader + offset, headEnd - dkimHeader - offset - 4, dh, lenDh, lenHash);
 	}
 
 	wc_FreeRsaKey(&pk);
+	(email->dkimCount)++;
+
 	return offset;
 }
