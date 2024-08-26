@@ -14,6 +14,7 @@
 #include "../Common/Addr32.h"
 #include "../Common/api_req.h"
 #include "../Common/memeq.h"
+#include "../Data/address.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Server.h"
 #include "../api/Error.h"
@@ -29,12 +30,6 @@
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
 
-#ifdef AEM_ADDRESS_NOPWHASH
-	#define AEM_SALTNORMAL_LEN crypto_shorthash_KEYBYTES
-#else
-	#define AEM_SALTNORMAL_LEN crypto_pwhash_SALTBYTES
-#endif
-
 static struct aem_user *user[AEM_USERCOUNT];
 
 size_t lenRsaAdminKey;
@@ -45,7 +40,6 @@ static unsigned char rsaUsersKey[4096];
 static unsigned char accountKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
 static unsigned char saltShield[crypto_shorthash_KEYBYTES];
-static uint64_t addrHash_system = 0;
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 
 static unsigned char limits[4][3] = {
@@ -305,19 +299,17 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 
 		memcpy((unsigned char*)&hash, reqData, 8);
 
-/*
 		if (user[api_uid]->level != AEM_USERLEVEL_MAX) {
 			// Not admin, check if hash is forbidden
-			for (unsigned int i = 0; i < AEM_HASH_ADMIN_COUNT; i++) {
-				if (hash == AEM_HASH_ADMIN[i]) {
+			for (int i = 0; i < AEM_ADDRHASH_ADMIN_COUNT; i++) {
+				if (hash == AEM_ADDRHASH_ADMIN[i]) {
 					hash = 0;
 					break;
 				}
 			}
 		}
-*/
 
-		if (hash == 0 || hash == addrHash_system) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
+		if (hash == 0 || hash == AEM_ADDRHASH_SYSTEM) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	}
 
 	if (hashToUid(hash, isShield, NULL) != UINT16_MAX) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
@@ -621,19 +613,6 @@ int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(accountKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, baseKey);
 	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
 	aem_kdf_sub(saltShield, crypto_shorthash_KEYBYTES,     AEM_KDF_KEYID_ACC_SHD, baseKey);
-
-#ifdef AEM_ADDRESS_NOPWHASH
-	uint64_t hash;
-	crypto_shorthash((unsigned char*)&hash, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN, saltNormal);
-	addrHash_system = hash;
-#else
-	uint64_t halves[2];
-	if (crypto_pwhash((unsigned char*)halves, sizeof(uint64_t) * 2, (const char*)AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN, saltNormal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
-		syslog(LOG_ERR, "Failed hashing system address");
-		return 0;
-	}
-	addrHash_system = halves[0] ^ halves[1];
-#endif
 
 	if (loadUser() != 0) return -1;
 	loadSettings(); // Ignore errors

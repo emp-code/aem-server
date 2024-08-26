@@ -95,6 +95,12 @@ enum aem_internal_enquiry {
 #define AEM_FLAG_UINFO 2
 #define AEM_FLAG_NEWER 1
 
+#ifdef AEM_ADDRESS_NOPWHASH
+	#define AEM_SALTNORMAL_LEN crypto_shorthash_KEYBYTES
+#else
+	#define AEM_SALTNORMAL_LEN crypto_pwhash_SALTBYTES
+#endif
+
 // Control-Enriched Text (CET)
 	// Tags AEM closes automatically
 #define AEM_CET_CHAR_LNK 0x01 // Document link (+1 = HTTPS)
