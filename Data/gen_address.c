@@ -73,17 +73,15 @@ int main(int argc, char *argv[]) {
 		if (lf == NULL) break;
 
 		const size_t lenSrc = lf - s;
-		if (lenSrc > 15) {
+		if (lenSrc < 16) {
+			unsigned char addr32[10];
+			addr32_store(addr32, s, lenSrc);
+			printf("\n%luLLU", addressToHash(addr32));
+			if (i < lineCount - 1) printf(",\\");
+			entries++;
+		} else {
 			fprintf(stderr, "Rejected, too long: %.*s\n", (int)lenSrc, s);
-			s = lf + 1;
-			continue;
 		}
-
-		unsigned char addr32[10];
-		addr32_store(addr32, s, lenSrc);
-		printf("\n%luLLU", addressToHash(addr32));
-		if (i < lineCount - 1) printf(",\\");
-		entries++;
 
 		s = lf + 1;
 	}
