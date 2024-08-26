@@ -31,7 +31,7 @@ static uint64_t addressToHash(const unsigned char * const addr32) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 2) {fprintf(stderr, "Usage: %s adress-list.txt\n", argv[0]); return EXIT_FAILURE;}
+	if (argc != 2) {fprintf(stderr, "Usage: %s address-list.txt\n", argv[0]); return EXIT_FAILURE;}
 	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
 
 	// Determine the normal address salt
