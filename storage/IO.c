@@ -192,7 +192,7 @@ static unsigned char *makeEnvelope(const unsigned char * const content, const si
 	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 192; // IntMsg InfoByte: System
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, content, lenContent);
 
-	message_into_envelope(msg, *lenEnvelope, epk, stindex[uid].id, stindex_count[uid]);
+	message_into_envelope(msg, *lenEnvelope, epk, NULL, 0);
 	return msg;
 }
 
@@ -206,7 +206,6 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	unsigned char * const wm = makeEnvelope(AEM_WELCOME, AEM_WELCOME_LEN, msg + sizeof(uint16_t), &lenWm, uid);
 	if (wm == NULL) return -1;
 	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
-	const uint16_t wmId = getEnvelopeId(wm);
 
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd < 0) {
@@ -229,11 +228,11 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	stindex[uid].id = malloc(sizeof(uint16_t));
 	if (stindex[uid].id == NULL) return AEM_INTCOM_RESPONSE_ERR;
 
-	stindex_count[uid] = 1;
 	stindex[uid].bc[0] = wmBc;
-	stindex[uid].id[0] = wmId;
-
+	stindex[uid].id[0] = 0;
+	stindex_count[uid] = 1;
 	saveStindex();
+
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
@@ -517,7 +516,6 @@ int32_t storage_empty(const uint16_t uid) {
 	unsigned char * const evp = makeEnvelope((const unsigned char * const)"Storage emptied\nAs you requested, your storage has been emptied.\nAs this is your oldest message now, it can only be deleted by emptying your storage again.\nThis is an automatically generated system message.", 206, epk, &lenEvp, uid);
 	if (evp == NULL) return -1;
 	const uint16_t evpBc = (lenEvp / 16) - AEM_ENVELOPE_MINBLOCKS;
-	const uint16_t evpId = getEnvelopeId(evp);
 
 	const int fd = open(AEM_PATH_STO_MSG, O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
@@ -536,7 +534,7 @@ int32_t storage_empty(const uint16_t uid) {
 	sodium_memzero((unsigned char*)stindex[uid].id, sizeof(uint16_t) * stindex_count[uid]);
 
 	stindex[uid].bc[0] = evpBc;
-	stindex[uid].id[0] = evpId;
+	stindex[uid].id[0] = 0;
 	stindex_count[uid] = 1;
 	saveStindex();	
 	return AEM_INTCOM_RESPONSE_OK;

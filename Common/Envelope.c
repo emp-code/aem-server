@@ -37,9 +37,12 @@ void message_into_envelope(unsigned char * const target, const int lenTarget, co
 			}
 			if (!found) break;
 		}
-	} else {
-		randombytes_buf(x25519_sk, X25519_SKBYTES);
-		crypto_scalarmult_base(target, x25519_sk);
+	} else { // No list supplied
+		for (;;) { // Generate a PK where EnvelopeID=0
+			randombytes_buf(x25519_sk, X25519_SKBYTES);
+			crypto_scalarmult_base(target, x25519_sk);
+			if (getEnvelopeId(target) == 0) break;
+		}
 	}
 
 	// Base: Create the shared secret from our secret key and user's the Envelope Public Key (EPK). Erase our secret key.
