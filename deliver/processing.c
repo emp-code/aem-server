@@ -35,7 +35,7 @@ static void processDkim(unsigned char * const src, size_t * const lenSrc, struct
 		if (start == NULL) break;
 		start++;
 
-		const int offset = verifyDkim(email, start, (src + *lenSrc) - start);
+		const int offset = verifyDkim(email, start, (src + *lenSrc) - start, headersEnd - start);
 		if (offset == 0) break;
 
 		// Delete the signature from the headers

@@ -3,6 +3,6 @@
 
 #include "../Common/Email.h"
 
-int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc);
+int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc, const size_t maxOffset);
 
 #endif

@@ -281,7 +281,7 @@ static void verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 	email->dkim[email->dkimCount].headHash = (memeq(o + 19, dkim_hash, lenHash)) ? AEM_DKIM_HASH_PASS_RELAX : AEM_DKIM_HASH_FAIL;
 }
 
-int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc) {
+int verifyDkim(struct emailInfo * const email, const unsigned char * const src, const size_t lenSrc, const size_t maxOffset) {
 	const unsigned char *headEnd = memmem(src, lenSrc, "\r\n\r\n", 4);
 	if (headEnd == NULL) {syslog(LOG_WARNING, "DKIM: No headers-end found"); return 0;}
 	headEnd += 4;
@@ -327,6 +327,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 		if (dkimHeader[offset] == ';') offset++;
 		while (isspace(dkimHeader[offset])) offset++;
 
+		if (offset >= maxOffset) {offset = maxOffset; break;}
 		if (lenVal < 1) continue;
 
 		switch (key) {
