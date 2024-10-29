@@ -68,7 +68,6 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	unsigned char * const wm = welcomeEnvelope(ma_epk, &lenWm);
 	if (wm == NULL) return -1;
 	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
-	const uint16_t wmId = 0;
 
 	// Save the MA's Envelope file
 	const char eid_char0 = get_eid_char0(sbk);
@@ -84,7 +83,7 @@ static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsig
 	unsigned char dec[lenDec];
 	bzero(dec, lenDec);
 	dec[0] = 1; // Envelope count 1 for the first user
-	memcpy(dec + (AEM_USERCOUNT * sizeof(uint16_t)),                    &wmBc, sizeof(uint16_t)); // Block count of first envelope
+	memcpy(dec + (AEM_USERCOUNT * sizeof(uint16_t)), &wmBc, sizeof(uint16_t)); // Block count of first envelope
 
 	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char enc[lenEnc];
