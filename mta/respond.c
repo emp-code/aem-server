@@ -418,7 +418,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			if (!send_aem(sock, tls, "250 Ok\r\n", 8)) {smtp_fail(150); break;}
 		} else { // Unsupported commands
 			email.invalidCommands = true;
-			if (!send_aem(sock, tls, "500 5.5.1 Command unsupported\r\n", 31)) {smtp_fail(109); break;}
+			if (!send_aem(sock, tls, "502 5.5.1 Command unsupported\r\n", 31)) {smtp_fail(109); break;}
 		}
 	}
 
