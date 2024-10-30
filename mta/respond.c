@@ -255,7 +255,7 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 		}
 
 		bytes = recv_aem(0, tls, buf, AEM_SMTP_MAX_SIZE_CMD);
-		if (bytes == 0) {
+		if (bytes < 1) {
 			tlsClose(tls);
 			smtp_fail(112);
 			return;
