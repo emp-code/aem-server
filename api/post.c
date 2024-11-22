@@ -200,15 +200,58 @@ static unsigned char send_email(const uint16_t uid, const unsigned char * const 
 	email.mxDomain[lenMxDomain] = '\0';
 	free(mx);
 
+	// Send
 	struct outInfo info;
 	bzero(&info, sizeof(info));
 	info.timestamp = (uint32_t)time(NULL);
-
-	// Send
 	const unsigned char ret = sendMail(&email, &info);
 
+	// Delivery Report
+	const size_t lenSb = strlen(email.subject);
+	const size_t lenFr = strlen(email.addrFrom);
+	const size_t lenTo = strlen(email.addrTo);
+	size_t lenDr = AEM_ENVELOPE_RESERVED_LEN + 22 + lenFr + lenTo + lenMxDomain /*TODO*/ + info.lenGreeting + info.lenStatus + lenSb + email.lenBody;
+	const size_t drPad = msg_getPadAmount(lenDr);
+	lenDr += drPad;
+
+	unsigned char dr[lenDr];
+	dr[AEM_ENVELOPE_RESERVED_LEN] = drPad | 48; // 48=OutMsg
+	const uint32_t ts = (uint32_t)time(NULL);
+	memcpy(dr + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
+
+	dr[AEM_ENVELOPE_RESERVED_LEN + 5] = lenSb;
+	memcpy(dr + AEM_ENVELOPE_RESERVED_LEN + 6, &email.ip, 4);
+
+	// TODO TLS ciphersuite: 2 bytes
+	dr[AEM_ENVELOPE_RESERVED_LEN + 10] = 0;
+	dr[AEM_ENVELOPE_RESERVED_LEN + 11] = 0;
+
+	/* IB 0 */ dr[AEM_ENVELOPE_RESERVED_LEN + 12] = 0; // TODO: TLS Version + Attachments
+	/* IB 1 */ dr[AEM_ENVELOPE_RESERVED_LEN + 13] = email.cc[0];
+	/* IB 2 */ dr[AEM_ENVELOPE_RESERVED_LEN + 14] = email.cc[1];
+	/* IB 3 */ dr[AEM_ENVELOPE_RESERVED_LEN + 15] = lenFr;
+	/* IB 4 */ dr[AEM_ENVELOPE_RESERVED_LEN + 16] = lenTo;
+	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 17] = lenMxDomain;
+	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 18] = 0; //lenRdns;
+	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 19] = 0; //lenAsn;
+	/* IB 6 */ dr[AEM_ENVELOPE_RESERVED_LEN + 20] = info.lenGreeting;
+	/* IB 7 */ dr[AEM_ENVELOPE_RESERVED_LEN + 21] = info.lenStatus;
+
+	int off = AEM_ENVELOPE_RESERVED_LEN + 22;
+	memcpy(dr + off, email.addrFrom, lenFr);           off += lenFr;
+	memcpy(dr + off, email.addrTo, lenTo);             off += lenTo;
+	memcpy(dr + off, email.mxDomain, lenMxDomain);     off += lenMxDomain;
+	//TODO
+	//TODO
+	memcpy(dr + off, info.greeting, info.lenGreeting); off += info.lenGreeting;
+	memcpy(dr + off, info.status, info.lenStatus);     off += info.lenStatus;
+	memcpy(dr + off, email.subject, lenSb);            off += lenSb;
+	memcpy(dr + off, email.body, email.lenBody);       off += email.lenBody;
+
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, dr, lenDr, NULL, 0);
+
 	free(email.body);
-	return ret;
+	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
 static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {

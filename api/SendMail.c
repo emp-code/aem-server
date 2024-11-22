@@ -269,7 +269,7 @@ static void smtp_quit(const int sock, WOLFSSL *ssl) {
 	close(sock);
 }
 
-static bool smtpCommand(const int sock, WOLFSSL *ssl, char * const buf, size_t * const lenBuf, const char * const sendText, const size_t lenSendText, const char * const expectedResponse) {
+static bool smtpCommand(const int sock, WOLFSSL *ssl, struct outInfo * const info, char * const buf, size_t * const lenBuf, const char * const sendText, const size_t lenSendText, const char * const expectedResponse) {
 	if (smtp_send(sock, ssl, sendText, lenSendText) != (int)lenSendText) {
 		if (ssl != NULL) {
 			wolfSSL_shutdown(ssl);
@@ -281,6 +281,9 @@ static bool smtpCommand(const int sock, WOLFSSL *ssl, char * const buf, size_t *
 	}
 
 	const int len = smtp_recv(sock, ssl, buf);
+	info->lenStatus = MIN(len, 127);
+	memcpy(info->status, buf, info->lenStatus);
+
 	if (len < 6 || !memeq(buf, expectedResponse, strlen(expectedResponse)) || !memeq(buf + len - 2, "\r\n", 2)) {
 		smtp_quit(sock, ssl);
 		return false;
@@ -305,17 +308,18 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 
 	char buf[1025];
 	size_t lenBuf;
-	if (!smtpCommand(sock, NULL, buf, &lenBuf, NULL, 0, "220 ")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;
+	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, NULL, 0, "220 ")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_GREET;
 
-	memcpy(info->greeting, buf + 4, lenBuf - 6); // Between '220 ' and '\r\n'
-	info->greeting[lenBuf - 6] = '\0';
+	// Copy greeting from between '220 ' and '\r\n'
+	info->lenGreeting = MIN(lenBuf - 6, 256);
+	memcpy(info->greeting, buf + 4, info->lenGreeting);
 
 	char ehlo[256];
 	sprintf(ehlo, "EHLO %s\r\n", ourDomain);
 
-	if (!smtpCommand(sock, NULL, buf, &lenBuf, ehlo, strlen(ehlo), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, ehlo, strlen(ehlo), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
 	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, NULL); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
-	if (!smtpCommand(sock, NULL, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
+	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
 
 	setKeyShare(ssl);
 
@@ -338,10 +342,10 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@%s>\r\n", email->addrFrom, ourDomain);
 	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
 
-	if (!smtpCommand(sock, ssl, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
-	if (!smtpCommand(sock, ssl, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
-	if (!smtpCommand(sock, ssl, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
-	if (!smtpCommand(sock, ssl, buf, &lenBuf, "DATA\r\n", 6,            "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, "DATA\r\n", 6,            "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(email, &lenMsg);
@@ -350,7 +354,7 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 		return AEM_API_ERR_INTERNAL;
 	}
 
-	if (!smtpCommand(sock, ssl, buf, &lenBuf, msg, lenMsg, "250")) {
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, msg, lenMsg, "250")) {
 		free(msg);
 		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;
 	}
