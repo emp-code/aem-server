@@ -494,6 +494,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 
 		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
 		if (user[api_uid]->level == AEM_USERLEVEL_MAX) {
+			res[1] |= 128;
 			memcpy(res + sizeof(uint16_t), rsaAdminKey, lenRsaAdminKey);
 			return sizeof(uint16_t) + lenRsaAdminKey;
 		} else {

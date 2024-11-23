@@ -106,12 +106,12 @@ static const unsigned char *cpyEmail(const unsigned char * const src, const size
 	return src + len + 1;
 }
 
-static unsigned char send_email(const uint16_t uid, const unsigned char * const rsaKey, const size_t lenRsaKey, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+static unsigned char send_email(const uint16_t uid, const bool isAdmin, const unsigned char * const rsaKey, const size_t lenRsaKey, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	struct outEmail email;
 	bzero(&email, sizeof(email));
 
 	email.uid = uid;
-	email.isAdmin = false; // TODO
+	email.isAdmin = isAdmin;
 	email.lenRsaKey = lenRsaKey;
 	memcpy(email.rsaKey, rsaKey, lenRsaKey);
 
@@ -274,11 +274,11 @@ static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[
 static unsigned char message_create(const int flags, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	if (lenCuid == 0) return AEM_API_ERR_INTERNAL;
 	if (lenCuid == 1) return cuid[0];
-	const uint16_t uid = *(const uint16_t*)cuid;
-	if (uid >= AEM_USERCOUNT) return AEM_API_ERR_INTERNAL;
+	const bool isAdmin = (cuid[1] & 128) != 0;
+	const uint16_t uid = *(const uint16_t*)cuid & 4095;
 
 	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL && lenCuid > 2) {
-		return send_email(uid, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
+		return send_email(uid, isAdmin, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
 	} else if (flags == 0 && lenCuid == 2) {
 		return send_imail(uid, urlData, src, lenSrc);
 	}
