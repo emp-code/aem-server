@@ -23,21 +23,36 @@ int32_t conn_api(const uint8_t type, const unsigned char * const msg, const size
 		case AEM_ENQUIRY_MX: {
 			if (!isValidDomain((const char*)msg, lenMsg)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_INVALID_TO
 //			if (lenMsg == AEM_DOMAIN_LEN && memeq(msg, AEM_DOMAIN, AEM_DOMAIN_LEN)) return AEM_INTCOM_RESPONSE_ERR; // AEM_API_ERR_MESSAGE_CREATE_EXT_OURDOMAIN
+			*res = malloc(2048);
+			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
+			bzero(*res, 2048);
 
-			unsigned char mxDomain[256];
+// [4] IP
+// [2] CC
+// [128] MxDomain
+// [128] ASN
+// [128] RDNS
+
+			// IP, CC, MxDomain
 			size_t lenMxDomain = 0;
-			const uint32_t ip = queryDns_mx(msg, lenMsg, mxDomain, &lenMxDomain);
-			if (lenMxDomain < 4 || lenMxDomain > 255) return AEM_INTCOM_RESPONSE_ERR;
+			const uint32_t ip = queryDns_mx(msg, lenMsg, *res + 6, &lenMxDomain);
+			if (lenMxDomain < 4 || lenMxDomain > 127) {free(*res); return AEM_INTCOM_RESPONSE_ERR;}
+			memcpy(*res, (const unsigned char*)&ip, 4);
 
 			const uint16_t cc = getCountryCode(ip);
-			const uint8_t ld = lenMxDomain;
-
-			*res = malloc(6 + ld);
-			if (*res == NULL) return AEM_INTCOM_RESPONSE_ERR;
-			memcpy(*res, (const unsigned char*)&ip, 4);
 			memcpy(*res + 4, (const unsigned char*)&cc, 2);
-			memcpy(*res + 6, mxDomain, ld);
-			return 6 + ld;
+
+			// ASN
+			size_t lenAsn = 0;
+			getIpAsn(ip, *res + 134, &lenAsn); // 6 + 128
+			if (lenAsn > 127) (*res)[261] = 0; // 134 + 127
+
+			// RDNS (PTR)
+			size_t lenPtr = 0;
+			getPtr(ip, *res + 262, &lenPtr);
+			if (lenPtr > 127) (*res)[389] = 0; // 262 + 127
+
+			return 390; // 6 + (128 * 3)
 		}
 
 		default: syslog(LOG_ERR, "Invalid command: %u", type);

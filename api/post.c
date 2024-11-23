@@ -186,19 +186,15 @@ static unsigned char send_email(const uint16_t uid, const unsigned char * const 
 		return AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADTO;
 	}
 
-	unsigned char *mx = NULL;
-	const int32_t lenMx = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_MX, (const unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &mx, 0);
-	if (lenMx < 1 || mx == NULL) {free(email.body); syslog(LOG_ERR, "Failed contacting Enquiry"); return AEM_API_ERR_INTERNAL;}
-	if (lenMx < 10) {free(email.body); free(mx); syslog(LOG_ERR, "Invalid response from Enquiry (1)"); return AEM_API_ERR_INTERNAL;}
+	unsigned char *enq = NULL;
+	const int32_t lenEnq = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_MX, (const unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &enq, 0);
+	if (lenEnq < 1 || enq == NULL) {free(email.body); syslog(LOG_ERR, "Failed contacting Enquiry"); return AEM_API_ERR_INTERNAL;}
+	if (lenEnq < 12) {free(email.body); free(enq); syslog(LOG_ERR, "Invalid response from Enquiry (1)"); return AEM_API_ERR_INTERNAL;}
 
-	const size_t lenMxDomain = lenMx - 6;
-	if (lenMxDomain < 4) {free(email.body); free(mx); syslog(LOG_ERR, "Invalid response from Enquiry (2)"); return AEM_API_ERR_INTERNAL;} // a.bc
-
-	memcpy((unsigned char*)(&email.ip), mx, 4);
-	memcpy((unsigned char*)(&email.cc), mx + 4, 2);
-	memcpy(email.mxDomain, mx + 6, lenMxDomain);
-	email.mxDomain[lenMxDomain] = '\0';
-	free(mx);
+	email.ip = *(uint32_t*)enq;
+	email.cc = *(uint16_t*)(enq + 4);
+	memcpy((unsigned char*)&email, enq + 6, lenEnq - 6);
+	free(enq);
 
 	// Send
 	struct outInfo info;
@@ -207,10 +203,13 @@ static unsigned char send_email(const uint16_t uid, const unsigned char * const 
 	const unsigned char ret = sendMail(&email, &info);
 
 	// Delivery Report
+	const size_t lenMx = strlen(email.mxDomain);
+	const size_t lenAs = strlen(email.asn);
+	const size_t lenRd = strlen(email.rdns);
 	const size_t lenSb = strlen(email.subject);
 	const size_t lenFr = strlen(email.addrFrom);
 	const size_t lenTo = strlen(email.addrTo);
-	size_t lenDr = AEM_ENVELOPE_RESERVED_LEN + 22 + lenFr + lenTo + lenMxDomain /*TODO*/ + info.lenGreeting + info.lenStatus + lenSb + email.lenBody;
+	size_t lenDr = AEM_ENVELOPE_RESERVED_LEN + 22 + lenFr + lenTo + lenMx + lenAs + lenRd + info.lenGreeting + info.lenStatus + lenSb + email.lenBody;
 	const size_t drPad = msg_getPadAmount(lenDr);
 	lenDr += drPad;
 
@@ -227,22 +226,22 @@ static unsigned char send_email(const uint16_t uid, const unsigned char * const 
 	dr[AEM_ENVELOPE_RESERVED_LEN + 11] = 0;
 
 	/* IB 0 */ dr[AEM_ENVELOPE_RESERVED_LEN + 12] = 0; // TODO: TLS Version + Attachments
-	/* IB 1 */ dr[AEM_ENVELOPE_RESERVED_LEN + 13] = email.cc[0];
-	/* IB 2 */ dr[AEM_ENVELOPE_RESERVED_LEN + 14] = email.cc[1];
+	/* IB 1 */ dr[AEM_ENVELOPE_RESERVED_LEN + 13] = email.cc & 31;
+	/* IB 2 */ dr[AEM_ENVELOPE_RESERVED_LEN + 14] = (email.cc >> 8) & 31;
 	/* IB 3 */ dr[AEM_ENVELOPE_RESERVED_LEN + 15] = lenFr;
 	/* IB 4 */ dr[AEM_ENVELOPE_RESERVED_LEN + 16] = lenTo;
-	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 17] = lenMxDomain;
-	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 18] = 0; //lenRdns;
-	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 19] = 0; //lenAsn;
-	/* IB 6 */ dr[AEM_ENVELOPE_RESERVED_LEN + 20] = info.lenGreeting;
-	/* IB 7 */ dr[AEM_ENVELOPE_RESERVED_LEN + 21] = info.lenStatus;
+	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 17] = lenMx;
+	/* IB 6 */ dr[AEM_ENVELOPE_RESERVED_LEN + 18] = lenAs;
+	/* IB 7 */ dr[AEM_ENVELOPE_RESERVED_LEN + 19] = lenRd;
+	/* IB 8 */ dr[AEM_ENVELOPE_RESERVED_LEN + 20] = info.lenGreeting;
+	/* IB 9 */ dr[AEM_ENVELOPE_RESERVED_LEN + 21] = info.lenStatus;
 
 	int off = AEM_ENVELOPE_RESERVED_LEN + 22;
 	memcpy(dr + off, email.addrFrom, lenFr);           off += lenFr;
 	memcpy(dr + off, email.addrTo, lenTo);             off += lenTo;
-	memcpy(dr + off, email.mxDomain, lenMxDomain);     off += lenMxDomain;
-	//TODO
-	//TODO
+	memcpy(dr + off, email.mxDomain, lenMx);           off += lenMx;
+	memcpy(dr + off, email.asn, lenAs);                off += lenAs;
+	memcpy(dr + off, email.rdns, lenRd);               off += lenRd;
 	memcpy(dr + off, info.greeting, info.lenGreeting); off += info.lenGreeting;
 	memcpy(dr + off, info.status, info.lenStatus);     off += info.lenStatus;
 	memcpy(dr + off, email.subject, lenSb);            off += lenSb;

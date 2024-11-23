@@ -6,6 +6,9 @@
 
 struct outEmail {
 	char mxDomain[128];
+	char asn[128];
+	char rdns[128];
+
 	char addrFrom[25];
 	char addrTo[128];
 	char replyId[128];
@@ -16,7 +19,7 @@ struct outEmail {
 	bool isAdmin;
 
 	uint32_t ip;
-	unsigned char cc[2];
+	uint16_t cc;
 	unsigned char fromAddr32[10];
 
 	size_t lenRsaKey;
