@@ -192,15 +192,19 @@ static uint16_t hashToUid(const uint64_t hash, const bool isShield, unsigned cha
 }
 
 __attribute__((warn_unused_result))
-static uint64_t addressToHash(const unsigned char * const addr32, const bool shield) {
+static uint64_t addressToHash(const unsigned char * const addr32) {
 	if (addr32 == NULL) return 0;
 
-	if (shield) {
+	if ((addr32[0] & 128) != 0) {
+		// Shield
 		if (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) return 0; // Forbid addresses ending with 'administrator'
 		uint64_t hash;
 		crypto_shorthash((unsigned char*)&hash, addr32, AEM_ADDR32_BINLEN, saltShield);
 		return hash;
-	} else if (memeq(addr32, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN)) return 0; // Forbid 'system'
+	}
+
+	// Normal
+	if (memeq(addr32, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN)) return 0; // Forbid 'system'
 
 #ifdef AEM_ADDRESS_NOPWHASH
 	uint64_t hash;
@@ -292,7 +296,7 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 		randombytes_buf(addr32, 10);
 		addr32[0] |= 128;
 
-		hash = addressToHash(addr32, true);
+		hash = addressToHash(addr32);
 		if (hash == 0) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	} else { // Normal
 		if (numAddresses(api_uid, false) >= limits[user[api_uid]->level][AEM_LIMIT_NRM]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
@@ -463,24 +467,21 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
 	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) == 0) {
 		// Verify user owns their sending address
-		bool shield = (reqData[20] & 128) != 0;
-		if (api_uid != hashToUid(addressToHash(reqData, shield), shield, NULL)) {
+		if (api_uid != hashToUid(addressToHash(reqData), (reqData[0] & 128) != 0, NULL))
 			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_OWN_ADDR);
-		}
 
 		// Get recipient address
-		shield = ((reqData[20] & 64) != 0);
-		const uint64_t hash = addressToHash(reqData + 10, shield);
+		const uint64_t hash = addressToHash(reqData + 10);
 		if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Invalid address
 
 		unsigned char addrFlags = 0;
-		const uint16_t uid = hashToUid(hash, shield, &addrFlags);
+		const uint16_t uid = hashToUid(hash, (reqData[10] & 128) != 0, &addrFlags);
 		if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Address not registered
 		if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
 
 		memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
 		return 2;
-	} else { // Email
+	} else {
 		if (user[api_uid]->level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 		const unsigned char * const addrEnd = memchr(reqData, '\0', AEM_API_REQ_DATA_LEN);
@@ -489,7 +490,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		addr32_store(a32, reqData, addrEnd - reqData);
 
 		const bool fromShield = ((a32[0] & 128) != 0);
-		const uint64_t fromHash = addressToHash(a32, fromShield);
+		const uint64_t fromHash = addressToHash(a32);
 		if (api_uid != hashToUid(fromHash, fromShield, NULL)) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 
 		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
@@ -554,7 +555,7 @@ bool api_auth(unsigned char * const res, struct aem_req * const req, const bool 
 int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 	const bool isShield = ((addr32[0] & 128) != 0);
 
-	const uint64_t hash = addressToHash(addr32, isShield);
+	const uint64_t hash = addressToHash(addr32);
 	if (hash == 0) return AEM_INTCOM_RESPONSE_ERR;
 
 	unsigned char flags = 0;
