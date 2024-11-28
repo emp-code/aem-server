@@ -461,7 +461,7 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 
 // API: POST (Status)
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
-	if (flags == 0) { // IntMsg
+	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) == 0) {
 		// Verify user owns their sending address
 		bool shield = (reqData[20] & 128) != 0;
 		if (api_uid != hashToUid(addressToHash(reqData, shield), shield, NULL)) {

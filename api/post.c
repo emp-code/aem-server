@@ -253,22 +253,22 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
-static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const bool e2ee) {
 	const uint32_t ts = (uint32_t)time(NULL);
-	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 58 + lenSrc;
+	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 28 + lenSrc;
 	const size_t padAmount = msg_getPadAmount(lenMsg);
 	lenMsg += padAmount;
 
 	unsigned char msg[lenMsg];
 	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
 	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 0; // IntMsg InfoByte: 0=Plain; TODO: 0-3: SenderLevel
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData, 20); // From/To Addr32
-	bzero(msg + AEM_ENVELOPE_RESERVED_LEN + 26, 32); // TODO: APK
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 58, src, lenSrc);
+	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = e2ee ? 64 : 0; // IntMsg InfoByte
+	memset(msg + AEM_ENVELOPE_RESERVED_LEN + 6, 0xFF, 2); // TODO
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 8, urlData, 20); // From/To Addr32
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 28, src, lenSrc);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
-	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
+	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
 static unsigned char message_create(const int flags, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
@@ -279,8 +279,8 @@ static unsigned char message_create(const int flags, const unsigned char * const
 
 	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL && lenCuid > 2) {
 		return send_email(uid, isAdmin, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
-	} else if (flags == 0 && lenCuid == 2) {
-		return send_imail(uid, urlData, src, lenSrc);
+	} else if (lenCuid == 2) {
+		return send_imail(uid, urlData, src, lenSrc, (flags == AEM_API_MESSAGE_CREATE_FLAG_E2EE));
 	}
 
 	return AEM_API_ERR_INTERNAL;
