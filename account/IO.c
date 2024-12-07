@@ -489,9 +489,9 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		unsigned char a32[10];
 		addr32_store(a32, reqData, addrEnd - reqData);
 
-		const bool fromShield = ((a32[0] & 128) != 0);
-		const uint64_t fromHash = addressToHash(a32);
-		if (api_uid != hashToUid(fromHash, fromShield, NULL)) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
+		// Verify user owns their sending address
+		if (api_uid != hashToUid(addressToHash(a32), (a32[0] & 128) != 0, NULL))
+			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_EXT_HDR_ADFR);
 
 		memcpy(res, (unsigned char*)&api_uid, sizeof(uint16_t));
 		if (user[api_uid]->level == AEM_USERLEVEL_MAX) {
