@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
 
 	printf("#define AEM_ADDRHASH_ADMIN (const uint64_t[]) { \\");
 
-	int entries = 0;	
+	unsigned int entries = 0;
 	const unsigned char *s = data;
 	for (int i = 0; i < lineCount; i++) {
 		const unsigned char * const lf = memchr(s, '\n', (data + len) - s);
