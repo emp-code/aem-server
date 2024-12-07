@@ -205,6 +205,7 @@ static uint64_t addressToHash(const unsigned char * const addr32) {
 
 	// Normal
 	if (memeq(addr32, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN)) return 0; // Forbid 'system'
+	if (addr32[0] >> 3 == 0) return 0; // Forbid zero length
 
 #ifdef AEM_ADDRESS_NOPWHASH
 	uint64_t hash;
