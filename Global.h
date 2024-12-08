@@ -191,11 +191,6 @@ enum aem_api_command_post {
 #define AEM_API_REQ_DATA_LEN 24
 #define AEM_LEN_APIRESP_BASE (1L + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE + AEM_API_BODY_KEYSIZE)
 
-enum aem_mta_commands {
-	AEM_MTA_GETUID_NORMAL,
-	AEM_MTA_GETUID_SHIELD
-};
-
 // IntCom
 enum aem_acc_commands {
 	AEM_ACC_STORAGE_LEVELS,
