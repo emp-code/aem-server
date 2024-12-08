@@ -92,9 +92,6 @@ enum aem_internal_enquiry {
 #define AEM_USERLEVEL_MAX 3
 #define AEM_USERLEVEL_MIN 0
 
-#define AEM_FLAG_UINFO 2
-#define AEM_FLAG_NEWER 1
-
 #ifdef AEM_ADDRESS_NOPWHASH
 	#define AEM_SALTNORMAL_LEN crypto_shorthash_KEYBYTES
 #else
