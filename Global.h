@@ -62,6 +62,7 @@ enum aem_internal_enquiry {
 #define AEM_LEN_UINFO (4 + (AEM_ADDRESSES_PER_USER * 9) + AEM_LEN_PRIVATE)
 #define AEM_LEN_PRIVATE (AEM_USER_SIZE - 6 - AEM_KDF_SUB_KEYLEN - X25519_PKBYTES - (AEM_ADDRESSES_PER_USER * 17))
 
+// Address flags
 #define AEM_ADDR_FLAG_SHIELD 128
 // 64 unused
 #define AEM_ADDR_FLAG_ORIGIN 32
@@ -128,6 +129,7 @@ enum aem_internal_enquiry {
 // Internal use
 #define AEM_CET_CHAR_SEP 127 // Separator
 
+// Message/Envelope constants
 #define AEM_MSG_SIG_LEN 16
 #define AEM_ENVELOPE_MINBLOCKS 12
 #define AEM_ENVELOPE_RESERVED_LEN (X25519_PKBYTES + AEM_MSG_SIG_LEN)
@@ -139,10 +141,12 @@ enum aem_internal_enquiry {
 #define AEM_MSG_SRC_MAXSIZE (AEM_MSG_MAXSIZE - AEM_MSG_RESERVED_LEN) // 1048699; 1 MiB + 123 bytes
 #define AEM_MSG_SRC_MINSIZE (AEM_MSG_MINSIZE - AEM_MSG_RESERVED_LEN) // 124
 
+// Paths
 #define AEM_PATH_HOME "/var/lib/allears"
 #define AEM_PATH_DATA AEM_PATH_HOME"/Data"
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
 
+// Misc
 #define AEM_TIMEOUT_MANAGER_RCV 10
 #define AEM_TIMEOUT_MANAGER_SND 10
 
@@ -150,6 +154,7 @@ enum aem_internal_enquiry {
 #define AEM_MAXLEN_EXEC 131072 // 128 KiB
 #define AEM_MAXLEN_DATAFILE 99999
 
+// API commands
 enum aem_api_command_get {
 	AEM_API_ACCOUNT_BROWSE,
 	AEM_API_ACCOUNT_DELETE,
@@ -173,12 +178,14 @@ enum aem_api_command_post {
 	AEM_API_PRIVATE_UPDATE
 };
 
+// API flags
 #define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 1 // Older, instead of newer
 #define AEM_API_MESSAGE_BROWSE_FLAG_UINFO 2 // Include user info
 #define AEM_API_MESSAGE_CREATE_FLAG_EMAIL 1 // Send email, not internal mail
 #define AEM_API_MESSAGE_CREATE_FLAG_E2EE  2 // End-to-end encrypted
 #define AEM_API_MESSAGE_DELETE_FLAG_EMPTY 1 // Empty storage completely
 
+// API constants
 #define AEM_API_REQ_LEN 48
 #define AEM_API_REQ_LEN_BASE64 64
 #define AEM_API_REQ_DATA_LEN 24
@@ -189,6 +196,7 @@ enum aem_mta_commands {
 	AEM_MTA_GETUID_SHIELD
 };
 
+// IntCom
 enum aem_acc_commands {
 	AEM_ACC_STORAGE_LEVELS,
 	AEM_ACC_STORAGE_CREATE,
@@ -197,6 +205,7 @@ enum aem_acc_commands {
 	AEM_ACC_STORAGE_AMOUNT
 };
 
+// Process types
 enum aem_process_types {
 	AEM_PROCESSTYPE_WEB_CLR,
 	AEM_PROCESSTYPE_WEB_ONI,
