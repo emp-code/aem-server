@@ -6,8 +6,6 @@
 #include "Common/AEM_KDF.h"
 #include "Config.h"
 
-#define UINT24_MAX 16777215UL
-#define AES256_KEYBYTES 32
 #define X25519_PKBYTES crypto_scalarmult_BYTES
 #define X25519_SKBYTES crypto_scalarmult_SCALARBYTES
 

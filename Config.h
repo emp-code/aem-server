@@ -33,8 +33,6 @@
 
 // Network
 #define AEM_BACKLOG 25
-#define AEM_TLS_TIMEOUT 30
-#define AEM_API_TIMEOUT 5
 
 // Misc
 #define AEM_USER_SIZE 5120 // Size of each of the 4096 users. Determines the size of the Private field. 5 KiB * 4096 = 20 MiB.
