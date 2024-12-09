@@ -493,6 +493,8 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_OWN_ADDR);
 
 		if ((flags & AEM_API_MESSAGE_CREATE_FLAG_PUB) != 0) {
+			if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
+
 			// Public: return list of users that exist
 			size_t s = 0;
 			for (unsigned int i = 0; i < 4095; i++) {
