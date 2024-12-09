@@ -466,23 +466,7 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 
 // API: POST (Status)
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
-	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) == 0) {
-		// Verify user owns their sending address
-		if (api_uid != hashToUid(addressToHash(reqData), (reqData[0] & 128) != 0, NULL))
-			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_OWN_ADDR);
-
-		// Get recipient address
-		const uint64_t hash = addressToHash(reqData + 10);
-		if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Invalid address
-
-		unsigned char addrFlags = 0;
-		const uint16_t uid = hashToUid(hash, (reqData[10] & 128) != 0, &addrFlags);
-		if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Address not registered
-		if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
-
-		memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
-		return 2;
-	} else {
+	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) != 0) {
 		if (user[api_uid]->level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 		const unsigned char * const addrEnd = memchr(reqData, '\0', AEM_API_REQ_DATA_LEN);
@@ -502,6 +486,35 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		} else {
 			memcpy(res + sizeof(uint16_t), rsaUsersKey, lenRsaUsersKey);
 			return sizeof(uint16_t) + lenRsaUsersKey;
+		}
+	} else { // Internal mail
+		// Verify user owns their sending address
+		if (api_uid != hashToUid(addressToHash(reqData), (reqData[0] & 128) != 0, NULL))
+			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_OWN_ADDR);
+
+		if ((flags & AEM_API_MESSAGE_CREATE_FLAG_PUB) != 0) {
+			// Public: return list of users that exist
+			size_t s = 0;
+			for (unsigned int i = 0; i < 4095; i++) {
+				if (user[i] == NULL) continue;
+				res[s] = i & 255;
+				res[s + 1] = i >> 8;
+				s += 2;
+			}
+
+			return s;
+		} else {
+			// Individual: get recipient address
+			const uint64_t hash = addressToHash(reqData + 10);
+			if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Invalid address
+
+			unsigned char addrFlags = 0;
+			const uint16_t uid = hashToUid(hash, (reqData[10] & 128) != 0, &addrFlags);
+			if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Address not registered
+			if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
+
+			memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
+			return 2;
 		}
 	}
 }

@@ -175,6 +175,7 @@ enum aem_api_command_post {
 #define AEM_API_MESSAGE_BROWSE_FLAG_OLDER 1 // Older, instead of newer
 #define AEM_API_MESSAGE_BROWSE_FLAG_UINFO 2 // Include user info
 #define AEM_API_MESSAGE_CREATE_FLAG_EMAIL 1 // Send email, not internal mail
+#define AEM_API_MESSAGE_CREATE_FLAG_PUB   4 // Public: send to all users
 #define AEM_API_MESSAGE_CREATE_FLAG_E2EE  2 // End-to-end encrypted
 #define AEM_API_MESSAGE_DELETE_FLAG_EMPTY 1 // Empty storage completely
 

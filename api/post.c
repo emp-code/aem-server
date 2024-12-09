@@ -271,14 +271,36 @@ static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
-static unsigned char message_create(const int flags, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
-	if (lenCuid == 0) return AEM_API_ERR_INTERNAL;
-	if (lenCuid == 1) return cuid[0];
-	const bool isAdmin = (cuid[1] & 128) != 0;
-	const uint16_t uid = *(const uint16_t*)cuid & 4095;
+static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+	const uint32_t ts = (uint32_t)time(NULL);
+	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 16 + lenSrc;
+	const size_t padAmount = msg_getPadAmount(lenMsg);
+	lenMsg += padAmount;
 
-	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL && lenCuid > 2) {
-		return send_email(uid, isAdmin, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
+	unsigned char msg[lenMsg];
+	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
+	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 128; // IntMsg InfoByte: Public
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData, 10); // From Addr32
+	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 16, src, lenSrc);
+
+	bool ok = true;
+	for (int i = 0; i < count; i++) {
+		if (intcom(AEM_INTCOM_SERVER_STO, uid[i], msg, lenMsg, NULL, 0) == AEM_INTCOM_RESPONSE_ERR) ok = false;
+	}
+
+	return ok? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
+}
+
+static unsigned char message_create(const int flags, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+	if (lenCuid < 1) return AEM_API_ERR_INTERNAL;
+	if (lenCuid == 1) return cuid[0];
+
+	const uint16_t uid = *(const uint16_t*)cuid & 4095;
+	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) != 0 && lenCuid > 2) {
+		return send_email(uid, (cuid[1] & 128) != 0, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
+	} else if ((flags & AEM_API_MESSAGE_CREATE_FLAG_PUB) != 0) {
+		return send_pmail((const uint16_t * const)cuid, lenCuid / 2, urlData, src, lenSrc);
 	} else if (lenCuid == 2) {
 		return send_imail(uid, urlData, src, lenSrc, (flags == AEM_API_MESSAGE_CREATE_FLAG_E2EE));
 	}
