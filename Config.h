@@ -35,4 +35,4 @@
 #define AEM_BACKLOG 25
 
 // Misc
-#define AEM_USER_SIZE 5120 // Size of each of the 4096 users. Determines the size of the Private field. 5 KiB * 4096 = 20 MiB.
+#define AEM_USER_SIZE 8192 // Size of each of the 4096 users. Determines the size of the Private field. 8 KiB * 4096 = 32 MiB.

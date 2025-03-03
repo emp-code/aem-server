@@ -11,7 +11,6 @@
 #include "format.h"
 
 #include "store.h"
-
 int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * const email, unsigned char * const srcBr, const size_t lenSrcBr) {
 	if (email->attachCount > 31) email->attachCount = 31;
 	int32_t deliveryStatus = AEM_INTCOM_RESPONSE_OK;
@@ -45,7 +44,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 		// Store attachments, if requested
 		if ((meta->toFlags[i] & AEM_ADDR_FLAG_ATTACH) != 0) {
 			for (int j = 0; j < email->attachCount; j++) {
-				memcpy(email->attachment[j] + AEM_ENVELOPE_RESERVED_LEN + 6, &parentId, sizeof(uint16_t));
+				memcpy(email->attachment[j] + AEM_MSG_HDR_SZ + 1, &parentId, sizeof(uint16_t));
 
 				stoRet = intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], email->attachment[j], email->lenAttachment[j], NULL, 0);
 				if (stoRet < -1 * (UINT16_MAX + 1)) {
@@ -57,7 +56,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 		// Store original, if requested
 		if (srcBr != NULL && lenSrcBr > 0 && (meta->toFlags[i] & AEM_ADDR_FLAG_ORIGIN) != 0) {
-			memcpy(srcBr + AEM_ENVELOPE_RESERVED_LEN + 6, &parentId, sizeof(uint16_t));
+			memcpy(srcBr + AEM_MSG_HDR_SZ + 1, &parentId, sizeof(uint16_t));
 			intcom(AEM_INTCOM_SERVER_STO, meta->toUid[i], srcBr, lenSrcBr, NULL, 0); // Ignore failure
 		}
 	}

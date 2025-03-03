@@ -480,21 +480,17 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 					*lenOut += lenNew + 1;
 				}
 			} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-				size_t lenAtt = AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn + lenNew;
-				const size_t padAmount = msg_getPadAmount(lenAtt);
-				if (lenAtt + padAmount >= AEM_ENVELOPE_MINBLOCKS * 16 && lenAtt <= AEM_ENVELOPE_MAXSIZE) {
-					email->attachment[email->attachCount] = malloc(lenAtt + padAmount);
+				size_t lenAtt = AEM_MSG_HDR_SZ + 1 + lenFn + lenNew;
+				if (lenAtt <= AEM_MSG_W_MAXSIZE) {
+					email->attachment[email->attachCount] = malloc(lenAtt);
 					if (email->attachment[email->attachCount] != NULL) {
-						email->attachment[email->attachCount][AEM_ENVELOPE_RESERVED_LEN] = padAmount | 32;
-						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 1, &email->timestamp, 4);
-						email->attachment[email->attachCount][AEM_ENVELOPE_RESERVED_LEN + 5] = 128 | (lenFn - 1);
+						email->attachment[email->attachCount][AEM_MSG_HDR_SZ] = 128 | (lenFn - 1);
 						// 2 bytes reserved for ParentID
-						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 8, fn, lenFn);
-						memcpy(email->attachment[email->attachCount] + AEM_ENVELOPE_RESERVED_LEN + 8 + lenFn, new, lenNew);
+						memcpy(email->attachment[email->attachCount] + AEM_MSG_HDR_SZ + 3, fn, lenFn);
+						memcpy(email->attachment[email->attachCount] + AEM_MSG_HDR_SZ + 3 + lenFn, new, lenNew);
 						free(new);
-						bzero(email->attachment[email->attachCount] + lenAtt, padAmount);
 
-						email->lenAttachment[email->attachCount] = lenAtt + padAmount;
+						email->lenAttachment[email->attachCount] = lenAtt;
 						(email->attachCount)++;
 					} else {free(new); syslog(LOG_ERR, "Failed allocation");}
 				} else free(new); // Attachment too large

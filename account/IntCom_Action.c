@@ -18,7 +18,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
-	struct aem_req * const req = (struct aem_req * const)msg;
+	union aem_req * const req = (union aem_req * const)msg;
 
 	*res = malloc(30720); // 30 KiB (largest response is Account/Browse, ~20 KiB?)
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
@@ -28,15 +28,15 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 	int32_t icRet = AEM_INTCOM_RESPONSE_ERR;
 	if (!post) {
-		switch (req->cmd) {
+		switch (req->n.cmd) {
 			case AEM_API_ACCOUNT_BROWSE: icRet = api_account_browse(*res + AEM_LEN_APIRESP_BASE); break;
-			case AEM_API_ACCOUNT_DELETE: icRet = api_account_delete(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_ACCOUNT_UPDATE: icRet = api_account_update(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_ADDRESS_CREATE: icRet = api_address_create(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_ADDRESS_DELETE: icRet = api_address_delete(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_ADDRESS_UPDATE: icRet = api_address_update(*res + AEM_LEN_APIRESP_BASE, req->data); break;
-			case AEM_API_MESSAGE_BROWSE: icRet = api_message_browse(*res + AEM_LEN_APIRESP_BASE, req->flags); break;
-			case AEM_API_SETTING_LIMITS: icRet = api_setting_limits(*res + AEM_LEN_APIRESP_BASE, req->data); break;
+			case AEM_API_ACCOUNT_DELETE: icRet = api_account_delete(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
+			case AEM_API_ACCOUNT_UPDATE: icRet = api_account_update(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
+			case AEM_API_ADDRESS_CREATE: icRet = api_address_create(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
+			case AEM_API_ADDRESS_DELETE: icRet = api_address_delete(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
+			case AEM_API_ADDRESS_UPDATE: icRet = api_address_update(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
+			case AEM_API_MESSAGE_BROWSE: icRet = api_message_browse(*res + AEM_LEN_APIRESP_BASE, req->n.flags); break;
+			case AEM_API_SETTING_LIMITS: icRet = api_setting_limits(*res + AEM_LEN_APIRESP_BASE, req->c.data); break;
 
 			// No action needed
 			case AEM_API_MESSAGE_DELETE:
@@ -46,9 +46,9 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 			default:
 				icRet = api_invalid(*res + AEM_LEN_APIRESP_BASE);
-				syslog(LOG_INFO, "Unknown API command (GET): %d", req->cmd);
+				syslog(LOG_INFO, "Unknown API command (GET): %d", req->n.cmd);
 		}
-	} else if (req->cmd == AEM_API_ACCOUNT_CREATE || req->cmd == AEM_API_PRIVATE_UPDATE) {
+	} else if (req->n.cmd == AEM_API_ACCOUNT_CREATE || req->n.cmd == AEM_API_PRIVATE_UPDATE) {
 		if (lenMsg == AEM_API_REQ_LEN) {
 			icRet = AEM_INTCOM_RESPONSE_CONTINUE;
 		} else if (lenMsg > AEM_API_REQ_LEN) {
@@ -59,7 +59,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 			const size_t lenDecBody = lenMsg - AEM_API_REQ_LEN - crypto_aead_aes256gcm_ABYTES;
 			unsigned char decBody[lenDecBody];
 			if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, nonce, *res + 1 + AEM_API_REQ_DATA_LEN) == 0) {
-				icRet = (req->cmd == AEM_API_ACCOUNT_CREATE) ?
+				icRet = (req->n.cmd == AEM_API_ACCOUNT_CREATE) ?
 					api_account_create(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody)
 				:
 					api_private_update(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody);
@@ -68,12 +68,12 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 		// For user privacy, erase all but the response key from our response to AEM-API
 		sodium_memzero(*res, AEM_LEN_APIRESP_BASE - AEM_API_BODY_KEYSIZE);
-	} else if (req->cmd == AEM_API_MESSAGE_CREATE) {
-		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->data, req->flags);
-	} else if (req->cmd == AEM_API_MESSAGE_UPLOAD) {
+	} else if (req->n.cmd == AEM_API_MESSAGE_CREATE) {
+		icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->c.data, req->n.flags);
+	} else if (req->n.cmd == AEM_API_MESSAGE_UPLOAD) {
 		icRet = 0; // No action needed
 	} else {
-		syslog(LOG_INFO, "Unknown API command (POST): %d", req->cmd);
+		syslog(LOG_INFO, "Unknown API command (POST): %d", req->n.cmd);
 		icRet = AEM_INTCOM_RESPONSE_ERR;
 	}
 
@@ -85,7 +85,6 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 	}
 
 	// TODO: For user privacy, erase fields added by api_auth that AEM-API doesn't need to know for whichever particular command
-	updateBinTs(req->uid, req->binTs);
 	return AEM_LEN_APIRESP_BASE + icRet;
 }
 

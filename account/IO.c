@@ -30,6 +30,13 @@
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
 
+enum {
+	AEM_UAK_TYPE_URL_AUTH,
+	AEM_UAK_TYPE_URL_DATA,
+	AEM_UAK_TYPE_BODY_REQ,
+	AEM_UAK_TYPE_BODY_RES
+};
+
 static struct aem_user *user[AEM_USERCOUNT];
 
 size_t lenRsaAdminKey;
@@ -356,7 +363,9 @@ int32_t api_address_delete(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
+// FIXME
 int32_t api_address_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
+/*
 	memcpy(user[api_uid]->addrFlag, (unsigned char[]){
 		(user[api_uid]->addrFlag[0]  & 192) |  (reqData[0]  &  63),
 		(user[api_uid]->addrFlag[1]  & 192) | ((reqData[0]  & 192) >> 2) | (reqData[1]  & 15),
@@ -391,8 +400,8 @@ int32_t api_address_update(unsigned char * const res, const unsigned char reqDat
 		(user[api_uid]->addrFlag[30] & 192) | ((reqData[22] & 240) >> 2) | (reqData[23]  &  3)
 		// Last 6 bits unused
 	}, AEM_ADDRESSES_PER_USER);
-
 	saveUser();
+*/
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
@@ -438,7 +447,7 @@ int32_t api_account_create(unsigned char * const res, const unsigned char * cons
 	bzero(user[newUid], sizeof(struct aem_user));
 
 	memcpy(user[newUid]->uak, data, AEM_KDF_SUB_KEYLEN);
-	memcpy(user[newUid]->epk, data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
+	memcpy(user[newUid]->pwk, data + AEM_KDF_SUB_KEYLEN, AEM_PWK_KEYLEN);
 	saveUser();
 
 	unsigned char icMsg[sizeof(uint16_t) + X25519_PKBYTES];
@@ -523,47 +532,48 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 
 //
 static void uak_derive(unsigned char * const out, const int lenOut, const uint64_t binTs, const uint16_t uid, const bool post, const unsigned long long type) {
-	aem_kdf_sub(out, lenOut, binTs | (post? (128LLU << 40) : 0) | (type << 40), user[uid]->uak);
+	aem_kdf_sub(out, lenOut, binTs | (post? (1LLU << 47) : 0) | (type << 45), user[uid]->uak);
 }
 
-static bool auth_binTs(const uint16_t uid, const uint64_t reqBinTs) {
-	uint64_t prevBinTs = 0;
-	memcpy((unsigned char*)&prevBinTs, user[uid]->lastBinTs, 5);
-	return (reqBinTs > prevBinTs);
-}
+bool api_auth(unsigned char * const res, union aem_req * const req, const bool post) {
+	// Find which (if any) user has a key that authenticates this request
+	bool found = false;
+	api_uid = 0;
+	for (;api_uid < AEM_USERCOUNT; api_uid++) {
+		if (user[api_uid] == NULL) continue;
 
-void updateBinTs(const uint16_t uid, uint64_t reqBinTs) {
-	if (user[uid] == NULL) return;
-	memcpy(user[uid]->lastBinTs, (const unsigned char*)&reqBinTs, 5);
-}
+		unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
+		uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_AUTH);
+		if (crypto_onetimeauth_verify(req->c.mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) == 0) {
+			found = true;
+			break;
+		}
 
-bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post) {
-	if (user[req->uid] == NULL) return false;
+		if (req->n.binTs <= user[api_uid]->lastBinTs) return false; // This request isn't newer than the last recorded one - suspected replay attack
+	}
 
-	// Authenticate
-	unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
-	uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_AUTH);
-	if (crypto_onetimeauth_verify(req->mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) != 0) return false;
-	if (!auth_binTs(req->uid, req->binTs)) return false;
+	if (!found) return false;
+	user[api_uid]->lastBinTs = req->n.binTs;
 
 	// Decrypt
-	unsigned char req_key_data[1 + AEM_API_REQ_DATA_LEN];
-	uak_derive(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->binTs, req->uid, post, AEM_UAK_TYPE_URL_DATA);
+	unsigned char req_key_data[2 + AEM_API_REQ_DATA_LEN];
+	uak_derive(req_key_data, 2 + AEM_API_REQ_DATA_LEN, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_DATA);
 
-	req->cmd ^= req_key_data[0] & 15;
-	req->flags ^= req_key_data[0] >> 4;
+	req->n.cmd ^= req_key_data[0] & 63;
+	req->n.flags ^= req_key_data[1];
 
 	for (int i = 0; i < AEM_API_REQ_DATA_LEN; i++) {
-		req->data[i] ^= req_key_data[1 + i];
+		req->c.data[i] ^= req_key_data[2 + i];
 	}
 
 	// Copy data to the base response
-	res[0] = req->cmd | (req->flags << 4);
-	memcpy(res + 1, req->data, AEM_API_REQ_DATA_LEN);
-	uak_derive(res + 1 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->binTs, req->uid, post, AEM_UAK_TYPE_BODY_REQ);
-	uak_derive(res + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->binTs, req->uid, post, AEM_UAK_TYPE_BODY_RES);
+	res[0] = req->n.cmd;
+	res[1] = req->n.flags;
+	res[2] = api_uid;
+	memcpy(res + 3, req->c.data, AEM_API_REQ_DATA_LEN);
+	uak_derive(res + 3 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_REQ);
+	uak_derive(res + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_RES);
 
-	api_uid = req->uid;
 	return true;
 }
 
@@ -601,7 +611,7 @@ int32_t sto_uid2epk(const uint16_t uid, unsigned char **res) {
 	*res = malloc(X25519_PKBYTES);
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	memcpy(*res, user[uid]->epk, X25519_PKBYTES);
+	memcpy(*res, user[uid]->pwk, AEM_PWK_KEYLEN);
 	return X25519_PKBYTES;
 }
 

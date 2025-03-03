@@ -55,7 +55,7 @@ static void message_browse(const uint16_t uid, const int flags, const unsigned c
 		return;
 	}
 
-	if (stoRet < (AEM_ENVELOPE_MINSIZE + 8) || stoRet > (AEM_ENVELOPE_MAXSIZE * 2)) {
+	if (stoRet < 8 || stoRet > AEM_EVP_MAXSIZE) {
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
 		const unsigned char rb = AEM_API_ERR_INTERNAL;
@@ -209,34 +209,30 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	const size_t lenSb = strlen(email.subject);
 	const size_t lenFr = strlen(email.addrFrom);
 	const size_t lenTo = strlen(email.addrTo);
-	size_t lenDr = AEM_ENVELOPE_RESERVED_LEN + 22 + lenFr + lenTo + lenMx + lenAs + lenRd + info.lenGreeting + info.lenStatus + lenSb + email.lenBody;
-	const size_t drPad = msg_getPadAmount(lenDr);
-	lenDr += drPad;
 
+	size_t lenDr = AEM_MSG_HDR_SZ + 17 + lenFr + lenTo + lenMx + lenAs + lenRd + info.lenGreeting + info.lenStatus + lenSb + email.lenBody;
 	unsigned char dr[lenDr];
-	dr[AEM_ENVELOPE_RESERVED_LEN] = drPad | 48; // 48=OutMsg
-	const uint32_t ts = (uint32_t)time(NULL);
-	memcpy(dr + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
 
-	dr[AEM_ENVELOPE_RESERVED_LEN + 5] = lenSb;
-	memcpy(dr + AEM_ENVELOPE_RESERVED_LEN + 6, &email.ip, 4);
+	aem_msg_init(dr, AEM_MSG_TYPE_OUT, 0);
+	dr[AEM_MSG_HDR_SZ] = lenSb;
+	memcpy(dr + AEM_MSG_HDR_SZ + 1, &email.ip, 4);
 
 	// TODO TLS ciphersuite: 2 bytes
-	dr[AEM_ENVELOPE_RESERVED_LEN + 10] = 0;
-	dr[AEM_ENVELOPE_RESERVED_LEN + 11] = 0;
+	dr[AEM_MSG_HDR_SZ + 5] = 0;
+	dr[AEM_MSG_HDR_SZ + 6] = 0;
 
-	/* IB 0 */ dr[AEM_ENVELOPE_RESERVED_LEN + 12] = 0; // TODO: TLS Version + Attachments
-	/* IB 1 */ dr[AEM_ENVELOPE_RESERVED_LEN + 13] = email.cc & 31;
-	/* IB 2 */ dr[AEM_ENVELOPE_RESERVED_LEN + 14] = (email.cc >> 8) & 31;
-	/* IB 3 */ dr[AEM_ENVELOPE_RESERVED_LEN + 15] = lenFr;
-	/* IB 4 */ dr[AEM_ENVELOPE_RESERVED_LEN + 16] = lenTo;
-	/* IB 5 */ dr[AEM_ENVELOPE_RESERVED_LEN + 17] = lenMx;
-	/* IB 6 */ dr[AEM_ENVELOPE_RESERVED_LEN + 18] = lenAs;
-	/* IB 7 */ dr[AEM_ENVELOPE_RESERVED_LEN + 19] = lenRd;
-	/* IB 8 */ dr[AEM_ENVELOPE_RESERVED_LEN + 20] = info.lenGreeting;
-	/* IB 9 */ dr[AEM_ENVELOPE_RESERVED_LEN + 21] = info.lenStatus;
+	/* IB 0 */ dr[AEM_MSG_HDR_SZ + 7] = 0; // TODO: TLS Version + Attachments
+	/* IB 1 */ dr[AEM_MSG_HDR_SZ + 8] = email.cc & 31;
+	/* IB 2 */ dr[AEM_MSG_HDR_SZ + 9] = (email.cc >> 8) & 31;
+	/* IB 3 */ dr[AEM_MSG_HDR_SZ + 10] = lenFr;
+	/* IB 4 */ dr[AEM_MSG_HDR_SZ + 11] = lenTo;
+	/* IB 5 */ dr[AEM_MSG_HDR_SZ + 12] = lenMx;
+	/* IB 6 */ dr[AEM_MSG_HDR_SZ + 13] = lenAs;
+	/* IB 7 */ dr[AEM_MSG_HDR_SZ + 14] = lenRd;
+	/* IB 8 */ dr[AEM_MSG_HDR_SZ + 15] = info.lenGreeting;
+	/* IB 9 */ dr[AEM_MSG_HDR_SZ + 16] = info.lenStatus;
 
-	int off = AEM_ENVELOPE_RESERVED_LEN + 22;
+	int off = AEM_MSG_HDR_SZ + 17;
 	memcpy(dr + off, email.addrFrom, lenFr);           off += lenFr;
 	memcpy(dr + off, email.addrTo, lenTo);             off += lenTo;
 	memcpy(dr + off, email.mxDomain, lenMx);           off += lenMx;
@@ -246,46 +242,37 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	memcpy(dr + off, info.status, info.lenStatus);     off += info.lenStatus;
 	memcpy(dr + off, email.subject, lenSb);            off += lenSb;
 	memcpy(dr + off, email.body, email.lenBody);       off += email.lenBody;
+	free(email.body);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, dr, lenDr, NULL, 0);
-
-	free(email.body);
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
 static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const bool e2ee) {
-	const uint32_t ts = (uint32_t)time(NULL);
-	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 28 + lenSrc;
-	const size_t padAmount = msg_getPadAmount(lenMsg);
-	lenMsg += padAmount;
-
+	size_t lenMsg = AEM_MSG_HDR_SZ + 23 + lenSrc;
 	unsigned char msg[lenMsg];
-	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = e2ee ? 64 : 0; // IntMsg InfoByte
-	memset(msg + AEM_ENVELOPE_RESERVED_LEN + 6, 0xFF, 2); // TODO
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 8, urlData, 20); // From/To Addr32
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 28, src, lenSrc);
+	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
+
+	msg[AEM_MSG_HDR_SZ] = e2ee ? 64 : 0; // IntMsg InfoByte
+	memset(msg + AEM_MSG_HDR_SZ + 1, 0xFF, 2); // TODO
+	memcpy(msg + AEM_MSG_HDR_SZ + 3, urlData, 20); // From/To Addr32
+	memcpy(msg + AEM_MSG_HDR_SZ + 23, src, lenSrc);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
 static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
-	const uint32_t ts = (uint32_t)time(NULL);
-	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 16 + lenSrc;
-	const size_t padAmount = msg_getPadAmount(lenMsg);
-	lenMsg += padAmount;
-
+	size_t lenMsg = AEM_MSG_HDR_SZ + 11 + lenSrc;
 	unsigned char msg[lenMsg];
-	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 128; // IntMsg InfoByte: Public
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData, 10); // From Addr32
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 16, src, lenSrc);
+	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
+
+	msg[AEM_MSG_HDR_SZ] = 128; // IntMsg InfoByte: Public
+	memcpy(msg + AEM_MSG_HDR_SZ + 1, urlData, 10); // From Addr32
+	memcpy(msg + AEM_MSG_HDR_SZ + 11, src, lenSrc);
 
 	bool ok = true;
-	for (int i = 0; i < count; i++) {
+	for (unsigned int i = 0; i < count; i++) {
 		if (intcom(AEM_INTCOM_SERVER_STO, uid[i], msg, lenMsg, NULL, 0) == AEM_INTCOM_RESPONSE_ERR) ok = false;
 	}
 
@@ -315,17 +302,13 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 }
 
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
-	const uint32_t ts = (uint32_t)time(NULL);
-	size_t lenMsg = AEM_ENVELOPE_RESERVED_LEN + 5 + AEM_API_REQ_DATA_LEN + lenSrc;
-	const size_t padAmount = msg_getPadAmount(lenMsg);
-	lenMsg += padAmount;
-
+	size_t lenMsg = AEM_MSG_HDR_SZ + AEM_API_REQ_DATA_LEN + lenSrc;
 	unsigned char msg[lenMsg];
-	msg[AEM_ENVELOPE_RESERVED_LEN] = 32 | padAmount; // 32=UplMsg
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = urlData[0] & 127; // lenFileName
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, urlData + 1, AEM_API_REQ_DATA_LEN - 1);
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 5 + AEM_API_REQ_DATA_LEN, src, lenSrc);
+	aem_msg_init(msg, AEM_MSG_TYPE_UPL, 0);
+
+	msg[AEM_MSG_HDR_SZ] = urlData[0] & 127; // lenFileName
+	memcpy(msg + AEM_MSG_HDR_SZ + 1, urlData + 1, AEM_API_REQ_DATA_LEN - 1);
+	memcpy(msg + AEM_MSG_HDR_SZ + AEM_API_REQ_DATA_LEN, src, lenSrc);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
@@ -450,7 +433,7 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 	// Forward the request to Account
 	unsigned char *icData = NULL;
-	int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, (const unsigned char * const)req, AEM_API_REQ_LEN, &icData, 0);
+	int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, req, AEM_API_REQ_LEN, &icData, 0);
 
 	if (icRet == AEM_INTCOM_RESPONSE_AUTHFAIL) {respond403(); return;}
 
@@ -463,34 +446,31 @@ void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
 
 	// The request is authentic
 	const long lenBody = isPost? readHeaders() : 0;
-	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_SRC_MAXSIZE)) {
+	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_W_MAXSIZE)) {
 		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 			respond400();
 			return;
 		}
 
-		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 		const unsigned char rb = AEM_API_ERR_POST;
 		apiResponse(&rb, 1);
 	} else if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 		return (isPost && lenBody < 99999) ? handleContinue(req, lenBody) : respond500();
 	} else {
-		const int cmd = icData[0] & 15;
-		const int flags = icData[0] >> 4;
-		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
-		const struct aem_req * const req_s = (struct aem_req*)req;
+		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 
 		if (isPost) {
 			unsigned char * const postBody = malloc(lenBody);
 			if (postBody == NULL) {
 				syslog(LOG_ERR, "Failed malloc");
 			} else {
-				const unsigned char rb = handlePost(cmd, flags, req_s->uid, icData + 1, icData + 1 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
+				const unsigned char rb = handlePost(icData[0], icData[1], icData[2], icData + 3, icData + 3 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
 				free(postBody);
 				apiResponse(&rb, 1);
 			}
 		} else {
-			handleGet(cmd, flags, req_s->uid, icData + 1, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
+			handleGet(icData[0], icData[1], icData[2], icData + 3, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
 		}
 	}
 

@@ -1,12 +1,13 @@
 #ifndef AEM_SIGNATURE_H
 #define AEM_SIGNATURE_H
 
-#define AEM_SIG_KEYLEN 32
+#include "../Global.h"
+#include "Message.h"
 
 void setSigKey(const unsigned char * const newKey);
 void delSigKey(void);
 
-void aem_sign_message(unsigned char * const msg, const size_t lenMsg);
-bool aem_sig_verify(const unsigned char * const baseHash, const unsigned char * const sig);
+void aem_sign_message(unsigned char * const msg, const size_t lenMsg, const unsigned char usk[AEM_USK_KEYLEN]);
+bool aem_sig_verify(const unsigned char uHash[56], const unsigned char sHash_test[28]);
 
 #endif

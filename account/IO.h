@@ -12,8 +12,7 @@ void ioFree(void);
 void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, const unsigned char * const keyUsers, const size_t lenKeyUsers);
 
 // IntCom_Action
-bool api_auth(unsigned char * const res, struct aem_req * const req, const bool post);
-void updateBinTs(const uint16_t uid, uint64_t reqBinTs);
+bool api_auth(unsigned char * const res, union aem_req * const req, const bool post);
 
 // API: Special
 int32_t api_invalid(unsigned char * const res);

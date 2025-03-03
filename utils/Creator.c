@@ -44,33 +44,26 @@ static int createFile(const char * const fn, const unsigned char * const data, c
 	return 0;
 }
 
-static unsigned char *welcomeEnvelope(const unsigned char epk[X25519_PKBYTES], size_t * const lenEnvelope) {
-	const uint32_t ts = (uint32_t)time(NULL);
-	*lenEnvelope = AEM_ENVELOPE_RESERVED_LEN + 6 + AEM_WELCOME_MA_LEN;
-	const size_t padAmount = msg_getPadAmount(*lenEnvelope);
-	*lenEnvelope += padAmount;
+static unsigned char *welcomeEnvelope(const struct evpKeys * const ek, size_t * const lenEvp) {
+	const size_t lenMsg = AEM_MSG_HDR_SZ + 1 + AEM_WELCOME_MA_LEN;
+	unsigned char msg[lenMsg];
+	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
 
-	unsigned char * const msg = malloc(*lenEnvelope);
-	if (msg == NULL) return NULL;
+	msg[AEM_MSG_HDR_SZ] = 192; // IntMsg InfoByte: System
+	memcpy(msg + AEM_MSG_HDR_SZ + 1, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
 
-	msg[AEM_ENVELOPE_RESERVED_LEN] = padAmount | 16; // 16=IntMsg
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 1, &ts, 4);
-	msg[AEM_ENVELOPE_RESERVED_LEN + 5] = 192; // IntMsg InfoByte: System
-	memcpy(msg + AEM_ENVELOPE_RESERVED_LEN + 6, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
-	bzero(msg + *lenEnvelope - padAmount, padAmount);
-
-	message_into_envelope(msg, *lenEnvelope, epk, NULL, 0);
-	return msg;
+	aem_sign_message(msg, lenMsg, ek->usk);
+	return msg2evp(msg, lenMsg, ek->pwk, NULL, 0, lenEvp);
 }
 
-static int createWelcome(const unsigned char ma_epk[X25519_PKBYTES], const unsigned char * const sbk) {
+static int createWelcome(const struct evpKeys * const ek, const unsigned char * const sbk) {
 	// Create the MA's welcome Envelope
 	size_t lenWm = 0;
-	unsigned char * const wm = welcomeEnvelope(ma_epk, &lenWm);
+	unsigned char * const wm = welcomeEnvelope(ek, &lenWm);
 	if (wm == NULL) return -1;
-	const uint16_t wmBc = (lenWm / 16) - AEM_ENVELOPE_MINBLOCKS;
+	const uint16_t wmBc = (lenWm / AEM_EVP_BLOCKSIZE) - AEM_EVP_MINBLOCKS;
 
-	// Save the MA's Envelope file
+// Save the MA's Envelope file
 	const char eid_char0 = get_eid_char0(sbk);
 	const int ret = createFile((char[]){'M','s','g','/', eid_char0, eid_char0, '\0'}, wm, lenWm);
 	free(wm);
@@ -158,11 +151,11 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 		if (aem_getUserId(user->uak) == 0) {
 			user->level = AEM_USERLEVEL_MAX;
 
-			// Set the EPK
-			unsigned char esk[crypto_scalarmult_SCALARBYTES];
-			aem_kdf_umk(esk, crypto_scalarmult_SCALARBYTES, AEM_KDF_KEYID_UMK_ESK, ma_umk);
-			crypto_scalarmult_base(user->epk, esk);
-			sodium_memzero(esk, crypto_scalarmult_SCALARBYTES);
+			// Set the public keys
+			unsigned char secret[X25519_SKBYTES];
+			aem_kdf_umk(secret, X25519_SKBYTES, AEM_KDF_KEYID_UMK_ESK, ma_umk);
+			crypto_scalarmult_base(user->pwk, secret);
+			sodium_memzero(secret, X25519_SKBYTES);
 			break;
 		}
 	}
@@ -170,23 +163,32 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 
 static int makeStorage(unsigned char * const smk, const struct aem_user * const user) {
 	// Derive keys
-	unsigned char sbk[AEM_KDF_SUB_KEYLEN];
+	unsigned char sbk[AEM_KDF_SUB_KEYLEN]; // Storage Base Key
 	aem_kdf_smk(sbk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_STO, smk);
 
-	unsigned char sigKey[AEM_SIG_KEYLEN];
-	aem_kdf_sub(sigKey, AEM_SIG_KEYLEN, AEM_KDF_KEYID_STO_SIG, sbk);
-	setSigKey(sigKey);
-	sodium_memzero(sigKey, AEM_SIG_KEYLEN);
+	unsigned char ssk[AEM_SSK_KEYLEN]; // Server Signature Key
+	aem_kdf_sub(ssk, AEM_SSK_KEYLEN, AEM_KDF_KEYID_STO_SIG, sbk);
 
-	if (createWelcome(user->epk, sbk) != 0) {puts("Failed creating message"); return -1;}
+	setSigKey(ssk);
+	sodium_memzero(ssk, AEM_SSK_KEYLEN);
 
+	struct evpKeys ek;
+	memcpy(ek.pwk, user->pwk, AEM_PWK_KEYLEN);
+	memcpy(ek.usk, user->usk, AEM_USK_KEYLEN);
+
+	const int ret = createWelcome(&ek, sbk);
 	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
+	sodium_memzero(ek.pwk, AEM_PWK_KEYLEN);
+	sodium_memzero(ek.usk, AEM_USK_KEYLEN);
+
 	delSigKey();
+	if (ret != 0) {puts("Failed creating message"); return -1;}
 	return 0;
 }
 
 int main(void) {
-	puts("AEM-Creator - Sets up a new All-Ears Mail home folder.");
+	puts("AEM-Creator: Sets up a new All-Ears Mail home folder.");
+	printf("Bytes per user: %d (Private: %d)\n", sizeof(struct aem_user), AEM_LEN_PRIVATE);
 
 	if (sodium_init() < 0) {puts("Failed sodium_init"); return 1;}
 	if (createDirs() != 0) return 2;

@@ -114,94 +114,86 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	}
 
 	// Compress the data
-	const size_t lenHead = 28 + (email->dkimCount * AEM_DKIM_INFOBYTES);
-	size_t lenContent = lenUncomp + 300; // 300 for compression/padding overhead
-	unsigned char * const content = malloc(AEM_ENVELOPE_RESERVED_LEN + lenHead + lenContent);
-	if (content == NULL) {
+	const size_t lenHead = AEM_MSG_HDR_SZ + 23 + (email->dkimCount * AEM_DKIM_INFOBYTES); // 23: ExtMsg header
+	size_t lenBody = lenUncomp + 300; // 300 for overhead
+	unsigned char * const msg = malloc(lenHead + lenBody);
+	if (msg == NULL) {
 		syslog(LOG_ERR, "Failed malloc");
 		free(uncomp);
 		return NULL;
 	}
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenContent, content + AEM_ENVELOPE_RESERVED_LEN + lenHead) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenBody, msg + lenHead) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed compression");
 		free(uncomp);
-		free(content);
+		free(msg);
 		return NULL;
 	}
 
 	free(uncomp);
 
-	// Create the ExtMsg
-	lenContent += AEM_ENVELOPE_RESERVED_LEN + lenHead;
-	const int lenPadding = msg_getPadAmount(lenContent);
-	randombytes_buf(content + lenContent, lenPadding);
-	lenContent += lenPadding;
-
-	if (lenContent < AEM_MSG_MINSIZE || lenContent > AEM_MSG_SRC_MAXSIZE) {
-		free(content);
+	const size_t lenMsg = lenHead + lenBody;
+	if (lenMsg > AEM_MSG_W_MAXSIZE) {
+		free(msg);
 		return NULL;
 	}
 
-	unsigned char * const head = content + AEM_ENVELOPE_RESERVED_LEN;
+// Message Header (AEM_MSG_HDR_SZ bytes)
+	aem_msg_init(msg, AEM_MSG_TYPE_EXT, 0);
 
-// Universal part
-	head[0] = lenPadding;
-	memcpy(head + 1, &(email->timestamp), 4);
-
-// ExtMsg Part
-	memcpy(head + 5, &email->ip, 4);
-	memcpy(head + 9, &email->tls_ciphersuite, 2);
-	head[11] = email->tlsInfo;
+// ExtMsg Header (23 bytes)
+	memcpy(msg + AEM_MSG_HDR_SZ, &email->ip, 4);
+	memcpy(msg + AEM_MSG_HDR_SZ + 4, &email->tls_ciphersuite, 2);
+	msg[AEM_MSG_HDR_SZ + 6] = email->tlsInfo;
 
 	// InfoBytes
-	head[12] = (email->dkimCount << 5) | (email->attachCount & 31); // InfoByte #1: DKIM & Attachments
+	msg[AEM_MSG_HDR_SZ + 7] = (email->dkimCount << 5) | (email->attachCount & 31); // InfoByte #1: DKIM & Attachments
 
-	head[13] = email->ccBytes[0]; // InfoByte #2
-	if (email->ipBlacklisted)   head[13] |= 128;
-	if (email->ipMatchGreeting) head[13] |=  64;
-	if (email->protocolEsmtp)   head[13] |=  32;
+	msg[AEM_MSG_HDR_SZ + 8] = email->ccBytes[0]; // InfoByte #2
+	if (email->ipBlacklisted)   msg[13] |= 128;
+	if (email->ipMatchGreeting) msg[13] |=  64;
+	if (email->protocolEsmtp)   msg[13] |=  32;
 
-	head[14] = email->ccBytes[1]; // InfoByte #3
-	if (email->invalidCommands)   head[14] |= 128;
-	if (email->protocolViolation) head[14] |=  63;
-	if (email->rareCommands)      head[14] |=  32;
+	msg[AEM_MSG_HDR_SZ + 9] = email->ccBytes[1]; // InfoByte #3
+	if (email->invalidCommands)   msg[14] |= 128;
+	if (email->protocolViolation) msg[14] |=  63;
+	if (email->rareCommands)      msg[14] |=  32;
 
-	head[15] = (email->spf   & 192) | (email->lenEnvTo & 63); // InfoByte #4
-	head[16] = (email->dmarc & 192) | (email->lenHdrTo & 63); // InfoByte #5
+	msg[AEM_MSG_HDR_SZ + 10] = (email->spf   & 192) | (email->lenEnvTo & 63); // InfoByte #4
+	msg[AEM_MSG_HDR_SZ + 11] = (email->dmarc & 192) | (email->lenHdrTo & 63); // InfoByte #5
 
 	// InfoByte #6
-	head[17] = email->lenGreet & 63;
-	if (email->dnssec) head[17] |= 128;
+	msg[AEM_MSG_HDR_SZ + 12] = email->lenGreet & 63;
+	if (email->dnssec) msg[17] |= 128;
 
 	// InfoByte #7
-	head[18] = email->lenRvDns & 63;
-	if (email->dane) head[18] |= 128;
+	msg[AEM_MSG_HDR_SZ + 13] = email->lenRvDns & 63;
+	if (email->dane) msg[18] |= 128;
 
 	// InfoByte #8
-	head[19] = email->lenAuSys & 63;
-	// [19] & 192 unused
+	msg[AEM_MSG_HDR_SZ + 14] = email->lenAuSys & 63;
+	// [AEM_MSG_HDR_SZ + 14] & 192 unused
 
 	// InfoBytes #9-13: Long-Text lengths; potential space for future expansion by reducing max lengths
-	head[20] = email->lenEnvFr & 255;
-	head[21] = email->lenHdrFr & 255;
-	head[22] = email->lenHdrRt & 255;
-	head[23] = email->lenMsgId & 255;
-	head[24] = email->lenSbjct & 255;
+	msg[AEM_MSG_HDR_SZ + 15] = email->lenEnvFr & 255;
+	msg[AEM_MSG_HDR_SZ + 16] = email->lenHdrFr & 255;
+	msg[AEM_MSG_HDR_SZ + 17] = email->lenHdrRt & 255;
+	msg[AEM_MSG_HDR_SZ + 18] = email->lenMsgId & 255;
+	msg[AEM_MSG_HDR_SZ + 19] = email->lenSbjct & 255;
 
 	// Final InfoByte (#14) + HeaderTs
-	// [25] & 128 unused
-	head[25] = email->hdrTz & 127;
-	memcpy(head + 26, &email->hdrTs, 2);
+	// [AEM_MSG_HDR_SZ + 20] & 128 unused
+	msg[AEM_MSG_HDR_SZ + 20] = email->hdrTz & 127;
+	memcpy(msg + AEM_MSG_HDR_SZ + 21, &email->hdrTs, 2);
 
 	// DKIM
-	offset = 28;
+	offset = AEM_MSG_HDR_SZ + 23;
 
 	for (int i = 0; i < email->dkimCount; i++) {
-		memcpy(head + offset, &email->dkim[i], AEM_DKIM_INFOBYTES);
+		memcpy(msg + offset, &email->dkim[i], AEM_DKIM_INFOBYTES);
 		offset += AEM_DKIM_INFOBYTES;
 	}
 
-	*lenOut = lenContent;
-	return content;
+	*lenOut = lenMsg;
+	return msg;
 }
