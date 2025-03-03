@@ -35,14 +35,14 @@ int main(int argc, char *argv[]) {
 	if (sodium_init() < 0) {fputs("Terminating: Failed sodium_init()", stderr); return EXIT_FAILURE;}
 
 	// Determine the normal address salt
-	unsigned char smk[AEM_KDF_MASTER_KEYLEN];
+	unsigned char smk[AEM_KDF_SMK_KEYLEN];
 	if (getKey(smk) != 0) {fputs("Failed reading key", stderr); return -1;}
 
 	unsigned char key_acc[AEM_KDF_SUB_KEYLEN];
-	aem_kdf_master(key_acc, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
+	aem_kdf_smk(key_acc, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
 	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN, AEM_KDF_KEYID_ACC_NRM, key_acc);
 	sodium_memzero(key_acc, AEM_KDF_SUB_KEYLEN);
-	sodium_memzero(smk, AEM_KDF_MASTER_KEYLEN);
+	sodium_memzero(smk, AEM_KDF_SMK_KEYLEN);
 
 	// Print the header file
 	puts("#ifndef AEM_DATA_ADDRESS_H");

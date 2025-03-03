@@ -40,7 +40,7 @@ utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
 utils/Creator: utils/Creator.c
-	$(CC) $(CFLAGS) -o utils/Creator Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c utils/Creator.c Common/GetKey.c Common/ToggleEcho.c Common/memeq.c -lsodium
+	$(CC) $(CFLAGS) -o utils/Creator -DAEM_KDF_UMK Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c utils/Creator.c Common/GetKey.c Common/ToggleEcho.c Common/memeq.c -lsodium
 
 utils/DataCrypt: utils/DataCrypt.c
 	$(CC) $(CFLAGS) -o utils/DataCrypt utils/DataCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
