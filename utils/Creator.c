@@ -136,7 +136,7 @@ static int createDirs(void) {
 	if (mkdir("cgroup", S_IRWXU) != 0) {perror("Failed creating directory: allears/cgroup"); return EXIT_FAILURE;}
 	if (mkdir("mount", S_IRWXU) != 0) {perror("Failed creating directory: allears/mount"); return EXIT_FAILURE;}
 
-	if (mkdir("Msg", S_IRWXU) != 0) {perror("Failed creating directory: allears/Storage/MSG"); return EXIT_FAILURE;}
+	if (mkdir("Msg", S_IRWXU) != 0) {perror("Failed creating directory: allears/Msg"); return EXIT_FAILURE;}
 
 	return 0;
 }
