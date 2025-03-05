@@ -58,7 +58,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 			const size_t lenDecBody = lenMsg - AEM_API_REQ_LEN - crypto_aead_aes256gcm_ABYTES;
 			unsigned char decBody[lenDecBody];
-			if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, nonce, *res + 1 + AEM_API_REQ_DATA_LEN) == 0) {
+			if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, nonce, *res + 3 + AEM_API_REQ_DATA_LEN) == 0) {
 				icRet = (req->n.cmd == AEM_API_ACCOUNT_CREATE) ?
 					api_account_create(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody)
 				:
