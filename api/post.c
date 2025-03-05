@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
@@ -430,7 +431,9 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 	return AEM_API_ERR_INTERNAL;
 }
 
-void aem_api_process(unsigned char req[AEM_API_REQ_LEN], const bool isPost) {
+void aem_api_process(unsigned char * const req, const bool isPost) {
+	if (labs(((const union aem_req * const)req)->n.binTs - (((long)time(NULL) - AEM_TS_BEGIN) * 1000)) > AEM_API_TIMEDIFF) {respond404(); return;}
+
 	// Forward the request to Account
 	unsigned char *icData = NULL;
 	int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, req, AEM_API_REQ_LEN, &icData, 0);

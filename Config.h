@@ -1,3 +1,6 @@
+// Require API request timestamps to be within this many milliseconds of the server time
+#define AEM_API_TIMEDIFF 5000 // +/- 5 seconds
+
 // Minimum level required to send email
 #define AEM_MINLEVEL_SENDEMAIL 2
 
