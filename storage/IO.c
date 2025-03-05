@@ -461,7 +461,7 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 }
 
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
-	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_EVP_MAXSIZE || lenMsg % AEM_EVP_BLOCKSIZE != 0) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
+	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_W_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Get the user's Envelope Keys from AEM-Account. sign the Message and turn it into an Envelope

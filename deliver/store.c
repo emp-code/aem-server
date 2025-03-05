@@ -24,7 +24,7 @@ int32_t storeMessage(const struct emailMeta * const meta, struct emailInfo * con
 
 		size_t lenMsg = 0;
 		unsigned char *msg = makeExtMsg(email, &lenMsg, (meta->toFlags[i] & AEM_ADDR_FLAG_ALLVER) != 0);
-		if (msg == NULL || lenMsg < 1 || lenMsg % 16 != 0) {
+		if (msg == NULL || lenMsg < 1) {
 			if (msg != NULL) free(msg);
 			syslog(LOG_ERR, "makeExtMsg failed (%zu)", lenMsg);
 			deliveryStatus = AEM_INTCOM_RESPONSE_ERR;
