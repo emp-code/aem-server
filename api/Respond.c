@@ -39,91 +39,86 @@ static int numDigits(const size_t x) {
 void respond400(void) {
 #ifdef AEM_TLS
 	tls_send(
-		"HTTP/1.0 400 aem\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 71);
 #else
 	send(AEM_FD_SOCK_CLIENT,
+#endif
 		"HTTP/1.0 400 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 71, 0);
+	, 71
+#ifndef AEM_TLS
+	, 0
 #endif
+	);
 }
 
 void respond403(void) {
 #ifdef AEM_TLS
 	tls_send(
-		"HTTP/1.0 403 aem\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 71);
 #else
 	send(AEM_FD_SOCK_CLIENT,
+#endif
 		"HTTP/1.0 403 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 71, 0);
+	, 71
+#ifndef AEM_TLS
+	, 0
 #endif
+	);
 }
 
 void respond404(void) {
 #ifdef AEM_TLS
 	tls_send(
-		"HTTP/1.0 404 aem\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 71);
 #else
 	send(AEM_FD_SOCK_CLIENT,
+#endif
 		"HTTP/1.0 404 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 71, 0);
+	, 71
+#ifndef AEM_TLS
+	, 0
 #endif
+	);
 }
 
 void respond408(void) {
 #ifdef AEM_TLS
 	tls_send(
-		"HTTP/1.0 408 aem\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 71);
 #else
 	send(AEM_FD_SOCK_CLIENT,
+#endif
 		"HTTP/1.0 408 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 71, 0);
+	, 71
+#ifndef AEM_TLS
+	, 0
 #endif
+	);
 }
 
 void respond500(void) {
 #ifdef AEM_TLS
 	tls_send(
-		"HTTP/1.0 500 aem\r\n"
-		"Content-Length: 0\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
-		"\r\n"
-	, 71);
 #else
 	send(AEM_FD_SOCK_CLIENT,
+#endif
 		"HTTP/1.0 500 aem\r\n"
 		"Content-Length: 0\r\n"
 		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
-	, 71, 0);
+	, 71
+#ifndef AEM_TLS
+	, 0
 #endif
+	);
 }
 
 void apiResponse(const unsigned char * const data, const size_t lenData) {
