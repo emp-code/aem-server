@@ -363,7 +363,7 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, AEM_INTCOM_OP_POST, body, AEM_API_REQ_LEN + lenBody, &icData, 0);
 
 	if (icRet > AEM_LEN_APIRESP_BASE) {
-		setRbk(icData + 1 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 		apiResponse(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
 	} else {
 		syslog(LOG_INFO, "Continue - invalid response from Account: %d", icRet);
