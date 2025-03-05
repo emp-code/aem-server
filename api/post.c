@@ -354,7 +354,7 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL)
 #endif
 	!= (ssize_t)lenBody) {
-		respond404();
+		respond408();
 		return;
 	}
 	memcpy(body, req, AEM_API_REQ_LEN);

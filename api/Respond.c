@@ -90,6 +90,24 @@ void respond404(void) {
 #endif
 }
 
+void respond408(void) {
+#ifdef AEM_TLS
+	tls_send(
+		"HTTP/1.0 408 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71);
+#else
+	send(AEM_FD_SOCK_CLIENT,
+		"HTTP/1.0 408 aem\r\n"
+		"Content-Length: 0\r\n"
+		"Access-Control-Allow-Origin: *\r\n"
+		"\r\n"
+	, 71, 0);
+#endif
+}
+
 void respond500(void) {
 #ifdef AEM_TLS
 	tls_send(
