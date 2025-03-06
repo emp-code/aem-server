@@ -26,16 +26,16 @@ bool
 #else
 void
 #endif
-	respondClient(void) {
+ respondClient(void) {
 	unsigned char buf[AEM_REQ_LINE1_LEN];
 
+	if (
 #ifdef AEM_TLS
-	int ret = tls_recv(buf, AEM_REQ_LINE1_LEN);
+	tls_recv(buf, AEM_REQ_LINE1_LEN)
 #else
-	int ret = recv(AEM_FD_SOCK_CLIENT, buf, AEM_REQ_LINE1_LEN, 0);
+	recv(AEM_FD_SOCK_CLIENT, buf, AEM_REQ_LINE1_LEN, 0)
 #endif
-
-	if (ret != AEM_REQ_LINE1_LEN) return AEM_RESPOND_FALSE;
+	!= AEM_REQ_LINE1_LEN) return AEM_RESPOND_FALSE;
 
 	const bool post = memeq(buf, "POST /", 6);
 	if (!post && !memeq(buf, "GET /", 5)) return AEM_RESPOND_FALSE;
