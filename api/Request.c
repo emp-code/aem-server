@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include <sodium.h>
 
 #include "../Global.h"
@@ -39,7 +41,7 @@ void
 
 	const bool post = memeq(buf, "POST /", 6);
 	if (!post && !memeq(buf, "GET /", 5)) return AEM_RESPOND_FALSE;
-	if (buf[AEM_REQ_LINE1_LEN - (post? 1 : 2)] != ' ') return AEM_RESPOND_FALSE;
+	if (buf[AEM_REQ_LINE1_LEN - (post? 1 : 2)] != ' ' || strspn((const char *)buf + (post? 6 : 5), "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_") != AEM_API_REQ_LEN_BASE64) return AEM_RESPOND_FALSE;
 
 	unsigned char req[AEM_API_REQ_LEN];
 	size_t decodedLen = 0;
