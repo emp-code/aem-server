@@ -97,5 +97,5 @@ int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, cons
 int32_t conn_sto(const uint32_t operation, unsigned char **res) {
 	if (operation >= AEM_USERCOUNT) {syslog(LOG_ERR, "Invalid request from Storage: %u"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	return sto_uid2epk(operation, res);
+	return sto_uid2keys(operation, res);
 }

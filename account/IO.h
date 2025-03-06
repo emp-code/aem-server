@@ -38,6 +38,6 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res);
 
 // Storage
-int32_t sto_uid2epk(const uint16_t uid, unsigned char **res);
+int32_t sto_uid2keys(const uint16_t uid, unsigned char **res);
 
 #endif

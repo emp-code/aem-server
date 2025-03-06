@@ -13,6 +13,7 @@
 #include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/api_req.h"
+#include "../Common/evpKeys.h"
 #include "../Common/memeq.h"
 #include "../Data/address.h"
 #include "../IntCom/Client.h"
@@ -605,14 +606,19 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 }
 
 // Storage
-int32_t sto_uid2epk(const uint16_t uid, unsigned char **res) {
+int32_t sto_uid2keys(const uint16_t uid, unsigned char **res) {
 	if (user[uid] == NULL) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
-	*res = malloc(X25519_PKBYTES);
+	*res = malloc(sizeof(struct evpKeys));
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	memcpy(*res, user[uid]->pwk, AEM_PWK_KEYLEN);
-	return X25519_PKBYTES;
+	((struct evpKeys*)*res)->security = false;
+	memcpy(((struct evpKeys*)*res)->pwk, user[uid]->pwk, AEM_PWK_KEYLEN);
+	memcpy(((struct evpKeys*)*res)->psk, user[uid]->psk, AEM_PSK_KEYLEN);
+	memcpy(((struct evpKeys*)*res)->pqk, user[uid]->pqk, AEM_PQK_KEYLEN);
+	memcpy(((struct evpKeys*)*res)->usk, user[uid]->usk, AEM_USK_KEYLEN);
+
+	return sizeof(struct evpKeys);
 }
 
 // Setup
