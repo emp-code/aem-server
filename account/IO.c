@@ -547,6 +547,7 @@ bool api_auth(unsigned char * const res, union aem_req * const req, const bool p
 		uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_AUTH);
 		if (crypto_onetimeauth_verify(req->c.mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) == 0) {
 			if (req->n.binTs <= user[api_uid]->lastBinTs) return false; // This request isn't newer than the last recorded one - suspected replay attack
+			if (labs(req->n.binTs - (((long)time(NULL) - AEM_TS_BEGIN) * 1000)) > AEM_API_TIMEDIFF) return false;
 
 			found = true;
 			break;
