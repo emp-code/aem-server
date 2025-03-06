@@ -13,7 +13,7 @@
 
 #include "Request.h"
 
-#define AEM_REQ_LINE1_LEN (6 + AEM_API_REQ_LEN_BASE64)
+#define AEM_REQ_LINE1_LEN (7 + AEM_API_REQ_LEN_BASE64)
 
 #ifdef AEM_TLS
 #define AEM_RESPOND_FALSE false
@@ -39,6 +39,7 @@ void
 
 	const bool post = memeq(buf, "POST /", 6);
 	if (!post && !memeq(buf, "GET /", 5)) return AEM_RESPOND_FALSE;
+	if (buf[AEM_REQ_LINE1_LEN - (post? 1 : 2)] != ' ') return AEM_RESPOND_FALSE;
 
 	unsigned char req[AEM_API_REQ_LEN];
 	size_t decodedLen = 0;
