@@ -64,7 +64,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 					api_account_create(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody)
 				:
 					api_private_update(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody);
-			} else icRet = AEM_INTCOM_RESPONSE_ERR;
+			} else icRet = AEM_INTCOM_RESPONSE_AUTHFAIL;
 		} else {icRet = AEM_INTCOM_RESPONSE_ERR; syslog(LOG_ERR, "Invalid Continued request from API");}
 
 		// For user privacy, erase all but the response key from our response to AEM-API
