@@ -13,6 +13,7 @@ void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, 
 
 // IntCom_Action
 bool api_auth(unsigned char * const res, union aem_req * const req, const bool post);
+void decreaseLastBinTs(void);
 
 // API: Special
 int32_t api_invalid(unsigned char * const res);

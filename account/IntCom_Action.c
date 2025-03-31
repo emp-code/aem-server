@@ -50,6 +50,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 		}
 	} else if (req->n.cmd == AEM_API_ACCOUNT_CREATE || req->n.cmd == AEM_API_PRIVATE_UPDATE) {
 		if (lenMsg == AEM_API_REQ_LEN) {
+			decreaseLastBinTs();
 			icRet = AEM_INTCOM_RESPONSE_CONTINUE;
 		} else if (lenMsg > AEM_API_REQ_LEN) {
 			// Authenticate and decrypt the POST body

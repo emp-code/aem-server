@@ -579,6 +579,11 @@ bool api_auth(unsigned char * const res, union aem_req * const req, const bool p
 	return true;
 }
 
+// To allow Continue request, but nothing older
+void decreaseLastBinTs(void) {
+	user[api_uid]->lastBinTs--;
+}
+
 // MTA
 int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 	const bool isShield = ((addr32[0] & 128) != 0);
