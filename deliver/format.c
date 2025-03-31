@@ -5,7 +5,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <syslog.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <brotli/encode.h>
@@ -139,7 +138,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	}
 
 // Message Header (AEM_MSG_HDR_SZ bytes)
-	aem_msg_init(msg, AEM_MSG_TYPE_EXT, 0);
+	aem_msg_init(msg, AEM_MSG_TYPE_EXT, email->binTs);
 
 // ExtMsg Header (23 bytes)
 	memcpy(msg + AEM_MSG_HDR_SZ, &email->ip, 4);

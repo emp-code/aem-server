@@ -5,7 +5,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <syslog.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <sodium.h>

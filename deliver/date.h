@@ -1,8 +1,8 @@
 #ifndef AEM_DATE_H
 #define AEM_DATE_H
 
-#include <time.h>
+#include <stdint.h>
 
-time_t smtp_getTime(const char * const c, unsigned char * const tzp);
+uint64_t smtp_getBinTs(const char * const c, unsigned char * const tzp);
 
 #endif

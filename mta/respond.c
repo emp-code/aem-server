@@ -13,6 +13,7 @@
 #include "../Global.h"
 #include "../Common/Addr32.h"
 #include "../Common/Email.h"
+#include "../Common/binTs.h"
 #include "../Common/memeq.h"
 #include "../Common/tls_suites.h"
 #include "../IntCom/Client.h"
@@ -64,7 +65,6 @@ int tls_init(const unsigned char * const crt, const size_t lenCrt, const unsigne
 
 	memcpy(ourDomain, domain, lenDomain);
 	lenOurDomain = lenDomain;
-
 	return 0;
 }
 
@@ -213,7 +213,7 @@ static int setKeyShare(WOLFSSL *tls) {
 void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 	if (clientAddr == NULL) return;
 	bzero(&email, sizeof(struct emailInfo));
-	email.timestamp = (uint32_t)time(NULL);
+	email.binTs = getBinTs();
 	email.ip = clientAddr->sin_addr.s_addr;
 
 	char txt[256];

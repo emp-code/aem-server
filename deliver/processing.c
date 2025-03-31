@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -527,11 +528,11 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 	unsigned char hdrDate[256];
 	moveHeader(email->head, &email->lenHead, "\nDate:", 6, hdrDate, &lenHdrDate, 255);
 	hdrDate[lenHdrDate] = '\0';
-	const time_t hdrTime = (lenHdrDate == 0) ? 0 : smtp_getTime((char*)hdrDate, &email->hdrTz);
+	const time_t hdrBinTs = (lenHdrDate == 0) ? 0 : smtp_getBinTs((char*)hdrDate, &email->hdrTz);
 
-	if (hdrTime > 0) {
+	if (hdrBinTs > 0) {
 		// Store the difference between received and header timestamps (-18h .. +736s)
-		const time_t timeDiff = (time_t)email->timestamp + 736 - hdrTime; // 736 = 2^16 % 3600
+		const uint64_t timeDiff = lrint((double)(email->binTs - hdrBinTs) / 1000) + 736; // 736 = 2^16 % 3600
 		email->hdrTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 	}
 

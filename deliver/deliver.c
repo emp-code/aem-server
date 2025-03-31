@@ -1,7 +1,5 @@
 #include <string.h>
 #include <syslog.h>
-#include <time.h>
-
 #include <brotli/encode.h>
 
 #include "../Common/Message.h"
@@ -26,7 +24,7 @@ static void convertLineDots(unsigned char * const src, size_t * const lenSrc) {
 	}
 }
 
-static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput, const uint32_t ts) {
+static unsigned char *makeSrcBr(const unsigned char * const input, const size_t lenInput, size_t * const lenOutput, const uint64_t binTs) {
 	if (lenInput > 1048576) return NULL; // 1 MiB
 
 	const char * const fn = "src.eml.br";
@@ -36,7 +34,7 @@ static unsigned char *makeSrcBr(const unsigned char * const input, const size_t 
 	unsigned char * const output = malloc(AEM_MSG_HDR_SZ + 3 + lenFn + *lenOutput);
 	if (output == NULL) {syslog(LOG_ERR, "Failed allocation"); return NULL;}
 
-	aem_msg_init(output, AEM_MSG_TYPE_UPL, ts);
+	aem_msg_init(output, AEM_MSG_TYPE_UPL, binTs);
 	output[AEM_MSG_HDR_SZ] = (lenFn - 1) | 128; // 128: Attachment
 	// 2 bytes: ParentID
 	memcpy(output + AEM_MSG_HDR_SZ + 3, fn, lenFn);
@@ -72,7 +70,7 @@ int32_t deliverEmail(const struct emailMeta * const meta, struct emailInfo * con
 	lenSrc += 2;
 
 	size_t lenSrcBr = 0;
-	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr, email->timestamp) : NULL;
+	unsigned char * const srcBr = needOriginal(meta) ? makeSrcBr(src + 1, lenSrc - 1, &lenSrcBr, email->binTs) : NULL;
 
 	email->head = NULL;
 	email->body = NULL;

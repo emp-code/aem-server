@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include "../Common/memeq.h"
+#include "../Global.h"
 
 #include "date.h"
 
@@ -25,7 +26,7 @@ static int monthFromName(const char * const c) {
 
 // Tue, 19 Oct 2012 09:59:39 -0700
 // Mon, 15 Sep 2008 11:30:55
-time_t smtp_getTime(const char *b, unsigned char * const tzp) {
+uint64_t smtp_getBinTs(const char *b, unsigned char * const tzp) {
 	if (b == NULL || b[0] == '\0') return 0;
 
 	size_t offset = (
@@ -109,5 +110,5 @@ time_t smtp_getTime(const char *b, unsigned char * const tzp) {
 	t.tm_year = year - 1900; // Number of years since 1900
 
 	*tzp = ((tzOff + 54000) / 900); // 15m
-	return mktime(&t) - tzOff; // Convert to UTC+0
+	return ((uint64_t)mktime(&t) - tzOff) * 1000 - AEM_BINTS_BEGIN; // BinTs (UTC+0)
 }

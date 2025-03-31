@@ -18,6 +18,7 @@
 #include "../Common/Message.h"
 #include "../Common/ValidUtf8.h"
 #include "../Common/api_req.h"
+#include "../Common/binTs.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 
@@ -432,7 +433,7 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 }
 
 void aem_api_process(const unsigned char * const req, const bool isPost) {
-	if (labs(((const union aem_req * const)req)->n.binTs - (((long)time(NULL) - AEM_TS_BEGIN) * 1000)) > AEM_API_TIMEDIFF) {respond404(); return;}
+	if (labs(((const union aem_req * const)req)->n.binTs - getBinTs()) > AEM_API_TIMEDIFF) {respond404(); return;}
 
 	// Forward the request to Account
 	unsigned char *icData = NULL;

@@ -6,7 +6,7 @@
 #include "Common/AEM_KDF.h"
 #include "Config.h"
 
-#define AEM_TS_BEGIN 1735689600 // 2025-01-01 00:00:00 UTC
+#define AEM_BINTS_BEGIN 1735689600000 // 2025-01-01 00:00:00 UTC
 
 #define AEM_FD_SYSLOG 0
 #define AEM_FD_SOCK_MAIN 1

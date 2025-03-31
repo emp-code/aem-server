@@ -115,7 +115,7 @@ struct dkimInfo {
 
 struct emailInfo {
 	unsigned char ccBytes[2];
-	uint32_t timestamp;
+	uint64_t binTs;
 	uint32_t ip;
 	uint8_t attachCount; // 0..AEM_MAXNUM_ATTACHMENTS
 
