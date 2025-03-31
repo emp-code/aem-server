@@ -304,16 +304,18 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 }
 
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
-	size_t lenMsg = AEM_MSG_HDR_SZ + AEM_API_REQ_DATA_LEN + lenSrc;
-	unsigned char msg[lenMsg];
-	aem_msg_init(msg, AEM_MSG_TYPE_UPL, 0);
+	const uint64_t fileBts = urlData[0] | (urlData[1] << 8) | (urlData[2] << 16) | ((uint64_t)urlData[3] << 24) | ((uint64_t)urlData[4] << 32) | ((uint64_t)urlData[5] << 40);
+	if (labs((int64_t)fileBts - (int64_t)getBinTs()) > AEM_API_TIMEDIFF_UPL) return AEM_API_ERR_MESSAGE_CREATE_EXT_MYDOMAIN;
 
-	msg[AEM_MSG_HDR_SZ] = urlData[0] & 127; // lenFileName
-	memcpy(msg + AEM_MSG_HDR_SZ + 1, urlData + 1, AEM_API_REQ_DATA_LEN - 1);
-	memcpy(msg + AEM_MSG_HDR_SZ + AEM_API_REQ_DATA_LEN, src, lenSrc);
+	size_t lenMsg = AEM_MSG_HDR_SZ + 1 + lenSrc;
+	unsigned char msg[lenMsg];
+	aem_msg_init(msg, AEM_MSG_TYPE_UPL, fileBts);
+
+	msg[AEM_MSG_HDR_SZ] = 0; // Not an email attachment
+	memcpy(msg + AEM_MSG_HDR_SZ + 1, src, lenSrc);
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
-	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
+	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK; // TODO: Respond with EvpID (returned by Storage as an errorcode)
 }
 
 static long readHeaders(void) {
@@ -433,7 +435,7 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 }
 
 void aem_api_process(const unsigned char * const req, const bool isPost) {
-	if (labs(((const union aem_req * const)req)->n.binTs - getBinTs()) > AEM_API_TIMEDIFF) {respond404(); return;}
+	if (labs((int64_t)((const union aem_req * const)req)->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) {respond404(); return;}
 
 	// Forward the request to Account
 	unsigned char *icData = NULL;
