@@ -283,6 +283,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	if (lenReq != sizeof(uint16_t) && lenReq != sizeof(uint16_t) * 2) return AEM_INTCOM_RESPONSE_USAGE;
 	uint16_t uid;
 	memcpy((unsigned char*)&uid, req, sizeof(uint16_t));
+	if (stindex[uid].bc == NULL) {syslog(LOG_ERR, "Stindex does not exist for UID %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
 	int startNum = 0;
 	if (lenReq != sizeof(uint16_t)) {
