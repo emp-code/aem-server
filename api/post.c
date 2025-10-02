@@ -272,7 +272,7 @@ static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[
 }
 
 static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const uint64_t binTs) {
-	size_t lenMsg = AEM_MSG_HDR_SZ + 11 + lenSrc;
+	size_t lenMsg = AEM_MSG_HDR_SZ + sizeof(uint16_t) + 10 + lenSrc;
 	unsigned char msg[lenMsg];
 	aem_msg_init(msg, AEM_MSG_TYPE_INT, binTs);
 
