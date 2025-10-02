@@ -40,6 +40,7 @@ enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_NULL,
 	AEM_KEYNUM_INTCOM_ACCOUNT_API,
 	AEM_KEYNUM_INTCOM_ACCOUNT_MTA,
+	AEM_KEYNUM_INTCOM_ACCOUNT_REG,
 	AEM_KEYNUM_INTCOM_ACCOUNT_STO,
 	AEM_KEYNUM_INTCOM_ENQUIRY_API,
 	AEM_KEYNUM_INTCOM_ENQUIRY_DLV,
@@ -60,7 +61,8 @@ static pid_t pid_account = 0;
 static pid_t pid_deliver = 0;
 static pid_t pid_enquiry = 0;
 static pid_t pid_storage = 0;
-static pid_t aemPid[5][AEM_MAXPROCESSES];
+#define AEM_PTYPE_COUNT 6 // API-Clr, API-Oni, MTA, Reg, Web-Clr, Web-Oni
+static pid_t aemPid[AEM_PTYPE_COUNT][AEM_MAXPROCESSES];
 
 static volatile sig_atomic_t terminate = 0;
 
@@ -69,7 +71,7 @@ static bool process_exists(const pid_t pid) {
 }
 
 static void refreshPids(void) {
-	for (int type = 0; type < 5; type++) {
+	for (int type = 0; type < AEM_PTYPE_COUNT; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] != 0 && !process_exists(aemPid[type][i])) {
 				aemPid[type][i] = 0;
@@ -90,7 +92,7 @@ static void killAll(const int sig) {
 	if (pid_storage > 0) kill(pid_storage, sig);
 
 
-	for (int type = 0; type < 5; type++) {
+	for (int type = 0; type < AEM_PTYPE_COUNT; type++) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] > 0) kill(aemPid[type][i], sig);
 		}
@@ -258,6 +260,7 @@ static int setCaps(const int type) {
 			numCaps = 5;
 		break;
 
+		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
 			cap[2] = CAP_NET_BIND_SERVICE;
@@ -314,6 +317,7 @@ static int setLimits(const int type) {
 		case AEM_PROCESSTYPE_DELIVER:
 		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_MTA:
+		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_WEB_CLR:
 		case AEM_PROCESSTYPE_WEB_ONI:
 		case AEM_PROCESSTYPE_API_CLR:
@@ -393,6 +397,7 @@ static int sendIntComKeys(const int type) {
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_MTA], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_STO, key_ic);
+			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_REG], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_REG, key_ic);
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, key_ic);
 		break;
 
@@ -426,6 +431,10 @@ static int sendIntComKeys(const int type) {
 			aem_kdf_smk(bundle.stream,       crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      key_ic);
 		break;
 
+		case AEM_PROCESSTYPE_REG:
+			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_REG, key_ic);
+		break;
+
 		default: return -1;
 	}
 
@@ -436,7 +445,7 @@ static int sendIntComKeys(const int type) {
 
 static int process_spawn(const int type, const unsigned char *key_forward) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] == 0) {
 				freeSlot = i;
@@ -479,6 +488,10 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 
 		case AEM_PROCESSTYPE_MTA:
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_deliver}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
+		break;
+
+		case AEM_PROCESSTYPE_REG:
+			fail = (write(AEM_FD_PIPE_WR, &pid_account, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
 		case AEM_PROCESSTYPE_API_CLR:
@@ -554,7 +567,7 @@ static void process_kill(const int type, const pid_t pid, const int sig) {
 
 static void cryptSend(void) {
 	unsigned char dec[AEM_MANAGER_RESLEN_DEC];
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < AEM_PTYPE_COUNT; i++) {
 		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
 			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
 			memcpy(dec + start, &(aemPid[i][j]), 4);

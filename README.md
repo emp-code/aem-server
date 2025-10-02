@@ -14,8 +14,9 @@ All-Ears Mail consists of:
 5. [Storage](#storage)
 6. [API](#api)
 7. [MTA](#mta)
-8. [Web](#web)
-9. [Utilities](#utilities)
+8. [Reg](#reg)
+9. [Web](#web)
+10. [Utilities](#utilities)
 
 General information:
 * [Addresses](#addresses)
@@ -37,7 +38,7 @@ AEM-Manager creates a safe environment for each process to run in, isolating the
 
 ## Account ##
 
-AEM-Account authenticates and responds to API requests from [AEM-API](#api). It also tells [AEM-MTA](#mta) which user (if any) owns an address, and provides necessary account information to [AEM-Storage](#storage).
+AEM-Account authenticates and responds to API requests from [AEM-API](#api) and [AEM-Reg](#reg). It also tells [AEM-MTA](#mta) which user (if any) owns an address, and provides necessary account information to [AEM-Storage](#storage).
 
 For each user, AEM-Account stores:
 * The type, flags (settings), and hash for each [Address](#addresses)
@@ -71,13 +72,17 @@ Envelope data is stored in `/var/lib/allears/Msg/`. Each user has one file conta
 
 AEM-API serves an open web API on port 302, usable by any website or client.
 
-The API is partially encrypted: a timestamp and the user's UserID (0-4095) are contained plaintext in the URL. Everything else about the request is encrypted and authenticated.
+The API is partially encrypted: a timestamp is contained plaintext in the URL. Everything else about the request is encrypted and authenticated.
 
 AEM-API does not have the User Access Key (UAK) required to decrypt and authenticate the request. It forwards the request to [AEM-Account](#account), which authenticates and decrypts the request, and then sends the relevant details back to AEM-API.
 
 ## MTA ##
 
 AEM-MTA (Mail Transfer Agent) receives email from other servers and forwards it to [Deliver](#deliver) for processing and delivery.
+
+## Reg ##
+
+AEM-Reg receives registration requests and forwards them to [AEM-Account](#account).
 
 ## Web ##
 

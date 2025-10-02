@@ -22,6 +22,8 @@
 	#include "../api/Request.h"
 #elif defined(AEM_MTA)
 	#include "../mta/respond.h"
+#elif defined(AEM_REG)
+	#include "../reg/respond.h"
 #endif
 
 #include "../Global.h"

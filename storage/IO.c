@@ -186,7 +186,7 @@ static unsigned char *sysMsg(const unsigned char * const content, const size_t l
 	unsigned char msg[lenMsg];
 	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
 
-	msg[AEM_MSG_HDR_SZ] = 192; // IntMsg InfoByte: System
+	msg[AEM_MSG_HDR_SZ] = 0; // IntMsg InfoByte: System
 	memcpy(msg + AEM_MSG_HDR_SZ + 1, content, lenContent);
 
 	aem_sign_message(msg, lenMsg, ek->usk);
@@ -194,13 +194,13 @@ static unsigned char *sysMsg(const unsigned char * const content, const size_t l
 }
 
 int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg) {
-	if (lenMsg != sizeof(uint16_t) + X25519_PKBYTES) return AEM_INTCOM_RESPONSE_ERR;
+	if (lenMsg != sizeof(uint16_t) + sizeof(struct evpKeys)) return AEM_INTCOM_RESPONSE_ERR;
 
 	const uint16_t uid = *(const uint16_t * const)msg & 4095;
 	if (stindex_count[uid] > 0) return AEM_INTCOM_RESPONSE_EXIST;
 
 	size_t lenWm = 0;
-	unsigned char * const wm = sysMsg(AEM_WELCOME, AEM_WELCOME_LEN, (const struct evpKeys * const)msg + sizeof(uint16_t), &lenWm);
+	unsigned char * const wm = sysMsg(AEM_WELCOME, AEM_WELCOME_LEN, (const struct evpKeys * const)(msg + sizeof(uint16_t)), &lenWm);
 	if (wm == NULL) return AEM_INTCOM_RESPONSE_ERR;
 	const uint16_t wmBc = (lenWm / AEM_EVP_BLOCKSIZE) - AEM_EVP_MINBLOCKS;
 

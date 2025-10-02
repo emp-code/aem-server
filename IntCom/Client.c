@@ -22,7 +22,7 @@ void intcom_setKeys_client(const unsigned char newKeys[AEM_INTCOM_SERVER_COUNT][
 	memcpy(intcom_keys, newKeys, AEM_INTCOM_SERVER_COUNT * crypto_aead_aegis256_KEYBYTES);
 }
 
-#if defined(AEM_API) || defined(AEM_MTA)
+#if defined(AEM_API) || defined(AEM_MTA) || defined(AEM_REG)
 void setAccountPid(const pid_t pid) {intcom_pids[AEM_INTCOM_SERVER_ACC] = pid;}
 #endif
 #if defined(AEM_API) || defined(AEM_DELIVER)
@@ -90,6 +90,8 @@ int32_t intcom(const aem_intcom_server_t intcom_server, const uint32_t operation
 	AEM_INTCOM_CLIENT_API;
 #elif defined(AEM_MTA)
 	AEM_INTCOM_CLIENT_MTA;
+#elif defined(AEM_REG)
+	AEM_INTCOM_CLIENT_REG;
 #elif defined(AEM_DELIVER)
 	AEM_INTCOM_CLIENT_DLV;
 #elif defined(AEM_STORAGE)

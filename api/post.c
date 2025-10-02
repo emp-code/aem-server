@@ -57,7 +57,7 @@ static void message_browse(const uint16_t uid, const int flags, const unsigned c
 		return;
 	}
 
-	if (stoRet < 8 || stoRet > AEM_EVP_MAXSIZE) {
+	if (stoRet < 8 || stoRet > (int)(6 + sizeof(uint16_t) + (sizeof(uint16_t) * UINT16_MAX) + AEM_EVP_MAXSIZE)) {
 		if (stoData != NULL) free(stoData);
 		syslog(LOG_INFO, "Invalid response from Storage: %d", stoRet);
 		const unsigned char rb = AEM_API_ERR_INTERNAL;
@@ -250,28 +250,35 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
-static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const bool e2ee) {
-	size_t lenMsg = AEM_MSG_HDR_SZ + 23 + lenSrc;
-	unsigned char msg[lenMsg];
-	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
+static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const uint64_t binTs, const bool e2ee) {
+	if (lenSrc < 50) return AEM_API_ERR_PARAM;
 
-	msg[AEM_MSG_HDR_SZ] = e2ee ? 64 : 0; // IntMsg InfoByte
-	memset(msg + AEM_MSG_HDR_SZ + 1, 0xFF, 2); // TODO
-	memcpy(msg + AEM_MSG_HDR_SZ + 3, urlData, 20); // From/To Addr32
-	memcpy(msg + AEM_MSG_HDR_SZ + 23, src, lenSrc);
+	size_t lenMsg = AEM_MSG_HDR_SZ + lenSrc + (e2ee? 20 : 22);
+	unsigned char msg[lenMsg];
+	aem_msg_init(msg, AEM_MSG_TYPE_INT, binTs);
+
+	if (e2ee) {
+		*(uint64_t*)(msg + AEM_MSG_HDR_SZ) = 128ULL | (((*(const uint64_t*)src) & 4398046511103ULL) << 16); // BinTs: (2^42)-1
+		memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint64_t), urlData, 20);
+		memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint64_t) + 20, src + 8, lenSrc - 8);
+	} else {
+		*(uint16_t*)(msg + AEM_MSG_HDR_SZ) = 192;
+		memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint16_t), urlData, 20);
+		memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint16_t) + 20, src, lenSrc);
+	}
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, uid, msg, lenMsg, NULL, 0);
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
-static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const uint64_t binTs) {
 	size_t lenMsg = AEM_MSG_HDR_SZ + 11 + lenSrc;
 	unsigned char msg[lenMsg];
-	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
+	aem_msg_init(msg, AEM_MSG_TYPE_INT, binTs);
 
-	msg[AEM_MSG_HDR_SZ] = 128; // IntMsg InfoByte: Public
-	memcpy(msg + AEM_MSG_HDR_SZ + 1, urlData, 10); // From Addr32
-	memcpy(msg + AEM_MSG_HDR_SZ + 11, src, lenSrc);
+	*(uint16_t*)(msg + AEM_MSG_HDR_SZ) = 64;
+	memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint16_t), urlData, 10); // From Addr32
+	memcpy(msg + AEM_MSG_HDR_SZ + sizeof(uint16_t) + 10, src, lenSrc);
 
 	bool ok = true;
 	for (unsigned int i = 0; i < count; i++) {
@@ -281,17 +288,17 @@ static unsigned char send_pmail(const uint16_t * const uid, const unsigned int c
 	return ok? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
 
-static unsigned char message_create(const int flags, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
+static unsigned char message_create(const int flags, const uint64_t binTs, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	if (lenCuid < 1) return AEM_API_ERR_INTERNAL;
 	if (lenCuid == 1) return cuid[0];
 
 	const uint16_t uid = *(const uint16_t*)cuid & 4095;
-	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) != 0 && lenCuid > 2) {
+	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL && lenCuid > 2) {
 		return send_email(uid, (cuid[1] & 128) != 0, cuid + 2, lenCuid - 2, urlData, src, lenSrc);
-	} else if ((flags & AEM_API_MESSAGE_CREATE_FLAG_PUB) != 0) {
-		return send_pmail((const uint16_t * const)cuid, lenCuid / 2, urlData, src, lenSrc);
+	} else if (flags == AEM_API_MESSAGE_CREATE_FLAG_PUB) {
+		return send_pmail((const uint16_t * const)cuid, lenCuid / 2, urlData, src, lenSrc, binTs);
 	} else if (lenCuid == 2) {
-		return send_imail(uid, urlData, src, lenSrc, (flags == AEM_API_MESSAGE_CREATE_FLAG_E2EE));
+		return send_imail(uid, urlData, src, lenSrc, binTs, (flags == AEM_API_MESSAGE_CREATE_FLAG_E2EE));
 	}
 
 	return AEM_API_ERR_INTERNAL;
@@ -304,8 +311,8 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 }
 
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
-	const uint64_t fileBts = urlData[0] | (urlData[1] << 8) | (urlData[2] << 16) | ((uint64_t)urlData[3] << 24) | ((uint64_t)urlData[4] << 32) | ((uint64_t)urlData[5] << 40);
-	if (labs((int64_t)fileBts - (int64_t)getBinTs()) > AEM_API_TIMEDIFF_UPL) return AEM_API_ERR_MESSAGE_CREATE_EXT_MYDOMAIN;
+	const uint64_t fileBts = (uint64_t)urlData[0] | ((uint64_t)urlData[1] << 8) | ((uint64_t)urlData[2] << 16) | ((uint64_t)urlData[3] << 24) | ((uint64_t)urlData[4] << 32) | ((uint64_t)urlData[5] << 40);
+	if (llabs((long long)fileBts - (long long)getBinTs()) > AEM_API_TIMEDIFF_UPL) return AEM_API_ERR_MESSAGE_UPLOAD_TIMEDIFF;
 
 	size_t lenMsg = AEM_MSG_HDR_SZ + 1 + lenSrc;
 	unsigned char msg[lenMsg];
@@ -348,7 +355,7 @@ static long readHeaders(void) {
 }
 
 static void handleContinue(const unsigned char * const req, const size_t lenBody) {
-	// Used with Account/Create and Private/Update. Prevents AEM-API from accessing the sensitive request data.
+	// Used with Account/Keyset, Address/Update, and Private/Update. As AEM-API doesn't need the data for those requests, it's prevented.
 	unsigned char body[AEM_API_REQ_LEN + lenBody];
 	if (
 #ifdef AEM_TLS
@@ -357,7 +364,7 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL)
 #endif
 	!= (ssize_t)lenBody) {
-		respond408();
+		unauthResponse(AEM_API_UNAUTH_ERR_POST_RECVFAIL);
 		return;
 	}
 	memcpy(body, req, AEM_API_REQ_LEN);
@@ -367,13 +374,16 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, AEM_INTCOM_OP_POST, body, AEM_API_REQ_LEN + lenBody, &icData, 0);
 
 	if (icRet > AEM_LEN_APIRESP_BASE) {
-		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		setRbk(icData + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 		apiResponse(icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
-	} else if (icRet == AEM_INTCOM_RESPONSE_AUTHFAIL) {
-		respond403();
-	} else {
+	} else if (icRet == AEM_INTCOM_RESPONSE_AUTH_TIMEDIFF) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF); return;}
+	  else if (icRet == AEM_INTCOM_RESPONSE_AUTH_REPLAY) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_REPLAY); return;}
+	  else if (icRet == AEM_INTCOM_RESPONSE_AUTH_NOTEXIST) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_NOTEXIST); return;}
+	  else if (icRet == AEM_INTCOM_RESPONSE_AUTH_DECRYPT) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_DECRYPT); return;}
+	  else if (icRet == AEM_INTCOM_RESPONSE_AUTH_KEYSET) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_KEYSET); return;}
+	  else {
 		syslog(LOG_INFO, "Continue - invalid response from Account: %d", icRet);
-		respond500();
+		unauthResponse(AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_BADRESP);
 	}
 
 	if (icData != NULL) free(icData);
@@ -393,10 +403,10 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 		// Forward response from AEM-Account
 		case AEM_API_ACCOUNT_BROWSE:
 		case AEM_API_ACCOUNT_DELETE:
+		case AEM_API_ACCOUNT_PERMIT:
 		case AEM_API_ACCOUNT_UPDATE:
 		case AEM_API_ADDRESS_CREATE:
 		case AEM_API_ADDRESS_DELETE:
-		case AEM_API_ADDRESS_UPDATE:
 		case AEM_API_SETTING_LIMITS:
 			apiResponse(icData, lenIcData);
 		break;
@@ -408,7 +418,7 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 	}
 }
 
-static unsigned char handlePost(const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
+static unsigned char handlePost(const uint64_t binTs, const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
 	if (
 #ifdef AEM_TLS
 	tls_recv(body, lenBody)
@@ -419,17 +429,17 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 		return AEM_API_ERR_RECV;
 
 	// Authenticate and decrypt
-	unsigned char nonce[crypto_aead_aes256gcm_NPUBBYTES];
-	bzero(nonce, crypto_aead_aes256gcm_NPUBBYTES);
+	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
+	bzero(nonce, crypto_aead_aegis256_NPUBBYTES);
 
-	unsigned char decBody[lenBody - crypto_aead_aes256gcm_ABYTES];
-	if (crypto_aead_aes256gcm_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0)
+	unsigned char decBody[lenBody - crypto_aead_aegis256_ABYTES];
+	if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0)
 		return AEM_API_ERR_DECRYPT;
 
 	// Choose action
 	switch (cmd) {
-		case AEM_API_MESSAGE_CREATE: return message_create(flags, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aes256gcm_ABYTES);
-		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody - crypto_aead_aes256gcm_ABYTES);
+		case AEM_API_MESSAGE_CREATE: return message_create(flags, binTs, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES);
+		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES);
 	}
 
 	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
@@ -437,18 +447,24 @@ static unsigned char handlePost(const int cmd, const int flags, const uint16_t u
 }
 
 void aem_api_process(const unsigned char * const req, const bool isPost) {
-	if (labs((int64_t)((const union aem_req * const)req)->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) {respond404(); return;}
+	if (labs((int64_t)((const union aem_req * const)req)->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF); return;}
 
 	// Forward the request to Account
 	unsigned char *icData = NULL;
 	int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, isPost? AEM_INTCOM_OP_POST : AEM_INTCOM_OP_GET, req, AEM_API_REQ_LEN, &icData, 0);
 
-	if (icRet == AEM_INTCOM_RESPONSE_AUTHFAIL) {respond403(); return;}
+	switch (icRet) {
+		case AEM_INTCOM_RESPONSE_AUTH_NOTEXIST: unauthResponse(AEM_API_UNAUTH_ERR_AUTH_NOTEXIST); return;
+		case AEM_INTCOM_RESPONSE_AUTH_DECRYPT:  unauthResponse(AEM_API_UNAUTH_ERR_AUTH_DECRYPT); return;
+		case AEM_INTCOM_RESPONSE_AUTH_TIMEDIFF: unauthResponse(AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF); return;
+		case AEM_INTCOM_RESPONSE_AUTH_REPLAY:   unauthResponse(AEM_API_UNAUTH_ERR_AUTH_REPLAY); return;
+		case AEM_INTCOM_RESPONSE_AUTH_KEYSET:   unauthResponse(AEM_API_UNAUTH_ERR_AUTH_KEYSET); return;
+	}
 
 	if (icRet < AEM_LEN_APIRESP_BASE && (!isPost || icRet != AEM_INTCOM_RESPONSE_CONTINUE)) {
 		if (icData != NULL) free(icData);
 		syslog(LOG_INFO, "Invalid response from Account: %d", icRet);
-		respond500();
+		unauthResponse(AEM_API_UNAUTH_ERR_INTERNAL_AUTHRESPONSE);
 		return;
 	}
 
@@ -456,29 +472,35 @@ void aem_api_process(const unsigned char * const req, const bool isPost) {
 	const long lenBody = isPost? readHeaders() : 0;
 	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_W_MAXSIZE)) {
 		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
-			respond400();
+			unauthResponse(AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID);
 			return;
 		}
 
-		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		setRbk(icData + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 		const unsigned char rb = AEM_API_ERR_POST;
 		apiResponse(&rb, 1);
 	} else if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
-		return (isPost && lenBody < 99999) ? handleContinue(req, lenBody) : respond500();
+		if (isPost && lenBody < 99999) {
+			handleContinue(req, lenBody);
+		} else {
+			unauthResponse(AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_OVERSIZE);
+		}
+
+		return;
 	} else {
-		setRbk(icData + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
+		setRbk(icData + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE);
 
 		if (isPost) {
 			unsigned char * const postBody = malloc(lenBody);
 			if (postBody == NULL) {
 				syslog(LOG_ERR, "Failed malloc");
 			} else {
-				const unsigned char rb = handlePost(icData[0], icData[1], icData[2], icData + 3, icData + 3 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
+				const unsigned char rb = handlePost(((const union aem_req * const)req)->n.binTs, icData[0], icData[1], icData[2] | (icData[3] << 8), icData + 4, icData + 4 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
 				free(postBody);
 				apiResponse(&rb, 1);
 			}
 		} else {
-			handleGet(icData[0], icData[1], icData[2], icData + 3, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
+			handleGet(icData[0], icData[1], icData[2] | (icData[3] << 8), icData + 4, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
 		}
 	}
 

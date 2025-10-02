@@ -21,6 +21,7 @@ enum {
 	AEM_KDF_KEYID_ACC_ACC = 0x20, // Account Key
 	AEM_KDF_KEYID_ACC_NRM = 0x21, // Normal Salt
 	AEM_KDF_KEYID_ACC_SHD = 0x22, // Shield Salt
+	AEM_KDF_KEYID_ACC_REG = 0x04, // Server Registration Key (SRK)
 
 	// Server: Storage Base Key
 	AEM_KDF_KEYID_STO_STI = 0x30, // Stindex Key

@@ -1,7 +1,7 @@
 CC=gcc
-CFLAGS=-O2 -march=native -pipe -std=gnu2x -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=alloc-zero -Werror=discarded-array-qualifiers -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=return-type -Werror=shadow -Wbad-function-cast -Wbidi-chars=any -Wcast-align -Wcast-qual -Wduplicated-branches -Wfloat-equal -Winvalid-utf8 -Wlogical-op -Wmissing-declarations -Wpadded -Wpointer-arith -Wredundant-decls -Wstack-usage=999999 -Wstrict-prototypes -Wtrampolines -Wunused-macros -Wwrite-strings -fanalyzer -Wformat=0
+CFLAGS=-O2 -march=native -pipe -std=gnu23 -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=alloc-zero -Werror=discarded-array-qualifiers -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=return-type -Werror=shadow -Wbad-function-cast -Wbidi-chars=any -Wcast-align -Wcast-qual -Wduplicated-branches -Wfloat-equal -Winvalid-utf8 -Wlogical-op -Wmissing-declarations -Wpadded -Wpointer-arith -Wredundant-decls -Wstack-usage=999999 -Wstrict-prototypes -Wtrampolines -Wunused-macros -Wwrite-strings -fanalyzer -Wformat=0
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-clr aem-api-oni aem-mta aem-web-clr aem-web-oni Data/gen_address utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-clr aem-api-oni aem-mta aem-reg aem-web-clr aem-web-oni Data/gen_address utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager -Wno-analyzer-fd-use-after-close -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
@@ -26,6 +26,9 @@ aem-api-oni: api/*.c
 
 aem-mta: mta/*.c
 	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/ValidIp.c Common/binTs.c Common/x509_getCn.c IntCom/Client.c IntCom/Stream_Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
+
+aem-reg: reg/*.c
+	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/binTs.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
 
 aem-web-clr: web/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB_CLR -DAEM_TLS -o aem-web-clr web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap -lwolfssl

@@ -48,6 +48,7 @@ static unsigned char rsaUsersKey[4096];
 static unsigned char accountKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
 static unsigned char saltShield[crypto_shorthash_KEYBYTES];
+static unsigned char key_srk[AEM_KDF_SUB_KEYLEN];
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 
 static unsigned char limits[4][3] = {
@@ -59,8 +60,6 @@ static unsigned char limits[4][3] = {
 };
 
 uint16_t api_uid = 0;
-unsigned char api_resBodyKey[AEM_API_BODY_KEYSIZE];
-unsigned char api_reqBodyKey[AEM_API_BODY_KEYSIZE];
 
 static void saveSettings(void) {
 	const size_t lenEnc = 12 + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
@@ -280,6 +279,13 @@ int32_t api_account_delete(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_ACCOUNT_DELETE_NOSTORAGE);
 }
 
+int32_t api_account_permit(unsigned char * const res) {
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
+
+	aem_kdf_sub(res, crypto_aead_aegis256_KEYBYTES, user[api_uid]->lastBinTs, key_srk);
+	return crypto_aead_aegis256_KEYBYTES;
+}
+
 int32_t api_account_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	const uint16_t upd_uid = *(const uint16_t * const)reqData;
 	const uint8_t new_lvl = reqData[2];
@@ -364,45 +370,14 @@ int32_t api_address_delete(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
-// FIXME
-int32_t api_address_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
-/*
-	memcpy(user[api_uid]->addrFlag, (unsigned char[]){
-		(user[api_uid]->addrFlag[0]  & 192) |  (reqData[0]  &  63),
-		(user[api_uid]->addrFlag[1]  & 192) | ((reqData[0]  & 192) >> 2) | (reqData[1]  & 15),
-		(user[api_uid]->addrFlag[2]  & 192) | ((reqData[1]  & 240) >> 2) | (reqData[2]  &  3),
-		(user[api_uid]->addrFlag[3]  & 192) | ((reqData[2]  & 252) >> 2),
-		(user[api_uid]->addrFlag[4]  & 192) |  (reqData[3]  &  63),
-		(user[api_uid]->addrFlag[5]  & 192) | ((reqData[3]  & 192) >> 2) | (reqData[4]  & 15),
-		(user[api_uid]->addrFlag[6]  & 192) | ((reqData[4]  & 240) >> 2) | (reqData[5]  &  3),
-		(user[api_uid]->addrFlag[7]  & 192) | ((reqData[5]  & 252) >> 2),
-		(user[api_uid]->addrFlag[8]  & 192) |  (reqData[6]  &  63),
-		(user[api_uid]->addrFlag[9]  & 192) | ((reqData[6]  & 192) >> 2) | (reqData[7]  & 15),
-		(user[api_uid]->addrFlag[10] & 192) | ((reqData[7]  & 240) >> 2) | (reqData[8]  &  3),
-		(user[api_uid]->addrFlag[11] & 192) | ((reqData[8]  & 252) >> 2),
-		(user[api_uid]->addrFlag[12] & 192) |  (reqData[9]  &  63),
-		(user[api_uid]->addrFlag[13] & 192) | ((reqData[9]  & 192) >> 2) | (reqData[10]  & 15),
-		(user[api_uid]->addrFlag[14] & 192) | ((reqData[10] & 240) >> 2) | (reqData[11]  &  3),
-		(user[api_uid]->addrFlag[15] & 192) | ((reqData[11] & 252) >> 2),
-		(user[api_uid]->addrFlag[16] & 192) |  (reqData[12] &  63),
-		(user[api_uid]->addrFlag[17] & 192) | ((reqData[12] & 192) >> 2) | (reqData[13]  & 15),
-		(user[api_uid]->addrFlag[18] & 192) | ((reqData[13] & 240) >> 2) | (reqData[14]  &  3),
-		(user[api_uid]->addrFlag[19] & 192) | ((reqData[14] & 252) >> 2),
-		(user[api_uid]->addrFlag[20] & 192) |  (reqData[15] &  63),
-		(user[api_uid]->addrFlag[21] & 192) | ((reqData[15] & 192) >> 2) | (reqData[16]  & 15),
-		(user[api_uid]->addrFlag[22] & 192) | ((reqData[16] & 240) >> 2) | (reqData[17]  &  3),
-		(user[api_uid]->addrFlag[23] & 192) | ((reqData[17] & 252) >> 2),
-		(user[api_uid]->addrFlag[24] & 192) |  (reqData[18] &  63),
-		(user[api_uid]->addrFlag[25] & 192) | ((reqData[18] & 192) >> 2) | (reqData[19]  & 15),
-		(user[api_uid]->addrFlag[26] & 192) | ((reqData[19] & 240) >> 2) | (reqData[20]  &  3),
-		(user[api_uid]->addrFlag[27] & 192) | ((reqData[20] & 252) >> 2),
-		(user[api_uid]->addrFlag[28] & 192) |  (reqData[21] &  63),
-		(user[api_uid]->addrFlag[29] & 192) | ((reqData[21] & 192) >> 2) | (reqData[22]  & 15),
-		(user[api_uid]->addrFlag[30] & 192) | ((reqData[22] & 240) >> 2) | (reqData[23]  &  3)
-		// Last 6 bits unused
-	}, AEM_ADDRESSES_PER_USER);
+int32_t api_address_update(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
+	if (lenData != AEM_ADDRESSES_PER_USER) return AEM_INTCOM_RESPONSE_USAGE;
+
+	for (int i = 0; i < AEM_ADDRESSES_PER_USER; i++) {
+		user[api_uid]->addrFlag[i] = (user[api_uid]->addrFlag[i] & AEM_ADDR_FLAG_SHIELD) | (data[i] & ~AEM_ADDR_FLAG_SHIELD);
+	}
+
 	saveUser();
-*/
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
@@ -438,24 +413,22 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 }
 
 // API: POST (Continue)
-int32_t api_account_create(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
-	if (lenData != AEM_KDF_SUB_KEYLEN + X25519_PKBYTES) return api_response_status(res, AEM_API_ERR_PARAM);
-	const uint16_t newUid = aem_getUserId(data);
-	if (user[newUid] != NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_EXIST);
+int32_t api_account_keyset(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
+	if (lenData != AEM_USK_KEYLEN + AEM_PWK_KEYLEN) return api_response_status(res, AEM_API_ERR_PARAM);
+	memcpy(user[api_uid]->pwk, data + AEM_USK_KEYLEN, AEM_PWK_KEYLEN);
 
-	user[newUid] = malloc(sizeof(struct aem_user));
-	if (user[newUid] == NULL) {syslog(LOG_ERR, "Failed allocation"); return api_response_status(res, AEM_API_ERR_INTERNAL);}
-	bzero(user[newUid], sizeof(struct aem_user));
+	struct evpKeys ek;
+	bzero(&ek, sizeof(struct evpKeys));
+	memcpy(ek.pwk, user[api_uid]->pwk, AEM_PWK_KEYLEN);
 
-	memcpy(user[newUid]->uak, data, AEM_KDF_SUB_KEYLEN);
-	memcpy(user[newUid]->pwk, data + AEM_KDF_SUB_KEYLEN, AEM_PWK_KEYLEN);
+	unsigned char icMsg[sizeof(uint16_t) + sizeof(struct evpKeys)];
+	memcpy(icMsg, (const unsigned char * const)&api_uid, sizeof(uint16_t));
+	memcpy(icMsg + sizeof(uint16_t), &ek, sizeof(struct evpKeys));
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_CREATE, icMsg, sizeof(uint16_t) + sizeof(struct evpKeys), NULL, 0);
+	if (icRet != AEM_INTCOM_RESPONSE_OK) return api_response_status(res, AEM_API_ERR_INTERNAL);
+
 	saveUser();
-
-	unsigned char icMsg[sizeof(uint16_t) + X25519_PKBYTES];
-	memcpy(icMsg, (const unsigned char * const)&newUid, sizeof(uint16_t));
-	memcpy(icMsg + sizeof(uint16_t), data + AEM_KDF_SUB_KEYLEN, X25519_PKBYTES);
-	const int32_t icRet = intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_CREATE, icMsg, sizeof(uint16_t) + X25519_PKBYTES, NULL, 0);
-	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL);
+	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
 int32_t api_private_update(unsigned char * const res, unsigned char * const data, const size_t lenData) {
@@ -476,7 +449,7 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 
 // API: POST (Status)
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
-	if ((flags & AEM_API_MESSAGE_CREATE_FLAG_EMAIL) != 0) {
+	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL) {
 		if (user[api_uid]->level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 		const unsigned char * const addrEnd = memchr(reqData, '\0', AEM_API_REQ_DATA_LEN);
@@ -500,9 +473,9 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 	} else { // Internal mail
 		// Verify user owns their sending address
 		if (api_uid != hashToUid(addressToHash(reqData), (reqData[0] & 128) != 0, NULL))
-			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_OWN_ADDR);
+			return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_NOTOWN);
 
-		if ((flags & AEM_API_MESSAGE_CREATE_FLAG_PUB) != 0) {
+		if (flags == AEM_API_MESSAGE_CREATE_FLAG_PUB) {
 			if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 			// Public: return list of users that exist
@@ -518,12 +491,13 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 		} else {
 			// Individual: get recipient address
 			const uint64_t hash = addressToHash(reqData + 10);
-			if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Invalid address
+			if (hash == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_INVALID);
 
 			unsigned char addrFlags = 0;
 			const uint16_t uid = hashToUid(hash, (reqData[10] & 128) != 0, &addrFlags);
-			if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Address not registered
-			if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_REC_DENY); // Recipient does not accept internal mail
+			if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTREG);
+			if (uid == api_uid) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);
+			if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_DECLINE);
 
 			memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
 			return 2;
@@ -536,7 +510,7 @@ static void uak_derive(unsigned char * const out, const int lenOut, const uint64
 	aem_kdf_sub(out, lenOut, binTs | (post? (1LLU << 47) : 0) | (type << 45), user[uid]->uak);
 }
 
-bool api_auth(unsigned char * const res, union aem_req * const req, const bool post) {
+int32_t api_auth(unsigned char * const res, union aem_req * const req, const bool post) {
 	// Find which (if any) user has a key that authenticates this request
 	bool found = false;
 	api_uid = 0;
@@ -546,37 +520,38 @@ bool api_auth(unsigned char * const res, union aem_req * const req, const bool p
 		unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
 		uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_AUTH);
 		if (crypto_onetimeauth_verify(req->c.mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) == 0) {
-			if (req->n.binTs <= user[api_uid]->lastBinTs) return false; // This request isn't newer than the last recorded one - suspected replay attack
-			if (labs(req->n.binTs - getBinTs()) > AEM_API_TIMEDIFF) return false;
+			if (req->n.binTs <= user[api_uid]->lastBinTs) return AEM_INTCOM_RESPONSE_AUTH_REPLAY; // This request isn't newer than the last recorded one - suspected replay attack
+			if (llabs((int64_t)req->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) return AEM_INTCOM_RESPONSE_AUTH_TIMEDIFF;
 
 			found = true;
 			break;
 		}
 	}
 
-	if (!found) return false;
+	if (!found) return AEM_INTCOM_RESPONSE_AUTH_NOTEXIST;
 	user[api_uid]->lastBinTs = req->n.binTs;
 
 	// Decrypt
-	unsigned char req_key_data[2 + AEM_API_REQ_DATA_LEN];
-	uak_derive(req_key_data, 2 + AEM_API_REQ_DATA_LEN, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_DATA);
+	unsigned char req_key_data[1 + AEM_API_REQ_DATA_LEN];
+	uak_derive(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_DATA);
 
-	req->n.cmd ^= req_key_data[0] & 63;
-	req->n.flags ^= req_key_data[1];
+	req->n.cmd ^= (req_key_data[0] & 60) >> 2;
+	if (sodium_is_zero(user[api_uid]->pwk, AEM_PWK_KEYLEN) && req->n.cmd != AEM_API_ACCOUNT_KEYSET) return AEM_INTCOM_RESPONSE_AUTH_KEYSET;
+	req->n.flags ^= (req_key_data[0] & 192) >> 6;
 
 	for (int i = 0; i < AEM_API_REQ_DATA_LEN; i++) {
-		req->c.data[i] ^= req_key_data[2 + i];
+		req->c.data[i] ^= req_key_data[1 + i];
 	}
 
 	// Copy data to the base response
 	res[0] = req->n.cmd;
 	res[1] = req->n.flags;
-	res[2] = api_uid;
-	memcpy(res + 3, req->c.data, AEM_API_REQ_DATA_LEN);
-	uak_derive(res + 3 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_REQ);
-	uak_derive(res + 3 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_RES);
+	memcpy(res + 2, &api_uid, 2);
+	memcpy(res + 4, req->c.data, AEM_API_REQ_DATA_LEN);
+	uak_derive(res + 4 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_REQ);
+	uak_derive(res + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_RES);
 
-	return true;
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
 // To allow Continue request, but nothing older
@@ -609,6 +584,46 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 	(*res)[sizeof(uint16_t)] = flags & (AEM_ADDR_FLAG_ALLVER | AEM_ADDR_FLAG_ATTACH | AEM_ADDR_FLAG_SECURE | AEM_ADDR_FLAG_ORIGIN);
 
 	return 3;
+}
+
+// Reg
+int32_t reg_register(const unsigned char * const req, unsigned char **res) {
+	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
+	memcpy(nonce, req, 9);
+	memset(nonce + 9, 0x00, 23);
+
+	const uint64_t bts = ((uint64_t)req[0]) | ((uint64_t)req[1] << 8) | ((uint64_t)req[2] << 16) | ((uint64_t)req[3] << 24) | ((uint64_t)req[4] << 32) | ((uint64_t)(req[5] & 3) << 40);
+	unsigned char urk[crypto_aead_aegis256_KEYBYTES];
+	aem_kdf_sub(urk, crypto_aead_aegis256_KEYBYTES, bts, key_srk);
+
+	unsigned char new_uak[AEM_KDF_SUB_KEYLEN];
+	if (crypto_aead_aegis256_decrypt(new_uak, NULL, NULL, req + 9, AEM_KDF_SUB_KEYLEN + crypto_aead_aegis256_ABYTES, NULL, 0, nonce, urk) == -1) {
+		syslog(LOG_WARNING, "Reg: Failed decrypt");
+		return AEM_INTCOM_RESPONSE_ERR;
+	}
+
+	uint16_t new_uid;
+	aem_kdf_sub((unsigned char*)&new_uid, 2, AEM_KDF_KEYID_UAK_UID, new_uak);
+	new_uid &= 4095;
+
+	*res = malloc(1 + crypto_aead_aegis256_ABYTES);
+	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+
+	unsigned char regStatus = 2;
+	if (user[new_uid] == NULL) {
+		user[new_uid] = malloc(sizeof(struct aem_user));
+		bzero(user[new_uid], sizeof(struct aem_user));
+		user[new_uid]->lastBinTs = getBinTs();
+		memcpy(user[new_uid]->uak, new_uak, AEM_KDF_SUB_KEYLEN);
+		saveUser();
+		regStatus = 1;
+	} else {
+		regStatus = 3;
+	}
+
+	memset(nonce + 9, 0xFF, 23);
+	crypto_aead_aegis256_encrypt(*res, NULL, &regStatus, 1, NULL, 0, NULL, nonce, urk);
+	return 1 + crypto_aead_aegis256_ABYTES;
 }
 
 // Storage
@@ -653,6 +668,7 @@ int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(accountKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, baseKey);
 	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
 	aem_kdf_sub(saltShield, crypto_shorthash_KEYBYTES,     AEM_KDF_KEYID_ACC_SHD, baseKey);
+	aem_kdf_sub(key_srk,    AEM_KDF_SUB_KEYLEN,            AEM_KDF_KEYID_ACC_REG, baseKey);
 
 	if (loadUser() != 0) return -1;
 	loadSettings(); // Ignore errors

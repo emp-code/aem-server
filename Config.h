@@ -1,5 +1,7 @@
 // Require API request timestamps to be within this many milliseconds of the server time
 #define AEM_API_TIMEDIFF 5000 // +/- 5 seconds
+#define AEM_API_TIMEDIFF_UPL 60000 // +/- 60 seconds, for file uploads
+#define AEM_API_TIMEDIFF_REG 5000 // +/- 5 seconds, for user registrations
 
 // Minimum level required to send email
 #define AEM_MINLEVEL_SENDEMAIL 2
@@ -16,6 +18,8 @@
 	#define AEM_PORT 302
 #elif defined(AEM_API_ONI)
 	#define AEM_PORT 303
+#elif defined(AEM_REG)
+	#define AEM_PORT 304
 #elif defined(AEM_WEB_CLR)
 	#define AEM_PORT 443
 #elif defined(AEM_WEB_ONI)
