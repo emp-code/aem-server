@@ -23,9 +23,8 @@
 #define AEM_MSG_STORAGE_EMPTY (const unsigned char * const)"Storage emptied\nAs you requested, your storage has been emptied.\nAs this is your oldest message now, it can only be deleted by emptying your storage again.\nThis is an automatically generated system message."
 #define AEM_MSG_STORAGE_EMPTY_LEN 206
 
-uint16_t stindex_count[AEM_USERCOUNT];
-
-struct {
+static uint16_t stindex_count[AEM_USERCOUNT];
+static struct {
 	uint16_t *id; // EnvelopeID
 	uint16_t *bc; // Block count
 } stindex[AEM_USERCOUNT];
