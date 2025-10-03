@@ -25,7 +25,7 @@ enum {
 
 	// Server: Storage Base Key
 	AEM_KDF_KEYID_STO_STI = 0x30, // Stindex Key
-	AEM_KDF_KEYID_STO_SIG = 0x31, // Signature Key
+	AEM_KDF_KEYID_STO_SIG = 0x31, // Server Signature Key
 	AEM_KDF_KEYID_STO_EID = 0x32, // Encoded UserID
 
 	// Server: API Base Key
