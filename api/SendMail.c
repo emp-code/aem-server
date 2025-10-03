@@ -345,7 +345,6 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
 	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
 	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
-	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, "DATA\r\n", 6,            "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(email, &lenMsg);
@@ -354,6 +353,7 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 		return AEM_API_ERR_INTERNAL;
 	}
 
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, "DATA\r\n", 6, "354")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_DATA;
 	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, msg, lenMsg, "250")) {
 		free(msg);
 		return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_BODY;
