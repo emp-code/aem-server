@@ -6,8 +6,8 @@
 
 static unsigned char ssk[AEM_SSK_KEYLEN]; // Server Signature Key
 
-void setSigKey(const unsigned char * const newKey) {
-	memcpy(ssk, newKey, AEM_SSK_KEYLEN);
+void setSigKey(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
+	aem_kdf_sub(ssk, AEM_SSK_KEYLEN, AEM_KDF_KEYID_STO_SIG, baseKey);
 }
 
 void delSigKey(void) {
