@@ -103,7 +103,7 @@ static size_t rsa_sign_b64(char * const sigB64, const unsigned char * const hash
 	rsa.dataLen = lenSig;
 	const int ret = wc_RsaFunction(sig, (word32)lenSig, sig, &rsa.dataLen, RSA_PRIVATE_ENCRYPT, &rsa, NULL);
 	wc_FreeRsaKey(&rsa);
-	if (ret != 0) {syslog(LOG_ERR, "wc_RsaFunction=%d"); return 0;}
+	if (ret != 0) {syslog(LOG_ERR, "wc_RsaFunction=%d", ret); return 0;}
 
 	// Base64
 	sodium_bin2base64(sigB64, sodium_base64_ENCODED_LEN(256, sodium_base64_VARIANT_ORIGINAL), sig, 256, sodium_base64_VARIANT_ORIGINAL);
