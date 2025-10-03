@@ -30,7 +30,7 @@ struct {
 	uint16_t *bc; // Block count
 } stindex[AEM_USERCOUNT];
 
-static unsigned char sbk[AEM_KDF_SUB_KEYLEN];
+static unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 
 // uid: UserID; eid: Encoded UserID
@@ -38,7 +38,7 @@ static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 static char eid_chars[64] = "????????????????????????????????????????????????????????????????";
 
 // Create a secret encoding based on the key
-static void eidSetup(void) {
+static void eidSetup(const unsigned char sbk[AEM_KDF_SUB_KEYLEN]) {
 	const char b64_set[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_+";
 	uint64_t done = 0;
 
@@ -70,9 +70,6 @@ static int loadStindex(void) {
 	unsigned char * const enc = malloc(fileSize);
 	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); close(fd); return -1;}
 	if (pread(fd, enc, fileSize, 0) != fileSize) {syslog(LOG_ERR, "Failed reading Stindex.aem"); free(enc); close(fd); return -1;}
-
-	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 
 	unsigned char * const dec = malloc(fileSize - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES);
 	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, fileSize - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, stiKey) == -1) {syslog(LOG_ERR, "Failed decrypting Stindex.aem"); free(enc); close(fd); return -1;}
@@ -126,10 +123,7 @@ static void saveStindex(void) {
 	if (enc == NULL) {syslog(LOG_ERR, "Failed allocation"); free(dec); return;}
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
 
-	unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, sbk);
 	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, stiKey);
-	sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(dec, lenDec);
 	free(dec);
 
@@ -147,13 +141,13 @@ static void saveStindex(void) {
 }
 
 void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
-	memcpy(sbk, baseKey, AEM_KDF_SUB_KEYLEN);
-	eidSetup();
+	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, baseKey);
+	eidSetup(baseKey);
 	loadStindex();
 }
 
 void ioFree(void) {
-	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
+	sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
 
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
 		if (stindex_count[uid] > 0) {
