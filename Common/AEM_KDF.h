@@ -35,6 +35,7 @@ enum {
 	// User: User Master Key
 	AEM_KDF_KEYID_UMK_UAK = 0x01, // User Access Key
 	AEM_KDF_KEYID_UMK_ESK = 0x02, // Envelope Secret Key
+	AEM_KDF_KEYID_UMK_USK = 0x06, // User Signature Key
 
 	// User: User Access Key
 	AEM_KDF_KEYID_UAK_UID = 0x01  // UserID key
