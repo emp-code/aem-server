@@ -52,6 +52,7 @@ static int pipeRead(void) {
 	setEnquiryPid(pids[2]);
 
 	setMsgIdKey(baseKey);
+	sodium_memzero(baseKey, AEM_KDF_SUB_KEYLEN);
 
 	intcom_setKeys_client(bundle.client);
 	sodium_memzero(&bundle, sizeof(bundle));
