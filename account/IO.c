@@ -415,6 +415,7 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 // API: POST (Continue)
 int32_t api_account_keyset(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
 	if (lenData != AEM_USK_KEYLEN + AEM_PWK_KEYLEN) return api_response_status(res, AEM_API_ERR_PARAM);
+	memcpy(user[api_uid]->usk, data, AEM_USK_KEYLEN);
 	memcpy(user[api_uid]->pwk, data + AEM_USK_KEYLEN, AEM_PWK_KEYLEN);
 
 	struct evpKeys ek;
