@@ -191,7 +191,7 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	unsigned char *enq = NULL;
 	const int32_t lenEnq = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_MX, (const unsigned char*)emailDomain + 1, strlen(emailDomain) - 1, &enq, 0);
 	if (lenEnq < 1 || enq == NULL) {free(email.body); syslog(LOG_ERR, "Failed contacting Enquiry"); return AEM_API_ERR_INTERNAL;}
-	if (lenEnq < 12) {free(email.body); free(enq); syslog(LOG_ERR, "Invalid response from Enquiry (1)"); return AEM_API_ERR_INTERNAL;}
+	if (lenEnq < 12) {free(email.body); free(enq); syslog(LOG_ERR, "Invalid response from Enquiry"); return AEM_API_ERR_INTERNAL;}
 
 	email.ip = *(uint32_t*)enq;
 	email.cc = *(uint16_t*)(enq + 4);
