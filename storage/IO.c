@@ -37,12 +37,12 @@ static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 static char eid_chars[64] = "????????????????????????????????????????????????????????????????";
 
 // Create a secret encoding based on the key
-static void eidSetup(const unsigned char sbk[AEM_KDF_SUB_KEYLEN]) {
+static void eidSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	const char b64_set[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_+";
 	uint64_t done = 0;
 
 	uint8_t src[8192];
-	aem_kdf_sub(src, 8192, AEM_KDF_KEYID_STO_EID, sbk);
+	aem_kdf_sub(src, 8192, AEM_KDF_KEYID_STO_EID, baseKey);
 
 	for (int charsDone = 0; charsDone < 64; charsDone++) {
 		for (int n = 0; n < 8192; n++) {
