@@ -141,6 +141,7 @@ static void saveStindex(void) {
 
 void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, baseKey);
+	setSigKey(baseKey);
 	eidSetup(baseKey);
 	loadStindex();
 }
