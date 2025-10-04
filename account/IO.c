@@ -292,11 +292,11 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
 	const uint16_t upd_uid = *(const uint16_t * const)reqData;
-	const uint8_t new_lvl = reqData[2];
 	if (upd_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (upd_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
 	if (user[upd_uid] == NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
+	const uint8_t new_lvl = reqData[2];
 	user[upd_uid]->level = new_lvl;
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
