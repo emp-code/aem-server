@@ -251,6 +251,8 @@ int32_t api_invalid(unsigned char * const res) {
 
 // API: GET
 int32_t api_account_browse(unsigned char * const res) {
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
+
 	memcpy(res, (unsigned char*)limits, 12);
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
@@ -287,11 +289,12 @@ int32_t api_account_permit(unsigned char * const res) {
 }
 
 int32_t api_account_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
+
 	const uint16_t upd_uid = *(const uint16_t * const)reqData;
 	const uint8_t new_lvl = reqData[2];
 	if (upd_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
 	if (upd_uid >= AEM_USERCOUNT) return api_response_status(res, AEM_API_ERR_PARAM);
-	if (user[api_uid]->level != AEM_USERLEVEL_MAX && (api_uid != upd_uid || new_lvl > user[api_uid]->level)) return api_response_status(res, AEM_API_ERR_LEVEL);
 	if (user[upd_uid] == NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	user[upd_uid]->level = new_lvl;
@@ -407,6 +410,8 @@ int32_t api_message_browse(unsigned char * const res, unsigned char flags) {
 }
 
 int32_t api_setting_limits(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
+	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
+
 	memcpy(limits, reqData, 12);
 	saveSettings();
 	return api_response_status(res, AEM_API_STATUS_OK);
