@@ -50,6 +50,7 @@ static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
 static unsigned char saltShield[crypto_shorthash_KEYBYTES];
 static unsigned char key_srk[AEM_KDF_SUB_KEYLEN];
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
+static uint64_t lastReg;
 
 static unsigned char limits[4][3] = {
 // MiB, Nrm, Shd
@@ -610,6 +611,10 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 	memset(nonce + 9, 0x00, 23);
 
 	const uint64_t bts = ((uint64_t)req[0]) | ((uint64_t)req[1] << 8) | ((uint64_t)req[2] << 16) | ((uint64_t)req[3] << 24) | ((uint64_t)req[4] << 32) | ((uint64_t)(req[5] & 3) << 40);
+	if ((long long)bts - (long long)getBinTs() > AEM_API_TIMEDIFF_REG) return AEM_INTCOM_RESPONSE_ERR; // Too far in the future
+	if (((long long)bts + 1073741824LL) < (long long)getBinTs()) return AEM_INTCOM_RESPONSE_ERR; // Expired
+	if (bts <= lastReg) return AEM_INTCOM_RESPONSE_ERR; // Not newer than latest
+
 	unsigned char urk[crypto_aead_aegis256_KEYBYTES];
 	aem_kdf_sub(urk, crypto_aead_aegis256_KEYBYTES, bts, key_srk);
 
@@ -640,6 +645,7 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 
 	memset(nonce + 9, 0xFF, 23);
 	crypto_aead_aegis256_encrypt(*res, NULL, &regStatus, 1, NULL, 0, NULL, nonce, urk);
+	lastReg = bts;
 	return 1 + crypto_aead_aegis256_ABYTES;
 }
 
@@ -696,5 +702,6 @@ int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 //		return -1;
 //	}
 
+	lastReg = getBinTs();
 	return 0;
 }
