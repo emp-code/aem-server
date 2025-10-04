@@ -41,7 +41,6 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 
 			// No action needed
 			case AEM_API_MESSAGE_DELETE:
-			case AEM_API_MESSAGE_SENDER:
 				icRet = 0;
 			break;
 
@@ -81,6 +80,7 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 				icRet = api_message_create(*res + AEM_LEN_APIRESP_BASE, req->c.data, req->n.flags);
 			break;}
 
+			case AEM_API_MESSAGE_SENDER:
 			case AEM_API_MESSAGE_UPLOAD: {
 				icRet = 0; // No action needed
 			break;}

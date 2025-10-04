@@ -12,6 +12,7 @@
 
 #include "../Global.h"
 #include "../Common/AEM_KDF.h"
+#include "Error.h"
 
 #include "MessageId.h"
 
@@ -79,4 +80,36 @@ void genMsgId(char * const out, const uint32_t ts, const uint16_t uid, const uns
 
 	// Clean up
 	sodium_memzero((unsigned char*)id, 16);
+}
+
+static int idVal(const unsigned char c) {
+	const unsigned char * const x = memchr(msgid_cs, c, 32);
+	return (x == NULL) ? -1 : x - msgid_cs;
+}
+
+int decryptMsgId(unsigned char * const out, const unsigned char * const src, const size_t lenSrc) {
+	if (lenSrc != 26) {
+		*out = AEM_API_ERR_INTERNAL;
+		return 1;
+	}
+
+	uint64_t id[2] = {
+	   (uint64_t)idVal(src[ 0]      )  | ((uint64_t)idVal(src[ 1]) <<  5) | ((uint64_t)idVal(src[ 2]) << 10) | ((uint64_t)idVal(src[ 3]) << 15) | ((uint64_t)idVal(src[ 4]) << 20) | ((uint64_t)idVal(src[ 5]) << 25)
+	| ((uint64_t)idVal(src[ 6]) << 30) | ((uint64_t)idVal(src[ 7]) << 35) | ((uint64_t)idVal(src[ 8]) << 40) | ((uint64_t)idVal(src[ 9]) << 45) | ((uint64_t)idVal(src[10]) << 50) | ((uint64_t)idVal(src[11]) << 55)
+	| (((uint64_t)idVal(src[12]) & 15) << 60)
+	,
+	   (uint64_t)idVal(src[13]       ) | ((uint64_t)idVal(src[14]) <<  5) | ((uint64_t)idVal(src[15]) << 10) | ((uint64_t)idVal(src[16]) << 15) | ((uint64_t)idVal(src[17]) << 20) | ((uint64_t)idVal(src[18]) << 25)
+	| ((uint64_t)idVal(src[19]) << 30) | ((uint64_t)idVal(src[20]) << 35) | ((uint64_t)idVal(src[21]) << 40) | ((uint64_t)idVal(src[22]) << 45) | ((uint64_t)idVal(src[23]) << 50) | ((uint64_t)idVal(src[24]) << 55)
+	| (((uint64_t)idVal(src[25]) & 15) << 60)
+	};
+
+	Aes aes;
+	wc_AesInit(&aes, NULL, INVALID_DEVID);
+	if (wc_AesSetKey(&aes, msgid_key, 32, NULL, AES_DECRYPTION) != 0 || wc_AesDecryptDirect(&aes, out, (unsigned char*)id) != 0) {
+		syslog(LOG_ERR, "Failed MsgId decrypt");
+		*out = AEM_API_ERR_INTERNAL;
+		return 1;
+	}
+
+	return 16;
 }

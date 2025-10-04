@@ -23,6 +23,7 @@
 #include "../IntCom/Client.h"
 
 #include "Error.h"
+#include "MessageId.h"
 #include "Respond.h"
 #include "SendMail.h"
 
@@ -310,6 +311,13 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
 
+static void message_sender(const unsigned char * const src, const size_t lenSrc) {
+	unsigned char res[16];
+	const int r = decryptMsgId(res, src, lenSrc);
+	apiResponse(res, r);
+	return;
+}
+
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	const uint64_t fileBts = (uint64_t)urlData[0] | ((uint64_t)urlData[1] << 8) | ((uint64_t)urlData[2] << 16) | ((uint64_t)urlData[3] << 24) | ((uint64_t)urlData[4] << 32) | ((uint64_t)urlData[5] << 40);
 	if (llabs((long long)fileBts - (long long)getBinTs()) > AEM_API_TIMEDIFF_UPL) return AEM_API_ERR_MESSAGE_UPLOAD_TIMEDIFF;
@@ -418,32 +426,40 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 	}
 }
 
-static unsigned char handlePost(const uint64_t binTs, const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
+static void handlePost(const uint64_t binTs, const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
 	if (
 #ifdef AEM_TLS
 	tls_recv(body, lenBody)
 #else
 	recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL)
 #endif
-	!= (ssize_t)lenBody)
-		return AEM_API_ERR_RECV;
+	!= (ssize_t)lenBody) {
+		const unsigned char rb = AEM_API_ERR_RECV;
+		apiResponse(&rb, 1);
+		return;
+	}
 
 	// Authenticate and decrypt
 	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
 	bzero(nonce, crypto_aead_aegis256_NPUBBYTES);
 
 	unsigned char decBody[lenBody - crypto_aead_aegis256_ABYTES];
-	if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0)
-		return AEM_API_ERR_DECRYPT;
+	if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0) {
+		const unsigned char rb = AEM_API_ERR_DECRYPT;
+		apiResponse(&rb, 1);
+		return;
+	}
 
 	// Choose action
 	switch (cmd) {
-		case AEM_API_MESSAGE_CREATE: return message_create(flags, binTs, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES);
-		case AEM_API_MESSAGE_UPLOAD: return message_upload(uid, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES);
+		case AEM_API_MESSAGE_CREATE: {const unsigned char rb = message_create(flags, binTs, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); return;}
+		case AEM_API_MESSAGE_SENDER: {message_sender(decBody, lenBody - crypto_aead_aegis256_ABYTES); return;}
+		case AEM_API_MESSAGE_UPLOAD: {const unsigned char rb = message_upload(uid, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); return;}
 	}
 
 	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
-	return AEM_API_ERR_INTERNAL;
+	const unsigned char rb = AEM_API_ERR_INTERNAL;
+	apiResponse(&rb, 1);
 }
 
 void aem_api_process(const unsigned char * const req, const bool isPost) {
@@ -496,9 +512,8 @@ void aem_api_process(const unsigned char * const req, const bool isPost) {
 			if (postBody == NULL) {
 				syslog(LOG_ERR, "Failed malloc");
 			} else {
-				const unsigned char rb = handlePost(((const union aem_req * const)req)->n.binTs, icData[0], icData[1], icData[2] | (icData[3] << 8), icData + 4, icData + 4 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
+				handlePost(((const union aem_req * const)req)->n.binTs, icData[0], icData[1], icData[2] | (icData[3] << 8), icData + 4, icData + 4 + AEM_API_REQ_DATA_LEN, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE, postBody, lenBody);
 				free(postBody);
-				apiResponse(&rb, 1);
 			}
 		} else {
 			handleGet(icData[0], icData[1], icData[2] | (icData[3] << 8), icData + 4, icData + AEM_LEN_APIRESP_BASE, icRet - AEM_LEN_APIRESP_BASE);
