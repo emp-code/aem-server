@@ -267,6 +267,7 @@ int32_t api_account_browse(unsigned char * const res) {
 		} else bzero(res + 12 + (i * sizeof(uint32_t)), sizeof(uint32_t));
 	}
 
+	if (bc != NULL) free(bc);
 	return 12 + (AEM_USERCOUNT * sizeof(uint32_t));
 }
 
