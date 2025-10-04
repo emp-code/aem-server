@@ -254,11 +254,14 @@ int32_t api_invalid(unsigned char * const res) {
 int32_t api_account_browse(unsigned char * const res) {
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
+	unsigned char *bc = NULL;
+	intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_AMOUNT, NULL, 0, &bc, AEM_USERCOUNT * sizeof(uint32_t));
+
 	memcpy(res, (unsigned char*)limits, 12);
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
 		if (user[i] != NULL) {
-			const uint32_t kib = 1234567; // TODO
+			const uint32_t kib = (bc == NULL) ? 0 : (*(uint32_t*)(bc + i * sizeof(uint32_t)) * AEM_EVP_BLOCKSIZE / 1024);
 			const uint32_t u32 = user[i]->level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
 			memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
 		} else bzero(res + 12 + (i * sizeof(uint32_t)), sizeof(uint32_t));
