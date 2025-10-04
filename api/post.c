@@ -459,6 +459,7 @@ void aem_api_process(const unsigned char * const req, const bool isPost) {
 		case AEM_INTCOM_RESPONSE_AUTH_TIMEDIFF: unauthResponse(AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF); return;
 		case AEM_INTCOM_RESPONSE_AUTH_REPLAY:   unauthResponse(AEM_API_UNAUTH_ERR_AUTH_REPLAY); return;
 		case AEM_INTCOM_RESPONSE_AUTH_KEYSET:   unauthResponse(AEM_API_UNAUTH_ERR_AUTH_KEYSET); return;
+		case AEM_INTCOM_RESPONSE_AUTH_LEVEL:    unauthResponse(AEM_API_UNAUTH_ERR_AUTH_LEVEL); return;
 	}
 
 	if (icRet < AEM_LEN_APIRESP_BASE && (!isPost || icRet != AEM_INTCOM_RESPONSE_CONTINUE)) {

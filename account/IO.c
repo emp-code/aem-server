@@ -538,6 +538,16 @@ int32_t api_auth(unsigned char * const res, union aem_req * const req, const boo
 
 	req->n.cmd ^= (req_key_data[0] & 60) >> 2;
 	if (sodium_is_zero(user[api_uid]->pwk, AEM_PWK_KEYLEN) && req->n.cmd != AEM_API_ACCOUNT_KEYSET) return AEM_INTCOM_RESPONSE_AUTH_KEYSET;
+
+	if ( // Admin-only APIs
+	(  (!post && req->n.cmd == AEM_API_ACCOUNT_BROWSE)
+	|| (!post && req->n.cmd == AEM_API_ACCOUNT_PERMIT)
+	|| (!post && req->n.cmd == AEM_API_ACCOUNT_UPDATE)
+	|| (!post && req->n.cmd == AEM_API_SETTING_LIMITS)
+	|| ( post && req->n.cmd == AEM_API_MESSAGE_SENDER)
+	) && (user[api_uid]->level != AEM_USERLEVEL_MAX))
+		return AEM_INTCOM_RESPONSE_AUTH_LEVEL;
+
 	req->n.flags ^= (req_key_data[0] & 192) >> 6;
 
 	for (int i = 0; i < AEM_API_REQ_DATA_LEN; i++) {
