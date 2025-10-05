@@ -44,6 +44,9 @@ size_t lenRsaAdminKey;
 size_t lenRsaUsersKey;
 static unsigned char rsaAdminKey[4096];
 static unsigned char rsaUsersKey[4096];
+static unsigned char welcome[AEM_WELCOME_MAXLEN];
+static uint64_t addrHash_admin[AEM_ADMIN_ADDR_MAX];
+static uint64_t addrHash_system = 0;
 
 static unsigned char accountKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
@@ -63,11 +66,16 @@ static unsigned char limits[4][3] = {
 uint16_t api_uid = 0;
 
 static void saveSettings(void) {
-	const size_t lenEnc = 12 + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	const size_t lenDec = 12 + AEM_WELCOME_MAXLEN + (AEM_ADMIN_ADDR_MAX * sizeof(uint64_t));
+	unsigned char dec[lenDec];
+	memcpy(dec, limits, 12);
+	memcpy(dec + 12, welcome, AEM_WELCOME_MAXLEN);
+	memcpy(dec + 12 + AEM_WELCOME_MAXLEN, addrHash_admin, AEM_ADMIN_ADDR_MAX);
+
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
 	unsigned char enc[lenEnc];
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
-
-	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, (unsigned char*)limits, 12, NULL, 0, NULL, enc, accountKey);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, accountKey);
 
 	const int fd = open("Settings.aem", O_WRONLY | O_TRUNC | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening Settings.aem"); return;}
@@ -81,19 +89,27 @@ static int loadSettings(void) {
 	const int fd = open("Settings.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) return -1;
 
+	const size_t lenDec = 12 + AEM_WELCOME_MAXLEN + (AEM_ADMIN_ADDR_MAX * sizeof(uint64_t));
 	const off_t lenEnc = lseek(fd, 0, SEEK_END);
-	const off_t lenDec = lenEnc - crypto_aead_aegis256_NPUBBYTES - crypto_aead_aegis256_ABYTES;
-	if (lenDec != 12) {syslog(LOG_WARNING, "Failed loading Settings.aem - invalid size"); close(fd); return -1;}
+	if (lenEnc != lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES) {
+		close(fd);
+		syslog(LOG_WARNING, "Settings.aem: invalid size");
+		return -1;
+	}
 
 	unsigned char enc[lenEnc];
 	if (pread(fd, enc, lenEnc, 0) != lenEnc) {
 		close(fd);
-		syslog(LOG_WARNING, "Failed loading Settings.aem - failed read");
+		syslog(LOG_WARNING, "Settings.aem: failed read");
 		return -1;
 	}
 	close(fd);
 
-	if (crypto_aead_aegis256_decrypt((unsigned char*)limits, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, accountKey) != 0) return -1;
+	unsigned char dec[lenDec];
+	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, lenEnc - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, accountKey) != 0) return -1;
+	memcpy(limits, dec, 12);
+	memcpy(welcome, dec + 12, AEM_WELCOME_MAXLEN);
+	memcpy(addrHash_admin, dec + 12 + AEM_WELCOME_MAXLEN, AEM_ADMIN_ADDR_MAX * sizeof(uint64_t));
 	return 0;
 }
 
@@ -326,18 +342,14 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 		if (numAddresses(api_uid, false) >= limits[user[api_uid]->level][AEM_LIMIT_NRM]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
 
 		memcpy((unsigned char*)&hash, reqData, 8);
+		if (hash == 0 || hash == addrHash_system) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 
 		if (user[api_uid]->level != AEM_USERLEVEL_MAX) {
 			// Not admin, check if hash is forbidden
-			for (int i = 0; i < AEM_ADDRHASH_ADMIN_COUNT; i++) {
-				if (hash == AEM_ADDRHASH_ADMIN[i]) {
-					hash = 0;
-					break;
-				}
+			for (int i = 0; i < AEM_ADMIN_ADDR_DEFAULT_COUNT; i++) {
+				if (hash == addrHash_admin[i]) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 			}
 		}
-
-		if (hash == 0 || hash == AEM_ADDRHASH_SYSTEM) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
 	}
 
 	if (hashToUid(hash, isShield, NULL) != UINT16_MAX) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_INUSE);
@@ -698,7 +710,16 @@ int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(key_srk,    AEM_KDF_SUB_KEYLEN,            AEM_KDF_KEYID_ACC_REG, baseKey);
 
 	if (loadUser() != 0) return -1;
-	loadSettings(); // Ignore errors
+	if (loadSettings() != 0) {
+		syslog(LOG_WARNING, "Failed loading Settings.aem - using defaults");
+		strcpy((char*)welcome, AEM_WELCOME_DEFAULT);
+
+		for (int i = 0; i < AEM_ADMIN_ADDR_DEFAULT_COUNT; i++) {
+			addrHash_admin[i] = addressToHash(AEM_ADMIN_ADDR_DEFAULT + (10 * i));
+		}
+	}
+	addrHash_system = addressToHash(AEM_ADDR32_SYSTEM);
+
 //	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
 
 //	if (intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
