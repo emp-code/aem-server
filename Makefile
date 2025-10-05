@@ -37,7 +37,7 @@ aem-web-oni: web/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB_ONI -DAEM_LOCAL -o aem-web-oni web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap
 
 utils/AdminAddr: utils/AdminAddr.c
-	$(CC) $(CFLAGS) -o utils/AdminAddr utils/AdminAddr.c Common/AEM_KDF.c Common/Addr32.c Common/GetKey.c Common/ToggleEcho.c -lsodium
+	$(CC) $(CFLAGS) -o utils/AdminAddr utils/AdminAddr.c Common/Addr32.c
 
 utils/BinCrypt: utils/BinCrypt.c
 	$(CC) $(CFLAGS) -o utils/BinCrypt utils/BinCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
