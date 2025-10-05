@@ -15,7 +15,6 @@
 #include "../Common/binTs.h"
 #include "../Common/evpKeys.h"
 #include "../Common/memeq.h"
-#include "../Data/address.h"
 #include "../IntCom/Client.h"
 #include "../IntCom/Server.h"
 #include "../api/Error.h"
