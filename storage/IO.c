@@ -15,10 +15,12 @@
 #include "../Common/Message.h"
 #include "../Common/Signature.h"
 #include "../Common/memeq.h"
-#include "../Data/welcome.h"
 #include "../IntCom/Client.h"
 
 #include "IO.h"
+
+#define AEM_WELCOME (const unsigned char * const)"Welcome to All-Ears Mail\nThis is the default welcome message for All-Ears Mail."
+#define AEM_WELCOME_LEN 80
 
 #define AEM_MSG_STORAGE_EMPTY (const unsigned char * const)"Storage emptied\nAs you requested, your storage has been emptied.\nAs this is your oldest message now, it can only be deleted by emptying your storage again.\nThis is an automatically generated system message."
 #define AEM_MSG_STORAGE_EMPTY_LEN 206
