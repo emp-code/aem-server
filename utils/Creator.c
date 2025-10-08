@@ -167,7 +167,6 @@ static int makeStorage(unsigned char * const smk, const struct aem_user * const 
 	unsigned char sbk[AEM_KDF_SUB_KEYLEN]; // Storage Base Key
 	aem_kdf_smk(sbk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_STO, smk);
 	setSigKey(sbk);
-	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
 
 	struct evpKeys ek;
 	memcpy(ek.pwk, user->pwk, AEM_PWK_KEYLEN);
