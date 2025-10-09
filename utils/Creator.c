@@ -184,7 +184,7 @@ static int makeStorage(unsigned char * const smk, const struct aem_user * const 
 
 int main(void) {
 	puts("AEM-Creator: Sets up a new All-Ears Mail home folder.");
-	printf("Bytes per user: %d (Private: %d)\n", sizeof(struct aem_user), AEM_LEN_PRIVATE);
+	printf("Bytes per user: %zu (Private: %d)\n", sizeof(struct aem_user), AEM_LEN_PRIVATE);
 
 	if (sodium_init() < 0) {puts("Failed sodium_init"); return 1;}
 	if (createDirs() != 0) return 2;
