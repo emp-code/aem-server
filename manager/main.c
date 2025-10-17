@@ -13,6 +13,7 @@
 #include <sys/mman.h> // for mlockall
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <pwd.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -210,15 +211,39 @@ static int setCgroup(void) {
 	return 0;
 }
 
+static int setupHome(void) {
+	const struct passwd * const ae = getpwnam("allears");
+
+	return (ae != NULL
+	&& chmod(AEM_PATH_HOME"/Account.aem", S_IRUSR | S_IWUSR) == 0
+	&& chmod(AEM_PATH_HOME"/Data", S_IRUSR | S_IWUSR | S_IXUSR) == 0
+	&& chmod(AEM_PATH_HOME"/GeoLite2-ASN.mmdb", S_IRUSR | S_IWUSR | S_IRGRP) == 0
+	&& chmod(AEM_PATH_HOME"/GeoLite2-Country.mmdb", S_IRUSR | S_IWUSR | S_IRGRP) == 0
+	&& chmod(AEM_PATH_HOME"/Msg", S_IRUSR | S_IWUSR | S_IXUSR) == 0
+	&& chmod(AEM_PATH_HOME"/Settings.aem", S_IRUSR | S_IWUSR) == 0
+	&& chmod(AEM_PATH_HOME"/Stindex.aem", S_IRUSR | S_IWUSR) == 0
+	&& chmod(AEM_PATH_HOME"/bin", S_IRUSR | S_IWUSR | S_IXUSR) == 0
+
+	&& chown(AEM_PATH_HOME"/Account.aem", ae->pw_uid, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/Data", 0, 0) == 0
+	&& chown(AEM_PATH_HOME"/GeoLite2-ASN.mmdb", 0, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/GeoLite2-Country.mmdb", 0, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/Msg", ae->pw_uid, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/Settings.aem", ae->pw_uid, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/Stindex.aem", ae->pw_uid, ae->pw_gid) == 0
+	&& chown(AEM_PATH_HOME"/bin", 0, 0) == 0) ? 0 : -1;
+}
+
 int main(void) {
 	setlocale(LC_ALL, "C");
 
 	if (getuid() != 0) return 1;
 	if (!ptraceDisabled()) return 2;
+	if (setupHome() != 0) return 3;
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)         != 0) return 3;
-	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)             != 0) return 4; // Disable core dumps and ptrace
-	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 5; // Kill early if memory corruption detected
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)         != 0) return 4;
+	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)             != 0) return 5; // Disable core dumps and ptrace
+	if (prctl(PR_MCE_KILL, PR_MCE_KILL_EARLY, 0, 0, 0) != 0) return 6; // Kill early if memory corruption detected
 
 	if (unshare(
 		  CLONE_FILES // File descriptor table
@@ -227,10 +252,10 @@ int main(void) {
 		| CLONE_NEWNS // Mount namespace
 		| CLONE_NEWUTS // Hostname
 		| CLONE_SYSVSEM // Unused
-	) != 0) return 6;
+	) != 0) return 7;
 
-	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 7;
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 8;
+	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 8;
+	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 9;
 
 	if (sodium_init() != 0) return 10;
 	if (setCgroup()   != 0) return 11;
