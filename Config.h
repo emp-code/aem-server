@@ -6,6 +6,13 @@
 // Minimum level required to send email
 #define AEM_MINLEVEL_SENDEMAIL 2
 
+#define AEM_LIMITS_DEFAULT \
+/* MiB, Nrm, Shd */ \
+/* Lv. 0 */ {0, 0, 0}, \
+/* Lv. 1 */ {0, 0, 0}, \
+/* Lv. 2 */ {0, 0, 0}, \
+/* Admin */ {UINT8_MAX, AEM_ADDRESSES_PER_USER, AEM_ADDRESSES_PER_USER}
+
 // Welcome message
 #define AEM_WELCOME_MAXLEN 4096 // 4 KiB
 #define AEM_WELCOME_DEFAULT "Welcome to All-Ears Mail\nThis is the default welcome message for All-Ears Mail."

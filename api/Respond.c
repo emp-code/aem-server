@@ -16,14 +16,14 @@
 
 #include "Respond.h"
 
-static unsigned char rbk[crypto_aead_aegis256_KEYBYTES];
+static unsigned char rbk[AEM_API_BODY_KEYSIZE];
 
 void setRbk(const unsigned char * const newKey) {
-	memcpy(rbk, newKey, crypto_aead_aegis256_KEYBYTES);
+	memcpy(rbk, newKey, AEM_API_BODY_KEYSIZE);
 }
 
 void clrRbk(void) {
-	sodium_memzero(rbk, crypto_aead_aegis256_KEYBYTES);
+	sodium_memzero(rbk, AEM_API_BODY_KEYSIZE);
 }
 
 static int numDigits(const size_t x) {
@@ -74,10 +74,7 @@ void apiResponse(const unsigned char * const data, const size_t lenData) {
 	, lenFinal);
 
 	// Add encrypted response
-	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
-	bzero(nonce, crypto_aead_aegis256_NPUBBYTES);
-
-	crypto_aead_aegis256_encrypt(response + lenHeaders, NULL, padded, lenPadded, NULL, 0, NULL, nonce, rbk);
+	crypto_aead_aegis256_encrypt(response + lenHeaders, NULL, padded, lenPadded, NULL, 0, NULL, rbk, rbk + crypto_aead_aegis256_NPUBBYTES);
 	sodium_memzero(padded, lenPadded);
 	free(padded);
 

@@ -39,10 +39,7 @@ void setOurDomain(const unsigned char * dom, const size_t len) {
 static void message_browse(const uint16_t uid, const int flags, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
 	const bool haveMsgId = !sodium_is_zero(urlData, AEM_API_REQ_DATA_LEN);
 
-	unsigned char stoParam[sizeof(uint16_t) * 2];
-	memcpy(stoParam, (const unsigned char * const)&uid, sizeof(uint16_t));
-	if (haveMsgId) memcpy(stoParam + sizeof(uint16_t), urlData, sizeof(uint16_t));
-
+	const unsigned char stoParam[] = {uid & 255, (uid >> 8) & 255, urlData[0], urlData[1]};
 	unsigned char *stoData = NULL;
 	const int stoRet = intcom(AEM_INTCOM_SERVER_STO, (flags & AEM_API_MESSAGE_BROWSE_FLAG_OLDER) ? AEM_INTCOM_OP_BROWSE_OLD : AEM_INTCOM_OP_BROWSE_NEW, stoParam, sizeof(uint16_t) * (haveMsgId? 2 : 1), &stoData, 0);
 
@@ -440,11 +437,8 @@ static void handlePost(const uint64_t binTs, const int cmd, const int flags, con
 	}
 
 	// Authenticate and decrypt
-	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
-	bzero(nonce, crypto_aead_aegis256_NPUBBYTES);
-
 	unsigned char decBody[lenBody - crypto_aead_aegis256_ABYTES];
-	if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, nonce, requestBodyKey) != 0) {
+	if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, body, lenBody, NULL, 0, requestBodyKey, requestBodyKey + crypto_aead_aegis256_NPUBBYTES) != 0) {
 		const unsigned char rb = AEM_API_ERR_DECRYPT;
 		apiResponse(&rb, 1);
 		return;

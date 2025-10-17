@@ -5,45 +5,45 @@
 
 #define AEM_KDF_SMK_KEYLEN 46 // 32 Key + 12 Nonce + 2 Counter (368 bits)
 #define AEM_KDF_UMK_KEYLEN 45 // 32 Key + 12 Nonce + 1 Counter (360 bits)
+#define AEM_KDF_UAK_KEYLEN 43
 #define AEM_KDF_SUB_KEYLEN 40 // 32 Key + 8 Nonce (320 bits)
 
-enum {
-	// Server: Server Master Key
-	AEM_KDF_KEYID_SMK_UMK = 0x01, // Master Admin's UMK
-	AEM_KDF_KEYID_SMK_LCH = 0x02, // Launch Key
-	AEM_KDF_KEYID_SMK_MNG = 0x03, // Manager Key
+#define AEM_UAK_POST 64
 
-	AEM_KDF_KEYID_SMK_ACC = 0x10, // Account Base Key
-	AEM_KDF_KEYID_SMK_STO = 0x12, // Storage Base Key
-	AEM_KDF_KEYID_SMK_API = 0x13, // API Base Key
+// Server - Server Master Key
+	#define AEM_KDF_KEYID_SMK_UMK  1 // Master Admin's UMK
+	#define AEM_KDF_KEYID_SMK_LCH  2 // Launch Key
+	#define AEM_KDF_KEYID_SMK_MNG  3 // Manager Key
+	#define AEM_KDF_KEYID_SMK_ACC 10 // Account Base Key
+//	#define AEM_KDF_KEYID_SMK_DLV 11 // Deliver Base Key
+//	#define AEM_KDF_KEYID_SMK_ENQ 12 // Enquiry Base Key
+	#define AEM_KDF_KEYID_SMK_STO 13 // Storage Base Key
+	#define AEM_KDF_KEYID_SMK_API 14 // API Base Key
 
-	// Server: Account Base Key
-	AEM_KDF_KEYID_ACC_ACC = 0x20, // Account Key
-	AEM_KDF_KEYID_ACC_NRM = 0x21, // Normal Salt
-	AEM_KDF_KEYID_ACC_SHD = 0x22, // Shield Salt
-	AEM_KDF_KEYID_ACC_REG = 0x04, // Server Registration Key (SRK)
+// Server - Account Base Key
+	#define AEM_KDF_KEYID_ACC_ACC 1 // Account Key
+	#define AEM_KDF_KEYID_ACC_NRM 2 // Normal Salt
+	#define AEM_KDF_KEYID_ACC_SHD 3 // Shield Salt
+	#define AEM_KDF_KEYID_ACC_REG 4 // Server Registration Key (SRK)
 
-	// Server: Storage Base Key
-	AEM_KDF_KEYID_STO_STI = 0x30, // Stindex Key
-	AEM_KDF_KEYID_STO_SIG = 0x31, // Server Signature Key
-	AEM_KDF_KEYID_STO_EID = 0x32, // Encoded UserID
+// Server - Storage Base Key
+	#define AEM_KDF_KEYID_STO_STI 1 // Stindex Key
+	#define AEM_KDF_KEYID_STO_SIG 2 // Server Signature Key
+	#define AEM_KDF_KEYID_STO_EID 3 // Encoded UserID
 
-	// Server: API Base Key
-	AEM_KDF_KEYID_API_MIA = 0x40,	// MessageID AES Key
-	AEM_KDF_KEYID_API_MIC = 0x41,	// MessageID Charset Key
+// Server - API Base Key
+	#define AEM_KDF_KEYID_API_MIA 1	// MessageID AES Key
+	#define AEM_KDF_KEYID_API_MIC 2	// MessageID Charset Key
 
-	// User: User Master Key
-	AEM_KDF_KEYID_UMK_UAK = 0x01, // User Access Key
-	AEM_KDF_KEYID_UMK_ESK = 0x02, // Envelope Secret Key
-	AEM_KDF_KEYID_UMK_USK = 0x06, // User Signature Key
-
-	// User: User Access Key
-	AEM_KDF_KEYID_UAK_UID = 0x01  // UserID key
-};
+// User - User Master Key
+	#define AEM_KDF_KEYID_UMK_UAK  1 // User API Key
+	#define AEM_KDF_KEYID_UMK_USK  4 // User Signature Key
+	#define AEM_KDF_KEYID_UMK_EWS 12 // Envelope Weak Secret
 
 void aem_kdf_smk(unsigned char * const out, const size_t lenOut, const uint8_t n, const unsigned char smk[AEM_KDF_SMK_KEYLEN]);
+void aem_kdf_uak(unsigned char * const out, const size_t lenOut, const uint64_t binTs, const bool post, const uint8_t type, const unsigned char key[AEM_KDF_UAK_KEYLEN]);
 void aem_kdf_sub(unsigned char * const out, const size_t lenOut, const uint64_t n, const unsigned char key[AEM_KDF_SUB_KEYLEN]);
-uint16_t aem_getUserId(const unsigned char uak[AEM_KDF_SUB_KEYLEN]);
+uint16_t aem_getUserId(const unsigned char uak[AEM_KDF_UAK_KEYLEN]);
 
 #ifdef AEM_KDF_UMK
 void aem_kdf_umk(unsigned char * const out, const size_t lenOut, const uint16_t n, const unsigned char umk[AEM_KDF_UMK_KEYLEN]);

@@ -58,12 +58,9 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 					icRet = AEM_INTCOM_RESPONSE_CONTINUE;
 				} else if (lenMsg > AEM_API_REQ_LEN) {
 					// Authenticate and decrypt the POST body
-					unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
-					bzero(nonce, crypto_aead_aegis256_NPUBBYTES);
-
 					const size_t lenDecBody = lenMsg - AEM_API_REQ_LEN - crypto_aead_aegis256_ABYTES;
 					unsigned char decBody[lenDecBody];
-					if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, nonce, *res + 4 + AEM_API_REQ_DATA_LEN) == 0) {
+					if (crypto_aead_aegis256_decrypt(decBody, NULL, NULL, msg + AEM_API_REQ_LEN, lenMsg - AEM_API_REQ_LEN, NULL, 0, *res + 4 + AEM_API_REQ_DATA_LEN, *res + 36 + AEM_API_REQ_DATA_LEN) == 0) {
 						switch (req->n.cmd) {
 							case AEM_API_ACCOUNT_KEYSET: icRet = api_account_keyset(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody); break;
 							case AEM_API_ADDRESS_UPDATE: icRet = api_address_update(*res + AEM_LEN_APIRESP_BASE, decBody, lenDecBody); break;
@@ -109,7 +106,7 @@ int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, cons
 }
 
 int32_t conn_reg(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
-	if (operation != 0 || lenMsg != 81) {syslog(LOG_ERR, "Invalid request (Reg): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
+	if (operation != 0 || lenMsg != 84) {syslog(LOG_ERR, "Invalid request (Reg): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
 
 	return reg_register(msg, res);
 }

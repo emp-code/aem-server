@@ -7,7 +7,7 @@
 #define AEM_USERCOUNT 4096
 
 struct aem_user {
-	unsigned char uak[AEM_KDF_SUB_KEYLEN]; // User Access Key
+	unsigned char uak[AEM_KDF_UAK_KEYLEN]; // User API Key
 	unsigned char usk[AEM_USK_KEYLEN]; // User Signature Key
 	unsigned char pwk[AEM_PWK_KEYLEN];
 	unsigned char psk[AEM_PSK_KEYLEN];

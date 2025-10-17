@@ -11,6 +11,7 @@
 
 #include "../Global.h"
 #include "../Common/Addr32.h"
+#include "../Common/AddrToHash.h"
 #include "../Common/api_req.h"
 #include "../Common/binTs.h"
 #include "../Common/evpKeys.h"
@@ -30,12 +31,10 @@
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
 
-enum {
-	AEM_UAK_TYPE_URL_AUTH,
-	AEM_UAK_TYPE_URL_DATA,
-	AEM_UAK_TYPE_BODY_REQ,
-	AEM_UAK_TYPE_BODY_RES
-};
+#define AEM_UAK_TYPE_URL_AUTH  0
+#define AEM_UAK_TYPE_URL_DATA 16
+#define AEM_UAK_TYPE_BODY_REQ 32
+#define AEM_UAK_TYPE_BODY_RES 48
 
 static struct aem_user *user[AEM_USERCOUNT];
 
@@ -49,18 +48,11 @@ static uint64_t addrHash_system = 0;
 
 static unsigned char accountKey[crypto_aead_aegis256_KEYBYTES];
 static unsigned char saltNormal[AEM_SALTNORMAL_LEN];
-static unsigned char saltShield[crypto_shorthash_KEYBYTES];
 static unsigned char key_srk[AEM_KDF_SUB_KEYLEN];
 static uint32_t fakeFlag_expire[AEM_FAKEFLAGS_HTSIZE];
 static uint64_t lastReg;
 
-static unsigned char limits[4][3] = {
-// MiB, Nrm, Shd
-	{0, 0, 0},
-	{0, 0, 0},
-	{0, 0, 0},
-	{UINT8_MAX, AEM_ADDRESSES_PER_USER, AEM_ADDRESSES_PER_USER} // Admin
-};
+static unsigned char limits[4][3] = {AEM_LIMITS_DEFAULT};
 
 uint16_t api_uid = 0;
 
@@ -212,36 +204,6 @@ static uint16_t hashToUid(const uint64_t hash, const bool isShield, unsigned cha
 	}
 
 	return UINT16_MAX;
-}
-
-__attribute__((warn_unused_result))
-static uint64_t addressToHash(const unsigned char * const addr32) {
-	if (addr32 == NULL) return 0;
-
-	if ((addr32[0] & 128) != 0) {
-		// Shield
-		if (memeq(addr32 + 2, AEM_ADDR32_ADMIN, 8)) return 0; // Forbid addresses ending with 'administrator'
-		uint64_t hash;
-		crypto_shorthash((unsigned char*)&hash, addr32, AEM_ADDR32_BINLEN, saltShield);
-		return hash;
-	}
-
-	// Normal
-	if (memeq(addr32, AEM_ADDR32_SYSTEM, AEM_ADDR32_BINLEN)) return 0; // Forbid 'system'
-	if (addr32[0] >> 3 == 0) return 0; // Forbid zero length
-
-#ifdef AEM_ADDRESS_NOPWHASH
-	uint64_t hash;
-	crypto_shorthash((unsigned char*)&hash, addr32, AEM_ADDR32_BINLEN, saltNormal);
-	return hash;
-#else
-	uint64_t halves[2];
-	if (crypto_pwhash((unsigned char*)halves, sizeof(uint64_t) * 2, (const char*)addr32, AEM_ADDR32_BINLEN, saltNormal, AEM_ADDRESS_ARGON2_OPSLIMIT, AEM_ADDRESS_ARGON2_MEMLIMIT, crypto_pwhash_ALG_ARGON2ID13) != 0) {
-		syslog(LOG_ERR, "Failed hashing address");
-		return 0;
-	}
-	return halves[0] ^ halves[1];
-#endif
 }
 
 static int numAddresses(const int uid, const bool shield) {
@@ -529,19 +491,14 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 }
 
 //
-static void uak_derive(unsigned char * const out, const int lenOut, const uint64_t binTs, const uint16_t uid, const bool post, const unsigned long long type) {
-	aem_kdf_sub(out, lenOut, binTs | (post? (1LLU << 47) : 0) | (type << 45), user[uid]->uak);
-}
-
 int32_t api_auth(unsigned char * const res, union aem_req * const req, const bool post) {
 	// Find which (if any) user has a key that authenticates this request
 	bool found = false;
-	api_uid = 0;
-	for (;api_uid < AEM_USERCOUNT; api_uid++) {
+	for (api_uid = 0; api_uid < AEM_USERCOUNT; api_uid++) {
 		if (user[api_uid] == NULL) continue;
 
 		unsigned char req_key_auth[crypto_onetimeauth_KEYBYTES];
-		uak_derive(req_key_auth, crypto_onetimeauth_KEYBYTES, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_AUTH);
+		aem_kdf_uak(req_key_auth, crypto_onetimeauth_KEYBYTES, req->n.binTs, post, AEM_UAK_TYPE_URL_AUTH, user[api_uid]->uak);
 		if (crypto_onetimeauth_verify(req->c.mac, (unsigned char*)req + 5, AEM_API_REQ_LEN - crypto_onetimeauth_BYTES - 5, req_key_auth) == 0) {
 			if (req->n.binTs <= user[api_uid]->lastBinTs) return AEM_INTCOM_RESPONSE_AUTH_REPLAY; // This request isn't newer than the last recorded one - suspected replay attack
 			if (llabs((int64_t)req->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) return AEM_INTCOM_RESPONSE_AUTH_TIMEDIFF;
@@ -556,7 +513,7 @@ int32_t api_auth(unsigned char * const res, union aem_req * const req, const boo
 
 	// Decrypt
 	unsigned char req_key_data[1 + AEM_API_REQ_DATA_LEN];
-	uak_derive(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->n.binTs, api_uid, post, AEM_UAK_TYPE_URL_DATA);
+	aem_kdf_uak(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->n.binTs, post, AEM_UAK_TYPE_URL_DATA, user[api_uid]->uak);
 
 	req->n.cmd ^= (req_key_data[0] & 60) >> 2;
 	if (sodium_is_zero(user[api_uid]->pwk, AEM_PWK_KEYLEN) && req->n.cmd != AEM_API_ACCOUNT_KEYSET) return AEM_INTCOM_RESPONSE_AUTH_KEYSET;
@@ -581,8 +538,8 @@ int32_t api_auth(unsigned char * const res, union aem_req * const req, const boo
 	res[1] = req->n.flags;
 	memcpy(res + 2, &api_uid, 2);
 	memcpy(res + 4, req->c.data, AEM_API_REQ_DATA_LEN);
-	uak_derive(res + 4 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_REQ);
-	uak_derive(res + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->n.binTs, api_uid, post, AEM_UAK_TYPE_BODY_RES);
+	aem_kdf_uak(res + 4 + AEM_API_REQ_DATA_LEN, AEM_API_BODY_KEYSIZE, req->n.binTs, post, AEM_UAK_TYPE_BODY_REQ, user[api_uid]->uak);
+	aem_kdf_uak(res + 4 + AEM_API_REQ_DATA_LEN + AEM_API_BODY_KEYSIZE, AEM_API_BODY_KEYSIZE, req->n.binTs, post, AEM_UAK_TYPE_BODY_RES, user[api_uid]->uak);
 
 	return AEM_INTCOM_RESPONSE_OK;
 }
@@ -621,10 +578,6 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 
 // Reg
 int32_t reg_register(const unsigned char * const req, unsigned char **res) {
-	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
-	memcpy(nonce, req, 9);
-	memset(nonce + 9, 0x00, 23);
-
 	const uint64_t bts = ((uint64_t)req[0]) | ((uint64_t)req[1] << 8) | ((uint64_t)req[2] << 16) | ((uint64_t)req[3] << 24) | ((uint64_t)req[4] << 32) | ((uint64_t)(req[5] & 3) << 40);
 	if ((long long)bts - (long long)getBinTs() > AEM_API_TIMEDIFF_REG) return AEM_INTCOM_RESPONSE_ERR; // Too far in the future
 	if (((long long)bts + 1073741824LL) < (long long)getBinTs()) return AEM_INTCOM_RESPONSE_ERR; // Expired
@@ -633,14 +586,18 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 	unsigned char urk[crypto_aead_aegis256_KEYBYTES];
 	aem_kdf_sub(urk, crypto_aead_aegis256_KEYBYTES, bts, key_srk);
 
-	unsigned char new_uak[AEM_KDF_SUB_KEYLEN];
-	if (crypto_aead_aegis256_decrypt(new_uak, NULL, NULL, req + 9, AEM_KDF_SUB_KEYLEN + crypto_aead_aegis256_ABYTES, NULL, 0, nonce, urk) == -1) {
+	unsigned char nonce[crypto_aead_aegis256_NPUBBYTES];
+	memcpy(nonce, req, 9);
+	memset(nonce + 9, 0x00, 23);
+
+	unsigned char new_uak[AEM_KDF_UAK_KEYLEN];
+	if (crypto_aead_aegis256_decrypt(new_uak, NULL, NULL, req + 9, AEM_KDF_UAK_KEYLEN + crypto_aead_aegis256_ABYTES, NULL, 0, nonce, urk) == -1) {
 		syslog(LOG_WARNING, "Reg: Failed decrypt");
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
 
 	uint16_t new_uid;
-	aem_kdf_sub((unsigned char*)&new_uid, 2, AEM_KDF_KEYID_UAK_UID, new_uak);
+	aem_kdf_uak((unsigned char*)&new_uid, 2, 0, false, 0, new_uak);
 	new_uid &= 4095;
 
 	*res = malloc(1 + crypto_aead_aegis256_ABYTES);
@@ -651,7 +608,7 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 		user[new_uid] = malloc(sizeof(struct aem_user));
 		bzero(user[new_uid], sizeof(struct aem_user));
 		user[new_uid]->lastBinTs = getBinTs();
-		memcpy(user[new_uid]->uak, new_uak, AEM_KDF_SUB_KEYLEN);
+		memcpy(user[new_uid]->uak, new_uak, AEM_KDF_UAK_KEYLEN);
 		saveUser();
 		regStatus = 1;
 	} else {
@@ -690,7 +647,8 @@ void setRsaKeys(const unsigned char * const keyAdmin, const size_t lenKeyAdmin, 
 
 void ioFree(void) {
 	sodium_memzero(accountKey, crypto_aead_aegis256_KEYBYTES);
-	sodium_memzero(saltShield, crypto_shorthash_KEYBYTES);
+	sodium_memzero(saltNormal, AEM_SALTNORMAL_LEN);
+	addressToHash_clear();
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
 		if (user[i] == NULL) continue;
@@ -704,9 +662,9 @@ void ioFree(void) {
 
 int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(accountKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, baseKey);
-	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
-	aem_kdf_sub(saltShield, crypto_shorthash_KEYBYTES,     AEM_KDF_KEYID_ACC_SHD, baseKey);
 	aem_kdf_sub(key_srk,    AEM_KDF_SUB_KEYLEN,            AEM_KDF_KEYID_ACC_REG, baseKey);
+	aem_kdf_sub(saltNormal, AEM_SALTNORMAL_LEN,            AEM_KDF_KEYID_ACC_NRM, baseKey);
+	addressToHash_salt(baseKey);
 
 	if (loadUser() != 0) return -1;
 	if (loadSettings() != 0) {

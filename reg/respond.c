@@ -13,12 +13,11 @@
 /*
 	42 BinTs_Server
 	30 BinTs_User_offset
-	[AEGIS-256] 320 UAK
+	[AEGIS-256] 344 UAK (338)
 	[AEGIS-256] 256 MAC
-648 bits; 81 bytes; 108 chars
 */
-#define AEM_REQ_LEN 81
-#define AEM_REQ_B64_LEN 108
+#define AEM_REQ_LEN 84
+#define AEM_REQ_B64_LEN 112
 #define AEM_REQ_LINE1_LEN (7 + AEM_REQ_B64_LEN)
 
 #undef AEM_TLS // TLS unsupported for now
