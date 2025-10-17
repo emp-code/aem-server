@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -160,9 +161,9 @@ void ioFree(void) {
 	}
 }
 
-static size_t getUserStorageAmount(const uint16_t uid) {
+static ssize_t getUserStorageAmount(const uint16_t uid) {
 	struct stat sb;
-	return (lstat(AEM_PATH_STO_MSG, &sb) == 0) ? sb.st_size : 0;
+	return (lstat(AEM_PATH_STO_MSG, &sb) == 0) ? sb.st_size : -1;
 }
 
 int32_t acc_storage_amount(unsigned char ** const res) {
@@ -170,8 +171,8 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
-		const size_t bytes = getUserStorageAmount(i);
-		const uint32_t blocks = lrint((double)bytes / AEM_EVP_BLOCKSIZE);
+		const ssize_t bytes = getUserStorageAmount(i);
+		const uint32_t blocks = (bytes >= 0) ? MAX(1, lrint((double)bytes / AEM_EVP_BLOCKSIZE)) : 0;
 		memcpy(*res + i * sizeof(uint32_t), (const unsigned char * const)&blocks, sizeof(uint32_t));
 	}
 
