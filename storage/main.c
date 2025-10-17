@@ -25,7 +25,12 @@ static int setupIo(void) {
 	}
 	close(AEM_FD_PIPE_RD);
 
-	ioSetup(baseKey);
+	if (ioSetup(baseKey) != 0) {
+		sodium_memzero(baseKey, AEM_KDF_SUB_KEYLEN);
+		sodium_memzero(&bundle, sizeof(bundle));
+		return -1;
+	}
+
 	intcom_setKeys_server(bundle.server);
 	intcom_setKeys_client(bundle.client);
 

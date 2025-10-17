@@ -143,11 +143,17 @@ static void saveStindex(void) {
 	close(fd);
 }
 
-void ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
+__attribute__((warn_unused_result))
+int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	aem_kdf_sub(stiKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_STO_STI, baseKey);
+	if (loadStindex() != 0) {
+		sodium_memzero(stiKey, crypto_aead_aegis256_KEYBYTES);
+		return -1;
+	}
+
 	setSigKey(baseKey);
 	eidSetup(baseKey);
-	loadStindex();
+	return 0;
 }
 
 void ioFree(void) {
