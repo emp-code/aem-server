@@ -606,6 +606,7 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 	unsigned char regStatus = 2;
 	if (user[new_uid] == NULL) {
 		user[new_uid] = malloc(sizeof(struct aem_user));
+		if (user[new_uid] == NULL) {syslog(LOG_ERR, "Failed malloc"); free(*res); *res = NULL; return AEM_INTCOM_RESPONSE_ERR;}
 		bzero(user[new_uid], sizeof(struct aem_user));
 		user[new_uid]->lastBinTs = getBinTs();
 		memcpy(user[new_uid]->uak, new_uak, AEM_KDF_UAK_KEYLEN);
