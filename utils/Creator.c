@@ -162,11 +162,11 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 		randombytes_buf(smk, AEM_KDF_SMK_KEYLEN);
 		aem_kdf_smk(ma_umk, AEM_KDF_UMK_KEYLEN, AEM_KDF_KEYID_SMK_UMK, smk);
 		aem_kdf_umk(user->uak, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_UMK_UAK, ma_umk);
-		aem_kdf_umk(user->usk, AEM_USK_KEYLEN, AEM_KDF_KEYID_UMK_USK, ma_umk);
 
 		// SMK is valid if the Master Admin's UserID is zero (username 'aaa')
 		if (aem_getUserId(user->uak) == 0) {
 			user->level = AEM_USERLEVEL_MAX;
+			aem_kdf_umk(user->usk, AEM_USK_KEYLEN, AEM_KDF_KEYID_UMK_USK, ma_umk);
 
 			// Set the public keys
 			unsigned char secret[X25519_SKBYTES];
