@@ -66,6 +66,7 @@ static pid_t aemPid[AEM_PTYPE_COUNT][AEM_MAXPROCESSES];
 
 static volatile sig_atomic_t terminate = 0;
 
+__attribute__((warn_unused_result))
 static bool process_exists(const pid_t pid) {
 	return (pid < 1) ? false : kill(pid, 0) == 0;
 }
@@ -103,6 +104,7 @@ void sigTerm(const int s) {
 	terminate = 1;
 }
 
+__attribute__((warn_unused_result))
 static int loadExec(const int type) {
 	if (memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING) != AEM_FD_EXEC) {
 		syslog(LOG_ERR, "Failed memfd_create: %m");
@@ -150,6 +152,7 @@ static int loadExec(const int type) {
 	return 0;
 }
 
+__attribute__((nonnull, warn_unused_result))
 static int readDataFile(unsigned char * const dec, size_t * const lenDec, const char * const path) {
 	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0 || !validFd(fd)) {
@@ -181,6 +184,7 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 	return 0;
 }
 
+__attribute__((nonnull, warn_unused_result))
 static int getOurDomain(unsigned char * const out, size_t * const lenOut) {
 	size_t lenPem;
 	unsigned char pem[AEM_MAXLEN_DATAFILE];
@@ -188,6 +192,7 @@ static int getOurDomain(unsigned char * const out, size_t * const lenOut) {
 	return x509_getSubject(out, lenOut, pem, lenPem);
 }
 
+__attribute__((nonnull, warn_unused_result))
 static int domainPlaceholder(unsigned char * const src, size_t * const lenSrc) {
 	unsigned char domain[AEM_MAXLEN_OURDOMAIN];
 	size_t lenDomain;
@@ -206,6 +211,7 @@ static int domainPlaceholder(unsigned char * const src, size_t * const lenSrc) {
 	return 0;
 }
 
+__attribute__((nonnull, warn_unused_result))
 static int pipeFile(const char * const path, const bool placeholders) {
 	size_t lenData;
 	unsigned char data[AEM_MAXLEN_DATAFILE];
@@ -231,6 +237,7 @@ static int pipeFile(const char * const path, const bool placeholders) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 static int setCaps(const int type) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
@@ -301,6 +308,7 @@ static int setCaps(const int type) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int setLimits(const int type) {
 	struct rlimit rlim;
 
@@ -345,6 +353,7 @@ static int dropRoot(void) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int cgroupMove(void) {
 	const int fd = open(AEM_PATH_HOME"/cgroup/_aem/limited/cgroup.procs", O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fd < 0 || !validFd(fd)) {syslog(LOG_ERR, "Failed opening limited/cgroup.procs: %m"); return -1;}
@@ -358,6 +367,7 @@ static int cgroupMove(void) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 static int process_new(const int type) {
 	sodium_memzero(key_ic, AEM_KDF_SMK_KEYLEN);
 	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
@@ -384,6 +394,7 @@ static int process_new(const int type) {
 	exit(EXIT_FAILURE);
 }
 
+__attribute__((warn_unused_result))
 static int sendIntComKeys(const int type) {
 	struct intcom_keyBundle bundle;
 	bzero(&bundle, sizeof(struct intcom_keyBundle));
@@ -443,6 +454,7 @@ static int sendIntComKeys(const int type) {
 	return (bytes == sizeof(bundle))? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int process_spawn(const int type, const unsigned char *key_forward) {
 	int freeSlot = -1;
 	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API_CLR || type == AEM_PROCESSTYPE_API_ONI || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
@@ -657,6 +669,7 @@ static int takeConnections(void) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 int setupManager(void) {
 	unsigned char smk[AEM_KDF_SMK_KEYLEN];
 	if (getKey(smk) != 0) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 51;}

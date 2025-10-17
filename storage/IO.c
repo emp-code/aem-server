@@ -63,6 +63,7 @@ static void eidSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	sodium_memzero(src, 8192);
 }
 
+__attribute__((warn_unused_result))
 static int loadStindex(void) {
 	const int fd = open("Stindex.aem", O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0) {syslog(LOG_ERR, "Failed opening Stindex.aem: %m"); return -1;}
@@ -167,11 +168,13 @@ void ioFree(void) {
 	}
 }
 
+__attribute__((warn_unused_result))
 static ssize_t getUserStorageAmount(const uint16_t uid) {
 	struct stat sb;
 	return (lstat(AEM_PATH_STO_MSG, &sb) == 0) ? sb.st_size : -1;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t acc_storage_amount(unsigned char ** const res) {
 	*res = malloc(AEM_USERCOUNT * sizeof(uint32_t));
 	if (*res == NULL) {syslog(LOG_ERR, "Failed allocation"); return AEM_INTCOM_RESPONSE_ERR;}
@@ -185,6 +188,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 	return AEM_USERCOUNT * sizeof(uint32_t);
 }
 
+__attribute__((nonnull, warn_unused_result))
 static unsigned char *sysMsg(const unsigned char * const content, const size_t lenContent, const struct evpKeys * const ek, size_t * const lenResult) {
 	const size_t lenMsg = AEM_MSG_HDR_SZ + 1 + lenContent;
 	unsigned char msg[lenMsg];
@@ -197,6 +201,7 @@ static unsigned char *sysMsg(const unsigned char * const content, const size_t l
 	return msg2evp(msg, lenMsg, ek->pwk, NULL, 0, lenResult);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg) {
 	if (lenMsg != sizeof(uint16_t) + sizeof(struct evpKeys)) return AEM_INTCOM_RESPONSE_ERR;
 
@@ -238,6 +243,7 @@ int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg)
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t acc_storage_delete(const unsigned char * const msg, const size_t lenMsg) {
 	if (lenMsg != sizeof(uint16_t)) return AEM_INTCOM_RESPONSE_ERR;
 	const uint16_t uid = *(const uint16_t * const)msg;
@@ -266,6 +272,7 @@ int32_t acc_storage_delete(const unsigned char * const msg, const size_t lenMsg)
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew) {
 	if (lenNew != 4) return AEM_INTCOM_RESPONSE_ERR;
 	memcpy(limits, new, lenNew);
@@ -273,6 +280,7 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 }
 
 // Total amount and size of messages
+__attribute__((nonnull, warn_unused_result))
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	uint32_t blocks = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {
@@ -283,6 +291,7 @@ static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	memcpy(out + sizeof(uint16_t), (unsigned char*)&blocks, sizeof(uint32_t));
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_message_browse(const unsigned char * const req, const size_t lenReq, unsigned char ** const out, const bool newer) {
 	if (lenReq != sizeof(uint16_t) && lenReq != sizeof(uint16_t) * 2) return AEM_INTCOM_RESPONSE_USAGE;
 	uint16_t uid;
@@ -379,6 +388,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	return 6 + sizeof(uint16_t) + (sizeof(uint16_t) * evpCount) + evpBytes;
 }
 
+__attribute__((warn_unused_result))
 int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	const int fdMsg = open(AEM_PATH_STO_MSG, O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fdMsg < 0) {syslog(LOG_ERR, "Failed opening %s: %m", AEM_PATH_STO_MSG); return AEM_INTCOM_RESPONSE_ERR;}
@@ -464,6 +474,7 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
 	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_W_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
@@ -522,6 +533,7 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	return evpId - (UINT16_MAX + 1); // Returns the EnvelopeID as a negative pseudo-errorcode
 }
 
+__attribute__((warn_unused_result))
 int32_t storage_empty(const uint16_t uid) {
 	unsigned char *ek = NULL;
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, uid, NULL, 0, &ek, sizeof(struct evpKeys));

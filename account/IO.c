@@ -192,6 +192,7 @@ static int loadUser(void) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 static uint16_t hashToUid(const uint64_t hash, const bool isShield, unsigned char * const flagp) {
 	for (int uid = 0; uid < AEM_USERCOUNT; uid++) {
 		if (user[uid] == NULL) continue;
@@ -207,6 +208,7 @@ static uint16_t hashToUid(const uint64_t hash, const bool isShield, unsigned cha
 	return UINT16_MAX;
 }
 
+__attribute__((warn_unused_result))
 static int numAddresses(const int uid, const bool shield) {
 	int counter = 0;
 
@@ -219,16 +221,19 @@ static int numAddresses(const int uid, const bool shield) {
 }
 
 // API: Special
+__attribute__((nonnull, warn_unused_result))
 static int32_t api_response_status(unsigned char * const res, const unsigned char status) {
 	res[0] = status;
 	return 1;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_invalid(unsigned char * const res) {
 	return api_response_status(res, AEM_API_ERR_CMD);
 }
 
 // API: GET
+__attribute__((nonnull, warn_unused_result))
 int32_t api_account_browse(unsigned char * const res) {
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
@@ -250,6 +255,7 @@ int32_t api_account_browse(unsigned char * const res) {
 	return 12 + (AEM_USERCOUNT * sizeof(uint32_t));
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_account_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	const uint16_t del_uid = *(const uint16_t * const)reqData;
 	if (del_uid == 0) return api_response_status(res, AEM_API_ERR_ACCOUNT_FORBIDMASTER);
@@ -265,6 +271,7 @@ int32_t api_account_delete(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_ACCOUNT_DELETE_NOSTORAGE);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_account_permit(unsigned char * const res) {
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
@@ -272,6 +279,7 @@ int32_t api_account_permit(unsigned char * const res) {
 	return crypto_aead_aegis256_KEYBYTES;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_account_update(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
@@ -287,6 +295,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_address_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	const bool isShield = sodium_is_zero(reqData, 8);
 	if (user[api_uid]->addrCount >= AEM_ADDRESSES_PER_USER) return api_response_status(res, AEM_API_ERR_ADDRESS_CREATE_ATLIMIT);
@@ -331,6 +340,7 @@ int32_t api_address_create(unsigned char * const res, const unsigned char reqDat
 	return 18;
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_address_delete(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	int delNum = -1;
 	for (int i = 0; i < user[api_uid]->addrCount; i++) {
@@ -354,6 +364,7 @@ int32_t api_address_delete(unsigned char * const res, const unsigned char reqDat
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_address_update(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
 	if (lenData != AEM_ADDRESSES_PER_USER) return AEM_INTCOM_RESPONSE_USAGE;
 
@@ -365,6 +376,7 @@ int32_t api_address_update(unsigned char * const res, const unsigned char * cons
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_message_browse(unsigned char * const res, unsigned char flags) {
 	if ((flags & AEM_API_MESSAGE_BROWSE_FLAG_UINFO) == 0) return 0; // User data not requested, nothing to do
 
@@ -390,6 +402,7 @@ int32_t api_message_browse(unsigned char * const res, unsigned char flags) {
 	return 5 + (user[api_uid]->addrCount * 9) + AEM_LEN_PRIVATE + crypto_pwhash_SALTBYTES + sizeof(uint32_t);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_setting_limits(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN]) {
 	if (user[api_uid]->level != AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_LEVEL);
 
@@ -399,6 +412,7 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 }
 
 // API: POST (Continue)
+__attribute__((nonnull, warn_unused_result))
 int32_t api_account_keyset(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
 	if (lenData != AEM_USK_KEYLEN + AEM_PWK_KEYLEN) return api_response_status(res, AEM_API_ERR_PARAM);
 	memcpy(user[api_uid]->usk, data, AEM_USK_KEYLEN);
@@ -418,6 +432,7 @@ int32_t api_account_keyset(unsigned char * const res, const unsigned char * cons
 	return api_response_status(res, AEM_API_STATUS_OK);
 }
 
+__attribute__((nonnull, warn_unused_result))
 int32_t api_private_update(unsigned char * const res, unsigned char * const data, const size_t lenData) {
 	if (
 	   lenData != (crypto_stream_chacha20_ietf_NONCEBYTES + crypto_stream_chacha20_ietf_KEYBYTES + AEM_LEN_PRIVATE)
@@ -435,6 +450,7 @@ int32_t api_private_update(unsigned char * const res, unsigned char * const data
 }
 
 // API: POST (Status)
+__attribute__((nonnull, warn_unused_result))
 int32_t api_message_create(unsigned char * const res, const unsigned char reqData[AEM_API_REQ_DATA_LEN], const int flags) {
 	if (flags == AEM_API_MESSAGE_CREATE_FLAG_EMAIL) {
 		if (user[api_uid]->level < AEM_MINLEVEL_SENDEMAIL) return api_response_status(res, AEM_API_ERR_LEVEL);
@@ -493,6 +509,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 }
 
 //
+__attribute__((nonnull, warn_unused_result))
 int32_t api_auth(unsigned char * const res, union aem_req * const req, const bool post) {
 	// Find which (if any) user has a key that authenticates this request
 	bool found = false;
@@ -552,6 +569,7 @@ void decreaseLastBinTs(void) {
 }
 
 // MTA
+__attribute__((nonnull, warn_unused_result))
 int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 	const bool isShield = ((addr32[0] & 128) != 0);
 
@@ -579,6 +597,7 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 }
 
 // Reg
+__attribute__((nonnull, warn_unused_result))
 int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 	const uint64_t bts = ((uint64_t)req[0]) | ((uint64_t)req[1] << 8) | ((uint64_t)req[2] << 16) | ((uint64_t)req[3] << 24) | ((uint64_t)req[4] << 32) | ((uint64_t)(req[5] & 3) << 40);
 	if ((long long)bts - (long long)getBinTs() > AEM_API_TIMEDIFF_REG) return AEM_INTCOM_RESPONSE_ERR; // Too far in the future
@@ -625,6 +644,7 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 }
 
 // Storage
+__attribute__((nonnull, warn_unused_result))
 int32_t sto_uid2keys(const uint16_t uid, unsigned char **res) {
 	if (user[uid] == NULL) return AEM_INTCOM_RESPONSE_NOTEXIST;
 
