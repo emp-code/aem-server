@@ -48,7 +48,7 @@ static unsigned char *welcomeEnvelope(const struct evpKeys * const ek, size_t * 
 	unsigned char msg[lenMsg];
 	aem_msg_init(msg, AEM_MSG_TYPE_INT, 0);
 
-	msg[AEM_MSG_HDR_SZ] = 192; // IntMsg InfoByte: System
+	msg[AEM_MSG_HDR_SZ] = 0; // IntMsg InfoByte: System
 	memcpy(msg + AEM_MSG_HDR_SZ + 1, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
 
 	aem_sign_message(msg, lenMsg, ek->usk);
