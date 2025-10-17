@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -170,7 +171,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
 		const size_t bytes = getUserStorageAmount(i);
-		const uint32_t blocks = bytes / AEM_EVP_BLOCKSIZE;
+		const uint32_t blocks = lrint((double)bytes / AEM_EVP_BLOCKSIZE);
 		memcpy(*res + i * sizeof(uint32_t), (const unsigned char * const)&blocks, sizeof(uint32_t));
 	}
 
