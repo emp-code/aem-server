@@ -8,6 +8,7 @@
 
 #include <sodium.h>
 
+#include "../Common/AddrToHash.h"
 #include "../Common/AEM_KDF.h"
 #include "../Common/Envelope.h"
 #include "../Common/Message.h"
@@ -87,15 +88,32 @@ static int createWelcome(const struct evpKeys * const ek, const unsigned char * 
 	return createFile("Stindex.aem", enc, lenEnc);
 }
 
-static int createAccount(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const struct aem_user * const user) {
-	// Get keys
-	unsigned char abk[AEM_KDF_SUB_KEYLEN];
-	aem_kdf_smk(abk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
+static int createSettings(const unsigned char accKey[crypto_aead_aegis256_KEYBYTES]) {
+	// Create settings data
+	const size_t lenDec = 12 + AEM_WELCOME_MAXLEN + (AEM_ADMIN_ADDR_MAX * sizeof(uint64_t));
+	unsigned char dec[lenDec];
+	unsigned char limits[4][3] = {AEM_LIMITS_DEFAULT};
 
-	unsigned char accKey[crypto_aead_aegis256_KEYBYTES];
-	aem_kdf_sub(accKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, abk);
-	sodium_memzero(abk, AEM_KDF_SUB_KEYLEN);
+	memcpy(dec, limits, 12);
+	strcpy((char*)dec + 12, AEM_WELCOME_DEFAULT);
 
+	uint64_t addrHash_admin[AEM_ADMIN_ADDR_MAX];
+	for (int i = 0; i < AEM_ADMIN_ADDR_DEFAULT_COUNT; i++) {
+		addrHash_admin[i] = addressToHash(AEM_ADMIN_ADDR_DEFAULT + (10 * i));
+	}
+	memcpy(dec + 12 + AEM_WELCOME_MAXLEN, addrHash_admin, AEM_ADMIN_ADDR_MAX);
+
+	// Encrypt and write
+	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
+	unsigned char enc[lenEnc];
+	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
+	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, accKey);
+	sodium_memzero(dec, lenDec);
+
+	return createFile("Settings.aem", enc, lenEnc);
+}
+
+static int createAccount(const unsigned char accKey[crypto_aead_aegis256_KEYBYTES], const struct aem_user * const user) {
 	// Create raw data
 	const size_t lenDec = sizeof(uint16_t) + sizeof(struct aem_user);
 	unsigned char dec[lenDec];
@@ -107,11 +125,9 @@ static int createAccount(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const stru
 	unsigned char enc[lenEnc];
 	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
 	crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, lenDec, NULL, 0, NULL, enc, accKey);
-	sodium_memzero(accKey, crypto_aead_aegis256_KEYBYTES);
 	sodium_memzero(dec, lenDec);
 
-	const int ret = createFile("Account.aem", enc, lenEnc);
-	return ret;
+	return createFile("Account.aem", enc, lenEnc);
 }
 
 static void printKeys(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const unsigned char ma_umk[AEM_KDF_UMK_KEYLEN]) {
@@ -199,10 +215,23 @@ int main(void) {
 	printKeys(smk, ma_umk);
 
 	if (makeStorage(smk, &user) != 0) return 4;
-	if (createAccount(smk, &user) != 0) return 5;
+
+	// Account & Settings
+	unsigned char abk[AEM_KDF_SUB_KEYLEN];
+	aem_kdf_smk(abk, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
+	addressToHash_salt(abk);
+
+	unsigned char accKey[crypto_aead_aegis256_KEYBYTES];
+	aem_kdf_sub(accKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_ACC_ACC, abk);
+
+	if (createAccount(accKey, &user) != 0) return 5;
+	if (createSettings(accKey) != 0) return 6;
 
 	// Clean up
+	addressToHash_clear();
 	sodium_memzero(&user, sizeof(struct aem_user));
+	sodium_memzero(abk, AEM_KDF_SUB_KEYLEN);
+	sodium_memzero(accKey, AEM_KDF_SUB_KEYLEN);
 	sodium_memzero(smk, AEM_KDF_SMK_KEYLEN);
 	sodium_memzero(ma_umk, AEM_KDF_UMK_KEYLEN);
 
