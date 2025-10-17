@@ -11,6 +11,7 @@
 
 #include "../Common/Main_Include.c"
 
+__attribute__((warn_unused_result))
 static int setupIo(void) {
 	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;

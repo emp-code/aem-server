@@ -16,6 +16,7 @@
 
 #include "../Common/Main_Include.c"
 
+__attribute__((warn_unused_result))
 static int setupIo(void) {
 	pid_t storagePid;
 	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];

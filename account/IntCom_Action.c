@@ -11,6 +11,7 @@
 
 #include "IntCom_Action.h"
 
+__attribute__((warn_unused_result, nonnull))
 int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, unsigned char **res) {
 	const bool post = (operation == AEM_INTCOM_OP_POST);
 	if (!post && operation != AEM_INTCOM_OP_GET) {
@@ -99,18 +100,21 @@ int32_t conn_api(const uint32_t operation, unsigned char *msg, size_t lenMsg, un
 	return AEM_LEN_APIRESP_BASE + icRet;
 }
 
+__attribute__((warn_unused_result, nonnull))
 int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	if (operation != 0 || lenMsg != 10) {syslog(LOG_ERR, "Invalid request (MTA): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
 
 	return mta_getUid(msg, res);
 }
 
+__attribute__((warn_unused_result, nonnull))
 int32_t conn_reg(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	if (operation != 0 || lenMsg != 84) {syslog(LOG_ERR, "Invalid request (Reg): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
 
 	return reg_register(msg, res);
 }
 
+__attribute__((warn_unused_result, nonnull))
 int32_t conn_sto(const uint32_t operation, unsigned char **res) {
 	if (operation >= AEM_USERCOUNT) {syslog(LOG_ERR, "Invalid request from Storage: %u"); return AEM_INTCOM_RESPONSE_ERR;}
 

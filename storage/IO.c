@@ -280,7 +280,7 @@ int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew)
 }
 
 // Total amount and size of messages
-__attribute__((nonnull, warn_unused_result))
+__attribute__((nonnull))
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
 	uint32_t blocks = 0;
 	for (int i = 0; i < stindex_count[uid]; i++) {

@@ -31,11 +31,13 @@
 
 static unsigned char ourDomain[AEM_MAXLEN_OURDOMAIN];
 
+__attribute__((nonnull))
 void setOurDomain(const unsigned char * dom, const size_t len) {
 	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN);
 	memcpy(ourDomain, dom, len);
 }
 
+__attribute__((nonnull))
 static void message_browse(const uint16_t uid, const int flags, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const accData, const size_t lenAccData) {
 	const bool haveMsgId = !sodium_is_zero(urlData, AEM_API_REQ_DATA_LEN);
 
@@ -88,6 +90,7 @@ static void message_browse(const uint16_t uid, const int flags, const unsigned c
 	free(response);
 }
 
+__attribute__((nonnull))
 static const unsigned char *cpyEmail(const unsigned char * const src, const size_t lenSrc, char * const out, const size_t min) {
 	out[0] = '\0';
 
@@ -106,6 +109,7 @@ static const unsigned char *cpyEmail(const unsigned char * const src, const size
 	return src + len + 1;
 }
 
+__attribute__((nonnull))
 static unsigned char send_email(const uint16_t uid, const bool isAdmin, const unsigned char * const rsaKey, const size_t lenRsaKey, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	struct outEmail email;
 	bzero(&email, sizeof(email));
@@ -248,6 +252,7 @@ static unsigned char send_email(const uint16_t uid, const bool isAdmin, const un
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
+__attribute__((nonnull))
 static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const uint64_t binTs, const bool e2ee) {
 	if (lenSrc < 50) return AEM_API_ERR_PARAM;
 
@@ -269,6 +274,7 @@ static unsigned char send_imail(const uint16_t uid, const unsigned char urlData[
 	return (icRet == AEM_INTCOM_RESPONSE_ERR) ? AEM_API_ERR_INTERNAL : AEM_API_STATUS_OK;
 }
 
+__attribute__((nonnull))
 static unsigned char send_pmail(const uint16_t * const uid, const unsigned int count, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc, const uint64_t binTs) {
 	size_t lenMsg = AEM_MSG_HDR_SZ + sizeof(uint16_t) + 10 + lenSrc;
 	unsigned char msg[lenMsg];
@@ -286,6 +292,7 @@ static unsigned char send_pmail(const uint16_t * const uid, const unsigned int c
 	return ok? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
 
+__attribute__((nonnull))
 static unsigned char message_create(const int flags, const uint64_t binTs, const unsigned char * const cuid, const size_t lenCuid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	if (lenCuid < 1) return AEM_API_ERR_INTERNAL;
 	if (lenCuid == 1) return cuid[0];
@@ -308,6 +315,7 @@ static unsigned char message_delete(const uint16_t uid, const unsigned char urlD
 	return (icRet == AEM_INTCOM_RESPONSE_OK) ? AEM_API_STATUS_OK : AEM_API_ERR_INTERNAL;
 }
 
+__attribute__((nonnull))
 static void message_sender(const unsigned char * const src, const size_t lenSrc) {
 	unsigned char res[16];
 	const int r = decryptMsgId(res, src, lenSrc);
@@ -315,6 +323,7 @@ static void message_sender(const unsigned char * const src, const size_t lenSrc)
 	return;
 }
 
+__attribute__((nonnull))
 static unsigned char message_upload(const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const src, const size_t lenSrc) {
 	const uint64_t fileBts = (uint64_t)urlData[0] | ((uint64_t)urlData[1] << 8) | ((uint64_t)urlData[2] << 16) | ((uint64_t)urlData[3] << 24) | ((uint64_t)urlData[4] << 32) | ((uint64_t)urlData[5] << 40);
 	if (llabs((long long)fileBts - (long long)getBinTs()) > AEM_API_TIMEDIFF_UPL) return AEM_API_ERR_MESSAGE_UPLOAD_TIMEDIFF;
@@ -359,6 +368,7 @@ static long readHeaders(void) {
 	return cl;
 }
 
+__attribute__((nonnull))
 static void handleContinue(const unsigned char * const req, const size_t lenBody) {
 	// Used with Account/Keyset, Address/Update, and Private/Update. As AEM-API doesn't need the data for those requests, it's prevented.
 	unsigned char body[AEM_API_REQ_LEN + lenBody];
@@ -394,6 +404,7 @@ static void handleContinue(const unsigned char * const req, const size_t lenBody
 	if (icData != NULL) free(icData);
 }
 
+__attribute__((nonnull))
 static void handleGet(const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char * const icData, const size_t lenIcData) {
 	switch (cmd) {
 		case AEM_API_MESSAGE_BROWSE:
@@ -423,6 +434,7 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 	}
 }
 
+__attribute__((nonnull))
 static void handlePost(const uint64_t binTs, const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
 	if (
 #ifdef AEM_TLS
@@ -456,6 +468,7 @@ static void handlePost(const uint64_t binTs, const int cmd, const int flags, con
 	apiResponse(&rb, 1);
 }
 
+__attribute__((nonnull))
 void aem_api_process(const unsigned char * const req, const bool isPost) {
 	if (labs((int64_t)((const union aem_req * const)req)->n.binTs - (int64_t)getBinTs()) > AEM_API_TIMEDIFF) {unauthResponse(AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF); return;}
 

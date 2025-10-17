@@ -28,6 +28,7 @@
 #include "manager.h"
 #include "mount.h"
 
+__attribute__((warn_unused_result))
 static int dropBounds(void) {
 	return (
 	   cap_drop_bound(CAP_AUDIT_CONTROL)      == 0
@@ -74,6 +75,7 @@ static int dropBounds(void) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int setCaps(void) {
 	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) return -1;
 
@@ -118,6 +120,7 @@ static int setCaps(void) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int setLimits(void) {
 	struct rlimit rlim;
 	rlim.rlim_cur = 0;
@@ -129,6 +132,7 @@ static int setLimits(void) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static bool ptraceDisabled(void) {
 	const int fd = open("/proc/sys/kernel/yama/ptrace_scope", O_RDWR | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0 || !validFd(fd)) return false;
@@ -148,6 +152,7 @@ static bool ptraceDisabled(void) {
 	return (val == '3');
 }
 
+__attribute__((warn_unused_result))
 static int setSignals(void) {
 	struct sigaction sa;
 	sa.sa_handler = sigTerm;
@@ -166,6 +171,7 @@ static int setSignals(void) {
 	) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result, nonnull))
 static int writeFile(const int fdDir, const char * const path, const char * const data, const ssize_t lenData) {
 	const int fdFile = openat(fdDir, path, O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW | O_WRONLY);
 	if (fdFile < 0 || !validFd(fdFile)) {printf("Failed opening file: %m\n"); return -1;}
@@ -175,6 +181,7 @@ static int writeFile(const int fdDir, const char * const path, const char * cons
 	return (ret == lenData) ? 0 : -1;
 }
 
+__attribute__((warn_unused_result))
 static int setCgroup(void) {
 	if (umount2(AEM_PATH_HOME"/cgroup", UMOUNT_NOFOLLOW) != 0 && errno != EINVAL) {printf("Failed cgroup2 unmount: %m\n"); return -1;}
 	if (mount(NULL, AEM_PATH_HOME"/cgroup", "cgroup2", MS_NOATIME | MS_NODEV | MS_NOEXEC | MS_NOSUID, "") != 0) {printf("Failed cgroup2 mount: %m\n"); return -1;}
@@ -211,6 +218,7 @@ static int setCgroup(void) {
 	return 0;
 }
 
+__attribute__((warn_unused_result))
 static int setupHome(void) {
 	const struct passwd * const ae = getpwnam("allears");
 
