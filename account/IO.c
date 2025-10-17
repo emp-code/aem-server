@@ -240,7 +240,7 @@ int32_t api_account_browse(unsigned char * const res) {
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
 		if (user[i] != NULL) {
 			const uint32_t ubc = (bc == NULL) ? 0 : *(uint32_t*)(bc + i * sizeof(uint32_t));
-			const uint32_t kib = MAX((ubc > 0) ? 1 : 0, lrint((ubc * AEM_EVP_BLOCKSIZE) / (double)1024));
+			const uint32_t kib = MAX(1, lrint((ubc * AEM_EVP_BLOCKSIZE) / (double)1024));
 			const uint32_t u32 = user[i]->level | (numAddresses(i, false) << 2) | (numAddresses(i, true) << 7) | (kib << 12);
 			memcpy(res + 12 + (i * sizeof(uint32_t)), (const unsigned char * const)&u32, sizeof(uint32_t));
 		} else bzero(res + 12 + (i * sizeof(uint32_t)), sizeof(uint32_t));
