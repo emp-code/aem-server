@@ -61,6 +61,7 @@ static int bindSocket(const int sock) {
 
 void intcom_serve(void) {
 	sockListen = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (sockListen == -1) {syslog(LOG_ERR, "Failed socket(): %m"); return;}
 	if (bindSocket(sockListen) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
 	listen(sockListen, 50);
 
