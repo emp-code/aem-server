@@ -77,7 +77,7 @@ The API is authenticated and encrypted using the User API Key (UAK), shared with
 AEM-API processes do not hold the UAK, but rather forward all requests to [AEM-Account](#account) which authenticates and decrypts the request, and passes relevant information back to the AEM-API process as necessary.
 
 AEM-API-TCP listens on TCP port 302. Uses HTTPS by default. To use plain HTTP, remove the AEM_TLS flag.
-AEM-API-UDS listens on an abstract UNIX domain socket, named AEM_API_00 to AEM_API_99. Useful for Tor and reverse proxies.
+AEM-API-UDS listens on an abstract UNIX domain socket, named AEM_API_00 to AEM_API_99. Intended for use with a reverse proxy.
 
 ## MTA ##
 
