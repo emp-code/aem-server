@@ -61,6 +61,9 @@
 #elifdef AEM_WEB
 	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','W','e','b'}//,'_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
 	#define AEM_UDS_PATH_LEN 8
+#elifdef AEM_REG
+	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','R','e','g'}//,'_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
+	#define AEM_UDS_PATH_LEN 8
 #endif
 
 // DNS
