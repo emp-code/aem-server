@@ -72,7 +72,7 @@ Envelope data is stored in `/var/lib/allears/Msg/`. Each user has one file conta
 
 AEM-API serves an open web API, usable by any website or client.
 
-The API is authenticated and encrypted using the User API Key (UAK), shared with the server during registration. A passive observer can only see a timestamp, and any modification to the request will invalidate it.
+The API is authenticated and encrypted using the User API Key (UAK), shared with the server during registration. A passive observer can only see a timestamp, and any modification to the request or response will invalidate it.
 
 AEM-API processes do not hold the UAK, but rather forward all requests to [AEM-Account](#account) which authenticates and decrypts the request, and passes relevant information back to the AEM-API process as necessary.
 
