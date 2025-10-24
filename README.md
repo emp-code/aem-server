@@ -42,7 +42,7 @@ AEM-Account authenticates and responds to API requests from [AEM-API](#api) and 
 
 For each user, AEM-Account stores:
 * The type, flags (settings), and hash for each [Address](#addresses)
-* The User Access Key (UAK), used to authenticate and encrypt API requests
+* The User API Key (UAK), used to authenticate and encrypt API requests
 * The Envelope Public Key (EPK), used by [AEM-Storage](#storage) to convert plain [Messages](#messages) into encrypted Envelopes
 * The user's membership level
 * The time of the last successful request, to protect against replay attacks
@@ -70,11 +70,14 @@ Envelope data is stored in `/var/lib/allears/Msg/`. Each user has one file conta
 
 ## API ##
 
-AEM-API serves an open web API on port 302, usable by any website or client.
+AEM-API serves an open web API, usable by any website or client.
 
-The API is partially encrypted: a timestamp is contained plaintext in the URL. Everything else about the request is encrypted and authenticated.
+The API is authenticated and encrypted using the User API Key (UAK), shared with the server during registration. A passive observer can only see a timestamp, and any modification to the request will invalidate it.
 
-AEM-API does not have the User Access Key (UAK) required to decrypt and authenticate the request. It forwards the request to [AEM-Account](#account), which authenticates and decrypts the request, and then sends the relevant details back to AEM-API.
+AEM-API processes do not hold the UAK, but rather forward all requests to [AEM-Account](#account) which authenticates and decrypts the request, and passes relevant information back to the AEM-API process as necessary.
+
+AEM-API-TCP listens on TCP port 302. Uses HTTPS by default. To use plain HTTP, remove the AEM_TLS flag.
+AEM-API-UDS listens on an abstract UNIX domain socket, named AEM_API_00 to AEM_API_99. Useful for Tor and reverse proxies.
 
 ## MTA ##
 

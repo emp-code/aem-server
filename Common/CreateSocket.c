@@ -3,6 +3,10 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
+#ifdef AEM_UDS
+#include <sys/un.h>
+#endif
+#include <syslog.h>
 #include <unistd.h>
 
 #include "../Config.h"
@@ -10,6 +14,30 @@
 
 #include "CreateSocket.h"
 
+#ifdef AEM_UDS
+static char udsId = -1;
+
+void setUdsId(char newId) {
+	udsId = newId;
+}
+
+__attribute__((warn_unused_result))
+int createSocket(void) {
+	if (udsId == -1) return -1;
+
+	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+	if (sock < 0) {syslog(LOG_ERR, "socket failed: %m"); return -1;}
+
+	struct sockaddr_un sa;
+	sa.sun_family = AF_UNIX;
+	memcpy(sa.sun_path, AEM_UDS_PATH_API, AEM_UDS_PATH_API_LEN);
+
+	if (bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_UDS_PATH_API_LEN) != 0) {syslog(LOG_ERR, "bind failed: %m"); close(sock); return -1;}
+	if (listen(sock, AEM_BACKLOG) != 0) {syslog(LOG_ERR, "listen failed: %m"); close(sock); return -1;}
+
+	return sock;
+}
+#else
 static int setSocketTimeout(const int sock, const time_t rcvSec, const time_t sndSec) {
 	struct timeval tv;
 	tv.tv_usec = 1; // 0 tv_sec means almost-instant timeout
@@ -64,3 +92,4 @@ int createSocket(const bool loopback, const time_t rcvTimeout, const time_t sndT
 	close(sock);
 	return -1;
 }
+#endif

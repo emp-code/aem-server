@@ -40,10 +40,8 @@
 // Port numbers
 #if defined(AEM_MTA)
 	#define AEM_PORT 25
-#elif defined(AEM_API_CLR)
+#elif defined(AEM_API_TCP)
 	#define AEM_PORT 302
-#elif defined(AEM_API_ONI)
-	#define AEM_PORT 303
 #elif defined(AEM_REG)
 	#define AEM_PORT 304
 #elif defined(AEM_WEB_CLR)
@@ -55,6 +53,10 @@
 #endif
 
 #define AEM_PORT_MANAGER_STR "940"
+
+// UDS paths (udsId: 00-99)
+#define AEM_UDS_PATH_API (char[]){'\0','A','E','M','_','A','P','I','_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
+#define AEM_UDS_PATH_API_LEN 11
 
 // DNS
 #define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net

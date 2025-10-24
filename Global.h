@@ -215,8 +215,8 @@ enum aem_acc_commands {
 enum aem_process_types {
 	AEM_PROCESSTYPE_WEB_CLR,
 	AEM_PROCESSTYPE_WEB_ONI,
-	AEM_PROCESSTYPE_API_CLR,
-	AEM_PROCESSTYPE_API_ONI,
+	AEM_PROCESSTYPE_API_TCP,
+	AEM_PROCESSTYPE_API_UDS,
 	AEM_PROCESSTYPE_MTA,
 	AEM_PROCESSTYPE_REG,
 	AEM_PROCESSTYPE_ACCOUNT,
@@ -231,8 +231,8 @@ enum aem_process_types {
 #define AEM_PATH_EXE { \
 	AEM_PATH_HOME"/bin/aem-web-clr", \
 	AEM_PATH_HOME"/bin/aem-web-oni", \
-	AEM_PATH_HOME"/bin/aem-api-clr", \
-	AEM_PATH_HOME"/bin/aem-api-oni", \
+	AEM_PATH_HOME"/bin/aem-api-tcp", \
+	AEM_PATH_HOME"/bin/aem-api-uds", \
 	AEM_PATH_HOME"/bin/aem-mta", \
 	AEM_PATH_HOME"/bin/aem-reg", \
 	AEM_PATH_HOME"/bin/aem-account", \
@@ -244,8 +244,8 @@ enum aem_process_types {
 #define AEM_NICE { \
 	/*Web-Clr*/   4, \
 	/*Web-Oni*/   4, \
-	/*API-Clr*/  -4, \
-	/*API-Oni*/  -4, \
+	/*API-TCP*/  -4, \
+	/*API-UDS*/  -4, \
 	/*MTA*/      -8, \
 	/*Reg*/       8, \
 	/*Account*/ -16, \

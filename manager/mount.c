@@ -71,8 +71,8 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_WEB_ONI:
 		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 8; break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API_TCP:
+		case AEM_PROCESSTYPE_API_UDS:
 		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
@@ -123,8 +123,8 @@ int createMount(const int type) {
 			) return -1;
 		break;
 
-		case AEM_PROCESSTYPE_API_CLR:
-		case AEM_PROCESSTYPE_API_ONI:
+		case AEM_PROCESSTYPE_API_TCP:
+		case AEM_PROCESSTYPE_API_UDS:
 			if (
 			   mkdir(AEM_PATH_MOUNTDIR"/etc", AEM_MODE_XO | S_ISVTX) != 0
 			|| chown(AEM_PATH_MOUNTDIR"/etc", 0, aemGroup) != 0
