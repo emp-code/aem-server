@@ -30,9 +30,9 @@ int createSocket(void) {
 
 	struct sockaddr_un sa;
 	sa.sun_family = AF_UNIX;
-	memcpy(sa.sun_path, AEM_UDS_PATH_API, AEM_UDS_PATH_API_LEN);
+	memcpy(sa.sun_path, AEM_UDS_PATH, AEM_UDS_PATH_LEN);
 
-	if (bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_UDS_PATH_API_LEN) != 0) {syslog(LOG_ERR, "bind failed: %m"); close(sock); return -1;}
+	if (bind(sock, (struct sockaddr*)&sa, sizeof(sa.sun_family) + AEM_UDS_PATH_LEN) != 0) {syslog(LOG_ERR, "bind failed: %m"); close(sock); return -1;}
 	if (listen(sock, AEM_BACKLOG) != 0) {syslog(LOG_ERR, "listen failed: %m"); close(sock); return -1;}
 
 	return sock;

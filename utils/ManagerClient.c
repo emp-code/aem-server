@@ -47,8 +47,8 @@ static int cryptSend(const int sock, const unsigned char comChar, const unsigned
 		case 'a': dec[1] = AEM_PROCESSTYPE_API_UDS; break;
 		case 'M': dec[1] = AEM_PROCESSTYPE_MTA; break;
 		case 'R': dec[1] = AEM_PROCESSTYPE_REG; break;
-		case 'W': dec[1] = AEM_PROCESSTYPE_WEB_CLR; break;
-		case 'w': dec[1] = AEM_PROCESSTYPE_WEB_ONI; break;
+		case 'W': dec[1] = AEM_PROCESSTYPE_WEB_TCP; break;
+		case 'w': dec[1] = AEM_PROCESSTYPE_WEB_UDS; break;
 		default: puts("Invalid type"); return -1;
 	}
 
@@ -72,8 +72,8 @@ static char numToChar(const unsigned char n) {
 		case AEM_PROCESSTYPE_API_UDS: return 'a';
 		case AEM_PROCESSTYPE_MTA: return 'M';
 		case AEM_PROCESSTYPE_REG: return 'R';
-		case AEM_PROCESSTYPE_WEB_CLR: return 'W';
-		case AEM_PROCESSTYPE_WEB_ONI: return 'w';
+		case AEM_PROCESSTYPE_WEB_TCP: return 'W';
+		case AEM_PROCESSTYPE_WEB_UDS: return 'w';
 	}
 
 	return '?';

@@ -61,7 +61,7 @@ static pid_t pid_account = 0;
 static pid_t pid_deliver = 0;
 static pid_t pid_enquiry = 0;
 static pid_t pid_storage = 0;
-#define AEM_PTYPE_COUNT 6 // API-TCP, API-UDS, MTA, Reg, Web-Clr, Web-Oni
+#define AEM_PTYPE_COUNT 6 // API-TCP, API-UDS, MTA, Reg, Web-TCP, Web-UDS
 static pid_t aemPid[AEM_PTYPE_COUNT][AEM_MAXPROCESSES];
 static bool api_uds[AEM_MAXPROCESSES];
 
@@ -266,6 +266,7 @@ static int setCaps(const int type) {
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_API_UDS:
+		case AEM_PROCESSTYPE_WEB_UDS:
 			cap[2] = CAP_IPC_LOCK;
 			numCaps = 3;
 		break;
@@ -279,8 +280,7 @@ static int setCaps(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_REG:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB_TCP:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
 			numCaps = 4;
@@ -337,8 +337,8 @@ static int setLimits(const int type) {
 		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_REG:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB_TCP:
+		case AEM_PROCESSTYPE_WEB_UDS:
 		case AEM_PROCESSTYPE_API_TCP:
 		case AEM_PROCESSTYPE_API_UDS: rlim.rlim_cur = 4; break;
 	}
@@ -411,8 +411,8 @@ static int sendIntComKeys(const int type) {
 	bzero(&bundle, sizeof(struct intcom_keyBundle));
 
 	switch (type) {
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB_TCP:
+		case AEM_PROCESSTYPE_WEB_UDS:
 			return 0;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
@@ -468,7 +468,7 @@ static int sendIntComKeys(const int type) {
 __attribute__((warn_unused_result))
 static int process_spawn(const int type, const unsigned char *key_forward) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] == 0) {
 				freeSlot = i;
@@ -489,7 +489,7 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
 	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_CLEAR_SIGHAND;
-	if (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
 	if (pid < 0) {close(fd[0]); close(fd[1]); return 62;}
@@ -526,8 +526,8 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 		/* Nothing:
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
-		case AEM_PROCESSTYPE_WEB_CLR:
-		case AEM_PROCESSTYPE_WEB_ONI:
+		case AEM_PROCESSTYPE_WEB_TCP:
+		case AEM_PROCESSTYPE_WEB_UDS:
 		*/
 	}
 
@@ -543,11 +543,11 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", false) != 0);
 	}
 
-	if (!fail && (type == AEM_PROCESSTYPE_WEB_CLR || type == AEM_PROCESSTYPE_WEB_ONI)) {
-		fail = (pipeFile(AEM_PATH_DATA"/web-clr", true) != 0);
+	if (!fail && (type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS)) {
+		fail = (pipeFile(AEM_PATH_DATA"/web.enc", true) != 0);
 	}
 
-	if (!fail && (type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_CLR)) {
+	if (!fail && (type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS)) {
 		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", false) != 0);
 	}
 

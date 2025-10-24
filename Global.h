@@ -213,8 +213,8 @@ enum aem_acc_commands {
 
 // Process types
 enum aem_process_types {
-	AEM_PROCESSTYPE_WEB_CLR,
-	AEM_PROCESSTYPE_WEB_ONI,
+	AEM_PROCESSTYPE_WEB_TCP,
+	AEM_PROCESSTYPE_WEB_UDS,
 	AEM_PROCESSTYPE_API_TCP,
 	AEM_PROCESSTYPE_API_UDS,
 	AEM_PROCESSTYPE_MTA,
@@ -229,8 +229,8 @@ enum aem_process_types {
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_HOME"/bin/aem-web-clr", \
-	AEM_PATH_HOME"/bin/aem-web-oni", \
+	AEM_PATH_HOME"/bin/aem-web-tcp", \
+	AEM_PATH_HOME"/bin/aem-web-uds", \
 	AEM_PATH_HOME"/bin/aem-api-tcp", \
 	AEM_PATH_HOME"/bin/aem-api-uds", \
 	AEM_PATH_HOME"/bin/aem-mta", \
@@ -242,8 +242,8 @@ enum aem_process_types {
 }
 
 #define AEM_NICE { \
-	/*Web-Clr*/   4, \
-	/*Web-Oni*/   4, \
+	/*Web-TCP*/   4, \
+	/*Web-UDS*/   4, \
 	/*API-TCP*/  -4, \
 	/*API-UDS*/  -4, \
 	/*MTA*/      -8, \

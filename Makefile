@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -std=gnu23 -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=alloc-zero -Werror=discarded-array-qualifiers -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=nonnull -Werror=return-type -Werror=parentheses -Werror=shadow -Werror=strict-aliasing -Wbad-function-cast -Wbidi-chars=any -Wcast-align -Wcast-qual -Wduplicated-branches -Wfloat-equal -Winvalid-utf8 -Wlogical-op -Wmissing-declarations -Wpadded -Wpointer-arith -Wredundant-decls -Wstack-usage=999999 -Wstrict-prototypes -Wtrampolines -Wunused-macros -Wwrite-strings -fanalyzer -Wformat=0
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-tcp aem-api-uds aem-mta aem-reg aem-web-clr aem-web-oni utils/AdminAddr utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-tcp aem-api-uds aem-mta aem-reg aem-web-tcp aem-web-uds utils/AdminAddr utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
 
 aem-manager: manager/*.c
 	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager -Wno-analyzer-fd-use-after-close -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
@@ -30,11 +30,11 @@ aem-mta: mta/*.c
 aem-reg: reg/*.c
 	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/binTs.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
 
-aem-web-clr: web/*.c
-	$(CC) $(CFLAGS) -DAEM_WEB_CLR -DAEM_TLS -o aem-web-clr web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap -lwolfssl
+aem-web-tcp: web/*.c
+	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_TLS -o aem-web-tcp web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap -lwolfssl
 
-aem-web-oni: web/*.c
-	$(CC) $(CFLAGS) -DAEM_WEB_ONI -DAEM_LOCAL -o aem-web-oni web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap
+aem-web-uds: web/*.c
+	$(CC) $(CFLAGS) -DAEM_WEB -DAEM_UDS -o aem-web-uds web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
 
 utils/AdminAddr: utils/AdminAddr.c
 	$(CC) $(CFLAGS) -o utils/AdminAddr utils/AdminAddr.c Common/Addr32.c
@@ -56,4 +56,4 @@ utils/WebMaker: utils/WebMaker.c
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-tcp aem-api-uds aem-mta aem-reg aem-web-clr aem-web-oni utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api-tcp aem-api-uds aem-mta aem-reg aem-web-tcp aem-web-uds utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker

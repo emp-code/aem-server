@@ -44,10 +44,10 @@
 	#define AEM_PORT 302
 #elif defined(AEM_REG)
 	#define AEM_PORT 304
-#elif defined(AEM_WEB_CLR)
+#elif defined(AEM_WEB) && defined(AEM_TLS)
 	#define AEM_PORT 443
-#elif defined(AEM_WEB_ONI)
-	#define AEM_PORT 880
+#elif defined(AEM_WEB) && !defined(AEM_TLS)
+	#define AEM_PORT 80
 #elif defined(AEM_MANAGER)
 	#define AEM_PORT 940
 #endif
@@ -55,8 +55,13 @@
 #define AEM_PORT_MANAGER_STR "940"
 
 // UDS paths (udsId: 00-99)
-#define AEM_UDS_PATH_API (char[]){'\0','A','E','M','_','A','P','I','_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
-#define AEM_UDS_PATH_API_LEN 11
+#ifdef AEM_API
+	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','A','P','I','_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
+	#define AEM_UDS_PATH_LEN 11
+#elifdef AEM_WEB
+	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','W','e','b'}//,'_', '0' + (udsId - (udsId % 10)) / 10, '0' + udsId % 10}
+	#define AEM_UDS_PATH_LEN 8
+#endif
 
 // DNS
 #define AEM_DNS_SERVER_ADDR "9.9.9.10" // Quad9 non-filtering | https://quad9.net

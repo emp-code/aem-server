@@ -11,7 +11,7 @@
 #include "../Global.h"
 #include "../Common/GetKey.h"
 
-static unsigned char *genWeb(const unsigned char * const src, const size_t lenSrc, size_t * const lenResult, const bool onion) {
+static unsigned char *genWeb(const unsigned char * const src, const size_t lenSrc, size_t * const lenResult) {
 	unsigned char * const comp = malloc(lenSrc);
 	if (comp == NULL) {
 		fputs("Failed malloc", stderr);
@@ -25,10 +25,6 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		return NULL;
 	}
 
-	const char * const conn = onion? "://[Placeholder for the 56 characters of the Onion domain.].onion" : "s://[Placeholder for the API Domain]";
-	const char * const onionLoc = "";//onion? "" : "Onion-Location: http://[Placeholder for the 56 characters of the Onion domain.].onion\r\n";
-	const char * const tlsHeaders = onion? "" : "Strict-Transport-Security: max-age=99999999; includeSubDomains; preload\r\n";
-
 	// Headers
 	char headers[4096];
 	sprintf(headers,
@@ -40,17 +36,16 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"Content-Encoding: br\r\n"
 		"Content-Length: %zu\r\n"
 		"Content-Type: text/html; charset=utf-8\r\n"
-		"%s"
 
 		// CSP
 		"Content-Security-Policy: "
-			"connect-src"     " http%s:302 data:;"
+			"connect-src"     " 'self' data:;"
 			"frame-src"       " blob:;"
 			"img-src"         " blob: data:;"
 			"media-src"       " blob:;"
 			"object-src"      " blob:;"
 			"script-src"      " 'wasm-unsafe-eval';"
-			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js https://cdn.jsdelivr.net/gh/jedisct1/libsodium.js@0.7.13/dist/browsers-sumo/sodium.js;"
+			"script-src-elem" " https://cdn.jsdelivr.net/gh/emp-code/ https://cdn.jsdelivr.net/gh/google/brotli@1.0.7/js/decode.min.js;"
 			"style-src-attr"  " 'unsafe-inline';" // For displaying PDF files
 			"style-src-elem"  " https://cdn.jsdelivr.net/gh/emp-code/ 'unsafe-inline';" // inline for displaying HTML files
 
@@ -180,7 +175,6 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"\r\n"
 
 		// Misc security headers
-		"%s"
 		"Cross-Origin-Embedder-Policy: require-corp\r\n"
 		"Cross-Origin-Opener-Policy: same-origin\r\n"
 		"Cross-Origin-Resource-Policy: same-origin\r\n"
@@ -190,17 +184,14 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"X-Frame-Options: deny\r\n"
 		"X-XSS-Protection: 1; mode=block\r\n"
 		"\r\n"
-	, lenComp, // Content-Length
-	onionLoc,
-	conn, // CSP connect
-	tlsHeaders
-	);
+	, lenComp); // Content-Length
 
 	const size_t lenHeaders = strlen(headers);
-
 	*lenResult = lenHeaders + lenComp;
+
 	unsigned char * const result = malloc(*lenResult);
 	if (result == NULL) {free(comp); return NULL;}
+
 	memcpy(result, headers, lenHeaders);
 	memcpy(result + lenHeaders, comp, lenComp);
 	free(comp);
@@ -208,9 +199,9 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 	return result;
 }
 
-static void writeWeb(const unsigned char * const src, const size_t lenSrc, const unsigned char launchKey[crypto_aead_aegis256_KEYBYTES], const bool onion) {
+static void writeWeb(const unsigned char * const src, const size_t lenSrc, const unsigned char launchKey[crypto_aead_aegis256_KEYBYTES]) {
 	size_t lenDec;
-	unsigned char * const dec = genWeb(src, lenSrc, &lenDec, onion);
+	unsigned char * const dec = genWeb(src, lenSrc, &lenDec);
 	if (dec == NULL) return;
 
 	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
@@ -223,7 +214,7 @@ static void writeWeb(const unsigned char * const src, const size_t lenSrc, const
 	}
 	free(dec);
 
-	const int fd = open("/var/lib/allears/Data/web-clr", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR);
+	const int fd = open("/var/lib/allears/Data/web.enc", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR);
 	if (fd < 0) {
 		fprintf(stderr, "Failed opening file: %m\n");
 		close(fd);
@@ -237,7 +228,7 @@ static void writeWeb(const unsigned char * const src, const size_t lenSrc, const
 	}
 
 	close(fd);
-	puts("Created /var/lib/allears/Data/web-clr");
+	puts("Created /var/lib/allears/Data/web.enc");
 	return;
 }
 
@@ -250,7 +241,7 @@ static int getLaunchKey(unsigned char launchKey[crypto_aead_aegis256_KEYBYTES]) 
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 2) {fprintf(stderr, "Usage: %s input.html\n", argv[0]); return EXIT_FAILURE;}
+	if (argc != 2) {fprintf(stderr, "Usage: %s index.html\n", argv[0]); return EXIT_FAILURE;}
 	if (sodium_init() != 0) {fputs("Failed sodium_init()", stderr); return EXIT_FAILURE;}
 
 	unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
@@ -271,8 +262,7 @@ int main(int argc, char *argv[]) {
 	}
 	close(fd);
 
-	writeWeb(src, lenSrc, launchKey, false); // Clear
-//	writeWeb(src, lenSrc, launchKey, true); // Onion
+	writeWeb(src, lenSrc, launchKey); // Clear
 
 	return EXIT_SUCCESS;
 }

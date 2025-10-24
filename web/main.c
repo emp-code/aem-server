@@ -1,56 +1,60 @@
+#if defined(AEM_UDS) && defined(AEM_LOCAL)
+#error AEM_LOCAL is for TCP sockets, do not use it with AEM_UDS
+#endif
+
 #include <signal.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
-
-#ifdef AEM_TLS
-#define AEM_LOGNAME "AEM-Web-Clr"
-
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
 #include "../Common/x509_getCn.h"
 
-WOLFSSL_CTX *ctx;
-WOLFSSL *ssl;
+#ifdef AEM_UDS
+	#define AEM_LOGNAME "AEM-Web-UDS"
 #else
-#define AEM_LOGNAME "AEM-Web-Oni"
-#endif
+	#define AEM_LOGNAME "AEM-Web-TCP"
 
-size_t lenResp;
-unsigned char *resp;
+	#ifdef AEM_TLS
+		#include <wolfssl/options.h>
+		#include <wolfssl/ssl.h>
+
+		WOLFSSL_CTX *ctx;
+		WOLFSSL *ssl;
+	#endif
+#endif
 
 static volatile sig_atomic_t terminate = 0;
 static void sigTerm(const int s) {terminate = 1;}
 
 #include "../Common/Main_Include.c"
 
-#ifdef AEM_TLS
+size_t lenResp;
+unsigned char *resp;
 static int lenSts;
 static char sts[512];
 
-static int setKeyShare(void) {
-	for(;;) {
-		const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
-		if (ret == WOLFSSL_SUCCESS) break;
-		if (ret != WC_PENDING_E) return -1;
-	}
-
-	return (wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519}, 1) == WOLFSSL_SUCCESS) ? 0 : -1;
-}
+static void acceptClients(void) {
+#ifdef AEM_UDS
+	setUdsId(0);
 #endif
 
-static int acceptClients(void) {
+	const int sock = createSocket(
+#ifndef AEM_UDS
 #ifdef AEM_LOCAL
-	const int sock = createSocket(true, 10, 10);
+		true
 #else
-	const int sock = createSocket(false, 10, 10);
+		false
 #endif
-	if (sock < 0) return -10;
-	if (setCaps(0) != 0) return -11;
+		, 10, 10
+#endif
+	);
+
+	if (sock < 0) return;
+	if (setCaps(0) != 0) return;
 
 	syslog(LOG_INFO, "Ready");
 
@@ -61,34 +65,61 @@ static int acceptClients(void) {
 #ifdef AEM_TLS
 		ssl = wolfSSL_new(ctx);
 		if (ssl == NULL) {close(newSock); continue;}
-		setKeyShare();
+
+		for(;;) {
+			const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
+			if (ret == WOLFSSL_SUCCESS) break;
+			if (ret != WC_PENDING_E) return;
+		}
 
 		if (
-		   wolfSSL_set_fd(ssl, newSock) != WOLFSSL_SUCCESS
+		   wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519}, 1) != WOLFSSL_SUCCESS
+		|| wolfSSL_set_fd(ssl, newSock) != WOLFSSL_SUCCESS
 		|| wolfSSL_accept_TLSv13(ssl) != WOLFSSL_SUCCESS
 		|| wolfSSL_state(ssl) != 0) {
 			close(newSock);
 			continue;
 		}
+#endif
 
 		unsigned char req[29];
-		if (wolfSSL_read(ssl, req, 29) == 29) {
+		if (
+#ifdef AEM_TLS
+		wolfSSL_read(ssl
+#else
+		read(newSock
+#endif
+		, req, 29) == 29) {
 			if (memcmp(req, "GET /.well-known/mta-sts.txt ", 29) == 0) {
-				wolfSSL_write(ssl, sts, lenSts);
-			} if (memcmp(req, "GET / HTTP/1.", 13) == 0) {
-				wolfSSL_write(ssl, resp, lenResp);
+#ifdef AEM_TLS
+				wolfSSL_write(ssl,
+#else
+				write(newSock,
+#endif
+				sts, lenSts);
+			} else
+
+			if (memcmp(req, "GET / HTTP/", 11) == 0) {
+#ifdef AEM_TLS
+				wolfSSL_write(ssl,
+#else
+				write(newSock,
+#endif
+				resp, lenResp);
 			} else {
 				close(newSock);
+#ifdef AEM_TLS
 				wolfSSL_free(ssl);
+#endif
 				continue;
 			}
 		}
 
+#ifdef AEM_TLS
 		wolfSSL_shutdown(ssl);
 		wolfSSL_free(ssl);
 #else
 		shutdown(newSock, SHUT_RD);
-		write(newSock, resp, lenResp);
 #endif
 		close(newSock);
 	}
@@ -99,7 +130,6 @@ static int acceptClients(void) {
 #endif
 
 	close(sock);
-	return 0;
 }
 
 static int pipeRead(void) {
@@ -115,20 +145,10 @@ static int pipeRead(void) {
 			if (read(AEM_FD_PIPE_RD, resp + (lenResp - tbr), PIPE_BUF) != PIPE_BUF) return 4;
 			tbr -= PIPE_BUF;
 		} else {
-			if (read(AEM_FD_PIPE_RD, resp + (lenResp - tbr), tbr) != (ssize_t)tbr) return 4;
+			if (read(AEM_FD_PIPE_RD, resp + (lenResp - tbr), tbr) != (ssize_t)tbr) return 5;
 			break;
 		}
 	}
-
-#ifdef AEM_TLS
-	wolfSSL_Init();
-
-	ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-	if (ctx == NULL) return 10;
-
-	if (wolfSSL_CTX_SetMinVersion(ctx, 4) != WOLFSSL_SUCCESS) return 11;
-	if (wolfSSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384") != WOLFSSL_SUCCESS) return 12; // TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-	wolfSSL_CTX_no_ticket_TLSv13(ctx);
 
 	size_t lenTlsCrt;
 	size_t lenTlsKey;
@@ -140,14 +160,24 @@ static int pipeRead(void) {
 	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
 	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
-	) return 13;
+	) return 6;
 
-	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, tlsCrt, lenTlsCrt) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 14;}
-	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, tlsKey, lenTlsKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 15;}
+#ifdef AEM_TLS
+	wolfSSL_Init();
+
+	ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+	if (ctx == NULL) return 7;
+
+	if (wolfSSL_CTX_SetMinVersion(ctx, 4) != WOLFSSL_SUCCESS) return 8;
+	if (wolfSSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384") != WOLFSSL_SUCCESS) return 9; // TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+	wolfSSL_CTX_no_ticket_TLSv13(ctx);
+	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, tlsCrt, lenTlsCrt) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 10;}
+	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, tlsKey, lenTlsKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 11;}
+#endif
 
 	unsigned char cn[100];
 	size_t lenCn;
-	if (x509_getSubject(cn, &lenCn, tlsCrt, lenTlsCrt) != 0) return 16;
+	if (x509_getSubject(cn, &lenCn, tlsCrt, lenTlsCrt) != 0) return 12;
 
 	lenSts = sprintf(sts,
 		"HTTP/1.1 200 aem\r\n"
@@ -166,7 +196,6 @@ static int pipeRead(void) {
 
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
-#endif
 
 	return 0;
 }
@@ -174,8 +203,13 @@ static int pipeRead(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 	const int pr = pipeRead();
-	close(AEM_FD_PIPE_RD);
-	if (pr != 0) return pr;
+	if (pr != 0) {
+		close(AEM_FD_PIPE_RD);
+		syslog(LOG_INFO, "pipeRead failed: %d", pr);
+		return 1;
+	}
 
-	return acceptClients();
+	close(AEM_FD_PIPE_RD);
+	acceptClients();
+	return 0;
 }
