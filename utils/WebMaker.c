@@ -90,6 +90,8 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 			"unsized-media=?0"
 		"\r\n"
 
+		"Integrity-Policy: blocked-destinations=(script style)\r\n"
+
 		// PP
 		// https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/renderer/core/permissions_policy/permissions_policy_features.json5
 		// https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/blink/web_tests/webexposed/feature-policy-features-expected.txt
