@@ -76,16 +76,19 @@ The API is authenticated and encrypted using the User API Key (UAK), shared with
 
 AEM-API processes do not hold the UAK, but rather forward all requests to [AEM-Account](#account) which authenticates and decrypts the request, and passes relevant information back to the AEM-API process as necessary.
 
-AEM-API-TCP listens on TCP port 302. Uses HTTPS by default. To use plain HTTP, remove the AEM_TLS flag.
-AEM-API-UDS listens on an abstract UNIX domain socket, named AEM_API_00 to AEM_API_99. Intended for use with a reverse proxy.
+AEM-API listens on an abstract UNIX domain socket: AEM_API_00 to AEM_API_99.
 
 ## MTA ##
 
 AEM-MTA (Mail Transfer Agent) receives email from other servers and forwards it to [Deliver](#deliver) for processing and delivery.
 
+AEM-MTA listens on TCP port 25 (SMTP).
+
 ## Reg ##
 
 AEM-Reg receives registration requests and forwards them to [AEM-Account](#account).
+
+AEM-Reg listens on an abstract UNIX domain socket: AEM_Reg.
 
 ## Web ##
 
@@ -96,6 +99,8 @@ The server is designed for single-page sites, supporting one HTML file in additi
 All other files are designed to be hosted externally. This makes the client-side code easier to verify, and [SRI](https://en.wikipedia.org/wiki/Subresource_Integrity) protects the integrity of the files.
 
 AEM-Web is the only process type to run completely isolated with no ability to interact with other processes.
+
+AEM-Web listens on an abstract UNIX domain socket: AEM_Web.
 
 ## Utilities ##
 

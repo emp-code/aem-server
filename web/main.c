@@ -1,7 +1,3 @@
-#if defined(AEM_UDS) && defined(AEM_LOCAL)
-#error AEM_LOCAL is for TCP sockets, do not use it with AEM_UDS
-#endif
-
 #include <signal.h>
 #include <sys/socket.h>
 #include <syslog.h>
@@ -13,19 +9,7 @@
 #include "../Common/SetCaps.h"
 #include "../Common/x509_getCn.h"
 
-#ifdef AEM_UDS
-	#define AEM_LOGNAME "AEM-Web-UDS"
-#else
-	#define AEM_LOGNAME "AEM-Web-TCP"
-
-	#ifdef AEM_TLS
-		#include <wolfssl/options.h>
-		#include <wolfssl/ssl.h>
-
-		WOLFSSL_CTX *ctx;
-		WOLFSSL *ssl;
-	#endif
-#endif
+#define AEM_LOGNAME "AEM-Web"
 
 static volatile sig_atomic_t terminate = 0;
 static void sigTerm(const int s) {terminate = 1;}
@@ -62,72 +46,22 @@ static void acceptClients(void) {
 		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
 		if (newSock < 0) continue;
 
-#ifdef AEM_TLS
-		ssl = wolfSSL_new(ctx);
-		if (ssl == NULL) {close(newSock); continue;}
-
-		for(;;) {
-			const int ret = wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519);
-			if (ret == WOLFSSL_SUCCESS) break;
-			if (ret != WC_PENDING_E) return;
-		}
-
-		if (
-		   wolfSSL_set_groups(ssl, (int[]){WOLFSSL_ECC_X25519}, 1) != WOLFSSL_SUCCESS
-		|| wolfSSL_set_fd(ssl, newSock) != WOLFSSL_SUCCESS
-		|| wolfSSL_accept_TLSv13(ssl) != WOLFSSL_SUCCESS
-		|| wolfSSL_state(ssl) != 0) {
-			close(newSock);
-			continue;
-		}
-#endif
-
 		unsigned char req[29];
 		if (
-#ifdef AEM_TLS
-		wolfSSL_read(ssl
-#else
-		read(newSock
-#endif
-		, req, 29) == 29) {
+		read(newSock, req, 29) == 29) {
 			if (memcmp(req, "GET /.well-known/mta-sts.txt ", 29) == 0) {
-#ifdef AEM_TLS
-				wolfSSL_write(ssl,
-#else
-				write(newSock,
-#endif
-				sts, lenSts);
-			} else
-
-			if (memcmp(req, "GET / HTTP/", 11) == 0) {
-#ifdef AEM_TLS
-				wolfSSL_write(ssl,
-#else
-				write(newSock,
-#endif
-				resp, lenResp);
+				write(newSock, sts, lenSts);
+			} else if (memcmp(req, "GET / HTTP/", 11) == 0) {
+				write(newSock, resp, lenResp);
 			} else {
 				close(newSock);
-#ifdef AEM_TLS
-				wolfSSL_free(ssl);
-#endif
 				continue;
 			}
 		}
 
-#ifdef AEM_TLS
-		wolfSSL_shutdown(ssl);
-		wolfSSL_free(ssl);
-#else
 		shutdown(newSock, SHUT_RD);
-#endif
 		close(newSock);
 	}
-
-#ifdef AEM_TLS
-	wolfSSL_CTX_free(ctx);
-	wolfSSL_Cleanup();
-#endif
 
 	close(sock);
 }
@@ -161,19 +95,6 @@ static int pipeRead(void) {
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
 	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
 	) return 6;
-
-#ifdef AEM_TLS
-	wolfSSL_Init();
-
-	ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
-	if (ctx == NULL) return 7;
-
-	if (wolfSSL_CTX_SetMinVersion(ctx, 4) != WOLFSSL_SUCCESS) return 8;
-	if (wolfSSL_CTX_set_cipher_list(ctx, "TLS_AES_256_GCM_SHA384") != WOLFSSL_SUCCESS) return 9; // TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
-	wolfSSL_CTX_no_ticket_TLSv13(ctx);
-	if (wolfSSL_CTX_use_certificate_chain_buffer(ctx, tlsCrt, lenTlsCrt) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 10;}
-	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, tlsKey, lenTlsKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {sodium_memzero(tlsCrt, lenTlsCrt); sodium_memzero(tlsKey, lenTlsKey); return 11;}
-#endif
 
 	unsigned char cn[100];
 	size_t lenCn;

@@ -61,7 +61,7 @@ static pid_t pid_account = 0;
 static pid_t pid_deliver = 0;
 static pid_t pid_enquiry = 0;
 static pid_t pid_storage = 0;
-#define AEM_PTYPE_COUNT 6 // API-TCP, API-UDS, MTA, Reg, Web-TCP, Web-UDS
+#define AEM_PTYPE_COUNT 4 // API, MTA, Reg, Web
 static pid_t aemPid[AEM_PTYPE_COUNT][AEM_MAXPROCESSES];
 static bool api_uds[AEM_MAXPROCESSES];
 
@@ -86,7 +86,7 @@ static void refreshPids(void) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] != 0 && !process_exists(aemPid[type][i])) {
 				aemPid[type][i] = 0;
-				if (type == AEM_PROCESSTYPE_API_UDS) api_uds[i] = false;
+				if (type == AEM_PROCESSTYPE_API) api_uds[i] = false;
 			}
 		}
 	}
@@ -265,13 +265,12 @@ static int setCaps(const int type) {
 		case AEM_PROCESSTYPE_DELIVER:
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
-		case AEM_PROCESSTYPE_API_UDS:
-		case AEM_PROCESSTYPE_WEB_UDS:
+		case AEM_PROCESSTYPE_API:
+		case AEM_PROCESSTYPE_WEB:
 			cap[2] = CAP_IPC_LOCK;
 			numCaps = 3;
 		break;
 
-		case AEM_PROCESSTYPE_API_TCP:
 		case AEM_PROCESSTYPE_MTA:
 			cap[2] = CAP_IPC_LOCK;
 			cap[3] = CAP_NET_BIND_SERVICE;
@@ -280,7 +279,6 @@ static int setCaps(const int type) {
 		break;
 
 		case AEM_PROCESSTYPE_REG:
-		case AEM_PROCESSTYPE_WEB_TCP:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
 			numCaps = 4;
@@ -337,10 +335,8 @@ static int setLimits(const int type) {
 		case AEM_PROCESSTYPE_STORAGE:
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_REG:
-		case AEM_PROCESSTYPE_WEB_TCP:
-		case AEM_PROCESSTYPE_WEB_UDS:
-		case AEM_PROCESSTYPE_API_TCP:
-		case AEM_PROCESSTYPE_API_UDS: rlim.rlim_cur = 4; break;
+		case AEM_PROCESSTYPE_WEB:
+		case AEM_PROCESSTYPE_API: rlim.rlim_cur = 4; break;
 	}
 
 	rlim.rlim_max = rlim.rlim_cur;
@@ -411,8 +407,7 @@ static int sendIntComKeys(const int type) {
 	bzero(&bundle, sizeof(struct intcom_keyBundle));
 
 	switch (type) {
-		case AEM_PROCESSTYPE_WEB_TCP:
-		case AEM_PROCESSTYPE_WEB_UDS:
+		case AEM_PROCESSTYPE_WEB:
 			return 0;
 
 		case AEM_PROCESSTYPE_ACCOUNT:
@@ -441,8 +436,7 @@ static int sendIntComKeys(const int type) {
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_STO, key_ic);
 		break;
 
-		case AEM_PROCESSTYPE_API_TCP:
-		case AEM_PROCESSTYPE_API_UDS:
+		case AEM_PROCESSTYPE_API:
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, key_ic);
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, key_ic);
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, key_ic);
@@ -468,7 +462,7 @@ static int sendIntComKeys(const int type) {
 __attribute__((warn_unused_result))
 static int process_spawn(const int type, const unsigned char *key_forward) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS) {
+	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
 			if (aemPid[type][i] == 0) {
 				freeSlot = i;
@@ -489,7 +483,7 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 	struct clone_args cloneArgs;
 	bzero(&cloneArgs, sizeof(struct clone_args));
 	cloneArgs.flags = CLONE_NEWCGROUP | CLONE_NEWIPC | CLONE_NEWNS | CLONE_NEWUTS | CLONE_UNTRACED | CLONE_CLEAR_SIGHAND;
-	if (type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
+	if (type == AEM_PROCESSTYPE_WEB) cloneArgs.flags |= CLONE_NEWPID; // Doesn't interact with other processes
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
 	if (pid < 0) {close(fd[0]); close(fd[1]); return 62;}
@@ -517,8 +511,7 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 			fail = (write(AEM_FD_PIPE_WR, &pid_account, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
-		case AEM_PROCESSTYPE_API_TCP:
-		case AEM_PROCESSTYPE_API_UDS:
+		case AEM_PROCESSTYPE_API:
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
 			key_forward = key_api;
 		break;
@@ -526,8 +519,7 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 		/* Nothing:
 		case AEM_PROCESSTYPE_ENQUIRY:
 		case AEM_PROCESSTYPE_STORAGE:
-		case AEM_PROCESSTYPE_WEB_TCP:
-		case AEM_PROCESSTYPE_WEB_UDS:
+		case AEM_PROCESSTYPE_WEB:
 		*/
 	}
 
@@ -543,15 +535,15 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", false) != 0);
 	}
 
-	if (!fail && (type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS)) {
+	if (!fail && type == AEM_PROCESSTYPE_WEB) {
 		fail = (pipeFile(AEM_PATH_DATA"/web.enc", true) != 0);
 	}
 
-	if (!fail && (type == AEM_PROCESSTYPE_API_TCP || type == AEM_PROCESSTYPE_API_UDS || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB_TCP || type == AEM_PROCESSTYPE_WEB_UDS)) {
+	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB)) {
 		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", false) != 0);
 	}
 
-	if (!fail && type == AEM_PROCESSTYPE_API_UDS) {
+	if (!fail && type == AEM_PROCESSTYPE_API) {
 		const uint8_t udsId = avail_uds_api();
 		fail = !(udsId < AEM_MAXPROCESSES && write(AEM_FD_PIPE_WR, &udsId, 1) == 1);
 		if (!fail) api_uds[udsId] = true;
@@ -692,7 +684,7 @@ int setupManager(void) {
 	if (getKey(smk) != 0) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 51;}
 	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 52;}
 	openlog("AEM-Manager", LOG_NDELAY, LOG_MAIL); // Opens AEM_FD_SYSLOG (0)
-	if (createSocket(false, AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SOCK_MAIN) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 53;} // Opens AEM_FD_SOCK_MAIN (1)
+	if (createSocket(AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SOCK_MAIN) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 53;} // Opens AEM_FD_SOCK_MAIN (1)
 
 	bzero(aemPid, sizeof(aemPid));
 	bzero(api_uds, sizeof(bool) * AEM_MAXPROCESSES);

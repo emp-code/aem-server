@@ -213,10 +213,8 @@ enum aem_acc_commands {
 
 // Process types
 enum aem_process_types {
-	AEM_PROCESSTYPE_WEB_TCP,
-	AEM_PROCESSTYPE_WEB_UDS,
-	AEM_PROCESSTYPE_API_TCP,
-	AEM_PROCESSTYPE_API_UDS,
+	AEM_PROCESSTYPE_WEB,
+	AEM_PROCESSTYPE_API,
 	AEM_PROCESSTYPE_MTA,
 	AEM_PROCESSTYPE_REG,
 	AEM_PROCESSTYPE_ACCOUNT,
@@ -229,10 +227,8 @@ enum aem_process_types {
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
-	AEM_PATH_HOME"/bin/aem-web-tcp", \
-	AEM_PATH_HOME"/bin/aem-web-uds", \
-	AEM_PATH_HOME"/bin/aem-api-tcp", \
-	AEM_PATH_HOME"/bin/aem-api-uds", \
+	AEM_PATH_HOME"/bin/aem-web", \
+	AEM_PATH_HOME"/bin/aem-api", \
 	AEM_PATH_HOME"/bin/aem-mta", \
 	AEM_PATH_HOME"/bin/aem-reg", \
 	AEM_PATH_HOME"/bin/aem-account", \
@@ -242,12 +238,10 @@ enum aem_process_types {
 }
 
 #define AEM_NICE { \
-	/*Web-TCP*/   4, \
-	/*Web-UDS*/   4, \
-	/*API-TCP*/  -4, \
-	/*API-UDS*/  -4, \
-	/*MTA*/      -8, \
-	/*Reg*/       8, \
+	/*Web*/  4, \
+	/*API*/ -4, \
+	/*MTA*/ -8, \
+	/*Reg*/  8, \
 	/*Account*/ -16, \
 	/*Deliver*/  -3, \
 	/*Enquiry*/ -10, \

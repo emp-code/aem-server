@@ -4,6 +4,7 @@
 #include <wolfssl/ssl.h>
 
 #include "../Common/AcceptClients.h"
+#include "../Common/CreateSocket.h"
 #include "../Common/x509_getCn.h"
 #include "../IntCom/Client.h"
 
@@ -12,16 +13,7 @@
 #include "SendMail.h"
 #include "post.h"
 
-#ifdef AEM_TLS
-	#include "ClientTLS.h"
-#endif
-
-#ifdef AEM_UDS
-	#define AEM_LOGNAME "AEM-API-UDS"
-	#include "../Common/CreateSocket.h"
-#else
-	#define AEM_LOGNAME "AEM-API-TCP"
-#endif
+#define AEM_LOGNAME "AEM-API"
 
 #include "../Common/Main_Include.c"
 
@@ -35,9 +27,7 @@ static int pipeRead(void) {
 	size_t lenTlsKey;
 	unsigned char tlsCrt[PIPE_BUF];
 	unsigned char tlsKey[PIPE_BUF];
-#ifdef AEM_UDS
 	char udsId;
-#endif
 
 	if (
 	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
@@ -47,9 +37,7 @@ static int pipeRead(void) {
 	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
 	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
 	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
-#ifdef AEM_UDS
 	|| read(AEM_FD_PIPE_RD, &udsId, 1) != 1
-#endif
 	) {
 		syslog(LOG_ERR, "Failed reading pipe: %m");
 		close(AEM_FD_PIPE_RD);
@@ -74,16 +62,11 @@ static int pipeRead(void) {
 	setOurDomain(domain, lenDomain);
 
 	int ret = sendMail_tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
-#ifdef AEM_TLS
-	if (ret == 0) ret = tls_init(tlsCrt, lenTlsCrt, tlsKey, lenTlsKey, domain, lenDomain);
-#endif
 
 	sodium_memzero(tlsCrt, lenTlsCrt);
 	sodium_memzero(tlsKey, lenTlsKey);
 
-#ifdef AEM_UDS
 	setUdsId(udsId);
-#endif
 	return ret;
 }
 
@@ -96,9 +79,6 @@ int main(void) {
 	acceptClients();
 
 	sendMail_tls_free();
-#ifdef AEM_TLS
-	tls_free();
-#endif
 
 	wolfSSL_Cleanup();
 	delMsgIdKey();

@@ -5,7 +5,7 @@
 void setUdsId(char newId);
 int createSocket(void);
 #else
-int createSocket(const bool loopback, const time_t rcvTimeout, const time_t sndTimeout);
+int createSocket(const time_t rcvTimeout, const time_t sndTimeout);
 #endif
 
 #endif

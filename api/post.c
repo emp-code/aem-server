@@ -3,13 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <time.h>
-
-#ifdef AEM_TLS
-#include "ClientTLS.h"
-#else
 #include <sys/socket.h>
-#endif
+#include <time.h>
 
 #include <sodium.h>
 
@@ -341,11 +336,7 @@ static unsigned char message_upload(const uint16_t uid, const unsigned char urlD
 
 static long readHeaders(void) {
 	unsigned char buf[1000];
-#ifdef AEM_TLS
-	int ret = tls_peek(buf, 1000);
-#else
 	int ret = recv(AEM_FD_SOCK_CLIENT, buf, 1000, MSG_PEEK);
-#endif
 	if (ret < 10) return -1;
 
 	unsigned char * const headersEnd = memmem(buf, ret, "\r\n\r\n", 4);
@@ -360,11 +351,7 @@ static long readHeaders(void) {
 	const long cl = strtol((const char * const)clBegin, NULL, 10);
 	if (cl < 10) return -4;
 
-#ifdef AEM_TLS
-	tls_recv(buf, (headersEnd + 4) - buf); // Next recv returns the POST body
-#else
 	recv(AEM_FD_SOCK_CLIENT, buf, (headersEnd + 4) - buf, 0); // Next recv returns the POST body
-#endif
 	return cl;
 }
 
@@ -372,13 +359,7 @@ __attribute__((nonnull))
 static void handleContinue(const unsigned char * const req, const size_t lenBody) {
 	// Used with Account/Keyset, Address/Update, and Private/Update. As AEM-API doesn't need the data for those requests, it's prevented.
 	unsigned char body[AEM_API_REQ_LEN + lenBody];
-	if (
-#ifdef AEM_TLS
-	tls_recv(body + AEM_API_REQ_LEN, lenBody)
-#else
-	recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL)
-#endif
-	!= (ssize_t)lenBody) {
+	if (recv(AEM_FD_SOCK_CLIENT, body + AEM_API_REQ_LEN, lenBody, MSG_WAITALL) != (ssize_t)lenBody) {
 		unauthResponse(AEM_API_UNAUTH_ERR_POST_RECVFAIL);
 		return;
 	}
@@ -436,13 +417,7 @@ static void handleGet(const int cmd, const int flags, const uint16_t uid, const 
 
 __attribute__((nonnull))
 static void handlePost(const uint64_t binTs, const int cmd, const int flags, const uint16_t uid, const unsigned char urlData[AEM_API_REQ_DATA_LEN], const unsigned char requestBodyKey[AEM_API_BODY_KEYSIZE], const unsigned char * const icData, const size_t lenIcData, unsigned char * const body, const size_t lenBody) {
-	if (
-#ifdef AEM_TLS
-	tls_recv(body, lenBody)
-#else
-	recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL)
-#endif
-	!= (ssize_t)lenBody) {
+	if (recv(AEM_FD_SOCK_CLIENT, body, lenBody, MSG_WAITALL) != (ssize_t)lenBody) {
 		const unsigned char rb = AEM_API_ERR_RECV;
 		apiResponse(&rb, 1);
 		return;

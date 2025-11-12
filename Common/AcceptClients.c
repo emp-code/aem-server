@@ -7,11 +7,7 @@
 	#include <netinet/in.h>
 #endif
 
-#if defined(AEM_API) && defined (AEM_TLS)
-	#include "../api/ClientTLS.h"
-#endif
-
-#include "../Config.h" // for AEM_PORT
+#include "../Config.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
 #ifdef AEM_MTA
@@ -38,11 +34,6 @@ void sigTerm(const int s) {
 void acceptClients(void) {
 	if (createSocket(
 #ifndef AEM_UDS
-#ifdef AEM_LOCAL
-	true,
-#else
-	false,
-#endif
 	10, 10
 #endif
 	) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket: %m"); return;}
@@ -70,11 +61,6 @@ void acceptClients(void) {
 
 #ifdef AEM_MTA
 		if (validIp(clientAddr.sin_addr.s_addr)) respondClient(newSock, &clientAddr);
-#elif defined(AEM_API) && defined (AEM_TLS)
-		if (tls_connect() == 0) {
-			if (!respondClient()) shutdown(newSock, SHUT_RDWR);
-			tls_disconnect();
-		}
 #else
 		respondClient();
 #endif

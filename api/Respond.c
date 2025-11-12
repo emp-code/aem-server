@@ -1,13 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <syslog.h>
-
-#ifdef AEM_TLS
-#include "ClientTLS.h"
-#else
 #include <sys/socket.h>
-#endif
+#include <syslog.h>
 
 #include <sodium.h>
 
@@ -36,18 +31,10 @@ static int numDigits(const size_t x) {
 }
 
 void unauthResponse(const unsigned char code) {
-#ifdef AEM_TLS
-	tls_send(
-#else
 	send(AEM_FD_SOCK_CLIENT,
-#endif
 		(unsigned char[]){'H','T','T','P','/','1','.','0',' ','2','0','4',' ',code,'\r','\n',
 		'A','c','c','e','s','s','-','C','o','n','t','r','o','l','-','A','l','l','o','w','-','O','r','i','g','i','n',':',' ','*','\r','\n','\r','\n'}
-	, 50
-#ifndef AEM_TLS
-	, 0
-#endif
-	);
+	, 50, 0);
 }
 
 void apiResponse(const unsigned char * const data, const size_t lenData) {
@@ -79,9 +66,5 @@ void apiResponse(const unsigned char * const data, const size_t lenData) {
 	free(padded);
 
 	// Send
-#ifdef AEM_TLS
-	tls_send(response, lenResponse);
-#else
 	send(AEM_FD_SOCK_CLIENT, response, lenResponse, 0);
-#endif
 }

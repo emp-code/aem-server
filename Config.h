@@ -40,14 +40,6 @@
 // Port numbers
 #if defined(AEM_MTA)
 	#define AEM_PORT 25
-#elif defined(AEM_API_TCP)
-	#define AEM_PORT 302
-#elif defined(AEM_REG)
-	#define AEM_PORT 304
-#elif defined(AEM_WEB) && defined(AEM_TLS)
-	#define AEM_PORT 443
-#elif defined(AEM_WEB) && !defined(AEM_TLS)
-	#define AEM_PORT 80
 #elif defined(AEM_MANAGER)
 	#define AEM_PORT 940
 #endif
