@@ -122,7 +122,7 @@ void intcom_serve(void) {
 				case AEM_INTCOM_CLIENT_API: resCode = conn_api(operation, msg, lenMsg, &res); break;
 #if defined(AEM_ACCOUNT)
 				case AEM_INTCOM_CLIENT_MTA: resCode = conn_mta(operation, msg, lenMsg, &res); break;
-				case AEM_INTCOM_CLIENT_REG: resCode = conn_reg(operation, msg, lenMsg, &res); break;
+				case AEM_INTCOM_CLIENT_REG: resCode = conn_reg(operation, msg, lenMsg); break;
 #elif defined(AEM_ENQUIRY)
 				case AEM_INTCOM_CLIENT_DLV: resCode = conn_dlv(operation, msg, lenMsg, &res); break;
 #elif defined(AEM_STORAGE)

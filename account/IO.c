@@ -598,7 +598,7 @@ int32_t mta_getUid(const unsigned char * const addr32, unsigned char **res) {
 
 // Reg
 __attribute__((nonnull, warn_unused_result))
-int32_t reg_register(const unsigned char * const req, unsigned char **res) {
+int32_t reg_register(const unsigned char * const req) {
 	const uint64_t bts = ((uint64_t)req[0]) | ((uint64_t)req[1] << 8) | ((uint64_t)req[2] << 16) | ((uint64_t)req[3] << 24) | ((uint64_t)req[4] << 32) | ((uint64_t)(req[5] & 3) << 40);
 	if ((long long)bts - (long long)getBinTs() > AEM_API_TIMEDIFF_REG) return AEM_INTCOM_RESPONSE_ERR; // Too far in the future
 	if (((long long)bts + 1073741824LL) < (long long)getBinTs()) return AEM_INTCOM_RESPONSE_ERR; // Expired
@@ -620,27 +620,17 @@ int32_t reg_register(const unsigned char * const req, unsigned char **res) {
 	uint16_t new_uid;
 	aem_kdf_uak((unsigned char*)&new_uid, 2, 0, false, 0, new_uak);
 	new_uid &= 4095;
+	if (user[new_uid] != NULL) return AEM_INTCOM_RESPONSE_ERR;
 
-	*res = malloc(1 + crypto_aead_aegis256_ABYTES);
-	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+	user[new_uid] = malloc(sizeof(struct aem_user));
+	if (user[new_uid] == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
+	bzero(user[new_uid], sizeof(struct aem_user));
+	user[new_uid]->lastBinTs = getBinTs();
+	memcpy(user[new_uid]->uak, new_uak, AEM_KDF_UAK_KEYLEN);
+	saveUser();
 
-	unsigned char regStatus = 2;
-	if (user[new_uid] == NULL) {
-		user[new_uid] = malloc(sizeof(struct aem_user));
-		if (user[new_uid] == NULL) {syslog(LOG_ERR, "Failed malloc"); free(*res); *res = NULL; return AEM_INTCOM_RESPONSE_ERR;}
-		bzero(user[new_uid], sizeof(struct aem_user));
-		user[new_uid]->lastBinTs = getBinTs();
-		memcpy(user[new_uid]->uak, new_uak, AEM_KDF_UAK_KEYLEN);
-		saveUser();
-		regStatus = 1;
-	} else {
-		regStatus = 3;
-	}
-
-	memset(nonce + 9, 0xFF, 23);
-	crypto_aead_aegis256_encrypt(*res, NULL, &regStatus, 1, NULL, 0, NULL, nonce, urk);
 	lastReg = bts;
-	return 1 + crypto_aead_aegis256_ABYTES;
+	return AEM_INTCOM_RESPONSE_OK;
 }
 
 // Storage

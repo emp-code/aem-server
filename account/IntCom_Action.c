@@ -108,10 +108,10 @@ int32_t conn_mta(const uint32_t operation, const unsigned char * const msg, cons
 }
 
 __attribute__((warn_unused_result, nonnull))
-int32_t conn_reg(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
+int32_t conn_reg(const uint32_t operation, const unsigned char * const msg, const size_t lenMsg) {
 	if (operation != 0 || lenMsg != 84) {syslog(LOG_ERR, "Invalid request (Reg): %u", operation); return AEM_INTCOM_RESPONSE_ERR;}
 
-	return reg_register(msg, res);
+	return reg_register(msg);
 }
 
 __attribute__((warn_unused_result, nonnull))
