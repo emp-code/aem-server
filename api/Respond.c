@@ -30,11 +30,19 @@ static int numDigits(const size_t x) {
 	7))));
 }
 
-void unauthResponse(const unsigned char code) {
-	send(AEM_FD_SOCK_CLIENT,
-		(unsigned char[]){'H','T','T','P','/','1','.','0',' ','2','0','4',' ',code,'\r','\n',
-		'A','c','c','e','s','s','-','C','o','n','t','r','o','l','-','A','l','l','o','w','-','O','r','i','g','i','n',':',' ','*','\r','\n','\r','\n'}
-	, 50, 0);
+void unauthResponse(const unsigned char code[3]) {
+	if (code[0] == 2 && code[1] == 0 && (code[2] == 4 || code[2] == 5)) {
+		send(AEM_FD_SOCK_CLIENT,
+			(unsigned char[52]){'H','T','T','P','/','1','.','0',' ',code[0],code[1],code[2],' ','A','E','M','\r','\n',
+			'A','c','c','e','s','s','-','C','o','n','t','r','o','l','-','A','l','l','o','w','-','O','r','i','g','i','n',':',' ','*','\r','\n','\r','\n'}
+		, 52, 0);
+	} else {
+		send(AEM_FD_SOCK_CLIENT,
+			(unsigned char[71]){'H','T','T','P','/','1','.','0',' ',code[0],code[1],code[2],' ','A','E','M','\r','\n',
+			'A','c','c','e','s','s','-','C','o','n','t','r','o','l','-','A','l','l','o','w','-','O','r','i','g','i','n',':',' ','*','\r','\n',
+			'C','o','n','t','e','n','t','-','L','e','n','g','t','h',':',' ','0','\r','\n','\r','\n'}
+		, 71, 0);
+	}
 }
 
 void apiResponse(const unsigned char * const data, const size_t lenData) {

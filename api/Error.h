@@ -1,33 +1,33 @@
 #ifndef AEM_API_ERROR_H
 #define AEM_API_ERROR_H
 
-// *** Unauthenticated errors (A-Z) ***
-#define AEM_API_UNAUTH_ERR_AUTH_KEYSET   'Z' // TODO: Make this an authenticated error
-
+// *** Unauthenticated errors ***
 #ifdef AEM_DEBUG // Debugging set - will leak data
-#define AEM_API_UNAUTH_ERR_AUTH_NOTEXIST 'A'
-#define AEM_API_UNAUTH_ERR_AUTH_DECRYPT  'B'
-#define AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF 'C'
-#define AEM_API_UNAUTH_ERR_AUTH_REPLAY   'D'
-#define AEM_API_UNAUTH_ERR_AUTH_LEVEL    'E'
-#define AEM_API_UNAUTH_ERR_INTERNAL                   'I'
-#define AEM_API_UNAUTH_ERR_INTERNAL_AUTHRESPONSE      'J'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID  'K'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_OVERSIZE 'L'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_BADRESP  'M'
-#define AEM_API_UNAUTH_ERR_POST_RECVFAIL 'Q'
+#define AEM_API_UNAUTH_ERR_AUTH_NOTEXIST (unsigned char[]){'2','0','4'}
+#define AEM_API_UNAUTH_ERR_AUTH_DECRYPT  (unsigned char[]){'2','0','5'}
+#define AEM_API_UNAUTH_ERR_AUTH_LEVEL    (unsigned char[]){'4','0','3'}
+#define AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF (unsigned char[]){'4','0','4'}
+#define AEM_API_UNAUTH_ERR_POST_RECVFAIL (unsigned char[]){'4','0','8'}
+#define AEM_API_UNAUTH_ERR_AUTH_REPLAY   (unsigned char[]){'4','1','0'}
+#define AEM_API_UNAUTH_ERR_AUTH_KEYSET   (unsigned char[]){'4','1','8'}
+#define AEM_API_UNAUTH_ERR_INTERNAL      (unsigned char[]){'5','0','0'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_AUTHRESPONSE      (unsigned char[]){'5','9','6'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID  (unsigned char[]){'5','9','7'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_OVERSIZE (unsigned char[]){'5','9','8'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_BADRESP  (unsigned char[]){'5','9','9'}
 #else // Normal set - hides sensitive information
-#define AEM_API_UNAUTH_ERR_AUTH_NOTEXIST 'A'
-#define AEM_API_UNAUTH_ERR_AUTH_DECRYPT  'A'
-#define AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF 'C'
-#define AEM_API_UNAUTH_ERR_AUTH_REPLAY   'D'
-#define AEM_API_UNAUTH_ERR_AUTH_LEVEL    'E'
-#define AEM_API_UNAUTH_ERR_INTERNAL                   'I'
-#define AEM_API_UNAUTH_ERR_INTERNAL_AUTHRESPONSE      'I'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID  'I'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_OVERSIZE 'I'
-#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_BADRESP  'I'
-#define AEM_API_UNAUTH_ERR_POST_RECVFAIL 'Q'
+#define AEM_API_UNAUTH_ERR_AUTH_NOTEXIST (unsigned char[]){'2','0','4'}
+#define AEM_API_UNAUTH_ERR_AUTH_DECRYPT  (unsigned char[]){'2','0','4'}
+#define AEM_API_UNAUTH_ERR_AUTH_LEVEL    (unsigned char[]){'4','0','3'}
+#define AEM_API_UNAUTH_ERR_AUTH_TIMEDIFF (unsigned char[]){'4','0','4'}
+#define AEM_API_UNAUTH_ERR_POST_RECVFAIL (unsigned char[]){'4','0','8'}
+#define AEM_API_UNAUTH_ERR_AUTH_REPLAY   (unsigned char[]){'4','1','0'}
+#define AEM_API_UNAUTH_ERR_AUTH_KEYSET   (unsigned char[]){'4','1','8'}
+#define AEM_API_UNAUTH_ERR_INTERNAL      (unsigned char[]){'5','0','0'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_AUTHRESPONSE      (unsigned char[]){'5','0','0'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID  (unsigned char[]){'5','0','0'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_OVERSIZE (unsigned char[]){'5','0','0'}
+#define AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_BADRESP  (unsigned char[]){'5','0','0'}
 #endif
 
 // *** Authenticated error codes ***

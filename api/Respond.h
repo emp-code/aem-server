@@ -4,7 +4,7 @@
 void setRbk(const unsigned char * const newKey);
 void clrRbk(void);
 
-void unauthResponse(const unsigned char code);
+void unauthResponse(const unsigned char code[3]);
 void apiResponse(const unsigned char * const data, const size_t lenData);
 
 #endif
