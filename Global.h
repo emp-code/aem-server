@@ -162,7 +162,7 @@ enum aem_internal_enquiry {
 #define AEM_TIMEOUT_MANAGER_SND 10
 
 #define AEM_MAXLEN_OURDOMAIN 32
-#define AEM_MAXLEN_EXEC 131072 // 128 KiB
+#define AEM_MAXLEN_EXEC 163840 // 160 KiB
 #define AEM_MAXLEN_DATAFILE 99999
 
 // API commands
