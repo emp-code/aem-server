@@ -16,9 +16,9 @@
 
 #ifdef AEM_UDS
 #ifdef AEM_API
-static char udsId = 0;
+static unsigned char udsId = 0;
 
-void setUdsId(char newId) {
+void setUdsId(const unsigned char newId) {
 	udsId = newId;
 }
 #endif

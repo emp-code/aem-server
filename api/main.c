@@ -27,7 +27,7 @@ static int pipeRead(void) {
 	size_t lenTlsKey;
 	unsigned char tlsCrt[PIPE_BUF];
 	unsigned char tlsKey[PIPE_BUF];
-	char udsId;
+	unsigned char udsId;
 
 	if (
 	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
