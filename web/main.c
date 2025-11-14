@@ -22,21 +22,7 @@ static int lenSts;
 static char sts[512];
 
 static void acceptClients(void) {
-#ifdef AEM_UDS
-	setUdsId(0);
-#endif
-
-	const int sock = createSocket(
-#ifndef AEM_UDS
-#ifdef AEM_LOCAL
-		true
-#else
-		false
-#endif
-		, 10, 10
-#endif
-	);
-
+	const int sock = createSocket();
 	if (sock < 0) return;
 	if (setCaps(0) != 0) return;
 

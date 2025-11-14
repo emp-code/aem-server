@@ -15,16 +15,16 @@
 #include "CreateSocket.h"
 
 #ifdef AEM_UDS
-static char udsId = -1;
+#ifdef AEM_API
+static char udsId = 0;
 
 void setUdsId(char newId) {
 	udsId = newId;
 }
+#endif
 
 __attribute__((warn_unused_result))
 int createSocket(void) {
-	if (udsId == -1) return -1;
-
 	const int sock = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 	if (sock < 0) {syslog(LOG_ERR, "socket failed: %m"); return -1;}
 

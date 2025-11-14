@@ -38,7 +38,6 @@ int main(void) {
 #include "../Common/Main_Setup.c"
 
 	if (pipeRead() < 0) {syslog(LOG_ERR, "Terminating: Failed pipeRead"); return EXIT_FAILURE;}
-	setUdsId(0);
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");
