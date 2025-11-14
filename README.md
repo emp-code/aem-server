@@ -76,7 +76,7 @@ The API is authenticated and encrypted using the User API Key (UAK), shared with
 
 AEM-API processes do not hold the UAK, but rather forward all requests to [AEM-Account](#account) which authenticates and decrypts the request, and passes relevant information back to the AEM-API process as necessary.
 
-AEM-API listens on an abstract UNIX domain socket: AEM_API_00 to AEM_API_99.
+AEM-API listens on an abstract UNIX domain socket: AEM_API_00 to AEM_API_FF.
 
 ## MTA ##
 
