@@ -9,12 +9,16 @@
 
 #include "../Config.h"
 #include "../Common/CreateSocket.h"
-#include "../Common/SetCaps.h"
+#ifndef AEM_MANAGER
+	#include "../Common/SetCaps.h"
+#endif
 #ifdef AEM_MTA
 	#include "../Common/ValidIp.h"
 #endif
 
-#if defined(AEM_API)
+#if defined(AEM_MANAGER)
+	#include "../manager/mp.h"
+#elif defined(AEM_API)
 	#include "../api/Request.h"
 #elif defined(AEM_MTA)
 	#include "../mta/respond.h"
@@ -38,7 +42,9 @@ void acceptClients(void) {
 #endif
 	) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket: %m"); return;}
 
+#ifndef AEM_MANAGER
 	if (setCaps(0) != 0) return;
+#endif
 
 	syslog(LOG_INFO, "Ready");
 

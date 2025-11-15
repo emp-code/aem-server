@@ -39,12 +39,8 @@
 
 // Port numbers
 #if defined(AEM_MTA)
-	#define AEM_PORT 25
-#elif defined(AEM_MANAGER)
-	#define AEM_PORT 940
+	#define AEM_PORT 25 // SMTP
 #endif
-
-#define AEM_PORT_MANAGER_STR "940"
 
 // UDS paths
 #ifdef AEM_API
@@ -56,6 +52,9 @@
 	#define AEM_UDS_PATH_LEN 8
 #elifdef AEM_REG
 	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','R','e','g'}
+	#define AEM_UDS_PATH_LEN 8
+#elifdef AEM_MANAGER
+	#define AEM_UDS_PATH (char[]){'\0','A','E','M','_','M','n','g'}
 	#define AEM_UDS_PATH_LEN 8
 #endif
 

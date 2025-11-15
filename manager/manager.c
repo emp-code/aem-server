@@ -50,27 +50,28 @@ enum intcom_keynum {
 	AEM_KEYNUM_INTCOM_STREAM
 };
 
-static unsigned char launchKey[crypto_aead_aegis256_KEYBYTES];
-static unsigned char key_api[AEM_KDF_SUB_KEYLEN];
 static unsigned char key_mng[crypto_aead_aegis256_KEYBYTES];
 static unsigned char key_ic[AEM_KDF_SMK_KEYLEN]; // Randomly generated master key used to derive IntCom keys through AEM_KDF_SMK
 
 static const int typeNice[AEM_PROCESSTYPES_COUNT] = AEM_NICE;
 
-static pid_t pid_account = 0;
-static pid_t pid_deliver = 0;
-static pid_t pid_enquiry = 0;
-static pid_t pid_storage = 0;
-#define AEM_PTYPE_COUNT 4 // API, MTA, Reg, Web
-static pid_t aemPid[AEM_PTYPE_COUNT][AEM_MAXPROCESSES];
-static bool api_uds[AEM_MAXPROCESSES];
+static pid_t pid_acc = 0;
+static pid_t pid_dlv = 0;
+static pid_t pid_enq = 0;
+static pid_t pid_sto = 0;
+static pid_t pid_reg = 0;
+static pid_t pid_web = 0;
+
+static pid_t pid_api[AEM_MAXPROCESSES];
+static pid_t pid_mta[AEM_MAXPROCESSES];
+static bool uds_api[AEM_MAXPROCESSES];
 
 static volatile sig_atomic_t terminate = 0;
 
 __attribute__((warn_unused_result))
 static uint8_t avail_uds_api(void) {
 	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-		if (!api_uds[i]) return i;
+		if (!uds_api[i]) return i;
 	}
 
 	return UINT8_MAX;
@@ -82,41 +83,39 @@ static bool process_exists(const pid_t pid) {
 }
 
 static void refreshPids(void) {
-	for (int type = 0; type < AEM_PTYPE_COUNT; type++) {
-		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] != 0 && !process_exists(aemPid[type][i])) {
-				aemPid[type][i] = 0;
-				if (type == AEM_PROCESSTYPE_API) api_uds[i] = false;
-			}
+	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
+		if (pid_api[i] != 0 && !process_exists(pid_api[i])) {
+			pid_api[i] = 0;
+			uds_api[i] = false;
+		}
+
+		if (pid_mta[i] != 0 && !process_exists(pid_mta[i])) {
+			pid_mta[i] = 0;
 		}
 	}
 
-	if (pid_account != 0 && !process_exists(pid_account)) pid_account = 0;
-	if (pid_deliver != 0 && !process_exists(pid_deliver)) pid_deliver = 0;
-	if (pid_enquiry != 0 && !process_exists(pid_enquiry)) pid_enquiry = 0;
-	if (pid_storage != 0 && !process_exists(pid_storage)) pid_storage = 0;
+	if (pid_acc != 0 && !process_exists(pid_acc)) pid_acc = 0;
+	if (pid_dlv != 0 && !process_exists(pid_dlv)) pid_dlv = 0;
+	if (pid_enq != 0 && !process_exists(pid_enq)) pid_enq = 0;
+	if (pid_sto != 0 && !process_exists(pid_sto)) pid_sto = 0;
+	if (pid_reg != 0 && !process_exists(pid_reg)) pid_reg = 0;
+	if (pid_web != 0 && !process_exists(pid_web)) pid_web = 0;
 }
 
 static void killAll(const int sig) {
-	if (pid_account > 0) kill(pid_account, sig);
-	if (pid_deliver > 0) kill(pid_deliver, sig);
-	if (pid_enquiry > 0) kill(pid_enquiry, sig);
-	if (pid_storage > 0) kill(pid_storage, sig);
+	if (pid_acc > 0) kill(pid_acc, sig);
+	if (pid_dlv > 0) kill(pid_dlv, sig);
+	if (pid_enq > 0) kill(pid_enq, sig);
+	if (pid_sto > 0) kill(pid_sto, sig);
 
-
-	for (int type = 0; type < AEM_PTYPE_COUNT; type++) {
-		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] > 0) kill(aemPid[type][i], sig);
-		}
+	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
+		if (pid_api[i] > 0) kill(pid_api[i], sig);
+		if (pid_mta[i] > 0) kill(pid_mta[i], sig);
 	}
 }
 
-void sigTerm(const int s) {
-	terminate = 1;
-}
-
 __attribute__((warn_unused_result))
-static int loadExec(const int type) {
+static int loadExec(const int type, const unsigned char * const launchKey) {
 	if (memfd_create("aem", MFD_CLOEXEC | MFD_ALLOW_SEALING) != AEM_FD_EXEC) {
 		syslog(LOG_ERR, "Failed memfd_create: %m");
 		return -1;
@@ -164,7 +163,7 @@ static int loadExec(const int type) {
 }
 
 __attribute__((nonnull, warn_unused_result))
-static int readDataFile(unsigned char * const dec, size_t * const lenDec, const char * const path) {
+static int readDataFile(unsigned char * const dec, size_t * const lenDec, const char * const path, const unsigned char * const launchKey) {
 	const int fd = open(path, O_RDONLY | O_CLOEXEC | O_NOATIME | O_NOCTTY | O_NOFOLLOW);
 	if (fd < 0 || !validFd(fd)) {
 		syslog(LOG_ERR, "Failed opening file: %s", path);
@@ -196,38 +195,18 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 }
 
 __attribute__((nonnull, warn_unused_result))
-static int getOurDomain(unsigned char * const out, size_t * const lenOut) {
+static int getOurDomain(unsigned char * const out, size_t * const lenOut, const unsigned char * const launchKey) {
 	size_t lenPem;
 	unsigned char pem[AEM_MAXLEN_DATAFILE];
-	if (readDataFile(pem, &lenPem, AEM_PATH_DATA"/TLS.crt.enc") != 0) return -1;
+	if (readDataFile(pem, &lenPem, AEM_PATH_DATA"/TLS.crt.enc", launchKey) != 0) return -1;
 	return x509_getSubject(out, lenOut, pem, lenPem);
 }
 
 __attribute__((nonnull, warn_unused_result))
-static int domainPlaceholder(unsigned char * const src, size_t * const lenSrc) {
-	unsigned char domain[AEM_MAXLEN_OURDOMAIN];
-	size_t lenDomain;
-	if (getOurDomain(domain, &lenDomain) != 0) return -1;
-
-	for(;;) {
-		unsigned char *c = memmem(src, *lenSrc, "[Placeholder for the API Domain]", 32);
-		if (c == NULL) break;
-		memcpy(c, domain, lenDomain);
-		if (lenDomain < 32) {
-			memmove(c + lenDomain, c + 32, (src + *lenSrc) - (c + lenDomain));
-			*lenSrc -= 32 - lenDomain;
-		}
-	}
-
-	return 0;
-}
-
-__attribute__((nonnull, warn_unused_result))
-static int pipeFile(const char * const path, const bool placeholders) {
+static int pipeFile(const char * const path, const unsigned char * const launchKey) {
 	size_t lenData;
 	unsigned char data[AEM_MAXLEN_DATAFILE];
-	if (readDataFile(data, &lenData, path) != 0) return -1;
-	if (placeholders && domainPlaceholder(data, &lenData) != 0) return -1;
+	if (readDataFile(data, &lenData, path, launchKey) != 0) return -1;
 
 	if (write(AEM_FD_PIPE_WR, (const unsigned char*)&lenData, sizeof(size_t)) != sizeof(size_t)) {
 		syslog(LOG_ERR, "pipeFile: Failed writing size");
@@ -375,13 +354,13 @@ static int cgroupMove(void) {
 }
 
 __attribute__((warn_unused_result))
-static int process_new(const int type) {
+static int process_new(const int type, unsigned char * const launchKey) {
 	sodium_memzero(key_ic, AEM_KDF_SMK_KEYLEN);
 	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
 	close(AEM_FD_SOCK_MAIN); // Reused as AEM_FD_EXEC
 	close(AEM_FD_PIPE_WR); // Reused as AEM_FD_READFILE
 
-	if (loadExec(type) != 0) exit(EXIT_FAILURE);
+	if (loadExec(type, launchKey) != 0) exit(EXIT_FAILURE);
 	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
 	if (mount(NULL, "/", NULL, MS_PRIVATE | MS_REC, "") != 0) {syslog(LOG_ERR, "[%d] Failed private mount", type); exit(EXIT_FAILURE);} // With CLONE_NEWNS, prevent propagation of mount events to other mount namespaces
 	if (setpriority(PRIO_PROCESS, 0, typeNice[type])    != 0) {syslog(LOG_ERR, "[%d] Failed setpriority()", type); exit(EXIT_FAILURE);}
@@ -460,17 +439,17 @@ static int sendIntComKeys(const int type) {
 }
 
 __attribute__((warn_unused_result))
-static int process_spawn(const int type, const unsigned char *key_forward) {
+int process_spawn(const int type, unsigned char * const launchKey, const unsigned char *key_forward) {
 	int freeSlot = -1;
-	if (type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_REG || type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_WEB) {
+	if (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA) {
 		for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-			if (aemPid[type][i] == 0) {
+			if ((type == AEM_PROCESSTYPE_API && pid_api[i] == 0) || (type == AEM_PROCESSTYPE_MTA && pid_mta[i] == 0)) {
 				freeSlot = i;
 				break;
 			}
 		}
 
-		if (freeSlot < 0) return 60;
+		if (freeSlot == -1) return 60;
 	}
 
 	int fd[2];
@@ -487,7 +466,7 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 
 	const long pid = syscall(SYS_clone3, &cloneArgs, sizeof(struct clone_args));
 	if (pid < 0) {close(fd[0]); close(fd[1]); return 62;}
-	if (pid == 0) exit(process_new(type));
+	if (pid == 0) exit(process_new(type, launchKey));
 
 	close(AEM_FD_PIPE_RD); // fd1 freed
 
@@ -496,24 +475,23 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 	// Pids
 	switch (type) {
 		case AEM_PROCESSTYPE_ACCOUNT:
-			fail = (write(AEM_FD_PIPE_WR, &pid_storage, sizeof(pid_t)) != sizeof(pid_t));
+			fail = (write(AEM_FD_PIPE_WR, &pid_sto, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
 		case AEM_PROCESSTYPE_DELIVER:
-			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_enquiry, pid_storage}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
-		break;
-
-		case AEM_PROCESSTYPE_MTA:
-			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_deliver}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
-		break;
-
-		case AEM_PROCESSTYPE_REG:
-			fail = (write(AEM_FD_PIPE_WR, &pid_account, sizeof(pid_t)) != sizeof(pid_t));
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_enq, pid_sto}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
 		break;
 
 		case AEM_PROCESSTYPE_API:
-			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_account, pid_storage, pid_enquiry}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
-			key_forward = key_api;
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_acc, pid_sto, pid_enq}, sizeof(pid_t) * 3) != sizeof(pid_t) * 3);
+		break;
+
+		case AEM_PROCESSTYPE_MTA:
+			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_acc, pid_dlv}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
+		break;
+
+		case AEM_PROCESSTYPE_REG:
+			fail = (write(AEM_FD_PIPE_WR, &pid_acc, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
 		/* Nothing:
@@ -532,21 +510,21 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 	}
 
 	if (!fail && type == AEM_PROCESSTYPE_ACCOUNT) {
-		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", false) != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", launchKey) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", launchKey) != 0);
 	}
 
 	if (!fail && type == AEM_PROCESSTYPE_WEB) {
-		fail = (pipeFile(AEM_PATH_DATA"/web.enc", true) != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/web.enc", launchKey) != 0);
 	}
 
 	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB)) {
-		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", false) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", false) != 0);
+		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", launchKey) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", launchKey) != 0);
 	}
 
 	if (!fail && type == AEM_PROCESSTYPE_API) {
 		const uint8_t udsId = avail_uds_api();
-		fail = !(udsId < AEM_MAXPROCESSES && write(AEM_FD_PIPE_WR, &udsId, 1) == 1);
-		if (!fail) api_uds[udsId] = true;
+		fail = (write(AEM_FD_PIPE_WR, &udsId, 1) != 1);
+		if (!fail) uds_api[udsId] = true;
 	}
 
 	close(AEM_FD_PIPE_WR);
@@ -557,168 +535,48 @@ static int process_spawn(const int type, const unsigned char *key_forward) {
 	}
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: pid_account = pid; break;
-		case AEM_PROCESSTYPE_DELIVER: pid_deliver = pid; break;
-		case AEM_PROCESSTYPE_ENQUIRY: pid_enquiry = pid; break;
-		case AEM_PROCESSTYPE_STORAGE: pid_storage = pid; break;
-
-		default: aemPid[type][freeSlot] = pid;
+		case AEM_PROCESSTYPE_ACCOUNT: pid_acc = pid; break;
+		case AEM_PROCESSTYPE_DELIVER: pid_dlv = pid; break;
+		case AEM_PROCESSTYPE_ENQUIRY: pid_enq = pid; break;
+		case AEM_PROCESSTYPE_STORAGE: pid_sto = pid; break;
+		case AEM_PROCESSTYPE_API: pid_api[freeSlot] = pid; break;
+		case AEM_PROCESSTYPE_MTA: pid_mta[freeSlot] = pid; break;
+		case AEM_PROCESSTYPE_REG: pid_reg = pid; break;
+		case AEM_PROCESSTYPE_WEB: pid_web = pid; break;
 	}
 
 	return 0;
 }
 
-static void process_kill(const int type, const pid_t pid, const int sig) {
-	syslog(LOG_INFO, "Termination of process %d requested", pid);
-	if (type < 0 || type > 2 || pid < 1) return;
+void getProcessInfo(unsigned char * const out) {
+	bzero(out, AEM_PROCESSINFO_BYTES);
 
-	bool found = false;
-	for (int i = 0; i < AEM_MAXPROCESSES; i++) {
-		if (aemPid[type][i] == pid) {
-			found = true;
-			break;
-		}
+	out[0] =
+	  ((pid_acc > 0) ? 128 : 0)
+	| ((pid_dlv > 0) ?  64 : 0)
+	| ((pid_enq > 0) ?  32 : 0)
+	| ((pid_sto > 0) ?  16 : 0)
+	| ((pid_reg > 0) ?   8 : 0)
+	| ((pid_web > 0) ?   4 : 0);
+
+	for (int slot = 0; slot < AEM_MAXPROCESSES; slot++) {
+		if (pid_api[slot] == 0) continue;
+		out[1 + (slot - (slot % 8)) / 8] |= 1 << (slot % 8);
 	}
 
-	if (!found) {syslog(LOG_INFO, "Process %d was not found", pid); return;}
-	if (!process_exists(pid)) {syslog(LOG_INFO, "Process %d not valid", pid); return;}
-
-	kill(pid, sig);
-}
-
-static void cryptSend(void) {
-	unsigned char dec[AEM_MANAGER_RESLEN_DEC];
-	for (int i = 0; i < AEM_PTYPE_COUNT; i++) {
-		for (int j = 0; j < AEM_MAXPROCESSES; j++) {
-			const int start = ((i * AEM_MAXPROCESSES) + j) * 4;
-			memcpy(dec + start, &(aemPid[i][j]), 4);
-		}
-	}
-
-	unsigned char enc[AEM_MANAGER_RESLEN_ENC];
-	randombytes_buf(enc, crypto_aead_aegis256_NPUBBYTES);
-	if (crypto_aead_aegis256_encrypt(enc + crypto_aead_aegis256_NPUBBYTES, NULL, dec, AEM_MANAGER_RESLEN_DEC, NULL, 0, NULL, enc, key_mng) == 0) {
-		if (send(AEM_FD_SOCK_CLIENT, enc, AEM_MANAGER_RESLEN_ENC, 0) != AEM_MANAGER_RESLEN_ENC) {
-			syslog(LOG_WARNING, "Failed send");
-		}
-	} else {
-		syslog(LOG_WARNING, "Failed encrypt");
+	for (int slot = 0; slot < AEM_MAXPROCESSES; slot++) {
+		if (pid_mta[slot] == 0) continue;
+		out[1 + (AEM_MAXPROCESSES / 8) + (slot - (slot % 8)) / 8] |= 1 << (slot % 8);
 	}
 }
 
-static void respond_manager(void) {
-	unsigned char enc[AEM_MANAGER_CMDLEN_ENC];
-	if (recv(AEM_FD_SOCK_CLIENT, enc, AEM_MANAGER_CMDLEN_ENC, 0) != AEM_MANAGER_CMDLEN_ENC) {
-		syslog(LOG_WARNING, "Manager Protocol - failed recv: %m");
-		close(AEM_FD_SOCK_CLIENT);
-		return;
-	}
-
-	close(AEM_FD_SOCK_CLIENT);
-
-	unsigned char dec[AEM_MANAGER_CMDLEN_DEC];
-	if (crypto_aead_aegis256_decrypt(dec, NULL, NULL, enc + crypto_aead_aegis256_NPUBBYTES, AEM_MANAGER_CMDLEN_ENC - crypto_aead_aegis256_NPUBBYTES, NULL, 0, enc, key_mng) != 0) {
-		syslog(LOG_WARNING, "Manager Protocol: Failed decrypt");
-		return;
-	}
-
-	uint32_t num;
-	memcpy(&num, dec + 2, 4);
-
-	switch (dec[0]) {
-		case '\0': break; // No action, only requesting info
-
-		case 'T': { // Request termination
-			process_kill(dec[1], num, SIGUSR1);
-			break;
-		}
-
-		case 'K': { // Request immediate termination (kill)
-			process_kill(dec[1], num, SIGUSR2);
-			break;
-		}
-
-		case 'S': { // Spawn
-			if (num > AEM_MAXPROCESSES) return;
-
-			for (unsigned int i = 0; i < num; i++) {
-				if (process_spawn(dec[1], NULL) != 0) return;
-			}
-
-			break;
-		}
-
-		default: {syslog(LOG_WARNING, "Manager Protocol: Invalid command"); return;}
-	}
-
-	refreshPids();
-//	cryptSend();
-}
-
-static bool verifyStatus(void) {
-	return (
-		   pid_account > 0
-		&& pid_deliver > 0
-		&& pid_enquiry > 0
-		&& pid_storage > 0
-	);
-}
-
-static int takeConnections(void) {
-	while (terminate == 0) {
-		if (accept4(AEM_FD_SOCK_MAIN, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_SOCK_CLIENT) continue;
-		respond_manager();
-	}
-
-	sodium_memzero(key_ic, AEM_KDF_SMK_KEYLEN);
-	sodium_memzero(key_mng, crypto_aead_aegis256_KEYBYTES);
-	sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
-	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
-	syslog(LOG_INFO, "Terminating");
-	return 0;
-}
-
-__attribute__((warn_unused_result))
-int setupManager(void) {
-	unsigned char smk[AEM_KDF_SMK_KEYLEN];
-	if (getKey(smk) != 0) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 51;}
-	if (close_range(0, UINT_MAX, 0) != 0) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 52;}
-	openlog("AEM-Manager", LOG_NDELAY, LOG_MAIL); // Opens AEM_FD_SYSLOG (0)
-	if (createSocket(AEM_TIMEOUT_MANAGER_RCV, AEM_TIMEOUT_MANAGER_SND) != AEM_FD_SOCK_MAIN) {sodium_memzero(smk, AEM_KDF_SMK_KEYLEN); return 53;} // Opens AEM_FD_SOCK_MAIN (1)
-
-	bzero(aemPid, sizeof(aemPid));
-	bzero(api_uds, sizeof(bool) * AEM_MAXPROCESSES);
-	aem_kdf_smk(launchKey, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_LCH, smk);
+void setupManager(void) {
+	bzero(pid_api, sizeof(pid_t) * AEM_MAXPROCESSES);
+	bzero(pid_mta, sizeof(pid_t) * AEM_MAXPROCESSES);
+	bzero(uds_api, sizeof(bool) * AEM_MAXPROCESSES);
 	randombytes_buf(key_ic, AEM_KDF_SMK_KEYLEN);
+}
 
-	unsigned char key_tmp[AEM_KDF_SUB_KEYLEN];
-	int ret = process_spawn(AEM_PROCESSTYPE_ENQUIRY, NULL);
-
-	if (ret == 0) {
-		aem_kdf_smk(key_tmp, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_STO, smk);
-		ret = process_spawn(AEM_PROCESSTYPE_STORAGE, key_tmp);
-	}
-
-	if (ret == 0) {
-		ret = process_spawn(AEM_PROCESSTYPE_DELIVER, NULL);
-	}
-
-	if (ret == 0) {
-		aem_kdf_smk(key_tmp, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_ACC, smk);
-		ret = process_spawn(AEM_PROCESSTYPE_ACCOUNT, key_tmp);
-	}
-
-	sodium_memzero(key_tmp, AEM_KDF_SUB_KEYLEN);
-
-	if (ret != 0) {
-		sodium_memzero(launchKey, crypto_aead_aegis256_KEYBYTES);
-		sodium_memzero(smk, AEM_KDF_SMK_KEYLEN);
-		return ret;
-	}
-
-	aem_kdf_smk(key_mng, crypto_aead_aegis256_KEYBYTES, AEM_KDF_KEYID_SMK_MNG, smk);
-	aem_kdf_smk(key_api, AEM_KDF_SUB_KEYLEN, AEM_KDF_KEYID_SMK_API, smk);
-
-	sodium_memzero(smk, AEM_KDF_SMK_KEYLEN);
-	return takeConnections();
+void clearManager(void) {
+	sodium_memzero(key_ic, AEM_KDF_SMK_KEYLEN);
 }

@@ -23,10 +23,11 @@
 #include <sodium.h>
 
 #include "../Global.h"
+#include "../Common/AcceptClients.h"
 #include "../Common/ValidFd.h"
 
-#include "manager.h"
 #include "mount.h"
+#include "mp.h"
 
 __attribute__((warn_unused_result))
 static int dropBounds(void) {
@@ -272,5 +273,14 @@ int main(void) {
 	if (setCaps()     != 0) return 14;
 	if (dropBounds()  != 0) return 15;
 
-	return setupManager();
+	setupMp();
+	if (close_range(0, UINT_MAX, 0) != 0) return 16;
+	openlog("AEM-Manager", LOG_NDELAY, LOG_MAIL); // Opens AEM_FD_SYSLOG (0)
+
+	acceptClients();
+
+	clearMp();
+	umount2(AEM_PATH_MOUNTDIR, MNT_DETACH);
+	syslog(LOG_INFO, "Terminating");
+	return 0;
 }

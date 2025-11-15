@@ -131,7 +131,7 @@ static int createAccount(const unsigned char accKey[crypto_aead_aegis256_KEYBYTE
 }
 
 static void printKeys(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const unsigned char ma_umk[AEM_KDF_UMK_KEYLEN]) {
-	const int lenTxt = (MAX(AEM_KDF_UMK_KEYLEN, AEM_KDF_SMK_KEYLEN) * 2) + 1;
+	const int lenTxt = 100;
 	char txt[lenTxt];
 
 	sodium_bin2hex(txt, lenTxt, smk, AEM_KDF_SMK_KEYLEN);
@@ -140,7 +140,13 @@ static void printKeys(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const unsigne
 	sodium_bin2base64(txt, lenTxt, ma_umk, AEM_KDF_UMK_KEYLEN, sodium_base64_VARIANT_ORIGINAL);
 	printf("Master Admin UMK: %s\n", txt);
 
+	unsigned char mpk[AEM_KDF_MPK_KEYLEN];
+	aem_kdf_smk(mpk, AEM_KDF_MPK_KEYLEN, AEM_KDF_KEYID_SMK_MPK, smk);
+	sodium_bin2hex(txt, lenTxt, mpk, AEM_KDF_MPK_KEYLEN);
+	printf("Manager Protocol Key: %s\n", txt);
+
 	sodium_memzero(txt, lenTxt);
+	sodium_memzero(mpk, AEM_KDF_MPK_KEYLEN);
 }
 
 static int createDirs(void) {
@@ -213,6 +219,7 @@ int main(void) {
 	genSmk(smk, ma_umk, &user);
 
 	printKeys(smk, ma_umk);
+	sodium_memzero(ma_umk, AEM_KDF_UMK_KEYLEN);
 
 	if (makeStorage(smk, &user) != 0) return 4;
 
@@ -233,7 +240,6 @@ int main(void) {
 	sodium_memzero(abk, AEM_KDF_SUB_KEYLEN);
 	sodium_memzero(accKey, AEM_KDF_SUB_KEYLEN);
 	sodium_memzero(smk, AEM_KDF_SMK_KEYLEN);
-	sodium_memzero(ma_umk, AEM_KDF_UMK_KEYLEN);
 
 	puts("All done. Save the above keys, and move the newly-created allears folder to /var/lib/ on the server.");
 	return 0;

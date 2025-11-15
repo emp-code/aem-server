@@ -1,10 +1,10 @@
 CC=gcc
 CFLAGS=-O2 -march=native -pipe -std=gnu23 -Wall -Wextra -Wpedantic -Wno-comment -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -fstack-protector-strong -fcf-protection=full -fPIE -pie -Wl,-z,relro,-z,now -Wl,-z,noexecstack -Werror=alloc-zero -Werror=discarded-array-qualifiers -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=nonnull -Werror=return-type -Werror=parentheses -Werror=shadow -Werror=strict-aliasing -Wbad-function-cast -Wbidi-chars=any -Wcast-align -Wcast-qual -Wduplicated-branches -Wfloat-equal -Winvalid-utf8 -Wlogical-op -Wmissing-declarations -Wpadded -Wpointer-arith -Wredundant-decls -Wstack-usage=999999 -Wstrict-prototypes -Wtrampolines -Wunused-macros -Wwrite-strings -fanalyzer -Wformat=0
 
-all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-reg aem-web utils/AdminAddr utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+all: aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-reg aem-web utils/AdminAddr utils/BinCrypt utils/Creator utils/DataCrypt utils/WebMaker
 
 aem-manager: manager/*.c
-	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager -Wno-analyzer-fd-use-after-close -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close manager/*.c Common/AEM_KDF.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_MANAGER -o aem-manager -DAEM_UDS -Wno-analyzer-fd-use-after-close -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close manager/*.c Common/AEM_KDF.c Common/AcceptClients.c Common/CreateSocket.c Common/GetKey.c Common/ToggleEcho.c Common/ValidFd.c Common/memeq.c Common/x509_getCn.c -lsodium -lcap
 
 aem-account: account/*.c
 	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-account account/*.c Common/Addr32.c Common/AddrToHash.c Common/AEM_KDF.c Common/SetCaps.c Common/binTs.c Common/memeq.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lm
@@ -42,12 +42,9 @@ utils/Creator: utils/Creator.c
 utils/DataCrypt: utils/DataCrypt.c
 	$(CC) $(CFLAGS) -o utils/DataCrypt utils/DataCrypt.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
 
-utils/ManagerClient: utils/ManagerClient.c
-	$(CC) $(CFLAGS) -o utils/ManagerClient utils/ManagerClient.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium
-
 utils/WebMaker: utils/WebMaker.c
 	$(CC) $(CFLAGS) -o utils/WebMaker utils/WebMaker.c Common/AEM_KDF.c Common/GetKey.c Common/ToggleEcho.c -lsodium -lbrotlienc
 
 .PHONY: clean
 clean:
-	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-reg aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/ManagerClient utils/WebMaker
+	-rm aem-manager aem-account aem-deliver aem-enquiry aem-storage aem-api aem-mta aem-reg aem-web utils/BinCrypt utils/Creator utils/DataCrypt utils/WebMaker

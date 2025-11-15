@@ -30,11 +30,11 @@ General information:
 
 AEM-Manager is the main server program. It starts and manages all other process types.
 
-At startup, AEM-Manager asks for the 368-bit Server Master Key (SMK). After this, the ManagerClient remote administration [utility](#utilities) is the only way to interact with it.
+AEM-Manager creates a safe environment for each process to run in, isolating them through a variety of methods including pivot_root, namespaces, cgroups, resource limits, and minimizing capabilities. Once started, AEM-Manager sends the process the data it needs through a temporary one-way pipe.
 
 AEM-Manager reads encrypted binaries from the `/var/lib/allears/bin` folder. These must be created through the BinCrypt utility.
 
-AEM-Manager creates a safe environment for each process to run in, isolating them through a variety of methods including pivot_root, namespaces, cgroups, resource limits, and minimizing capabilities. Once started, AEM-Manager sends the process the data it needs through a temporary one-way pipe.
+At startup, AEM-Manager asks for the Manager Protocol Key. Following this, it listens on the abstract Unix domain socket named `AEM_Mng` for Manager Protocol clients.
 
 ## Account ##
 
@@ -108,7 +108,6 @@ The `utils` folder contains:
 * `BinCrypt`: Encrypts the All-Ears Mail executables for Manager
 * `Creator`: Generates a new Server Master Key (SMK) and `allears` folder
 * `DataCrypt`: Encrypts additional files for Manager
-* `ManagerClient`: Connects to AEM-Manager to get information about processes, and start or stop them
 * `WebMaker`: Creates and encrypts the response for the AEM-Web process
 
 - - - -

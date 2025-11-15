@@ -12,8 +12,8 @@
 #define AEM_FD_SOCK_MAIN 1
 #define AEM_FD_SOCK_CLIENT 2
 
-#define AEM_FD_PIPE_RD 2
-#define AEM_FD_PIPE_WR 3
+#define AEM_FD_PIPE_RD 3
+#define AEM_FD_PIPE_WR 4
 #define AEM_FD_ROOT AEM_FD_PIPE_WR
 
 #define AEM_API_BODY_KEYSIZE (crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_KEYBYTES)
@@ -93,7 +93,7 @@ enum aem_internal_enquiry {
 #define AEM_ADDR32_ADMIN  (const unsigned char[AEM_ADDR32_BINLEN]) {'\xa6', '\xd0', '\x35', '\x0e', '\x75', '\x85', '\x68', '\x18'} // 'administrator' in Addr32
 #define AEM_ADDR32_SYSTEM (const unsigned char[AEM_ADDR32_BINLEN]) {'\x36', '\x7d', '\x9d', '\x3a', '\x80', '\x00', '\x00', '\x00', '\x00', '\x00'} // 'system' in Addr32
 
-#define AEM_MAXPROCESSES 100
+#define AEM_MAXPROCESSES 256
 #define AEM_MANAGER_RESLEN_DEC (AEM_MAXPROCESSES * 5 * 4)
 #define AEM_MANAGER_RESLEN_ENC (AEM_MANAGER_RESLEN_DEC + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES)
 #define AEM_MANAGER_CMDLEN_DEC 6

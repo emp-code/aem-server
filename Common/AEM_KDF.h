@@ -7,13 +7,14 @@
 #define AEM_KDF_UMK_KEYLEN 45 // 32 Key + 12 Nonce + 1 Counter (360 bits)
 #define AEM_KDF_UAK_KEYLEN 43
 #define AEM_KDF_SUB_KEYLEN 40 // 32 Key + 8 Nonce (320 bits)
+#define AEM_KDF_MPK_KEYLEN crypto_aead_aegis256_KEYBYTES
 
 #define AEM_UAK_POST 64
 
 // Server - Server Master Key
 	#define AEM_KDF_KEYID_SMK_UMK  1 // Master Admin's UMK
 	#define AEM_KDF_KEYID_SMK_LCH  2 // Launch Key
-	#define AEM_KDF_KEYID_SMK_MNG  3 // Manager Key
+	#define AEM_KDF_KEYID_SMK_MPK  3 // Manager Protocol Key
 	#define AEM_KDF_KEYID_SMK_ACC 10 // Account Base Key
 //	#define AEM_KDF_KEYID_SMK_DLV 11 // Deliver Base Key
 //	#define AEM_KDF_KEYID_SMK_ENQ 12 // Enquiry Base Key
