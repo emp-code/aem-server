@@ -10,7 +10,7 @@ void aem_kdf_smk(unsigned char * const out, const size_t lenOut, const uint8_t n
 	bzero(out, lenOut);
 	crypto_stream_chacha20_ietf_xor_ic(out, out, lenOut,
 	/* Nonce */ smk + 32,
-	/* Counter */ (smk[44] << 24) | (smk[45] << 16) | (n << 8),
+	/* Counter */ ((uint32_t)smk[44] << 24) | (smk[45] << 16) | (n << 8),
 	smk);
 }
 
