@@ -39,9 +39,5 @@ void respondClient(void) {
 	if (llabs(binTs_user - (long long)getBinTs()) > AEM_API_TIMEDIFF_REG) return;
 
 	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, 0, req, AEM_REQ_LEN, NULL, 0);
-
-	send(AEM_FD_SOCK_CLIENT,
-		(unsigned char[52]){'H','T','T','P','/','1','.','0',' ','2','0',(icRet == AEM_INTCOM_RESPONSE_OK) ? '4' : '5',' ','A','E','M','\r','\n',
-		'A','c','c','e','s','s','-','C','o','n','t','r','o','l','-','A','l','l','o','w','-','O','r','i','g','i','n',':',' ','*','\r','\n','\r','\n'}
-	, 52, 0);
+	send(AEM_FD_SOCK_CLIENT, (unsigned char[]){'H','T','T','P','/','1','.','0',' ','2','0',(icRet == AEM_INTCOM_RESPONSE_OK) ? '4' : '5',' ','A','E','M','\r','\n','\r','\n'}, 20, 0);
 }
