@@ -56,13 +56,12 @@ void apiResponse(const unsigned char * const data, const size_t lenData) {
 	randombytes_buf(padded + lenPadded - lenPadding, lenPadding);
 
 	// Add headers
-	const size_t lenHeaders = 70 + numDigits(lenFinal);
+	const size_t lenHeaders = 38 + numDigits(lenFinal);
 	const size_t lenResponse = lenHeaders + lenFinal;
 	unsigned char response[lenResponse];
 	sprintf((char*)response,
 		"HTTP/1.0 200 aem\r\n"
 		"Content-Length: %zu\r\n"
-		"Access-Control-Allow-Origin: *\r\n"
 		"\r\n"
 	, lenFinal);
 
