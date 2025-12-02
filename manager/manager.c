@@ -565,6 +565,13 @@ int process_term(const int type) {
 }
 
 void getProcessInfo(unsigned char * const out) {
+	if (kill(pid_acc, 0) == -1) pid_acc = 0;
+	if (kill(pid_dlv, 0) == -1) pid_dlv = 0;
+	if (kill(pid_enq, 0) == -1) pid_enq = 0;
+	if (kill(pid_sto, 0) == -1) pid_sto = 0;
+	if (kill(pid_reg, 0) == -1) pid_reg = 0;
+	if (kill(pid_web, 0) == -1) pid_web = 0;
+
 	bzero(out, AEM_PROCESSINFO_BYTES);
 
 	out[0] =
