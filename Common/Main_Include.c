@@ -20,7 +20,7 @@ static int setSignals(void) {
 	return (
 	   signal(SIGPIPE, SIG_IGN) != SIG_ERR
 	&& signal(SIGCHLD, SIG_IGN) != SIG_ERR
-	&& sigaction(SIGHUP,  &sa, NULL) != -1
+	&& signal(SIGHUP,  SIG_IGN) != SIG_ERR
 	&& sigaction(SIGINT,  &sa, NULL) != -1
 	&& sigaction(SIGQUIT, &sa, NULL) != -1
 	&& sigaction(SIGTERM, &sa, NULL) != -1
