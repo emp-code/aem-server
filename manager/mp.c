@@ -195,6 +195,10 @@ void respondClient(void) {
 		switch (r.dec_cmd) {
 			case AEM_MNG_CMD_NOOP: break;
 
+			case AEM_MNG_CMD_TERM: {
+				process_term(r.dec_data & 15);
+			break;}
+
 			default:
 				syslog(LOG_WARNING, "Manager Protocol: Invalid GET command: %d", r.dec_cmd);
 				return;

@@ -548,6 +548,22 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 	return 0;
 }
 
+int process_term(const int type) {
+	switch (type) {
+		case AEM_PROCESSTYPE_ACC: kill(pid_acc, SIGUSR1); pid_acc = 0; break;
+		case AEM_PROCESSTYPE_DLV: kill(pid_dlv, SIGUSR1); pid_dlv = 0; break;
+		case AEM_PROCESSTYPE_ENQ: kill(pid_enq, SIGUSR1); pid_enq = 0; break;
+		case AEM_PROCESSTYPE_STO: kill(pid_sto, SIGUSR1); pid_sto = 0; break;
+		case AEM_PROCESSTYPE_REG: kill(pid_reg, SIGUSR1); pid_reg = 0; break;
+		case AEM_PROCESSTYPE_WEB: kill(pid_web, SIGUSR1); pid_web = 0; break;
+//		case AEM_PROCESSTYPE_API: TODO; break;
+//		case AEM_PROCESSTYPE_MTA: TODO; break;
+		default: syslog(LOG_WARNING, "process_term: Invalid process type");
+	}
+
+	return 0;
+}
+
 void getProcessInfo(unsigned char * const out) {
 	bzero(out, AEM_PROCESSINFO_BYTES);
 

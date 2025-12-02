@@ -4,7 +4,9 @@
 #define AEM_PROCESSINFO_BYTES 65
 
 int process_spawn(const int type, unsigned char * const launchKey, const unsigned char *key_forward);
+int process_term(const int type);
 void getProcessInfo(unsigned char * const out);
+
 void setupManager(void);
 void clearManager(void);
 
