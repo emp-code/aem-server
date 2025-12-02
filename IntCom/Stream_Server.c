@@ -32,8 +32,6 @@ int sockClient = -1;
 
 void sigTerm(const int s) {
 	terminate = 1;
-	close(sockListen);
-	close(sockClient);
 }
 
 void intcom_setKey_stream(const unsigned char newKey[crypto_secretstream_xchacha20poly1305_KEYBYTES]) {

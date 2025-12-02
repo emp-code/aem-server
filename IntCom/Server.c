@@ -33,8 +33,6 @@ int sockClient = -1;
 
 void sigTerm(const int s) {
 	terminate = 1;
-	close(sockListen);
-	close(sockClient);
 }
 
 void intcom_setKeys_server(const unsigned char newKeys[AEM_INTCOM_CLIENT_COUNT][crypto_aead_aegis256_KEYBYTES]) {
