@@ -68,13 +68,13 @@ int createMount(const int type) {
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_WEB:
-		case AEM_PROCESSTYPE_DELIVER: fsmode = 1110; nr_inodes = 8; break;
+		case AEM_PROCESSTYPE_DLV: fsmode = 1110; nr_inodes = 8; break;
 
 		case AEM_PROCESSTYPE_API:
-		case AEM_PROCESSTYPE_ENQUIRY: fsmode = 1110; nr_inodes = 11; break;
+		case AEM_PROCESSTYPE_ENQ: fsmode = 1110; nr_inodes = 11; break;
 
-		case AEM_PROCESSTYPE_ACCOUNT:
-		case AEM_PROCESSTYPE_STORAGE: fsmode = 1770; nr_inodes = 10; break;
+		case AEM_PROCESSTYPE_ACC:
+		case AEM_PROCESSTYPE_STO: fsmode = 1770; nr_inodes = 10; break;
 
 		default: return -1;
 	}
@@ -99,14 +99,14 @@ int createMount(const int type) {
 	) return -1;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_ACC:
 			if (
 			   bindMount(AEM_PATH_HOME"/Account.aem", AEM_PATH_MOUNTDIR"/Account.aem", AEM_MOUNT_ISFILE) != 0
 			|| bindMount(AEM_PATH_HOME"/Settings.aem", AEM_PATH_MOUNTDIR"/Settings.aem", AEM_MOUNT_ISFILE) != 0
 			) return -1;
 		break;
 
-		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_ENQ:
 			if (
 			   bindMount("/usr/share/ca-certificates/mozilla/", AEM_PATH_MOUNTDIR"/ssl-certs",             AEM_MOUNT_RDONLY) != 0
 			|| bindMount(AEM_PATH_HOME"/GeoLite2-Country.mmdb", AEM_PATH_MOUNTDIR"/GeoLite2-Country.mmdb", AEM_MOUNT_RDONLY | AEM_MOUNT_ISFILE) != 0
@@ -114,7 +114,7 @@ int createMount(const int type) {
 			) return -1;
 		break;
 
-		case AEM_PROCESSTYPE_STORAGE:
+		case AEM_PROCESSTYPE_STO:
 			if (
 			   bindMount(AEM_PATH_HOME"/Stindex.aem", AEM_PATH_MOUNTDIR"/Stindex.aem", AEM_MOUNT_ISFILE) != 0
 			|| bindMount(AEM_PATH_HOME"/Msg", AEM_PATH_MOUNTDIR"/Msg", 0) != 0
@@ -131,7 +131,7 @@ int createMount(const int type) {
 		break;
 	}
 
-	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
+	if (type != AEM_PROCESSTYPE_ACC && type != AEM_PROCESSTYPE_STO) {
 		if (mount(NULL, AEM_PATH_MOUNTDIR, NULL, AEM_MOUNTDIR_FLAGS | MS_REMOUNT | MS_RDONLY, tmpfs_opts) != 0) return -1;
 	}
 

@@ -240,14 +240,20 @@ static int setCaps(const int type) {
 	int numCaps;
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT:
-		case AEM_PROCESSTYPE_DELIVER:
-		case AEM_PROCESSTYPE_ENQUIRY:
-		case AEM_PROCESSTYPE_STORAGE:
+		case AEM_PROCESSTYPE_ACC:
+		case AEM_PROCESSTYPE_DLV:
+		case AEM_PROCESSTYPE_ENQ:
+		case AEM_PROCESSTYPE_STO:
 		case AEM_PROCESSTYPE_API:
 		case AEM_PROCESSTYPE_WEB:
 			cap[2] = CAP_IPC_LOCK;
 			numCaps = 3;
+		break;
+
+		case AEM_PROCESSTYPE_REG:
+			cap[2] = CAP_NET_BIND_SERVICE;
+			cap[3] = CAP_NET_RAW;
+			numCaps = 4;
 		break;
 
 		case AEM_PROCESSTYPE_MTA:
@@ -255,12 +261,6 @@ static int setCaps(const int type) {
 			cap[3] = CAP_NET_BIND_SERVICE;
 			cap[4] = CAP_NET_RAW;
 			numCaps = 5;
-		break;
-
-		case AEM_PROCESSTYPE_REG:
-			cap[2] = CAP_NET_BIND_SERVICE;
-			cap[3] = CAP_NET_RAW;
-			numCaps = 4;
 		break;
 
 		default: return -1;
@@ -300,18 +300,18 @@ __attribute__((warn_unused_result))
 static int setLimits(const int type) {
 	struct rlimit rlim;
 
-	if (type != AEM_PROCESSTYPE_ACCOUNT && type != AEM_PROCESSTYPE_STORAGE) {
+	if (type != AEM_PROCESSTYPE_ACC && type != AEM_PROCESSTYPE_STO) {
 		rlim.rlim_cur = 0;
 		rlim.rlim_max = 0;
 		if (setrlimit(RLIMIT_FSIZE, &rlim) != 0) return -1;
 	}
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ENQUIRY: rlim.rlim_cur = 15; break;
+		case AEM_PROCESSTYPE_ENQ: rlim.rlim_cur = 15; break;
 
-		case AEM_PROCESSTYPE_ACCOUNT:
-		case AEM_PROCESSTYPE_DELIVER:
-		case AEM_PROCESSTYPE_STORAGE:
+		case AEM_PROCESSTYPE_ACC:
+		case AEM_PROCESSTYPE_DLV:
+		case AEM_PROCESSTYPE_STO:
 		case AEM_PROCESSTYPE_MTA:
 		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_WEB:
@@ -370,7 +370,7 @@ static int process_new(const int type, unsigned char * const launchKey) {
 	if (setLimits(type)   != 0) {syslog(LOG_ERR, "[%d] Failed setLimits()",    type); exit(EXIT_FAILURE);}
 	if (dropRoot()        != 0) {syslog(LOG_ERR, "[%d] Failed dropRoot(): %m", type); exit(EXIT_FAILURE);}
 	if (setCaps(type)     != 0) {syslog(LOG_ERR, "[%d] Failed setCaps()",      type); exit(EXIT_FAILURE);}
-	umask((type == AEM_PROCESSTYPE_STORAGE) ? 0077 : 0777);
+	umask((type == AEM_PROCESSTYPE_STO) ? 0077 : 0777);
 
 	fexecve(AEM_FD_EXEC, (char*[]){NULL}, (char*[]){NULL});
 
@@ -389,7 +389,7 @@ static int sendIntComKeys(const int type) {
 		case AEM_PROCESSTYPE_WEB:
 			return 0;
 
-		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_ACC:
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_API, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_MTA], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_MTA, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ACCOUNT_STO, key_ic);
@@ -397,18 +397,18 @@ static int sendIntComKeys(const int type) {
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, key_ic);
 		break;
 
-		case AEM_PROCESSTYPE_DELIVER:
+		case AEM_PROCESSTYPE_DLV:
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_ENQ], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, key_ic);
 			aem_kdf_smk(bundle.client[AEM_INTCOM_SERVER_STO], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, key_ic);
 			aem_kdf_smk(bundle.stream,       crypto_secretstream_xchacha20poly1305_KEYBYTES, AEM_KEYNUM_INTCOM_STREAM,      key_ic);
 		break;
 
-		case AEM_PROCESSTYPE_ENQUIRY:
+		case AEM_PROCESSTYPE_ENQ:
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_API, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_ENQUIRY_DLV, key_ic);
 		break;
 
-		case AEM_PROCESSTYPE_STORAGE:
+		case AEM_PROCESSTYPE_STO:
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_ACC], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_ACC, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_API], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_API, key_ic);
 			aem_kdf_smk(bundle.server[AEM_INTCOM_CLIENT_DLV], crypto_aead_aegis256_KEYBYTES, AEM_KEYNUM_INTCOM_STORAGE_DLV, key_ic);
@@ -474,12 +474,16 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 
 	// Pids
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT:
+		case AEM_PROCESSTYPE_ACC:
 			fail = (write(AEM_FD_PIPE_WR, &pid_sto, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
-		case AEM_PROCESSTYPE_DELIVER:
+		case AEM_PROCESSTYPE_DLV:
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_enq, pid_sto}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
+		break;
+
+		case AEM_PROCESSTYPE_REG:
+			fail = (write(AEM_FD_PIPE_WR, &pid_acc, sizeof(pid_t)) != sizeof(pid_t));
 		break;
 
 		case AEM_PROCESSTYPE_API:
@@ -490,13 +494,9 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 			fail = (write(AEM_FD_PIPE_WR, (pid_t[]){pid_acc, pid_dlv}, sizeof(pid_t) * 2) != sizeof(pid_t) * 2);
 		break;
 
-		case AEM_PROCESSTYPE_REG:
-			fail = (write(AEM_FD_PIPE_WR, &pid_acc, sizeof(pid_t)) != sizeof(pid_t));
-		break;
-
 		/* Nothing:
-		case AEM_PROCESSTYPE_ENQUIRY:
-		case AEM_PROCESSTYPE_STORAGE:
+		case AEM_PROCESSTYPE_ENQ:
+		case AEM_PROCESSTYPE_STO:
 		case AEM_PROCESSTYPE_WEB:
 		*/
 	}
@@ -509,7 +509,7 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 		fail = (sendIntComKeys(type) != 0);
 	}
 
-	if (!fail && type == AEM_PROCESSTYPE_ACCOUNT) {
+	if (!fail && type == AEM_PROCESSTYPE_ACC) {
 		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", launchKey) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", launchKey) != 0);
 	}
 
@@ -535,14 +535,14 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 	}
 
 	switch (type) {
-		case AEM_PROCESSTYPE_ACCOUNT: pid_acc = pid; break;
-		case AEM_PROCESSTYPE_DELIVER: pid_dlv = pid; break;
-		case AEM_PROCESSTYPE_ENQUIRY: pid_enq = pid; break;
-		case AEM_PROCESSTYPE_STORAGE: pid_sto = pid; break;
-		case AEM_PROCESSTYPE_API: pid_api[freeSlot] = pid; break;
-		case AEM_PROCESSTYPE_MTA: pid_mta[freeSlot] = pid; break;
+		case AEM_PROCESSTYPE_ACC: pid_acc = pid; break;
+		case AEM_PROCESSTYPE_DLV: pid_dlv = pid; break;
+		case AEM_PROCESSTYPE_ENQ: pid_enq = pid; break;
+		case AEM_PROCESSTYPE_STO: pid_sto = pid; break;
 		case AEM_PROCESSTYPE_REG: pid_reg = pid; break;
 		case AEM_PROCESSTYPE_WEB: pid_web = pid; break;
+		case AEM_PROCESSTYPE_API: pid_api[freeSlot] = pid; break;
+		case AEM_PROCESSTYPE_MTA: pid_mta[freeSlot] = pid; break;
 	}
 
 	return 0;

@@ -213,39 +213,39 @@ enum aem_acc_commands {
 
 // Process types
 enum aem_process_types {
+	AEM_PROCESSTYPE_ACC,
+	AEM_PROCESSTYPE_DLV,
+	AEM_PROCESSTYPE_ENQ,
+	AEM_PROCESSTYPE_STO,
+	AEM_PROCESSTYPE_REG,
 	AEM_PROCESSTYPE_WEB,
 	AEM_PROCESSTYPE_API,
 	AEM_PROCESSTYPE_MTA,
-	AEM_PROCESSTYPE_REG,
-	AEM_PROCESSTYPE_ACCOUNT,
-	AEM_PROCESSTYPE_DELIVER,
-	AEM_PROCESSTYPE_ENQUIRY,
-	AEM_PROCESSTYPE_STORAGE,
 	AEM_PROCESSTYPES_COUNT
 };
 
 // XXX The above and below lists MUST be in the same order
 
 #define AEM_PATH_EXE { \
+	AEM_PATH_HOME"/bin/aem-acc", \
+	AEM_PATH_HOME"/bin/aem-dlv", \
+	AEM_PATH_HOME"/bin/aem-enq", \
+	AEM_PATH_HOME"/bin/aem-sto", \
+	AEM_PATH_HOME"/bin/aem-reg", \
 	AEM_PATH_HOME"/bin/aem-web", \
 	AEM_PATH_HOME"/bin/aem-api", \
-	AEM_PATH_HOME"/bin/aem-mta", \
-	AEM_PATH_HOME"/bin/aem-reg", \
-	AEM_PATH_HOME"/bin/aem-account", \
-	AEM_PATH_HOME"/bin/aem-deliver", \
-	AEM_PATH_HOME"/bin/aem-enquiry", \
-	AEM_PATH_HOME"/bin/aem-storage" \
+	AEM_PATH_HOME"/bin/aem-mta"  \
 }
 
 #define AEM_NICE { \
-	/*Web*/  4, \
-	/*API*/ -4, \
-	/*MTA*/ -8, \
-	/*Reg*/  8, \
-	/*Account*/ -16, \
-	/*Deliver*/  -3, \
-	/*Enquiry*/ -10, \
-	/*Storage*/ -18 \
+	/*acc*/ -16, \
+	/*dlv*/  -3, \
+	/*enq*/ -10, \
+	/*sto*/ -18, \
+	/*reg*/   8, \
+	/*web*/   4, \
+	/*api*/  -4, \
+	/*mta*/  -8  \
 }
 
 #endif

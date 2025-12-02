@@ -121,76 +121,39 @@ void respondClient(void) {
 		aead_nonce[0] ^= 64;
 		lenBody -= dec[0] + crypto_aead_aegis256_ABYTES + 1;
 
-		switch (r.dec_data & 15) {
-			case 0: {// Acc
+		const int processType = r.dec_data & 15;
+		switch (processType) {
+			case AEM_PROCESSTYPE_ACC:
+			case AEM_PROCESSTYPE_STO: {
 				if (lenBody != 32 + AEM_KDF_SUB_KEYLEN) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid acc body length: %d", lenBody);
+					syslog(LOG_WARNING, "Manager Protocol: Invalid type-%d body length: %d", processType, lenBody);
 					return;
 				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_ACCOUNT, dec + 1, dec + 33);
+				const int ret = process_spawn(processType, dec + 1, dec + 33);
 				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Account: %d", ret);
+					syslog(LOG_WARNING, "Manager Protocol: Failed spawning type-%d: %d", processType, ret);
 					return;
 				}
 			break;}
-			case 1: {// Dlv
+
+			case AEM_PROCESSTYPE_DLV:
+			case AEM_PROCESSTYPE_ENQ:
+			case AEM_PROCESSTYPE_REG:
+			case AEM_PROCESSTYPE_WEB: {
 				if (lenBody != 32) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid dlv body length: %d", lenBody);
+					syslog(LOG_WARNING, "Manager Protocol: Invalid type-%d body length: %d", processType, lenBody);
 					return;
 				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_DELIVER, dec + 1, NULL);
+				const int ret = process_spawn(processType, dec + 1, NULL);
 				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Deliver: %d", ret);
+					syslog(LOG_WARNING, "Manager Protocol: Failed spawning type-%d: %d", processType, ret);
 					return;
 				}
 			break;}
-			case 2: {// Enq
-				if (lenBody != 32) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid enq body length: %d", lenBody);
-					return;
-				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_ENQUIRY, dec + 1, NULL);
-				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Enquiry: %d", ret);
-					return;
-				}
-			break;}
-			case 3: {// Sto
+
+			case AEM_PROCESSTYPE_API: {
 				if (lenBody != 32 + AEM_KDF_SUB_KEYLEN) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid sto body length: %d", lenBody);
-					return;
-				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_STORAGE, dec + 1, dec + 33);
-				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Storage: %d", ret);
-					return;
-				}
-			break;}
-			case 4: {// Reg
-				if (lenBody != 32) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid req body length: %d", lenBody);
-					return;
-				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_REG, dec + 1, NULL);
-				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Enquiry: %d", ret);
-					return;
-				}
-			break;}
-			case 5: {// Web
-				if (lenBody != 32) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid web body length: %d", lenBody);
-					return;
-				}
-				const int ret = process_spawn(AEM_PROCESSTYPE_WEB, dec + 1, NULL);
-				if (ret != 0) {
-					syslog(LOG_WARNING, "Manager Protocol: Failed spawning Enquiry: %d", ret);
-					return;
-				}
-			break;}
-			case 6: {// API
-				if (lenBody != 32 + AEM_KDF_SUB_KEYLEN) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid api body length: %d", lenBody);
+					syslog(LOG_WARNING, "Manager Protocol: Invalid API body length: %d", processType, lenBody);
 					return;
 				}
 				const int count = r.dec_data >> 4;
@@ -199,17 +162,17 @@ void respondClient(void) {
 					return;
 				}
 				for (int i = 0; i < count; i++) {
-					const int ret = process_spawn(AEM_PROCESSTYPE_API, dec + 1, dec + 33);
+					const int ret = process_spawn(processType, dec + 1, dec + 33);
 					if (ret != 0) {
 						syslog(LOG_WARNING, "Manager Protocol: Failed spawning API: %d", ret);
 						return;
 					}
 				}
-			}
-			break;
-			case 7: {// MTA
+			break;}
+
+			case AEM_PROCESSTYPE_MTA: {
 				if (lenBody != 32) {
-					syslog(LOG_WARNING, "Manager Protocol: Invalid web body length: %d", lenBody);
+					syslog(LOG_WARNING, "Manager Protocol: Invalid MTA body length: %d", lenBody);
 					return;
 				}
 				const int count = r.dec_data >> 4;
@@ -218,14 +181,14 @@ void respondClient(void) {
 					return;
 				}
 				for (int i = 0; i < count; i++) {
-					const int ret = process_spawn(AEM_PROCESSTYPE_MTA, dec + 1, NULL);
+					const int ret = process_spawn(processType, dec + 1, NULL);
 					if (ret != 0) {
 						syslog(LOG_WARNING, "Manager Protocol: Failed spawning MTA: %d", ret);
 						return;
 					}
 				}
-			}
-			break;
+			break;}
+
 			default: syslog(LOG_WARNING, "Manager Protocol: Invalid data: %d", r.dec_data); return;
 		}
 	} else {
