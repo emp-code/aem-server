@@ -195,11 +195,22 @@ static int readDataFile(unsigned char * const dec, size_t * const lenDec, const 
 }
 
 __attribute__((nonnull, warn_unused_result))
-static int getOurDomain(unsigned char * const out, size_t * const lenOut, const unsigned char * const launchKey) {
+static int pipeOurDomain(const unsigned char * const launchKey) {
 	size_t lenPem;
 	unsigned char pem[AEM_MAXLEN_DATAFILE];
 	if (readDataFile(pem, &lenPem, AEM_PATH_DATA"/TLS.crt.enc", launchKey) != 0) return -1;
-	return x509_getSubject(out, lenOut, pem, lenPem);
+
+	unsigned char nm[256];
+	size_t lenNm;
+	if (x509_getSubject(nm, &lenNm, pem, lenPem) != 0) return -1;
+	nm[lenNm] = 0;
+
+	if (write(AEM_FD_PIPE_WR, nm, AEM_MAXLEN_OURDOMAIN + 1) != (ssize_t)AEM_MAXLEN_OURDOMAIN + 1) {
+		syslog(LOG_ERR, "pipeOurDomain failed");
+		return -1;
+	}
+
+	return 0;
 }
 
 __attribute__((nonnull, warn_unused_result))
@@ -503,13 +514,9 @@ int process_spawn(const int type, unsigned char * const launchKey, const unsigne
 
 	if (!fail && type == AEM_PROCESSTYPE_ACC) {
 		fail = (pipeFile(AEM_PATH_DATA"/RSA_Admin.enc", launchKey) != 0 || pipeFile(AEM_PATH_DATA"/RSA_Users.enc", launchKey) != 0);
-	}
-
-	if (!fail && type == AEM_PROCESSTYPE_WEB) {
-		fail = (pipeFile(AEM_PATH_DATA"/web.enc", launchKey) != 0);
-	}
-
-	if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA || type == AEM_PROCESSTYPE_WEB)) {
+	} else if (!fail && type == AEM_PROCESSTYPE_WEB) {
+		fail = (pipeFile(AEM_PATH_DATA"/web.enc", launchKey) != 0 || pipeOurDomain(launchKey) != 0);
+	} else if (!fail && (type == AEM_PROCESSTYPE_API || type == AEM_PROCESSTYPE_MTA)) {
 		fail = (pipeFile(AEM_PATH_DATA"/TLS.crt.enc", launchKey) != 0 || pipeFile(AEM_PATH_DATA"/TLS.key.enc", launchKey) != 0);
 	}
 

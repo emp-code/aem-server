@@ -7,7 +7,6 @@
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
 #include "../Common/SetCaps.h"
-#include "../Common/x509_getCn.h"
 
 #define AEM_LOGNAME "AEM-Web"
 
@@ -70,21 +69,9 @@ static int pipeRead(void) {
 		}
 	}
 
-	size_t lenTlsCrt;
-	size_t lenTlsKey;
-	unsigned char tlsCrt[PIPE_BUF];
-	unsigned char tlsKey[PIPE_BUF];
-
-	if (
-	   read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsCrt, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
-	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
-	) return 6;
-
-	unsigned char cn[100];
-	size_t lenCn;
-	if (x509_getSubject(cn, &lenCn, tlsCrt, lenTlsCrt) != 0) return 12;
+	char od[AEM_MAXLEN_OURDOMAIN + 1];
+	if (read(AEM_FD_PIPE_RD, od, AEM_MAXLEN_OURDOMAIN + 1) != AEM_MAXLEN_OURDOMAIN + 1) return 6;
+	const size_t lenOd = strlen(od);
 
 	lenSts = sprintf(sts,
 		"HTTP/1.1 200 aem\r\n"
@@ -99,10 +86,7 @@ static int pipeRead(void) {
 		"mode: enforce\n"
 		"max_age: 31557600\n"
 		"mx: %.*s"
-	, 51 + lenCn, (int)lenCn, (char*)cn);
-
-	sodium_memzero(tlsCrt, lenTlsCrt);
-	sodium_memzero(tlsKey, lenTlsKey);
+	, 51 + lenOd, (int)lenOd, od);
 
 	return 0;
 }
