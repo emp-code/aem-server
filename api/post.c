@@ -433,14 +433,15 @@ static void handlePost(const uint64_t binTs, const int cmd, const int flags, con
 
 	// Choose action
 	switch (cmd) {
-		case AEM_API_MESSAGE_CREATE: {const unsigned char rb = message_create(flags, binTs, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); return;}
-		case AEM_API_MESSAGE_SENDER: {message_sender(decBody, lenBody - crypto_aead_aegis256_ABYTES); return;}
-		case AEM_API_MESSAGE_UPLOAD: {const unsigned char rb = message_upload(uid, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); return;}
-	}
+		case AEM_API_MESSAGE_CREATE: {const unsigned char rb = message_create(flags, binTs, icData, lenIcData, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); break;}
+		case AEM_API_MESSAGE_SENDER: {message_sender(decBody, lenBody - crypto_aead_aegis256_ABYTES); break;}
+		case AEM_API_MESSAGE_UPLOAD: {const unsigned char rb = message_upload(uid, urlData, decBody, lenBody - crypto_aead_aegis256_ABYTES); apiResponse(&rb, 1); break;}
 
-	syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
-	const unsigned char rb = AEM_API_ERR_INTERNAL;
-	apiResponse(&rb, 1);
+		default:
+		syslog(LOG_INFO, "Received unknown command from Account (POST): %d", cmd);
+		const unsigned char rb = AEM_API_ERR_INTERNAL;
+		apiResponse(&rb, 1);
+	}
 }
 
 __attribute__((nonnull))
