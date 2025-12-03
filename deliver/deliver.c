@@ -39,7 +39,7 @@ static unsigned char *makeSrcBr(const unsigned char * const input, const size_t 
 	// 2 bytes: ParentID
 	memcpy(output + AEM_MSG_HDR_SZ + 3, fn, lenFn);
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenInput, input, lenOutput, output + AEM_MSG_HDR_SZ + 3 + lenFn) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_MODE_TEXT, lenInput, input, lenOutput, output + AEM_MSG_HDR_SZ + 3 + lenFn) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed Brotli compression");
 		free(output);
 		return NULL;

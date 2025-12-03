@@ -19,7 +19,7 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 	}
 
 	size_t lenComp = lenSrc;
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenSrc, src, &lenComp, comp) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_MODE_TEXT, lenSrc, src, &lenComp, comp) == BROTLI_FALSE) {
 		fputs("Failed Brotli compression", stderr);
 		free(comp);
 		return NULL;

@@ -122,7 +122,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 		return NULL;
 	}
 
-	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_DEFAULT_MODE, lenUncomp, uncomp, &lenBody, msg + lenHead) == BROTLI_FALSE) {
+	if (BrotliEncoderCompress(BROTLI_MAX_QUALITY, BROTLI_MAX_WINDOW_BITS, BROTLI_MODE_TEXT, lenUncomp, uncomp, &lenBody, msg + lenHead) == BROTLI_FALSE) {
 		syslog(LOG_ERR, "Failed compression");
 		free(uncomp);
 		free(msg);
