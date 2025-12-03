@@ -42,7 +42,7 @@ void acceptClients(void) {
 #endif
 	) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket: %m"); return;}
 
-#ifndef AEM_MANAGER
+#ifdef AEM_MTA
 	if (setCaps(0) != 0) return;
 #endif
 

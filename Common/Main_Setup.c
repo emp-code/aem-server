@@ -20,6 +20,6 @@
 	if (sodium_init() != 0) {syslog(LOG_ERR, "Terminating: Failed sodium_init()"); return EXIT_FAILURE;}
 #endif
 
-#if defined(AEM_ACCOUNT) || defined(AEM_DELIVER) || defined(AEM_ENQUIRY) || defined(AEM_STORAGE)
+#ifndef AEM_MTA
 	if (setCaps(0) != 0) {syslog(LOG_ERR, "Terminating: Failed setting capabilities"); return EXIT_FAILURE;}
 #endif
