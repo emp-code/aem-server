@@ -289,7 +289,7 @@ int32_t api_account_update(unsigned char * const res, const unsigned char reqDat
 	if (user[upd_uid] == NULL) return api_response_status(res, AEM_API_ERR_ACCOUNT_NOTEXIST);
 
 	const uint8_t new_lvl = reqData[2];
-	if (new_lvl < AEM_USERLEVEL_MIN || new_lvl > AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_PARAM);
+	if (new_lvl > AEM_USERLEVEL_MAX) return api_response_status(res, AEM_API_ERR_PARAM);
 	user[upd_uid]->level = new_lvl;
 	saveUser();
 	return api_response_status(res, AEM_API_STATUS_OK);
