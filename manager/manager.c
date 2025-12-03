@@ -245,11 +245,11 @@ static int setCaps(const int type) {
 		case AEM_PROCESSTYPE_ENQ:
 		case AEM_PROCESSTYPE_STO:
 		case AEM_PROCESSTYPE_API:
+		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_WEB:
 			numCaps = 2;
 		break;
 
-		case AEM_PROCESSTYPE_REG:
 		case AEM_PROCESSTYPE_MTA:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
