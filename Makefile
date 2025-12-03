@@ -16,10 +16,10 @@ aem-enq: enquiry/*.c
 	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enq enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c Common/memeq.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lmaxminddb
 
 aem-sto: storage/*.c
-	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-sto storage/*.c Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c Common/SetCaps.c Common/binTs.c Common/memeq.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lm
+	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-sto storage/*.c Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c Common/SetCaps.c Common/binTs.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lm
 
 aem-reg: reg/*.c
-	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg -DAEM_UDS reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/binTs.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
+	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg -DAEM_UDS reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/binTs.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
 
 aem-web: web/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -o aem-web -DAEM_UDS web/*.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap
