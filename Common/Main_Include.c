@@ -1,7 +1,6 @@
 #include <locale.h> // for setlocale
 #include <signal.h>
 #include <sys/capability.h>
-#include <sys/mman.h> // for mlockall
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
