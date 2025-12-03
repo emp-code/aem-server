@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/capability.h>
-#include <sys/mman.h> // for mlockall
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <pwd.h>
@@ -85,7 +84,6 @@ static int setCaps(void) {
 		CAP_DAC_OVERRIDE, // Bypass file permission checks
 		CAP_DAC_READ_SEARCH, // Bypass file permission checks
 		CAP_FOWNER, // Bypass file ownership checks
-		CAP_IPC_LOCK, // mlockall()
 		CAP_KILL, // Kill any process
 		CAP_MKNOD, // Make special files
 		CAP_NET_BIND_SERVICE, // Bind to port #<1024
@@ -99,8 +97,7 @@ static int setCaps(void) {
 		CAP_SYS_RESOURCE // Allow changing resource limits
 	};
 
-	const cap_value_t capInherit[6] = {
-		CAP_IPC_LOCK,
+	const cap_value_t capInherit[5] = {
 		CAP_NET_BIND_SERVICE,
 		CAP_NET_RAW,
 		CAP_SETPCAP,
@@ -264,7 +261,6 @@ int main(void) {
 	) != 0) return 7;
 
 	if (setpriority(PRIO_PROCESS, 0, -20)  != 0) return 8;
-	if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) return 9;
 
 	if (sodium_init() != 0) return 10;
 	if (setCgroup()   != 0) return 11;

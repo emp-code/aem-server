@@ -234,7 +234,7 @@ static int setCaps(const int type) {
 	// Ambient capabilities
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0) != 0) return -1;
 
-	cap_value_t cap[5];
+	cap_value_t cap[4];
 	cap[0] = CAP_SYS_ADMIN;
 	cap[1] = CAP_SYS_CHROOT;
 	int numCaps;
@@ -246,21 +246,14 @@ static int setCaps(const int type) {
 		case AEM_PROCESSTYPE_STO:
 		case AEM_PROCESSTYPE_API:
 		case AEM_PROCESSTYPE_WEB:
-			cap[2] = CAP_IPC_LOCK;
-			numCaps = 3;
+			numCaps = 2;
 		break;
 
 		case AEM_PROCESSTYPE_REG:
+		case AEM_PROCESSTYPE_MTA:
 			cap[2] = CAP_NET_BIND_SERVICE;
 			cap[3] = CAP_NET_RAW;
 			numCaps = 4;
-		break;
-
-		case AEM_PROCESSTYPE_MTA:
-			cap[2] = CAP_IPC_LOCK;
-			cap[3] = CAP_NET_BIND_SERVICE;
-			cap[4] = CAP_NET_RAW;
-			numCaps = 5;
 		break;
 
 		default: return -1;
@@ -269,9 +262,8 @@ static int setCaps(const int type) {
 	if (
 	   prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[0], 0, 0) != 0
 	|| prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[1], 0, 0) != 0
-	|| prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[2], 0, 0) != 0
+	|| (numCaps > 2 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[2], 0, 0) != 0)
 	|| (numCaps > 3 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[3], 0, 0) != 0)
-	|| (numCaps > 4 && prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, cap[4], 0, 0) != 0)
 	) return -1;
 
 	// Allow changing SecureBits for the next part
