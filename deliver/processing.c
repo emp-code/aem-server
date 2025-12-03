@@ -532,7 +532,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 
 	if (hdrBinTs > 0) {
 		// Store the difference between received and header timestamps (-18h .. +736s)
-		const uint64_t timeDiff = lrint((double)(email->binTs - hdrBinTs) / 1000) + 736; // 736 = 2^16 % 3600
+		const long long timeDiff = llrint((double)(email->binTs - hdrBinTs) / 1000) + 736; // 736 = 2^16 % 3600
 		email->hdrTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 	}
 
