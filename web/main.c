@@ -18,7 +18,7 @@ static void sigTerm(const int s) {terminate = 1;}
 size_t lenResp;
 unsigned char *resp;
 static int lenSts;
-static char sts[512];
+static char sts[320];
 
 static void acceptClients(void) {
 	if (createSocket() != AEM_FD_SOCK_MAIN) return;
