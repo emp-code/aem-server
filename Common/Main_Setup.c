@@ -12,7 +12,7 @@
 
 	if (getuid() == 0 || getgid() == 0) {syslog(LOG_ERR, "Terminating: Must not be started as root"); return EXIT_FAILURE;}
 	if (setSignals() != 0) {syslog(LOG_ERR, "Terminating: Failed setting up signal handling"); return EXIT_FAILURE;}
-	if (setRlimits() != 0) {syslog(LOG_ERR, "Terminating: Failed settings rlimits"); return EXIT_FAILURE;}
+	if (setrlimit(RLIMIT_NPROC, &(struct rlimit){0, 0}) != 0) {syslog(LOG_ERR, "Terminating: Failed setting rlimit"); return EXIT_FAILURE;} // Forbid forking
 	if (prctl(PR_SET_PDEATHSIG, SIGUSR2, 0, 0, 0) != 0) {syslog(LOG_ERR, "Terminating: Failed prctl 1"); return EXIT_FAILURE;}
 	if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0)        != 0) {syslog(LOG_ERR, "Terminating: Failed prctl 2"); return EXIT_FAILURE;} // Disable core dumps and ptrace
 

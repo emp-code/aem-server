@@ -27,13 +27,3 @@ static int setSignals(void) {
 	&& sigaction(SIGUSR2, &sa, NULL) != -1
 	) ? 0 : -1;
 }
-
-static int setRlimits(void) {
-	struct rlimit rlim;
-	rlim.rlim_cur = 0;
-	rlim.rlim_max = 0;
-
-	if (setrlimit(RLIMIT_NPROC, &rlim) != 0) return -1; // Forbid forking
-
-	return 0;
-}
