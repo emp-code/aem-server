@@ -22,7 +22,7 @@ aem-reg: reg/*.c
 	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg -DAEM_UDS reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c Common/binTs.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm
 
 aem-web: web/*.c
-	$(CC) $(CFLAGS) -DAEM_WEB -o aem-web -DAEM_UDS web/*.c Common/CreateSocket.c Common/SetCaps.c Common/memeq.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_WEB -o aem-web -DAEM_UDS web/*.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap
 
 aem-api: api/*.c
 	$(CC) $(CFLAGS) -DAEM_API -o aem-api -DAEM_UDS api/*.c Common/AEM_KDF.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/Message.c Common/SetCaps.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/binTs.c Common/memeq.c Common/x509_getCn.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl -lm

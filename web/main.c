@@ -1,12 +1,13 @@
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <string.h>
 
 #include "../Global.h"
 #include "../Common/CreateSocket.h"
-#include "../Common/SetCaps.h"
 
 #define AEM_LOGNAME "AEM-Web"
 
