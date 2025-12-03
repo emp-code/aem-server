@@ -21,34 +21,25 @@ static int lenSts;
 static char sts[512];
 
 static void acceptClients(void) {
-	const int sock = createSocket();
-	if (sock < 0) return;
-	if (setCaps(0) != 0) return;
-
+	if (createSocket() != AEM_FD_SOCK_MAIN) return;
 	syslog(LOG_INFO, "Ready");
 
 	while (terminate == 0) {
-		const int newSock = accept4(sock, NULL, NULL, SOCK_CLOEXEC);
-		if (newSock < 0) continue;
+		if (accept4(AEM_FD_SOCK_MAIN, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_SOCK_CLIENT) continue;
 
 		unsigned char req[29];
-		if (
-		read(newSock, req, 29) == 29) {
+		if (read(AEM_FD_SOCK_CLIENT, req, 29) == 29) {
 			if (memcmp(req, "GET /.well-known/mta-sts.txt ", 29) == 0) {
-				write(newSock, sts, lenSts);
+				write(AEM_FD_SOCK_CLIENT, sts, lenSts);
 			} else if (memcmp(req, "GET / HTTP/", 11) == 0) {
-				write(newSock, resp, lenResp);
-			} else {
-				close(newSock);
-				continue;
+				write(AEM_FD_SOCK_CLIENT, resp, lenResp);
 			}
 		}
 
-		shutdown(newSock, SHUT_RD);
-		close(newSock);
+		close(AEM_FD_SOCK_CLIENT);
 	}
 
-	close(sock);
+	close(AEM_FD_SOCK_MAIN);
 }
 
 static int pipeRead(void) {
