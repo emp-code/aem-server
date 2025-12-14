@@ -67,10 +67,10 @@ static int getDkimRecord(struct emailInfo * const email, unsigned char * const p
 	if (email->dkim[email->dkimCount].lenDomain < 1 || email->dkim[email->dkimCount].lenSelector < 1) {syslog(LOG_WARNING, "getDkimRecord: Bad input"); return -1;}
 
 	unsigned char tmp[512];
-	sprintf((char*)tmp, "%.*s/%.*s", (int)email->dkim[email->dkimCount].lenSelector, email->dkim[email->dkimCount].selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
+	const int lenTmp = sprintf((char*)tmp, "%.*s/%.*s", (int)email->dkim[email->dkimCount].lenSelector, email->dkim[email->dkimCount].selector, (int)email->dkim[email->dkimCount].lenDomain, email->dkim[email->dkimCount].domain);
 
 	unsigned char *dkim = NULL;
-	int32_t lenDkim = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_DKIM, tmp, strlen((char*)tmp), &dkim, 0);
+	int32_t lenDkim = intcom(AEM_INTCOM_SERVER_ENQ, AEM_ENQUIRY_DKIM, tmp, lenTmp, &dkim, 0);
 	if (lenDkim < 1) {syslog(LOG_WARNING, "DKIM: Enquiry request failed"); return AEM_INTCOM_RESPONSE_ERR;}
 	lenDkim--;
 	dkim[lenDkim] = '\0';

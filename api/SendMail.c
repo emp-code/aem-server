@@ -315,9 +315,9 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 	memcpy(info->greeting, buf + 4, info->lenGreeting);
 
 	char ehlo[256];
-	sprintf(ehlo, "EHLO %s\r\n", ourDomain);
+	const int lenEhlo = sprintf(ehlo, "EHLO %s\r\n", ourDomain);
 
-	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, ehlo, strlen(ehlo), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, ehlo, lenEhlo, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
 	if (strcasestr(buf, "STARTTLS") == NULL) {smtp_quit(sock, NULL); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_NOTLS;}
 	if (!smtpCommand(sock, NULL, info, buf, &lenBuf, "STARTTLS\r\n", 10, "220")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;
 
@@ -339,12 +339,14 @@ unsigned char sendMail(const struct outEmail * const email, struct outInfo * con
 
 //	if (...) {syslog(LOG_ERR, "SendMail: Failed verifying cert"); closeTls(sock); return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_STLS;}
 
-	char send_fr[512]; sprintf(send_fr, "MAIL FROM: <%s@%s>\r\n", email->addrFrom, ourDomain);
-	char send_to[512]; sprintf(send_to, "RCPT TO: <%s>\r\n", email->addrTo);
+	char sendFr[512];
+	const int lenSendFr = sprintf(sendFr, "MAIL FROM: <%s@%s>\r\n", email->addrFrom, ourDomain);
+	char sendTo[512];
+	const int lenSendTo = sprintf(sendTo, "RCPT TO: <%s>\r\n", email->addrTo);
 
-	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, ehlo, strlen(ehlo),       "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
-	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_fr, strlen(send_fr), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
-	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, send_to, strlen(send_to), "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, ehlo,   lenEhlo,   "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_EHLO;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, sendFr, lenSendFr, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_MAIL;
+	if (!smtpCommand(sock, ssl, info, buf, &lenBuf, sendTo, lenSendTo, "250")) return AEM_API_ERR_MESSAGE_CREATE_SENDMAIL_RCPT;
 
 	size_t lenMsg = 0;
 	char * const msg = createEmail(email, &lenMsg);

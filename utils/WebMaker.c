@@ -27,7 +27,7 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 
 	// Headers
 	char headers[4096];
-	sprintf(headers,
+	const int lenHeaders = sprintf(headers,
 		"HTTP/1.1 200 aem\r\n"
 
 		// General headers
@@ -169,7 +169,6 @@ static unsigned char *genWeb(const unsigned char * const src, const size_t lenSr
 		"\r\n"
 	, lenComp); // Content-Length
 
-	const size_t lenHeaders = strlen(headers);
 	*lenResult = lenHeaders + lenComp;
 
 	unsigned char * const result = malloc(*lenResult);
