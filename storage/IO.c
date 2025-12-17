@@ -34,7 +34,6 @@ static struct {
 } stindex[AEM_USERCOUNT];
 
 static unsigned char stiKey[crypto_aead_aegis256_KEYBYTES];
-static unsigned char limits[] = {0,0,0,0}; // 0-255 MiB
 
 // uid: UserID; eid: Encoded UserID
 #define AEM_PATH_STO_MSG (char[]){'/','M','s','g','/', eid_chars[uid & 63], eid_chars[(uid >> 6) & 63], '\0'}
@@ -272,13 +271,6 @@ int32_t acc_storage_delete(const unsigned char * const msg, const size_t lenMsg)
 	return AEM_INTCOM_RESPONSE_OK;
 }
 
-__attribute__((nonnull, warn_unused_result))
-int32_t acc_storage_limits(const unsigned char * const new, const size_t lenNew) {
-	if (lenNew != 4) return AEM_INTCOM_RESPONSE_ERR;
-	memcpy(limits, new, lenNew);
-	return AEM_INTCOM_RESPONSE_OK;
-}
-
 // Total amount and size of messages
 __attribute__((nonnull))
 static void browse_infoBytes(unsigned char * const out, const uint16_t uid) {
@@ -474,6 +466,10 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
+static long long div_floor(const long long a, const long long b) {
+	return (a - (a % b)) / b;
+}
+
 __attribute__((nonnull, warn_unused_result))
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
 	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_W_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
@@ -481,14 +477,17 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 
 	// Get the user's Envelope Keys from AEM-Account. sign the Message and turn it into an Envelope
 	unsigned char *ek_raw = NULL;
-	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, uid, NULL, 0, &ek_raw, sizeof(struct evpKeys));
+	const uint8_t storageAmount = MAX(0, MIN(div_floor(getUserStorageAmount(uid), AEM_STORAGE_LIMIT_STEP), 255));
+	const int32_t icRet = intcom(AEM_INTCOM_SERVER_ACC, uid | (storageAmount << 12), NULL, 0, &ek_raw, sizeof(struct evpKeys));
+	if (icRet == AEM_INTCOM_RESPONSE_LIMIT) return AEM_INTCOM_RESPONSE_LIMIT;
+
 	if (icRet != sizeof(struct evpKeys)) {
 		if (ek_raw != NULL) free(ek_raw);
 		syslog(LOG_ERR, "Failed getting EK from Account: %d", icRet);
 		return AEM_INTCOM_RESPONSE_ERR;
 	}
-	const struct evpKeys * const ek = (const struct evpKeys * const)ek_raw;
 
+	const struct evpKeys * const ek = (const struct evpKeys * const)ek_raw;
 	aem_sign_message(msg, lenMsg, ek->usk);
 	size_t lenEvp;
 	unsigned char * const evp = msg2evp(msg, lenMsg, ek->pwk, stindex[uid].id, stindex_count[uid], &lenEvp);

@@ -116,7 +116,7 @@ int32_t conn_reg(const uint32_t operation, const unsigned char * const msg, cons
 
 __attribute__((warn_unused_result, nonnull))
 int32_t conn_sto(const uint32_t operation, unsigned char **res) {
-	if (operation >= AEM_USERCOUNT) {syslog(LOG_ERR, "Invalid request from Storage: %u"); return AEM_INTCOM_RESPONSE_ERR;}
+	if (operation > ((1 << 20) - 1)) {syslog(LOG_ERR, "Invalid request from Storage: %u"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	return sto_uid2keys(operation, res);
+	return sto_uid2keys(operation & (AEM_USERCOUNT - 1), operation >> 12, res);
 }

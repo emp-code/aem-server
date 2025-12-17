@@ -13,8 +13,6 @@ int32_t conn_acc(const uint32_t operation, const unsigned char * const msg, cons
 		case AEM_ACC_STORAGE_AMOUNT: return acc_storage_amount(res);
 		case AEM_ACC_STORAGE_CREATE: return acc_storage_create(msg, lenMsg);
 		case AEM_ACC_STORAGE_DELETE: return acc_storage_delete(msg, lenMsg);
-//		case AEM_ACC_STORAGE_LEVELS: return acc_storage_levels(msg, lenMsg);
-		case AEM_ACC_STORAGE_LIMITS: return acc_storage_limits(msg, lenMsg);
 	}
 
 	syslog(LOG_ERR, "conn_acc(): Invalid op: %u", operation);

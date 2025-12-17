@@ -28,7 +28,7 @@
 #define AEM_FAKEFLAGS_HTSIZE 2048
 #define AEM_FAKEFLAGS_MAXTIME 2000000 // 23d
 
-#define AEM_LIMIT_MIB 0
+#define AEM_LIMIT_STO 0
 #define AEM_LIMIT_NRM 1
 #define AEM_LIMIT_SHD 2
 
@@ -635,8 +635,9 @@ int32_t reg_register(const unsigned char * const req) {
 
 // Storage
 __attribute__((nonnull, warn_unused_result))
-int32_t sto_uid2keys(const uint16_t uid, unsigned char **res) {
+int32_t sto_uid2keys(const uint16_t uid, const uint8_t sto, unsigned char **res) {
 	if (user[uid] == NULL) return AEM_INTCOM_RESPONSE_NOTEXIST;
+	if (sto >= limits[user[uid]->level][AEM_LIMIT_STO]) return AEM_INTCOM_RESPONSE_LIMIT;
 
 	*res = malloc(sizeof(struct evpKeys));
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
@@ -691,12 +692,6 @@ int ioSetup(const unsigned char baseKey[AEM_KDF_SUB_KEYLEN]) {
 	addrHash_system = addressToHash(AEM_ADDR32_SYSTEM);
 
 //	bzero((unsigned char*)fakeFlag_expire, 4 * AEM_FAKEFLAGS_HTSIZE);
-
-//	if (intcom(AEM_INTCOM_SERVER_STO, AEM_ACC_STORAGE_LIMITS, (unsigned char[4]){limits[0][0], limits[1][0], limits[2][0], limits[3][0]}, 4, NULL, 0) != AEM_INTCOM_RESPONSE_OK) {
-//		syslog(LOG_ERR, "ioSetup: intcom failed");
-//		return -1;
-//	}
-
 	lastReg = getBinTs();
 	return 0;
 }

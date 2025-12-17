@@ -158,6 +158,7 @@ enum aem_internal_enquiry {
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
 
 // Misc
+#define AEM_STORAGE_LIMIT_STEP 16777216 // 16 MiB (4 GiB max)
 #define AEM_MAXLEN_OURDOMAIN 32
 #define AEM_MAXLEN_EXEC 163840 // 160 KiB
 #define AEM_MAXLEN_DATAFILE 99999

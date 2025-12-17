@@ -15,8 +15,6 @@ void ioFree(void);
 int32_t acc_storage_amount(unsigned char **res);
 int32_t acc_storage_create(const unsigned char * const msg, const size_t lenMsg);
 int32_t acc_storage_delete(const unsigned char * const msg, const size_t lenMsg);
-int32_t acc_storage_levels(const unsigned char * const msg, const size_t lenMsg);
-int32_t acc_storage_limits(const unsigned char * const msg, const size_t lenMsg);
 
 // API
 int32_t api_internal_erase(const unsigned char * const upk, const size_t lenUpk);
