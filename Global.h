@@ -158,9 +158,6 @@ enum aem_internal_enquiry {
 #define AEM_PATH_MOUNTDIR AEM_PATH_HOME"/mount"
 
 // Misc
-#define AEM_TIMEOUT_MANAGER_RCV 10
-#define AEM_TIMEOUT_MANAGER_SND 10
-
 #define AEM_MAXLEN_OURDOMAIN 32
 #define AEM_MAXLEN_EXEC 163840 // 160 KiB
 #define AEM_MAXLEN_DATAFILE 99999
