@@ -189,6 +189,11 @@ static void verifyDkimSig(struct emailInfo * const email, RsaKey * const pk, con
 			} else break;
 		}
 
+		if (lenH < 1) {
+			h = strtok(NULL, ":");
+			continue;
+		}
+
 		     if (memeq_anycase(h, "Content-Type", 12)) email->dkim[email->dkimCount].sgnCt   = true;
 		else if (memeq_anycase(h, "Date", 4))          email->dkim[email->dkimCount].sgnDate = true;
 		else if (memeq_anycase(h, "From", 4))          email->dkim[email->dkimCount].sgnFrom = true;
