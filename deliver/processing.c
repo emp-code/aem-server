@@ -481,7 +481,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 					*lenOut += lenNew + 1;
 				}
 			} else if (email->attachCount < AEM_MAXNUM_ATTACHMENTS) {
-				size_t lenAtt = AEM_MSG_HDR_SZ + 3 + lenFn + lenNew;
+				const size_t lenAtt = AEM_MSG_HDR_SZ + 3 + lenFn + lenNew;
 				if (lenAtt <= AEM_MSG_W_MAXSIZE) {
 					email->attachment[email->attachCount] = malloc(lenAtt);
 					if (email->attachment[email->attachCount] != NULL) {
