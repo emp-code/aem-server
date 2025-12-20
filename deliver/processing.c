@@ -485,6 +485,7 @@ static unsigned char *decodeMp(const unsigned char * const src, size_t *lenOut, 
 				if (lenAtt <= AEM_MSG_W_MAXSIZE) {
 					email->attachment[email->attachCount] = malloc(lenAtt);
 					if (email->attachment[email->attachCount] != NULL) {
+						aem_msg_init(email->attachment[email->attachCount], AEM_MSG_TYPE_UPL, email->binTs);
 						email->attachment[email->attachCount][AEM_MSG_HDR_SZ] = 128 | (lenFn - 1);
 						// 2 bytes reserved for ParentID
 						memcpy(email->attachment[email->attachCount] + AEM_MSG_HDR_SZ + 3, fn, lenFn);
