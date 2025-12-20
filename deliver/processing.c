@@ -1,5 +1,4 @@
 #include <ctype.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
@@ -13,6 +12,7 @@
 #include "../Common/Trim.h"
 #include "../Common/ValidUtf8.h"
 #include "../Common/base64.h"
+#include "../Common/div_round.h"
 #include "../Common/memeq.h"
 
 #include "date.h"
@@ -532,7 +532,7 @@ void processEmail(unsigned char * const src, size_t * const lenSrc, struct email
 
 	if (hdrBinTs > 0) {
 		// Store the difference between received and header timestamps (-18h .. +736s)
-		const long long timeDiff = llrint((double)(email->binTs - hdrBinTs) / 1000) + 736; // 736 = 2^16 % 3600
+		const long long timeDiff = div_near(email->binTs - hdrBinTs, 1000) + 736; // 736 = 2^16 % 3600
 		email->hdrTs = (timeDiff > UINT16_MAX) ? UINT16_MAX : ((timeDiff < 0) ? 0 : timeDiff);
 	}
 

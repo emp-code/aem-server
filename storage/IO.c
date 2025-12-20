@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <fcntl.h>
-#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +15,7 @@
 #include "../Common/Envelope.h"
 #include "../Common/Message.h"
 #include "../Common/Signature.h"
+#include "../Common/div_round.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 
@@ -180,7 +180,7 @@ int32_t acc_storage_amount(unsigned char ** const res) {
 
 	for (int i = 0; i < AEM_USERCOUNT; i++) {
 		const ssize_t bytes = getUserStorageAmount(i);
-		const uint32_t blocks = (bytes >= 0) ? MAX(1, lrint((double)bytes / AEM_EVP_BLOCKSIZE)) : 0;
+		const uint32_t blocks = (bytes >= 0) ? MAX(1, div_near(bytes, AEM_EVP_BLOCKSIZE)) : 0;
 		memcpy(*res + i * sizeof(uint32_t), (const unsigned char * const)&blocks, sizeof(uint32_t));
 	}
 
@@ -464,10 +464,6 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	// Not found
 	close(fdMsg);
 	return AEM_INTCOM_RESPONSE_NOTEXIST;
-}
-
-static long long div_floor(const long long a, const long long b) {
-	return (a - (a % b)) / b;
 }
 
 __attribute__((nonnull, warn_unused_result))

@@ -1,6 +1,5 @@
 #include <ctype.h>
 #include <errno.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +14,7 @@
 #include <wolfssl/wolfcrypt/ed25519.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 
+#include "../Common/div_round.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
 
@@ -412,7 +412,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 				errno = 0;
 				tsSig = strtoll(tmp, NULL, 10);
 				if (errno == 0) {
-					const long long tsDiff = tsSig - llrint((double)(email->binTs + AEM_BINTS_BEGIN) / 1000);
+					const long long tsDiff = tsSig - div_near(email->binTs + AEM_BINTS_BEGIN, 1000);
 					if (tsDiff != 0) {
 						email->dkim[email->dkimCount].ts_sig = MIN(AEM_DKIM_SIGTS_MAX, llabs(tsDiff));
 					}
@@ -468,7 +468,7 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 	if (delSig || offset < 10 || offset > 2047 || sigPos == 0 || sigLen == 0) return offset;
 
 	if (tsExp != 0) {
-		const long long expDiff = tsExp - ((tsSig > 0) ? tsSig : llrint((double)(email->binTs + AEM_BINTS_BEGIN) / 1000));
+		const long long expDiff = tsExp - ((tsSig > 0) ? tsSig : div_near(email->binTs + AEM_BINTS_BEGIN, 1000));
 		if (expDiff > 0) email->dkim[email->dkimCount].ts_exp = MIN(AEM_DKIM_EXPTS_MAX, expDiff);
 	}
 
