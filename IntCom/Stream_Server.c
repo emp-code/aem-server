@@ -11,6 +11,7 @@
 
 #include "../Global.h"
 #include "../Common/Email.h"
+#include "../Common/memeq.h"
 #include "../deliver/deliver.h"
 
 #include "peerok.h"
@@ -48,11 +49,11 @@ void intcom_serve_stream(void) {
 	if (sodium_is_zero(intcom_key, crypto_secretstream_xchacha20poly1305_KEYBYTES)) return;
 
 	if (socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0) != AEM_FD_SOCK_MAIN) {syslog(LOG_ERR, "Failed creating socket: %m"); return;}
-	if (bindSocket(AEM_FD_SOCK_MAIN) != 0) {syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
-	listen(AEM_FD_SOCK_MAIN, 50);
+	if (bindSocket(AEM_FD_SOCK_MAIN) != 0) {close(AEM_FD_SOCK_MAIN); syslog(LOG_ERR, "Failed bindSocket(): %m"); return;}
+	if (listen(AEM_FD_SOCK_MAIN, 50) != 0) {close(AEM_FD_SOCK_MAIN); syslog(LOG_ERR, "Failed listen(): %m"); return;}
 
 	struct dlvEmail *dlv = malloc(sizeof(struct dlvEmail));
-	if (dlv == NULL) {syslog(LOG_ERR, "Failed allocation"); return;}
+	if (dlv == NULL) {syslog(LOG_ERR, "Failed allocation"); close(AEM_FD_SOCK_MAIN); return;}
 
 	while (terminate == 0) {
 		if (accept4(AEM_FD_SOCK_MAIN, NULL, NULL, SOCK_CLOEXEC) != AEM_FD_SOCK_CLIENT) continue;
@@ -101,6 +102,7 @@ void intcom_serve_stream(void) {
 			}
 
 			if (lenEnc == SIZE_MAX) break; // Finished
+
 			if (lenEnc <= crypto_secretstream_xchacha20poly1305_ABYTES || lenEnc > AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES) {
 				syslog(LOG_WARNING, "IntCom[SS] Invalid message length");
 				break;
@@ -125,7 +127,6 @@ void intcom_serve_stream(void) {
 		}
 
 		crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
-
 		if (dlv->lenSrc > 1) {
 			const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
 			if (send(AEM_FD_SOCK_CLIENT, &ret, sizeof(int32_t), 0) != sizeof(int32_t)) {
@@ -138,4 +139,5 @@ void intcom_serve_stream(void) {
 	}
 
 	free(dlv);
+	close(AEM_FD_SOCK_MAIN);
 }
