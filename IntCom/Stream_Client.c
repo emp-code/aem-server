@@ -91,7 +91,9 @@ int intcom_stream_send(const unsigned char * const src, const size_t lenSrc) {
 		return -1;
 	}
 
-	return 0;
+	unsigned char r;
+	if (recv(ss_sock, &r, 1, 0) != 1) return -1;
+	return r;
 }
 
 int32_t intcom_stream_end(void) {

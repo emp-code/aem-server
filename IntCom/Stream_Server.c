@@ -80,11 +80,13 @@ void intcom_serve_stream(void) {
 		|| recv(AEM_FD_SOCK_CLIENT, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->meta, NULL, &ss_tag, enc, sizeof(struct emailMeta) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
+		|| send(AEM_FD_SOCK_CLIENT, (unsigned char[]){0}, 1, 0) != 1
 		|| recv(AEM_FD_SOCK_CLIENT, &lenEnc, sizeof(size_t), MSG_WAITALL) != sizeof(size_t)
 		|| lenEnc != sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES
 		|| recv(AEM_FD_SOCK_CLIENT, enc, lenEnc, MSG_WAITALL) != (ssize_t)lenEnc
 		|| crypto_secretstream_xchacha20poly1305_pull(&ss_state, (unsigned char*)&dlv->info, NULL, &ss_tag, enc, sizeof(struct emailInfo) + crypto_secretstream_xchacha20poly1305_ABYTES, NULL, 0) != 0
 		|| ss_tag != 0
+		|| send(AEM_FD_SOCK_CLIENT, (unsigned char[]){0}, 1, 0) != 1
 		) {
 			close(AEM_FD_SOCK_CLIENT);
 			syslog(LOG_WARNING, "IntCom[SS] Failed receiving/decrypting metadata");
@@ -94,14 +96,12 @@ void intcom_serve_stream(void) {
 		dlv->src[0] = '\n';
 		dlv->lenSrc = 1;
 
-		while(1) {
+		for(;;) {
 			// Receive size
 			if (recv(AEM_FD_SOCK_CLIENT, &lenEnc, sizeof(size_t), 0) != sizeof(size_t)) {
 				syslog(LOG_WARNING, "IntCom[SS] Failed receiving message length");
 				break;
 			}
-
-			if (lenEnc == SIZE_MAX) break; // Finished
 
 			if (lenEnc <= crypto_secretstream_xchacha20poly1305_ABYTES || lenEnc > AEM_SMTP_CHUNKSIZE + crypto_secretstream_xchacha20poly1305_ABYTES) {
 				syslog(LOG_WARNING, "IntCom[SS] Invalid message length");
@@ -124,9 +124,18 @@ void intcom_serve_stream(void) {
 			}
 
 			dlv->lenSrc += lenEnc - crypto_secretstream_xchacha20poly1305_ABYTES;
+
+			if (dlv->lenSrc > 5 && memeq(dlv->src + dlv->lenSrc - 5, "\r\n.\r\n", 5)) {
+				dlv->lenSrc -= 5;
+				send(AEM_FD_SOCK_CLIENT, (unsigned char[]){1}, 1, 0);
+				break;
+			} else {
+				send(AEM_FD_SOCK_CLIENT, (unsigned char[]){0}, 1, 0);
+			}
 		}
 
 		crypto_secretstream_xchacha20poly1305_rekey(&ss_state);
+
 		if (dlv->lenSrc > 1) {
 			const int32_t ret = deliverEmail(&dlv->meta, &dlv->info, dlv->src, dlv->lenSrc);
 			if (send(AEM_FD_SOCK_CLIENT, &ret, sizeof(int32_t), 0) != sizeof(int32_t)) {

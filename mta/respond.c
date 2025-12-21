@@ -373,37 +373,30 @@ void respondClient(int sock, const struct sockaddr_in * const clientAddr) {
 			|| intcom_stream_send((unsigned char*)&email, sizeof(struct emailInfo)) != 0
 			) {
 				intcom_stream_end();
+				sodium_memzero(&meta, sizeof(struct emailMeta));
+				sodium_memzero(&email, sizeof(struct emailInfo));
 				if (!send_aem(sock, tls, "451 4.3.0 Internal server error\r\n", 33)) {smtp_fail(107); break;}
 				break;
 			}
 
-			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); intcom_stream_end(); break;}
-
-			// Receive the email
-			unsigned char body[AEM_SMTP_CHUNKSIZE];
-			size_t lenBody = 0;
-
-			while (lenBody < AEM_SMTP_MAX_SIZE_BODY) {
-				bytes = recv_aem(sock, tls, body, AEM_SMTP_CHUNKSIZE);
-				if (bytes < 1) break;
-				if (lenBody + bytes > AEM_SMTP_MAX_SIZE_BODY) bytes = AEM_SMTP_MAX_SIZE_BODY - lenBody;
-
-				const unsigned char * const end = (bytes < 5) ? NULL : memmem(body, bytes, "\r\n.\r\n", 5);
-				if (end != NULL) {
-					bytes = end - body;
-					if (bytes == 0) break;
-
-					lenBody = AEM_SMTP_MAX_SIZE_BODY; // Don't loop any more
-				} else lenBody += bytes;
-
-				intcom_stream_send(body, bytes);// TODO check if fail
-			}
-
-			sodium_memzero(body, AEM_SMTP_CHUNKSIZE);
 			sodium_memzero(&meta, sizeof(struct emailMeta));
 			sodium_memzero(&email, sizeof(struct emailInfo));
 			email.ip = clientAddr->sin_addr.s_addr;
-			deliveryOk = true;
+
+			if (!send_aem(sock, tls, "354 Ok\r\n", 8)) {smtp_fail(107); intcom_stream_end(); break;}
+
+			// Receive the email
+			for (;;) {
+				unsigned char chunk[AEM_SMTP_CHUNKSIZE];
+				bytes = recv_aem(sock, tls, chunk, AEM_SMTP_CHUNKSIZE);
+				const int r = (bytes > 0) ? intcom_stream_send(chunk, bytes) : intcom_stream_send((unsigned char[]){'\r','\n','.','\r','\n'}, 5);
+				sodium_memzero(chunk, AEM_SMTP_CHUNKSIZE);
+
+				if (r == 0) continue;
+
+				if (r == 1) deliveryOk = true;
+				break;
+			}
 
 			bool retOk;
 			switch (intcom_stream_end()) {
