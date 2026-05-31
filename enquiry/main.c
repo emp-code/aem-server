@@ -5,16 +5,16 @@
 
 #define AEM_LOGNAME "AEM-Enq"
 
+#define AEM_PIPE_NOLARGE
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
-static int readKeys(void) {
+static int pipeLoad(void) {
 	struct intcom_keyBundle bundle;
 
-	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) {
-		close(AEM_FD_PIPE_RD);
-		syslog(LOG_ERR, "Terminating: Failed reading pipe");
-		return -1;
-	}
+	if (
+	   pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
 	close(AEM_FD_PIPE_RD);
 
 	intcom_setKeys_server(bundle.server);
@@ -26,7 +26,7 @@ static int readKeys(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (readKeys() != 0) return EXIT_FAILURE;
+	if (pipeLoad() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
 	intcom_serve();

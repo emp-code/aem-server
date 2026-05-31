@@ -15,9 +15,10 @@
 #define AEM_LOGNAME "AEM-Acc"
 
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
 __attribute__((warn_unused_result))
-static int setupIo(void) {
+static int pipeLoad(void) {
 	pid_t storagePid;
 	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;
@@ -28,18 +29,12 @@ static int setupIo(void) {
 	unsigned char rsaUsers[4096];
 
 	if (
-	   read(AEM_FD_PIPE_RD, &storagePid, sizeof(pid_t)) != sizeof(pid_t)
-	|| read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_SUB_KEYLEN) != AEM_KDF_SUB_KEYLEN
-	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
-	|| read(AEM_FD_PIPE_RD, &lenRsaAdmin, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, rsaAdmin, lenRsaAdmin) != (ssize_t)lenRsaAdmin
-	|| read(AEM_FD_PIPE_RD, &lenRsaUsers, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, rsaUsers, lenRsaUsers) != (ssize_t)lenRsaUsers
-	) {
-		close(AEM_FD_PIPE_RD);
-		syslog(LOG_ERR, "Terminating: Failed reading pipe");
-		return -1;
-	}
+	   pipeReadSmall(&storagePid, sizeof(pid_t)) != 0
+	|| pipeReadSmall(baseKey, AEM_KDF_SUB_KEYLEN) != 0
+	|| pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	|| pipeReadLarge(rsaAdmin, &lenRsaAdmin) != 0
+	|| pipeReadLarge(rsaUsers, &lenRsaUsers) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
 	close(AEM_FD_PIPE_RD);
 
 	setStoragePid(storagePid);
@@ -57,7 +52,7 @@ int main(void) {
 #include "../Common/Main_Setup.c"
 
 	sleep(1);
-	if (setupIo() != 0) return EXIT_FAILURE;
+	if (pipeLoad() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
 	intcom_serve();

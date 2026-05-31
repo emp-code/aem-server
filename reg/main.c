@@ -9,21 +9,19 @@
 
 #include "respond.h"
 
+#define AEM_PIPE_NOLARGE
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
 __attribute__((warn_unused_result))
-static int pipeRead(void) {
+static int pipeLoad(void) {
 	pid_t accPid;
 	struct intcom_keyBundle bundle;
 
 	if (
-	   read(AEM_FD_PIPE_RD, &accPid, sizeof(pid_t)) != sizeof(pid_t)
-	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
-	) {
-		syslog(LOG_ERR, "Failed reading pipe: %m");
-		close(AEM_FD_PIPE_RD);
-		return -1;
-	}
+	   pipeReadSmall(&accPid, sizeof(pid_t)) != 0
+	|| pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
 	close(AEM_FD_PIPE_RD);
 
 	setAccountPid(accPid);
@@ -37,7 +35,7 @@ static int pipeRead(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeRead() < 0) {syslog(LOG_ERR, "Terminating: Failed pipeRead"); return EXIT_FAILURE;}
+	if (pipeLoad() < 0) return EXIT_FAILURE;
 	acceptClients();
 
 	syslog(LOG_INFO, "Terminating");

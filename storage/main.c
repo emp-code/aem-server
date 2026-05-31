@@ -9,21 +9,19 @@
 
 #define AEM_LOGNAME "AEM-Sto"
 
+#define AEM_PIPE_NOLARGE
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
 __attribute__((warn_unused_result))
-static int setupIo(void) {
+static int pipeLoad(void) {
 	unsigned char baseKey[AEM_KDF_SUB_KEYLEN];
 	struct intcom_keyBundle bundle;
 
 	if (
-	   read(AEM_FD_PIPE_RD, baseKey, AEM_KDF_SUB_KEYLEN) != AEM_KDF_SUB_KEYLEN
-	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
-	) {
-		close(AEM_FD_PIPE_RD);
-		syslog(LOG_ERR, "Terminating: Failed reading pipe: %m");
-		return -1;
-	}
+	   pipeReadSmall(baseKey, AEM_KDF_SUB_KEYLEN) != 0
+	|| pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
 	close(AEM_FD_PIPE_RD);
 
 	if (ioSetup(baseKey) != 0) {
@@ -43,7 +41,7 @@ static int setupIo(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (setupIo() != 0) return EXIT_FAILURE;
+	if (pipeLoad() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
 	intcom_serve();

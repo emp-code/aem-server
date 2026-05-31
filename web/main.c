@@ -43,7 +43,7 @@ static void acceptClients(void) {
 	close(AEM_FD_SOCK_MAIN);
 }
 
-static int pipeRead(void) {
+static int pipeLoad(void) {
 	if (read(AEM_FD_PIPE_RD, (unsigned char*)&lenResp, sizeof(size_t)) != sizeof(size_t)) {syslog(LOG_ERR, "Failed reading from pipe: %m"); return 1;}
 	if (lenResp < 1 || lenResp > 99999) return 2;
 
@@ -85,10 +85,10 @@ static int pipeRead(void) {
 
 int main(void) {
 #include "../Common/Main_Setup.c"
-	const int pr = pipeRead();
-	if (pr != 0) {
+	const int r = pipeLoad();
+	if (r != 0) {
 		close(AEM_FD_PIPE_RD);
-		syslog(LOG_INFO, "pipeRead failed: %d", pr);
+		syslog(LOG_INFO, "pipeLoad failed: %d", r);
 		return 1;
 	}
 

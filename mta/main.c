@@ -13,29 +13,24 @@
 #define AEM_LOGNAME "AEM-MTA"
 
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
 __attribute__((warn_unused_result))
-static int pipeRead(void) {
+static int pipeLoad(void) {
 	pid_t pids[2];
 	struct intcom_keyBundle bundle;
 
 	size_t lenTlsCrt;
 	size_t lenTlsKey;
-	unsigned char tlsCrt[PIPE_BUF];
+	unsigned char tlsCrt[8192];
 	unsigned char tlsKey[PIPE_BUF];
 
 	if (
-	   read(AEM_FD_PIPE_RD, &pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2
-	|| read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)
-	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsCrt, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsCrt, lenTlsCrt) != (ssize_t)lenTlsCrt
-	|| read(AEM_FD_PIPE_RD, (unsigned char*)&lenTlsKey, sizeof(size_t)) != sizeof(size_t)
-	|| read(AEM_FD_PIPE_RD, tlsKey, lenTlsKey) != (ssize_t)lenTlsKey
-	) {
-		syslog(LOG_ERR, "Failed reading pipe: %m");
-		close(AEM_FD_PIPE_RD);
-		return -1;
-	}
+	   pipeReadSmall(pids, sizeof(pid_t) * 2) != 0
+	|| pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	|| pipeReadLarge(tlsCrt, &lenTlsCrt) != 0
+	|| pipeReadLarge(tlsKey, &lenTlsKey) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
 	close(AEM_FD_PIPE_RD);
 
 	setAccountPid(pids[0]);
@@ -60,7 +55,7 @@ static int pipeRead(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeRead() != 0) {syslog(LOG_ERR, "Terminating: failed pipeRead"); return EXIT_FAILURE;}
+	if (pipeLoad() != 0) return EXIT_FAILURE;
 
 	acceptClients();
 

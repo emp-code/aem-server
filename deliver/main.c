@@ -9,23 +9,23 @@
 
 #define AEM_LOGNAME "AEM-DLV"
 
+#define AEM_PIPE_NOLARGE
 #include "../Common/Main_Include.c"
+#include "../Common/PipeRead.c"
 
 __attribute__((warn_unused_result))
-static int pipeLoadPids(void) {
+static int pipeLoad(void) {
 	pid_t pids[2];
-	if (read(AEM_FD_PIPE_RD, pids, sizeof(pid_t) * 2) != sizeof(pid_t) * 2) return -1;
+	struct intcom_keyBundle bundle;
+
+	if (
+	   pipeReadSmall(pids, sizeof(pid_t) * 2) != 0
+	|| pipeReadSmall(&bundle, sizeof(bundle)) != 0
+	) {close(AEM_FD_PIPE_RD); return -1;}
+	close(AEM_FD_PIPE_RD);
 
 	setEnquiryPid(pids[0]);
 	setStoragePid(pids[1]);
-
-	return 0;
-}
-
-__attribute__((warn_unused_result))
-static int pipeLoadKeys(void) {
-	struct intcom_keyBundle bundle;
-	if (read(AEM_FD_PIPE_RD, &bundle, sizeof(bundle)) != sizeof(bundle)) return -1;
 
 	intcom_setKeys_client(bundle.client);
 	intcom_setKey_stream(bundle.stream);
@@ -37,9 +37,7 @@ static int pipeLoadKeys(void) {
 int main(void) {
 #include "../Common/Main_Setup.c"
 
-	if (pipeLoadPids() != 0) {syslog(LOG_ERR, "Terminating: Failed loading pids: %m"); close(AEM_FD_PIPE_RD); return EXIT_FAILURE;}
-	if (pipeLoadKeys() != 0) {syslog(LOG_ERR, "Terminating: Failed loading keys: %m"); close(AEM_FD_PIPE_RD); return EXIT_FAILURE;}
-	close(AEM_FD_PIPE_RD);
+	if (pipeLoad() != 0) return EXIT_FAILURE;
 
 	syslog(LOG_INFO, "Ready");
 	intcom_serve_stream();
