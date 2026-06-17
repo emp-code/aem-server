@@ -414,13 +414,13 @@ int32_t api_setting_limits(unsigned char * const res, const unsigned char reqDat
 // API: POST (Continue)
 __attribute__((nonnull, warn_unused_result))
 int32_t api_account_keyset(unsigned char * const res, const unsigned char * const data, const size_t lenData) {
-	if (lenData != AEM_USK_KEYLEN + AEM_PWK_KEYLEN) return api_response_status(res, AEM_API_ERR_PARAM);
-	memcpy(user[api_uid]->usk, data, AEM_USK_KEYLEN);
-	memcpy(user[api_uid]->pwk, data + AEM_USK_KEYLEN, AEM_PWK_KEYLEN);
+	if (lenData != AEM_USK_KEYLEN + AEM_EPK_KEYLEN) return api_response_status(res, AEM_API_ERR_PARAM);
+	memcpy(user[api_uid]->epk, data, AEM_EPK_KEYLEN);
+	memcpy(user[api_uid]->usk, data + AEM_EPK_KEYLEN, AEM_USK_KEYLEN);
 
 	struct evpKeys ek;
-	bzero(&ek, sizeof(struct evpKeys));
-	memcpy(ek.pwk, user[api_uid]->pwk, AEM_PWK_KEYLEN);
+	memcpy(ek.epk, user[api_uid]->epk, AEM_EPK_KEYLEN);
+	memcpy(ek.usk, user[api_uid]->usk, AEM_USK_KEYLEN);
 
 	unsigned char icMsg[sizeof(uint16_t) + sizeof(struct evpKeys)];
 	memcpy(icMsg, (const unsigned char * const)&api_uid, sizeof(uint16_t));
@@ -535,7 +535,7 @@ int32_t api_auth(unsigned char * const res, union aem_req * const req, const boo
 	aem_kdf_uak(req_key_data, 1 + AEM_API_REQ_DATA_LEN, req->n.binTs, post, AEM_UAK_TYPE_URL_DATA, user[api_uid]->uak);
 
 	req->n.cmd ^= (req_key_data[0] & 60) >> 2;
-	if (sodium_is_zero(user[api_uid]->pwk, AEM_PWK_KEYLEN) && req->n.cmd != AEM_API_ACCOUNT_KEYSET) return AEM_INTCOM_RESPONSE_AUTH_KEYSET;
+	if (sodium_is_zero(user[api_uid]->epk, AEM_EPK_KEYLEN) && req->n.cmd != AEM_API_ACCOUNT_KEYSET) return AEM_INTCOM_RESPONSE_AUTH_KEYSET;
 
 	if ( // Admin-only APIs
 	(  (!post && req->n.cmd == AEM_API_ACCOUNT_BROWSE)
@@ -642,10 +642,7 @@ int32_t sto_uid2keys(const uint16_t uid, const uint8_t sto, unsigned char **res)
 	*res = malloc(sizeof(struct evpKeys));
 	if (*res == NULL) {syslog(LOG_ERR, "Failed malloc"); return AEM_INTCOM_RESPONSE_ERR;}
 
-	((struct evpKeys*)*res)->security = false;
-	memcpy(((struct evpKeys*)*res)->pwk, user[uid]->pwk, AEM_PWK_KEYLEN);
-	memcpy(((struct evpKeys*)*res)->psk, user[uid]->psk, AEM_PSK_KEYLEN);
-	memcpy(((struct evpKeys*)*res)->pqk, user[uid]->pqk, AEM_PQK_KEYLEN);
+	memcpy(((struct evpKeys*)*res)->epk, user[uid]->epk, AEM_EPK_KEYLEN);
 	memcpy(((struct evpKeys*)*res)->usk, user[uid]->usk, AEM_USK_KEYLEN);
 
 	return sizeof(struct evpKeys);

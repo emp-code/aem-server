@@ -39,7 +39,7 @@
 // User - User Master Key
 	#define AEM_KDF_KEYID_UMK_UAK  1 // User API Key
 	#define AEM_KDF_KEYID_UMK_USK  4 // User Signature Key
-	#define AEM_KDF_KEYID_UMK_EWS 12 // Envelope Weak Secret
+	#define AEM_KDF_KEYID_UMK_ESS 10 // Envelope Secret Seed
 
 void aem_kdf_smk(unsigned char * const out, const size_t lenOut, const uint8_t n, const unsigned char smk[AEM_KDF_SMK_KEYLEN]);
 void aem_kdf_uak(unsigned char * const out, const size_t lenOut, const uint64_t binTs, const bool post, const uint8_t type, const unsigned char key[AEM_KDF_UAK_KEYLEN]);

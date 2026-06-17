@@ -132,7 +132,7 @@ unsigned char *makeExtMsg(struct emailInfo * const email, size_t * const lenOut,
 	free(uncomp);
 
 	const size_t lenMsg = lenHead + lenBody;
-	if (lenMsg > AEM_MSG_W_MAXSIZE) {
+	if (lenMsg > AEM_MSG_MAXSIZE) {
 		free(msg);
 		return NULL;
 	}

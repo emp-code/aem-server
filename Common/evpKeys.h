@@ -4,11 +4,8 @@
 #include "../Global.h"
 
 struct evpKeys {
-	bool security;
-	unsigned char pwk[AEM_PWK_KEYLEN];
-	unsigned char psk[AEM_PSK_KEYLEN];
-	unsigned char pqk[AEM_PQK_KEYLEN];
-	unsigned char usk[AEM_USK_KEYLEN];
+	unsigned char epk[AEM_EPK_KEYLEN]; // Encryption
+	unsigned char usk[AEM_USK_KEYLEN]; // Signature
 };
 
 #endif

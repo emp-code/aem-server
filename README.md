@@ -147,24 +147,16 @@ Messages originate from either [AEM-MTA](#mta) (incoming email) or [AEM-API](#ap
 
 In All-Ears Mail, an _Envelope_ is an encrypted container for a Message.
 
-An Envelope can only be opened by the recipient. To accomplish this, AEM-Storage:
-1. Generates a temporary X25519 keypair.
-2. Adds the public key from Step 1 to the Message.
-3. Uses the user's Envelope Public Key (EPK) and its own secret key from Step 1 to generate the X25519 shared secret.
-4. Generates a BLAKE2b hash based on the shared secret, the user's EPK, and the size of the message.
-5. Uses the hash as the key to encrypt the Message with ChaCha20.
-6. Erases its keypair.
+The beginning of an Envelope contains an encrypted key created using the user's Envelope Public Key (EPK). The user decrypts the key using their Envelope Secret Key (ESK), and then uses it to decrypt the rest of the Envelope to obtain the Message.
 
-Because the server doesn't have either of the secret keys, it cannot generate the shared secret and therefore cannot open the Envelope.
+Since opening the Envelope requires the recipient user's ESK, known only by the user and never shared, only the user can gain any information from an Envelope.
 
 Additional factors of protection:
-* The user's EPK is never shared or used for any purpose other than creating the Envelopes
-* The size of each Envelope is stored in the Stindex, only known by AEM-Storage and encrypted on disk
-* A user's Envelopes are all stored in one file; the filename is the UserID encoded with a secret Base64-like encoding known only by AEM-Storage, derivable only by knowing the Server Master Key
+* AEM-Account stores users' EPKs securely and only shares them with AEM-Storage for the purpose of creating Envelopes; a user's EPK is never otherwise shared
+* A user's Envelopes are all stored in one file; the filename is the UserID encoded with a secret Base64-like encoding known only by AEM-Storage, derivable only by knowing the Server Master Key (SMK)
+* The size of each Envelope is stored in the Stindex, only known by AEM-Storage and encrypted on disk; without the Stindex, it is impossbile to tell where any Envelope begins or ends in a file
 
-Envelopes are fully encrypted. They provide no information without knowing the key.
-
-In short, the server knows only the number of Envelopes a user has, and their size. Additionally, filesystem data can be used to determine when a user's file was last updated.
+In short, the server knows only the number of Envelopes a user has and their sizes. Additionally, filesystem data can be used to determine when a user's file was last updated.
 
 ## Users ##
 

@@ -470,7 +470,7 @@ void aem_api_process(const unsigned char * const req, const bool isPost) {
 
 	// The request is authentic
 	const long lenBody = isPost? readHeaders() : 0;
-	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_W_MAXSIZE)) {
+	if (isPost && (lenBody < 1 || lenBody > AEM_MSG_MAXSIZE)) {
 		if (icRet == AEM_INTCOM_RESPONSE_CONTINUE) {
 			unauthResponse(AEM_API_UNAUTH_ERR_INTERNAL_CONTINUE_INVALID);
 			return;

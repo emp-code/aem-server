@@ -9,9 +9,7 @@
 struct aem_user {
 	unsigned char uak[AEM_KDF_UAK_KEYLEN]; // User API Key
 	unsigned char usk[AEM_USK_KEYLEN]; // User Signature Key
-	unsigned char pwk[AEM_PWK_KEYLEN];
-	unsigned char psk[AEM_PSK_KEYLEN];
-	unsigned char pqk[AEM_PQK_KEYLEN];
+	unsigned char epk[AEM_EPK_KEYLEN]; // Envelope Public Key
 	unsigned char private[AEM_LEN_PRIVATE];
 
 	unsigned char addrFlag[AEM_ADDRESSES_PER_USER];

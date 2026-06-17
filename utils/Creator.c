@@ -53,13 +53,16 @@ static unsigned char *welcomeEnvelope(const struct evpKeys * const ek, size_t * 
 	memcpy(msg + AEM_MSG_HDR_SZ + 1, AEM_WELCOME_MA, AEM_WELCOME_MA_LEN);
 
 	aem_sign_message(msg, lenMsg, ek->usk);
-	return msg2evp(msg, lenMsg, ek->pwk, NULL, 0, lenEvp);
+	return msg2evp(msg, lenMsg, ek->epk, NULL, 0, lenEvp);
 }
 
 static int createWelcome(const struct evpKeys * const ek, const unsigned char * const sbk) {
 	// Create the MA's welcome Envelope
+	puts("Creating the welcome envelope - may take a while");
 	size_t lenWm = 0;
 	unsigned char * const wm = welcomeEnvelope(ek, &lenWm);
+	puts("Creating the welcome envelope: done");
+
 	if (wm == NULL) return -1;
 	const uint16_t wmBc = (lenWm / AEM_EVP_BLOCKSIZE) - AEM_EVP_MINBLOCKS;
 
@@ -92,16 +95,19 @@ static int createSettings(const unsigned char accKey[crypto_aead_aegis256_KEYBYT
 	// Create settings data
 	const size_t lenDec = 12 + AEM_WELCOME_MAXLEN + (AEM_ADMIN_ADDR_MAX * sizeof(uint64_t));
 	unsigned char dec[lenDec];
-	unsigned char limits[4][3] = {AEM_LIMITS_DEFAULT};
+	bzero(dec, lenDec);
 
+	unsigned char limits[4][3] = {AEM_LIMITS_DEFAULT};
 	memcpy(dec, limits, 12);
 	strcpy((char*)dec + 12, AEM_WELCOME_DEFAULT);
 
-	uint64_t addrHash_admin[AEM_ADMIN_ADDR_MAX];
+	puts("Calculating address hashes - may take a while");
+	uint64_t addrHash_admin[AEM_ADMIN_ADDR_DEFAULT_COUNT];
 	for (int i = 0; i < AEM_ADMIN_ADDR_DEFAULT_COUNT; i++) {
 		addrHash_admin[i] = addressToHash(AEM_ADMIN_ADDR_DEFAULT + (10 * i));
 	}
-	memcpy(dec + 12 + AEM_WELCOME_MAXLEN, addrHash_admin, AEM_ADMIN_ADDR_MAX);
+	memcpy(dec + 12 + AEM_WELCOME_MAXLEN, addrHash_admin, AEM_ADMIN_ADDR_DEFAULT_COUNT * sizeof(uint64_t));
+	puts("Calculating address hashes: done");
 
 	// Encrypt and write
 	const size_t lenEnc = lenDec + crypto_aead_aegis256_NPUBBYTES + crypto_aead_aegis256_ABYTES;
@@ -137,13 +143,13 @@ static void printKeys(const unsigned char smk[AEM_KDF_SMK_KEYLEN], const unsigne
 	sodium_bin2hex(txt, lenTxt, smk, AEM_KDF_SMK_KEYLEN);
 	printf("Server Master Key: %s\n", txt);
 
-	sodium_bin2base64(txt, lenTxt, ma_umk, AEM_KDF_UMK_KEYLEN, sodium_base64_VARIANT_ORIGINAL);
-	printf("Master Admin UMK: %s\n", txt);
-
 	unsigned char mpk[AEM_KDF_MPK_KEYLEN];
 	aem_kdf_smk(mpk, AEM_KDF_MPK_KEYLEN, AEM_KDF_KEYID_SMK_MPK, smk);
 	sodium_bin2hex(txt, lenTxt, mpk, AEM_KDF_MPK_KEYLEN);
 	printf("Manager Protocol Key: %s\n", txt);
+
+	sodium_bin2base64(txt, lenTxt, ma_umk, AEM_KDF_UMK_KEYLEN, sodium_base64_VARIANT_ORIGINAL);
+	printf("Master Admin UMK: %s\n", txt);
 
 	sodium_memzero(txt, lenTxt);
 	sodium_memzero(mpk, AEM_KDF_MPK_KEYLEN);
@@ -174,11 +180,14 @@ static void genSmk(unsigned char * const smk, unsigned char * const ma_umk, stru
 			user->level = AEM_USERLEVEL_MAX;
 			aem_kdf_umk(user->usk, AEM_USK_KEYLEN, AEM_KDF_KEYID_UMK_USK, ma_umk);
 
-			// Set the public keys
-			unsigned char secret[X25519_SKBYTES];
-			aem_kdf_umk(secret, X25519_SKBYTES, AEM_KDF_KEYID_UMK_EWS, ma_umk);
-			crypto_scalarmult_base(user->pwk, secret);
-			sodium_memzero(secret, X25519_SKBYTES);
+			// Set the Envelope Public Key
+			unsigned char ess[crypto_kem_SEEDBYTES]; // Envelope Secret Seed
+			unsigned char sk[crypto_kem_SECRETKEYBYTES];
+			aem_kdf_umk(ess, crypto_kem_SEEDBYTES, AEM_KDF_KEYID_UMK_ESS, ma_umk);
+			crypto_kem_seed_keypair(user->epk, sk, ess);
+
+			sodium_memzero(sk, crypto_kem_SECRETKEYBYTES);
+			sodium_memzero(ess, crypto_kem_SEEDBYTES);
 			break;
 		}
 	}
@@ -191,12 +200,12 @@ static int makeStorage(unsigned char * const smk, const struct aem_user * const 
 	setSigKey(sbk);
 
 	struct evpKeys ek;
-	memcpy(ek.pwk, user->pwk, AEM_PWK_KEYLEN);
+	memcpy(ek.epk, user->epk, AEM_EPK_KEYLEN);
 	memcpy(ek.usk, user->usk, AEM_USK_KEYLEN);
 
 	const int ret = createWelcome(&ek, sbk);
 	sodium_memzero(sbk, AEM_KDF_SUB_KEYLEN);
-	sodium_memzero(ek.pwk, AEM_PWK_KEYLEN);
+	sodium_memzero(ek.epk, AEM_EPK_KEYLEN);
 	sodium_memzero(ek.usk, AEM_USK_KEYLEN);
 
 	delSigKey();

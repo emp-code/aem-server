@@ -197,7 +197,7 @@ static unsigned char *sysMsg(const unsigned char * const content, const size_t l
 	memcpy(msg + AEM_MSG_HDR_SZ + 1, content, lenContent);
 
 	aem_sign_message(msg, lenMsg, ek->usk);
-	return msg2evp(msg, lenMsg, ek->pwk, NULL, 0, lenResult);
+	return msg2evp(msg, lenMsg, ek->epk, NULL, 0, lenResult);
 }
 
 __attribute__((nonnull, warn_unused_result))
@@ -468,7 +468,7 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 
 __attribute__((nonnull, warn_unused_result))
 int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
-	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_W_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
+	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Get the user's Envelope Keys from AEM-Account. sign the Message and turn it into an Envelope
@@ -486,7 +486,7 @@ int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint
 	const struct evpKeys * const ek = (const struct evpKeys * const)ek_raw;
 	aem_sign_message(msg, lenMsg, ek->usk);
 	size_t lenEvp;
-	unsigned char * const evp = msg2evp(msg, lenMsg, ek->pwk, stindex[uid].id, stindex_count[uid], &lenEvp);
+	unsigned char * const evp = msg2evp(msg, lenMsg, ek->epk, stindex[uid].id, stindex_count[uid], &lenEvp);
 
 	sodium_memzero(ek_raw, sizeof(struct evpKeys));
 	free(ek_raw);
