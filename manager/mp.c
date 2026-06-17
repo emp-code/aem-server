@@ -67,7 +67,6 @@ void respondClient(void) {
 	char raw[62];
 	if (recv(AEM_FD_SOCK_CLIENT, raw, 62, 0) != 62) {
 		syslog(LOG_WARNING, "Manager Protocol: Failed recv: %m");
-		close(AEM_FD_SOCK_CLIENT);
 		return;
 	}
 
@@ -80,7 +79,6 @@ void respondClient(void) {
 		isPost = true;
 	} else {
 		syslog(LOG_WARNING, "Manager Protocol: Invalid request");
-		close(AEM_FD_SOCK_CLIENT);
 		return;		
 	}
 
