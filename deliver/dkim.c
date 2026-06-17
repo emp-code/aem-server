@@ -499,12 +499,12 @@ int verifyDkim(struct emailInfo * const email, const unsigned char * const src, 
 			     if (lenDkimSignature == 512) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_4096_SHA256;
 			else if (lenDkimSignature == 256) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_2048_SHA256;
 			else if (lenDkimSignature == 128) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_1024_SHA256;
-			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA256; syslog(LOG_INFO, "RSA-SHA256=%d", lenDkimSignature);}
+			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA256; syslog(LOG_INFO, "RSA-SHA256=%zu", lenDkimSignature);}
 		break;
 		case AEM_DKIM_RSA_512_SHA1:
 			     if (lenDkimSignature == 256) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_2048_SHA1;
 			else if (lenDkimSignature == 128) email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_1024_SHA1;
-			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA1; syslog(LOG_INFO, "RSA-SHA1=%d", lenDkimSignature);}
+			else if (lenDkimSignature != 64) {email->dkim[email->dkimCount].algo = AEM_DKIM_RSA_BAD_SHA1; syslog(LOG_INFO, "RSA-SHA1=%zu", lenDkimSignature);}
 		break;
 	}
 

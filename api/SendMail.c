@@ -50,7 +50,7 @@ int sendMail_tls_init(const unsigned char * const crt, const size_t lenCrt, cons
 	if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, key, lenKey, WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) return 15;
 
 	const int err = wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, "/ssl-certs/", WOLFSSL_LOAD_FLAG_IGNORE_ERR);
-	if (err != WOLFSSL_SUCCESS) {syslog(LOG_ERR, "Failed loading certs: %d"); return 16;}
+	if (err != WOLFSSL_SUCCESS) {syslog(LOG_ERR, "Failed loading certs: %d", err); return 16;}
 
 	bzero(ourDomain, AEM_MAXLEN_OURDOMAIN + 1);
 	memcpy(ourDomain, domain, lenDomain);

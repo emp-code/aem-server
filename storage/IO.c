@@ -368,7 +368,7 @@ int32_t api_message_browse(const unsigned char * const req, const size_t lenReq,
 	close(fd);
 
 	if (readBytes != evpBytes) {
-		if (readBytes >= 0) syslog(LOG_ERR, "Failed read: %d/%d", readBytes, evpBytes);
+		if (readBytes >= 0) syslog(LOG_ERR, "Failed read: %zd/%zd", readBytes, evpBytes);
 
 		if (readBytes < AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) {
 			free(*out);

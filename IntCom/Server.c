@@ -175,7 +175,7 @@ void intcom_serve(void) {
 			free(encRes);
 
 			if (sentBytes != resCode + crypto_aead_aegis256_ABYTES) {
-				syslog(LOG_ERR, "IntCom[S]: Failed sending message (%d/%d): %m", sentBytes, resCode + crypto_aead_aegis256_ABYTES);
+				syslog(LOG_ERR, "IntCom[S]: Failed sending message (%zd/%d): %m", sentBytes, resCode + crypto_aead_aegis256_ABYTES);
 				close(sockClient);
 				continue;
 			}
