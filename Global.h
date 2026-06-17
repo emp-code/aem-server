@@ -153,7 +153,7 @@ enum aem_internal_enquiry {
 // Misc
 #define AEM_STORAGE_LIMIT_STEP 16777216 // 16 MiB (4 GiB max)
 #define AEM_MAXLEN_OURDOMAIN 32
-#define AEM_MAXLEN_EXEC 163840 // 160 KiB
+#define AEM_MAXLEN_EXEC 524288 // 512 KiB
 #define AEM_MAXLEN_DATAFILE 99999
 
 // API commands
