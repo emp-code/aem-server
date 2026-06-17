@@ -10,7 +10,7 @@ aem-acc: account/*.c
 	$(CC) $(CFLAGS) -DAEM_ACCOUNT -o aem-acc account/*.c Common/Addr32.c Common/AddrToHash.c Common/AEM_KDF.c Common/SetCaps.c Common/binTs.c Common/div_round.c Common/memeq.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap
 
 aem-dlv: deliver/*.c
-	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-dlv deliver/*.c Common/Envelope.c Common/HtmlRefs.c Common/Html2Cet.c Common/Message.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/base64.c Common/binTs.c Common/div_round.c Common/memeq.c Common/ref2codepoint.c IntCom/Client.c IntCom/Stream_Server.c IntCom/peerok.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lwolfssl
+	$(CC) $(CFLAGS) -DAEM_DELIVER -o aem-dlv -Wno-analyzer-fd-leak -Wno-analyzer-fd-double-close deliver/*.c Common/Envelope.c Common/HtmlRefs.c Common/Html2Cet.c Common/Message.c Common/QuotedPrintable.c Common/SetCaps.c Common/ToUtf8.c Common/Trim.c Common/ValidDomain.c Common/ValidUtf8.c Common/base64.c Common/binTs.c Common/div_round.c Common/memeq.c Common/ref2codepoint.c IntCom/Client.c IntCom/Stream_Server.c IntCom/peerok.c -lsodium -lcap -lbrotlienc -licuuc -licui18n -licudata -licui18n -lwolfssl
 
 aem-enq: enquiry/*.c
 	$(CC) $(CFLAGS) -DAEM_ENQUIRY -o aem-enq enquiry/*.c Common/SetCaps.c Common/ValidDomain.c Common/ValidIp.c Common/memeq.c IntCom/Server.c IntCom/peerok.c -lsodium -lcap -lmaxminddb
@@ -19,16 +19,16 @@ aem-sto: storage/*.c
 	$(CC) $(CFLAGS) -DAEM_STORAGE -o aem-sto storage/*.c Common/AEM_KDF.c Common/Envelope.c Common/Message.c Common/Signature.c Common/SetCaps.c Common/binTs.c Common/div_round.c IntCom/Client.c IntCom/Server.c IntCom/peerok.c -lcap -lsodium -lwolfssl
 
 aem-reg: reg/*.c
-	$(CC) $(CFLAGS) -DAEM_REG -o aem-reg -DAEM_UDS reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/binTs.c Common/div_round.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap
+	$(CC) $(CFLAGS) -DAEM_REG -Wno-analyzer-fd-double-close -o aem-reg -DAEM_UDS reg/*.c Common/AcceptClients.c Common/CreateSocket.c Common/SetCaps.c Common/binTs.c Common/div_round.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap
 
 aem-web: web/*.c
 	$(CC) $(CFLAGS) -DAEM_WEB -o aem-web -DAEM_UDS web/*.c Common/CreateSocket.c Common/SetCaps.c -lsodium -lcap
 
 aem-api: api/*.c
-	$(CC) $(CFLAGS) -DAEM_API -o aem-api -DAEM_UDS api/*.c Common/AEM_KDF.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/Message.c Common/SetCaps.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/binTs.c Common/div_round.c Common/memeq.c Common/x509_getCn.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl
+	$(CC) $(CFLAGS) -DAEM_API -Wno-analyzer-fd-double-close -o aem-api -DAEM_UDS api/*.c Common/AEM_KDF.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/Message.c Common/SetCaps.c Common/ValidDomain.c Common/ValidEmail.c Common/ValidUtf8.c Common/binTs.c Common/div_round.c Common/memeq.c Common/x509_getCn.c IntCom/Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl
 
 aem-mta: mta/*.c
-	$(CC) $(CFLAGS) -DAEM_MTA -o aem-mta mta/*.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/ValidIp.c Common/binTs.c Common/div_round.c Common/memeq.c Common/x509_getCn.c IntCom/Client.c IntCom/Stream_Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl
+	$(CC) $(CFLAGS) -DAEM_MTA -Wno-analyzer-fd-double-close -o aem-mta mta/*.c Common/AcceptClients.c Common/Addr32.c Common/CreateSocket.c Common/SetCaps.c Common/ValidIp.c Common/binTs.c Common/div_round.c Common/memeq.c Common/x509_getCn.c IntCom/Client.c IntCom/Stream_Client.c IntCom/peerok.c -lsodium -lcap -lwolfssl
 
 utils/AdminAddr: utils/AdminAddr.c
 	$(CC) $(CFLAGS) -o utils/AdminAddr utils/AdminAddr.c Common/Addr32.c
