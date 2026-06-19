@@ -500,7 +500,7 @@ int32_t api_message_create(unsigned char * const res, const unsigned char reqDat
 			const uint16_t uid = hashToUid(hash, (reqData[10] & 128) != 0, &addrFlags);
 			if (uid == UINT16_MAX) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_NOTREG);
 			if (uid == api_uid) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_SELF);
-			if ((addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_DECLINE);
+			if (user[api_uid]->level != AEM_USERLEVEL_MAX && (addrFlags & AEM_ADDR_FLAG_ACCINT) == 0) return api_response_status(res, AEM_API_ERR_MESSAGE_CREATE_INT_TO_DECLINE);
 
 			memcpy(res, (const unsigned char*)&uid, sizeof(uint16_t));
 			return 2;
