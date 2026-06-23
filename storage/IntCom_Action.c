@@ -22,7 +22,7 @@ int32_t conn_acc(const uint32_t operation, const unsigned char * const msg, cons
 int32_t conn_api(const uint32_t operation, unsigned char * const msg, const size_t lenMsg, unsigned char **res) {
 	if (operation == AEM_INTCOM_OP_BROWSE_NEW) return api_message_browse(msg, lenMsg, res, true);
 	if (operation == AEM_INTCOM_OP_BROWSE_OLD) return api_message_browse(msg, lenMsg, res, false);
-	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation);
+	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation, AEM_STORAGE_SOURCE_API);
 	if (operation - AEM_USERCOUNT < AEM_USERCOUNT && lenMsg == 2) return storage_delete(operation - AEM_USERCOUNT, *(uint16_t*)msg);
 	if (operation - AEM_USERCOUNT < AEM_USERCOUNT && lenMsg == 1) return storage_empty(operation - AEM_USERCOUNT);
 
@@ -31,7 +31,7 @@ int32_t conn_api(const uint32_t operation, unsigned char * const msg, const size
 }
 
 int32_t conn_dlv(const uint32_t operation, unsigned char * const msg, const size_t lenMsg) {
-	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation);
+	if (operation < AEM_USERCOUNT) return storage_write(msg, lenMsg, operation, AEM_STORAGE_SOURCE_DLV);
 
 	syslog(LOG_ERR, "conn_dlv(): Invalid op: %u", operation);
 	return AEM_INTCOM_RESPONSE_ERR;

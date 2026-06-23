@@ -15,6 +15,7 @@
 #include "../Common/Envelope.h"
 #include "../Common/Message.h"
 #include "../Common/Signature.h"
+#include "../Common/binTs.h"
 #include "../Common/div_round.h"
 #include "../Common/memeq.h"
 #include "../IntCom/Client.h"
@@ -466,9 +467,32 @@ int32_t storage_delete(const uint16_t uid, const uint16_t delId) {
 	return AEM_INTCOM_RESPONSE_NOTEXIST;
 }
 
+static bool verifyMsg(const unsigned char * const msg, const size_t lenMsg, const int source) {
+	// Message size
+	if (lenMsg <= AEM_MSG_HDR_SZ || lenMsg > AEM_MSG_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message, size: %zu", lenMsg); return false;}
+
+	// Message type
+	if (source == AEM_STORAGE_SOURCE_API) {
+		if (
+		    (msg[26] & 48) == 0 // ExtMsg
+		|| ((msg[26] & 48) == 16 && (msg[32] & 192) == 0) // IntMsg, System
+		) {syslog(LOG_ERR, "Invalid incoming API message, type: %u; int=%u", msg[26] & 48, msg[32] & 192); return false;}
+	}
+
+	if (source == AEM_STORAGE_SOURCE_DLV && (msg[26] & 48) != 0 && (msg[26] & 48) != 48) {syslog(LOG_ERR, "Invalid incoming DLV message, type: %u", msg[26] & 48);  return false;}
+
+	// Message binTs
+	const uint64_t msgTs = ((uint64_t)(msg[26] & 192) >> 6) | ((uint64_t)(msg[27]) << 2) | ((uint64_t)(msg[28]) << 10) | ((uint64_t)(msg[29]) << 18) | ((uint64_t)(msg[30]) << 26) | ((uint64_t)(msg[31]) << 34);
+	const uint64_t nowTs = getBinTs();
+	if (nowTs > msgTs && nowTs - msgTs < AEM_STO_TIMEDIFF) return true;
+
+	syslog(LOG_ERR, "Invalid incoming message, time: %u - %u", nowTs, msgTs);
+	return false;
+}
+
 __attribute__((nonnull, warn_unused_result))
-int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid) {
-	if (lenMsg < (AEM_EVP_MINBLOCKS * AEM_EVP_BLOCKSIZE) || lenMsg > AEM_MSG_MAXSIZE) {syslog(LOG_ERR, "Invalid incoming message size: %zu", lenMsg); return AEM_INTCOM_RESPONSE_ERR;}
+int32_t storage_write(unsigned char * const msg, const size_t lenMsg, const uint16_t uid, const int source) {
+	if (!verifyMsg(msg, lenMsg, source)) return AEM_INTCOM_RESPONSE_ERR;
 	if (stindex_count[uid] == 0) {syslog(LOG_ERR, "Incoming message for nonexistent user: %u", uid); return AEM_INTCOM_RESPONSE_ERR;}
 
 	// Get the user's Envelope Keys from AEM-Account. sign the Message and turn it into an Envelope

@@ -2,6 +2,7 @@
 #define AEM_API_TIMEDIFF 5000 // +/- 5 seconds
 #define AEM_API_TIMEDIFF_UPL 60000 // +/- 60 seconds, for file uploads
 #define AEM_API_TIMEDIFF_REG 5000 // +/- 5 seconds, for user registrations
+#define AEM_STO_TIMEDIFF (AEM_API_TIMEDIFF_UPL + AEM_API_TIMEDIFF) // Time between message creation and reception by Storage
 
 // Minimum level required to send email
 #define AEM_MINLEVEL_SENDEMAIL 2
