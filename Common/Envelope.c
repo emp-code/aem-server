@@ -1,3 +1,4 @@
+#include <sys/param.h>
 #include <syslog.h>
 
 #include <sodium.h>
@@ -56,7 +57,9 @@ unsigned char *msg2evp(unsigned char * const msg, const size_t lenMsg, const uns
 	Aes aes;
 	wc_AesInit(&aes, NULL, INVALID_DEVID);
 
-	if (wc_AesSetKey(&aes, secret, crypto_kem_SHAREDSECRETBYTES, (unsigned char[16]){0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, AES_ENCRYPTION) != 0) {
+	// Use block count as nonce to harden against attackers who don't know the size (stored in the Stindex)
+	const int bc = MIN(UINT16_MAX, (*lenEvp / AEM_EVP_BLOCKSIZE) - AEM_EVP_MINBLOCKS);
+	if (wc_AesSetKey(&aes, secret, crypto_kem_SHAREDSECRETBYTES, (unsigned char[16]){0,0,0,0,0,0,0,0,0,0,0,0,0,0, bc & 255, bc >> 8}, AES_ENCRYPTION) != 0) {
 		syslog(LOG_ERR, "Failed Envelope setkey");
 		ok = false;
 	}
